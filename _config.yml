@@ -1,2 +1,3 @@
-	name: Edvin Listo Zec
-	markdown: kramdown
+name: Edvin Listo Zec
+markdown: kramdown
+permalink: /blog/:year/:month/:day/:title
