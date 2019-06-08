@@ -24,7 +24,7 @@ h1 {
     font-family:'Helvetica', 'Arial', 'Sans-Serif';
 }
 p {
-    font-size: 1.0em;
+    font-size: 1.3em;
     line-height: 1.4em;
     color: #333;
 }
@@ -32,7 +32,7 @@ p {
 p.blocktext {
     margin-left: auto;
     margin-right: auto;
-    width: 16em
+    width: 20em
 }
 
 footer {
@@ -50,7 +50,7 @@ ul.posts li {
 }
 img {
   border-radius: 8px;
-  max-width: 12.5%;
+  max-width: 15%;
   height: auto;
   float: right;
 }
