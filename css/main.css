@@ -28,6 +28,7 @@ h1 {
 h1.blocktext {
   margin-right: 75%;
   margin-left: 100%;
+  width: 30em
 }
 
 p {
