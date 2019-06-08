@@ -25,8 +25,8 @@ h1 {
     }
 
 h1.blocktext {
-  margin-right: 30em;
-  margin-left: 30em;
+  margin-right: auto;
+  margin-left: auto;
   width: 30em
 }
 
@@ -37,8 +37,8 @@ p {
 }
 
 p.blocktext {
-    margin-left: 30em;
-    margin-right: 30em;
+    margin-left: auto;
+    margin-right: auto;
     width: 30em
 }
 
