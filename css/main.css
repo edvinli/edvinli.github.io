@@ -32,7 +32,7 @@ p {
 p.blocktext {
     margin-left: auto;
     margin-right: auto;
-    width: 20em
+    width: 30em
 }
 
 footer {
@@ -52,5 +52,5 @@ img {
   border-radius: 8px;
   max-width: 15%;
   height: auto;
-  float: right;
+  float: left;
 }
