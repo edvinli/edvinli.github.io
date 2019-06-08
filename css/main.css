@@ -41,3 +41,9 @@ ul.posts {
 ul.posts li {
     list-style: none;
 }
+img {
+  border-radius: 8px;
+  max-width: 25%;
+  height: auto;
+  float: right;
+}
