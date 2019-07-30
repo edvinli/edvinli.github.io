@@ -14,20 +14,34 @@ nav ul li, footer ul li {
 }
 a {
     text-decoration: none;
-    color: #999;
+    color: #6842f4;
 }
 a:hover {
     text-decoration: underline;
 }
 h1 {
-    font-size: 3em;
+    font-size: 2.0em;
     font-family:'Helvetica', 'Arial', 'Sans-Serif';
+    }
+
+h1.blocktext {
+  margin-right: auto;
+  margin-left: auto;
+  width: auto;
 }
+
 p {
-    font-size: 1.0em;
+    font-size: 1.3em;
     line-height: 1.4em;
     color: #333;
 }
+
+p.blocktext {
+    margin-left: auto;
+    margin-right: auto;
+    width: auto;
+}
+
 footer {
     border-top: 1px solid #d5d5d5;
     font-size: .8em;
@@ -43,7 +57,7 @@ ul.posts li {
 }
 img {
   border-radius: 8px;
-  max-width: 25%;
+  max-width: 15%;
   height: auto;
   float: right;
 }
