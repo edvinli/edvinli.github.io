@@ -59,9 +59,7 @@ ul.posts li {
 
 img{width:auto;
     height:100px;
-    position:relative;
     top:-5%;
-    overflow:hidden;
     border-radius: 10px;
     float: right}
 
