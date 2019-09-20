@@ -57,9 +57,8 @@ ul.posts li {
     list-style: none;
 }
 
-img {
-  border-radius: 7px;
-  max-width: 11%;
-  height: auto;
-  float: right;
-}
+img{width:500px;
+    height:auto;
+    position:relative;
+    left:-25%;
+    top:-5%}
