@@ -32,7 +32,7 @@ h1.blocktext {
 }
 
 p {
-    font-size: 1.3em;
+    font-size: 16px;
     line-height: 1.4em;
     color: #333;
 }
@@ -56,9 +56,8 @@ ul.posts {
 ul.posts li {
     list-style: none;
 }
-img {
-  border-radius: 8px;
-  max-width: 15%;
-  height: auto;
-  float: right;
-}
+img{width:500px;
+    height:auto;
+    position:relative;
+    left:-25%;
+    top:-5%}
