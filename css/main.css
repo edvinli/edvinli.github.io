@@ -56,8 +56,10 @@ ul.posts {
 ul.posts li {
     list-style: none;
 }
-img{width:500px;
-    height:auto;
-    position:relative;
-    left:-25%;
-    top:-5%}
+
+img {
+  border-radius: 8px;
+  max-width: 13%;
+  height: auto;
+  float: right;
+}
