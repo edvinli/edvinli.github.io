@@ -58,9 +58,9 @@ ul.posts li {
 }
 
 img{width:auto;
-    height:12px;
+    height:100px;
     position:relative;
-    left:-25%;
-    top:-5%}
+    top:-5%;
+    overflow:hidden}
 
 
