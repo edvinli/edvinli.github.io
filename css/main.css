@@ -21,7 +21,7 @@ a:hover {
     text-decoration: underline;
 }
 h1 {
-    font-size: 2.0em;
+    font-size: 1.5em;
     font-family:'Helvetica', 'Arial', 'Sans-Serif';
     }
 
@@ -58,8 +58,8 @@ ul.posts li {
 }
 
 img {
-  border-radius: 8px;
-  max-width: 13%;
+  border-radius: 7px;
+  max-width: 11%;
   height: auto;
   float: right;
 }
