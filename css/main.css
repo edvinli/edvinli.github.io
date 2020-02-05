@@ -11,7 +11,8 @@ nav ul, footer ul {
 }
 nav ul li, footer ul li {
     display: inline;
-    margin-right: 40px;
+    margin-right: auto;
+    margin-left: auto;
 }
 a {
     text-decoration: none;
