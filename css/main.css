@@ -64,10 +64,8 @@ ul.posts li {
     list-style: none;
 }
 
-img{width:auto;
-    height:100px;
-    top:-5%;
+img{width:8%;
+    height:auto;
     border-radius: 10px;
     float: right;
-    margin: 10px;
 }
