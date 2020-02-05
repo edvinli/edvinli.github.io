@@ -1,6 +1,6 @@
 body {
     margin: 60px auto;
-    width: 90%;
+    width: 65%;
     -webkit-text-size-adjust:100%
 }
 nav ul, footer ul {
@@ -11,7 +11,8 @@ nav ul, footer ul {
 }
 nav ul li, footer ul li {
     display: inline;
-    margin-right: 20px;
+    margin-right: auto;
+    width: 90%
 }
 a {
     text-decoration: none;
