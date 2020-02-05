@@ -11,7 +11,7 @@ nav ul, footer ul {
 }
 nav ul li, footer ul li {
     display: inline;
-    margin-left: 4.5%;
+    margin-right: 10px;
 }
 a {
     text-decoration: none;
@@ -46,7 +46,6 @@ p.blocktext {
 footer {
     border-top: 1px solid #d5d5d5;
     font-size: .8em;
-    margin-left: 1.25%;
 }
 
 ul.posts { 
