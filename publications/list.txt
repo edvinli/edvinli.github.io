@@ -1,9 +1,0 @@
-Henrik Arnelid, Edvin Listo Zec, Nasser Mohammadiha Recurrent Conditional Generative Adversarial Networks for Autonomous Driving Sensor Modelling. 2019 22nd International Conference on Intelligent Transportation Systems (ITSC).
-
-Edvin Listo Zec, Olof Mogren Grammatical gender in Swedish is predictable using recurrent neural networks. 2019 Proceedings of the 15th Swecog Conference, pp 43-45.
-
-Edvin Listo Zec, Henrik Arnelid, Nasser Mohammadiha Recurrent Conditional GANs for Time Series Sensor Modelling. Presented at ICML Time Series Workshop 2019.
-
-Edvin Listo Zec, Nasser Mohammadiha, Alexander Schliep Statistical sensor modelling for autonomous driving using autoregressive input-output HMMs. 2018 21st International Conference on Intelligent Transportation Systems (ITSC).
-
-Edvin Listo Zec Probabilistic Modelling of Sensors in Autonomous Vehicles. Master thesis 2017.
