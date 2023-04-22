@@ -7,8 +7,6 @@ redirect_from:
   - /resume
 ---
 
-{% include base_path %}
-
 Education
 ======
 * Ph.D in Decentralized deep learning, KTH Royal Institute of Technology, 2021-
