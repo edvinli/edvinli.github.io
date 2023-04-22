@@ -15,7 +15,7 @@ Are you a student interested in doing a master thesis on deep learning? Feel fre
 * Out of distribution generalization
 * Deep learning for aerial and satellite data
 
-#List of students under my supervision during the work of their master thesis.
+## Supervised master theses
 ======
 - [2022] Karin Bergdahl [Impact of model architecture and data distribution on self-supervised federated learning](https://lup.lub.lu.se/luur/download?func=downloadFile&recordOId=9097019&fileOId=9097020)
 - [2021] Noa Onoszko and Gustav Karlsson [PENS: Leveraging Data Heterogeneity in Federated Learning](https://odr.chalmers.se/bitstream/20.500.12380/302702/1/Master_thesis_Noa_Onozsko_och_Gustav%20Karlsson.pdf)
