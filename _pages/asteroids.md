@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: archive
 title: "Asteroids"
 permalink: /asteroids/
 author_profile: true
