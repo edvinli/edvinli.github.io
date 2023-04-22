@@ -16,5 +16,6 @@ Education
 
 Work experience
 ======
+* Research visitor, NYU Center for Data Science, supervised by Kyunghyun Cho, 2023
 * Machine learning researcher, RISE Research Institutes of Sweden, 2019-
 * Machine learning engineer, Zenuity/Zenseact, 2017-2019
