@@ -8,7 +8,7 @@ redirect_from:
 ---
 
 {% include base_path %}
-
+======
 Education
 ======
 * Ph.D in Decentralized deep learning, KTH Royal Institute of Technology, 2021-
@@ -20,10 +20,3 @@ Work experience
 ======
 * Machine learning researcher, RISE Research Institutes of Sweden, 2019-
 * Machine learning engineer, Zenuity/Zenseact, 2017-2019
-
-Publications
-======
-  <ul>{% for post in site.publications %}
-    {% include archive-single-cv.html %}
-  {% endfor %}</ul>
-

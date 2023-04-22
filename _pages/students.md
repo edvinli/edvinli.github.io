@@ -9,7 +9,11 @@ redirect_from:
 
 {% include base_path %}
 
-Are you a student interested in doing a master thesis on deep learning? Feel free to contact me to discuss potential ideas.
+Are you a student interested in doing a master thesis on deep learning? Feel free to contact me to discuss potential ideas. Some topic suggestions are:
+
+* Federated and decentralized learning on non-iid data
+* Out of distribution generalization
+* Deep learning for aerial and satellite data
 
 List of students under my supervision during the work of their master thesis.
 

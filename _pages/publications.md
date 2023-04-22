@@ -11,8 +11,6 @@ author_profile: true
 
 {% include base_path %}
 
-# Publications
-
 - E. Ekblom, **E. Listo Zec**, O. Mogren [EFFGAN: Ensembles of fine-tuned federated GANs](https://arxiv.org/abs/2206.11682) 2022 arXiv preprint [bibtex](/_publications/ekblom2022effgan.html)
 - **E. Listo Zec**, E. Ekblom, M. Willbo, O. Mogren, S. Girdzijauskas [Decentralized adaptive clustering of deep nets is beneficial for client collaboration](https://arxiv.org/abs/2206.08839) FL-IJCAI'22: International Workshop on Trustworthy Federated Learning [bibtex](/_publications/zec2022decentralized.html)
 - M. Isaksson, **E. Listo Zec**, R. Cöster, D. Gillblad, S. Girdzijauskas [Adaptive Expert Models for Personalization in Federated Learning](https://arxiv.org/abs/2206.07832) FL-IJCAI'22: International Workshop on Trustworthy Federated Learning [bibtex](/_publications/isaksson2022adaptive.html)
