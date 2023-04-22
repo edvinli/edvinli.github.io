@@ -7,7 +7,7 @@
 
 # Site Settings
 locale                   : "en-US"
-title                    : "Edvin Listo Zec | Machine learning researcher"
+title                    : "Edvin Listo Zec"
 title_separator          : "-"
 name                     : &name "Edvin Listo Zec"
 description              : &description "Machine learning researcher"
