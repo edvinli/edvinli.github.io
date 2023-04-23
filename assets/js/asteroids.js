@@ -43,7 +43,8 @@ var ship = {
     turningRight: false, // whether the ship is turning right or not
     shooting: false, // whether the ship is shooting or not
     canShoot: true, // whether the ship can shoot or not (to prevent rapid fire)
-    alive: true // whether the ship is alive or not
+    alive: true, // whether the ship is alive or not
+    breaking: false // whether the ship is breaking or not
 };
 
 var bullets = []; // array of bullet objects
@@ -149,6 +150,29 @@ function drawShip() {
         // Stroke the path
         ctx.stroke();
     }
+    // If the ship is breaking, draw a blue flame behind it (instead of red)
+    if (ship.breaking) {
+        // Set the stroke color to blue
+        ctx.strokeStyle = COLOR_BLUE;
+
+        // Begin a new path
+        ctx.beginPath();
+
+        // Move to the bottom left of the ship
+        ctx.moveTo(-SHIP_SIZE / 2, -SHIP_SIZE / 3);
+
+        // Draw a line to a random point behind the ship
+        ctx.lineTo(-SHIP_SIZE / 2 - Math.random() * SHIP_SIZE / 2, 0);
+
+        // Draw a line to the bottom right of the ship
+        ctx.lineTo(-SHIP_SIZE / 2, SHIP_SIZE / 3);
+
+        // Close the path
+        ctx.closePath();
+
+        // Stroke the path
+        ctx.stroke();
+    }
 
     // Restore the context state
     ctx.restore();
@@ -216,6 +240,12 @@ function updateShip() {
     if (ship.thrusting) {
         ship.dx += SHIP_THRUST * Math.cos(ship.a);
         ship.dy += SHIP_THRUST * Math.sin(ship.a);
+    }
+
+    // If the ship is breaking, decrease its velocity by the thrust amount in the direction of its angle
+    if (ship.breaking) {
+        ship.dx -= SHIP_THRUST * Math.cos(ship.a);
+        ship.dy -= SHIP_THRUST * Math.sin(ship.a);
     }
     
     // Apply some friction to the ship's velocity to simulate drag
@@ -400,6 +430,11 @@ function keyDownHandler(event) {
         ship.thrusting = true;
     }
 
+    // If the down array key is pressed, set the ship's braking flag to true
+    if (keyCode == KEY_DOWN) {
+        ship.braking = true;
+    }
+
     // If the spacebar key is pressed, set the ship's shooting flag to true
     if (keyCode == KEY_SPACE) {
         ship.shooting = true;
@@ -423,6 +458,11 @@ function keyUpHandler(event) {
     // If the up arrow key is released, set the ship's thrusting flag to false
     if (keyCode == KEY_UP) {
         ship.thrusting = false;
+    }
+
+    // If the down array key is released, set the ship's braking flag to false
+    if (keyCode == KEY_DOWN) {
+        ship.braking = false;
     }
 
     // If the spacebar key is released, set the ship's shooting flag to false and its can shoot flag to true
