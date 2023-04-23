@@ -53,7 +53,8 @@ var ship = {
     canShoot: true, // whether the ship can shoot or not (to prevent rapid fire)
     alive: true, // whether the ship is alive or not
     breaking: false, // whether the ship is breaking or not
-    invincible: false // whether the ship is invincible or not
+    invincible: false, // whether the ship is invincible or not
+    invincibleTimer: 0 // timer for the invincibility
 };
 
 var bullets = []; // array of bullet objects
@@ -497,22 +498,44 @@ function checkPowerupCollision() {
             // Set the ship's invincible flag to true
             ship.invincible = true;
 
-            // Set a timeout to turn off the ship's invincible flag
-            setTimeout(function() {
-                ship.invincible = false;
-            }, POWERUP_DURATION);
-
             // Remove the powerup from the powerups array
             var index = powerUps.indexOf(powerup); // find the index of the powerup in the array
             if (index != -1) { // if the index is valid
                 powerUps.splice(index, 1); // remove the powerup from the array
             }
 
+            makeShipInvincible();
+
             // Break out of the loop
             break;
         }
     }
 }
+
+// Make ship invincible for POWERUP_DURATION frames
+function makeShipInvincible() {
+    // Set the ship's invincible flag to true
+    ship.invincible = true;
+
+    // Set the ship's invincibility timer to POWERUP_DURATION
+    ship.invincibleTimer = POWERUP_DURATION;
+}
+
+// Update the ship's invincibility timer
+function updateShipInvincibility() {
+    // If the ship is invincible
+    if (ship.invincible) {
+        // Decrease the ship's invincibility timer by one
+        ship.invincibleTimer--;
+
+        // If the ship's invincibility timer is zero
+        if (ship.invincibleTimer == 0) {
+            // Set the ship's invincible flag to false
+            ship.invincible = false;
+        }
+    }
+}
+
 
 // Check if a bullet is colliding with an asteroid
 function checkBulletCollision(bullet) {
@@ -715,6 +738,9 @@ function gameLoop() {
 
     // Check for collisions between the ship and the powerups
     checkPowerupCollision();
+
+    // Update the ship's invincibility
+    updateShipInvincibility();
 
     // Loop through all the bullets and check for collisions with the asteroids
     for (var i = 0; i < bullets.length; i++) {
