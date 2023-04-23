@@ -434,7 +434,7 @@ function updateAsteroid(asteroid) {
 }
 
 // Update the powerup's position and angle
-function updatePowerup(powerup) {
+function updatePowerUp(powerup) {
     // Update the powerup's position by adding its velocity
     powerup.x += powerup.dx;
     powerup.y += powerup.dy;
@@ -782,7 +782,7 @@ function gameLoop() {
             }
         });
     }
-    
+
     // Request the next animation frame
     requestAnimationFrame(gameLoop);
     }
