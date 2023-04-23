@@ -21,7 +21,7 @@ var ASTEROID_NUM = 5; // initial number of asteroids
 var SCORE = 0; // score
 var HIGH_SCORE = 0; // high score
 var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
-var POWER_UP_PROBA = 0.05; // chance of a power up spawning when an asteroid is destroyed
+var POWER_UP_PROBA = 0.3; // chance of a power up spawning when an asteroid is destroyed
 var POWERUP_DURATION = 300; // frames
 var POWER_UP_SIZE = 10; // pixels
 
@@ -691,6 +691,13 @@ function gameLoop() {
             var asteroid = asteroids[i]; // get the current asteroid
             drawAsteroid(asteroid);
             updateAsteroid(asteroid);
+        }
+
+        // Loop through all the powerups, draw and update them
+        for (var i = 0; i < powerUps.length; i++) {
+            var powerUp = powerUps[i]; // get the current powerup
+            drawPowerUp(powerUp);
+            updatePowerUp(powerUp);
         }
     
         // If ship is not invincible, check for collisions between the ship and the asteroids
