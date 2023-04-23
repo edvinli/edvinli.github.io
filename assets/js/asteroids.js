@@ -695,6 +695,9 @@ function restartGame() {
     // Reset the bullet array
     bullets = [];
 
+    // Reset the powerup array
+    powerUps = [];
+
     // Create new asteroids
     for (var i = 0; i < ASTEROID_NUM; i++) {
         createAsteroid();
