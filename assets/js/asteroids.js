@@ -119,18 +119,14 @@ function createPowerUp(x, y) {
         vertices: [] // array of vertex objects relative to the power up's center
     };
 
-    // Create a triangle for the power up shape
-    var angle = 0;
-    var radius = POWER_UP_SIZE / 2;
-    var x = Math.cos(angle) * radius; // x coordinate of the vertex relative to the power up's center
-    var y = Math.sin(angle) * radius; // y coordinate of the vertex relative to the power up's center
-
+    // Create vertices for a triangle shape
     var vertex = {
-        x: x,
-        y: y,
-        angle: angle,
-        radius: radius
+        x: 0,
+        y: -POWER_UP_SIZE / 2,
+        angle: -HALF_PI,
+        radius: POWER_UP_SIZE / 2
     };
+
     // Push the vertex to the power up's vertices array
     powerUp.vertices.push(vertex);
 
