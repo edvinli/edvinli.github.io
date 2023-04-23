@@ -505,32 +505,33 @@ function restartGame() {
     // Reset the score
     SCORE = 0;
 
-    // Set ship variable to a new ship object
-    var ship = {
-        x: canvas.width / 2, // x coordinate of the ship's center
-        y: canvas.height / 2, // y coordinate of the ship's center
-        a: -HALF_PI, // angle of the ship (0 is right, PI/2 is down)
-        dx: 0, // x velocity of the ship
-        dy: 0, // y velocity of the ship
-        thrusting: false, // whether the ship is thrusting or not
-        turningLeft: false, // whether the ship is turning left or not
-        turningRight: false, // whether the ship is turning right or not
-        shooting: false, // whether the ship is shooting or not
-        canShoot: true, // whether the ship can shoot or not (to prevent rapid fire)
-        alive: true, // whether the ship is alive or not
-        breaking: false // whether the ship is breaking or not
-    };
+    // Reset ship variables
+    ship.x = canvas.width / 2;
+    ship.y = canvas.height / 2;
+    ship.dx = 0;
+    ship.dy = 0;
+    ship.thrusting = false;
+    ship.breaking = false;
+    ship.alive = true;
+    ship.a = -HALF_PI;
+    ship.canShoot = true;
+    ship.turningLeft = false;
+    ship.turningRight = false;
+    ship.shooting = false;
 
-    // Set bullets variable to an empty array
-    var bullets = [];
+    // Reset the asteroid array
+    asteroids = [];
 
-    // Set asteroids variable to an empty array
-    var asteroids = [];
+    // Reset the bullet array
+    bullets = [];
 
     // Create new asteroids
     for (var i = 0; i < ASTEROID_NUM; i++) {
         createAsteroid();
     }
+
+    gameLoop(); // start the game loop
+
 }
 
 // The main game loop
