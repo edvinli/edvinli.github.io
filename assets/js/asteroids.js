@@ -567,8 +567,10 @@ function checkBulletCollision(bullet) {
                 createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2); // create another smaller asteroid at the same position with half the size
             }
 
-            // Create a powerup at the asteroid's position
-            createPowerUp(asteroid.x, asteroid.y);
+            // Create a powerup at the asteroid's position with probability POWERUP_PROBA
+            if (Math.random() < POWERUP_PROBA){
+                createPowerUp(asteroid.x, asteroid.y);
+            }
 
             //Add to the score
             SCORE += 10;
