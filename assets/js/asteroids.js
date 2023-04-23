@@ -21,7 +21,7 @@ var ASTEROID_NUM = 5; // initial number of asteroids
 var SCORE = 0; // score
 var HIGH_SCORE = 0; // high score
 var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
-var POWER_UP_PROBA = 0.3; // chance of a power up spawning when an asteroid is destroyed
+var POWERUP_PROBA = 0.3; // chance of a power up spawning when an asteroid is destroyed
 var POWERUP_DURATION = 300; // frames
 var POWER_UP_SIZE = 10; // pixels
 
@@ -540,6 +540,10 @@ function checkBulletCollision(bullet) {
                 createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2); // create a smaller asteroid at the same position with half the size
                 createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2); // create another smaller asteroid at the same position with half the size
             }
+
+            // Create a powerup at the asteroid's position
+            createPowerUp(asteroid.x, asteroid.y);
+
             //Add to the score
             SCORE += 10;
 
