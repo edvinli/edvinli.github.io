@@ -150,6 +150,7 @@ function drawShip() {
         // Stroke the path
         ctx.stroke();
     }
+
     // If the ship is breaking, draw a blue flame behind it (instead of red)
     if (ship.breaking) {
         // Set the stroke color to blue
@@ -432,7 +433,7 @@ function keyDownHandler(event) {
 
     // If the down array key is pressed, set the ship's braking flag to true
     if (keyCode == KEY_DOWN) {
-        ship.braking = true;
+        ship.breaking = true;
     }
 
     // If the spacebar key is pressed, set the ship's shooting flag to true
