@@ -505,54 +505,30 @@ function restartGame() {
     // Reset the score
     SCORE = 0;
 
-    // Reset the ship
+    // Set ship variable to a new ship object
+    var ship = {
+        x: canvas.width / 2, // x coordinate of the ship's center
+        y: canvas.height / 2, // y coordinate of the ship's center
+        a: -HALF_PI, // angle of the ship (0 is right, PI/2 is down)
+        dx: 0, // x velocity of the ship
+        dy: 0, // y velocity of the ship
+        thrusting: false, // whether the ship is thrusting or not
+        turningLeft: false, // whether the ship is turning left or not
+        turningRight: false, // whether the ship is turning right or not
+        shooting: false, // whether the ship is shooting or not
+        canShoot: true, // whether the ship can shoot or not (to prevent rapid fire)
+        alive: true, // whether the ship is alive or not
+        breaking: false // whether the ship is breaking or not
+    };
 
-    // Set the ship's alive flag to true
-    ship.alive = true;
+    // Set bullets variable to an empty array
+    var bullets = [];
 
-    // Set the ship's x and y position to the center of the screen
-    ship.x = canvas.width / 2;
-    ship.y = canvas.height / 2;
+    // Set asteroids variable to an empty array
+    var asteroids = [];
 
-    // Set the ship's x and y velocity to 0
-    ship.vx = 0;
-    ship.vy = 0;
-
-    // Set the ship's angle to 0
-    ship.angle = 0;
-
-    // Set the ship's size to the default size
-    ship.size = SHIP_SIZE;
-
-    // Reset the ship's thruster
-
-    // Set the ship's thruster's on flag to false
-    ship.thruster.on = false;
-
-    // Set the ships break flag to false
-    ship.breaking = false;
-
-    // Reset the ship's bullets
-
-    // Set the ship's bullets array to an empty array
-    ship.bullets = [];
-
-    // Set the ship's shooting flag to false
-    ship.shooting = false;
-
-    // Set the ship's can shoot flag to true
-    ship.canShoot = true;
-
-    // Reset the asteroids
-
-    // Set the asteroids array to an empty array
-    asteroids = [];
-
-    // Create the asteroids
-
-    // Create the large asteroids
+    // Create new asteroids
     for (var i = 0; i < ASTEROID_NUM; i++) {
-        // Create the asteroid
         createAsteroid();
     }
 }
