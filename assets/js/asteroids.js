@@ -482,6 +482,14 @@ function keyUpHandler(event) {
 document.addEventListener("keydown", keyDownHandler, false);
 document.addEventListener("keyup", keyUpHandler, false);
 
+// Prevent the keys from scrolling the page
+window.addEventListener("keydown", function(e) {
+    // space and arrow keys
+    if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+      e.preventDefault();
+    }
+  }, false);
+
 // The main game loop
 function gameLoop() {
     // Clear the canvas
