@@ -112,6 +112,7 @@ function createPowerUp(x, y) {
     var powerUp = {
         x: x,
         y: y,
+        size: POWER_UP_SIZE,
         dx: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random x velocity with random direction
         dy: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random y velocity with random direction
         a: Math.random() * TWO_PI, // random angle
