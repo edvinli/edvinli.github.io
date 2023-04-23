@@ -492,11 +492,6 @@ function checkPowerupCollision() {
 
         // If the distance is less than the sum of their radii, they are colliding
         if (distance < SHIP_SIZE / 2 + powerup.size / 2) {
-            // Remove the powerup from the powerups array
-            var index = powerUps.indexOf(powerup); // find the index of the powerup in the array
-            if (index != -1) { // if the index is valid
-                powerUps.splice(index, 1); // remove the powerup from the array
-            }
 
             // Set the ship's invincible flag to true
             ship.invincible = true;
@@ -505,6 +500,12 @@ function checkPowerupCollision() {
             setTimeout(function() {
                 ship.invincible = false;
             }, POWERUP_DURATION);
+
+            // Remove the powerup from the powerups array
+            var index = powerUps.indexOf(powerup); // find the index of the powerup in the array
+            if (index != -1) { // if the index is valid
+                powerUps.splice(index, 1); // remove the powerup from the array
+            }
 
             // Break out of the loop
             break;
@@ -659,6 +660,7 @@ function restartGame() {
     ship.turningLeft = false;
     ship.turningRight = false;
     ship.shooting = false;
+    ship.invincible = false;
 
     // Reset the asteroid array
     asteroids = [];
