@@ -23,7 +23,7 @@ var HIGH_SCORE = 0; // high score
 var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
 var POWERUP_PROBA = 0.3; // chance of a power up spawning when an asteroid is destroyed
 var POWERUP_DURATION = 300; // frames
-var POWER_UP_SIZE = 10; // pixels
+var POWER_UP_SIZE = 20; // pixels
 
 // Define some colors
 var COLOR_BLACK = "black";
