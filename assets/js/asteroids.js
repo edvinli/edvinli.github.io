@@ -688,6 +688,7 @@ function restartGame() {
     ship.turningRight = false;
     ship.shooting = false;
     ship.invincible = false;
+    ship.invincibleTimer = 0;
 
     // Reset the asteroid array
     asteroids = [];
