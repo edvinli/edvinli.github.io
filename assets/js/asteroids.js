@@ -765,6 +765,13 @@ function gameLoop() {
     ctx.textBaseline = "top";
     ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
 
+    // Draw the powerup timer
+    ctx.fillStyle = COLOR_GREEN;
+    ctx.font = "20px Arial";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+    ctx.fillText("Powerup Timer: " + ship.invincibleTimer, canvas.width - 10, 10);
+
     // With probability create a new asteroid
     if (Math.random() < ASTEROID_PROBA) {
         //if MAX_ASTEROIDS is not reached, create a new asteroid
