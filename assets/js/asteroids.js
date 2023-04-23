@@ -24,6 +24,7 @@ var COLOR_BLACK = "black";
 var COLOR_WHITE = "white";
 var COLOR_RED = "red";
 var COLOR_GREEN = "green";
+var COLOR_BLUE = "blue";
 
 // Define some keys
 var KEY_LEFT = 37;
