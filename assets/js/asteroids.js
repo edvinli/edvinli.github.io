@@ -21,6 +21,9 @@ var ASTEROID_NUM = 5; // initial number of asteroids
 var SCORE = 0; // score
 var HIGH_SCORE = 0; // high score
 var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
+var POWER_UP_PROBA = 0.05; // chance of a power up spawning when an asteroid is destroyed
+var POWERUP_DURATION = 300; // frames
+var POWER_UP_SIZE = 10; // pixels
 
 // Define some colors
 var COLOR_BLACK = "black";
@@ -49,12 +52,15 @@ var ship = {
     shooting: false, // whether the ship is shooting or not
     canShoot: true, // whether the ship can shoot or not (to prevent rapid fire)
     alive: true, // whether the ship is alive or not
-    breaking: false // whether the ship is breaking or not
+    breaking: false, // whether the ship is breaking or not
+    invincible: false // whether the ship is invincible or not
 };
 
 var bullets = []; // array of bullet objects
 
 var asteroids = []; // array of asteroid objects
+
+var powerUps = []; // array of power up objects
 
 // Create some asteroids randomly
 for (var i = 0; i < ASTEROID_NUM; i++) {
@@ -100,6 +106,38 @@ function createAsteroid(x, y, size) {
     asteroids.push(asteroid);
 }
 
+// Create a new power up object and push it to the power ups array
+function createPowerUp(x, y) {
+    // Create a power up object where the asteroid was destroyed
+    var powerUp = {
+        x: x,
+        y: y,
+        dx: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random x velocity with random direction
+        dy: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random y velocity with random direction
+        a: Math.random() * TWO_PI, // random angle
+        da: Math.random() * 0.02 * (Math.random() < 0.5 ? -1 : 1), // random angular velocity with random direction
+        vertices: [] // array of vertex objects relative to the power up's center
+    };
+
+    // Create a triangle for the power up shape
+    var angle = 0;
+    var radius = POWER_UP_SIZE / 2;
+    var x = Math.cos(angle) * radius; // x coordinate of the vertex relative to the power up's center
+    var y = Math.sin(angle) * radius; // y coordinate of the vertex relative to the power up's center
+
+    var vertex = {
+        x: x,
+        y: y,
+        angle: angle,
+        radius: radius
+    };
+    // Push the vertex to the power up's vertices array
+    powerUp.vertices.push(vertex);
+
+    // Push the power up to the power ups array
+    powerUps.push(powerUp);
+}
+
 // Draw the ship on the canvas
 function drawShip() {
     // Save the current context state
@@ -111,8 +149,8 @@ function drawShip() {
     // Rotate the context to the ship's angle
     ctx.rotate(ship.a);
 
-    // Set the stroke color to white
-    ctx.strokeStyle = COLOR_WHITE;
+    // Set the stroke color to green if invincible, white otherwise
+    ctx.strokeStyle = ship.invincible ? COLOR_GREEN : COLOR_WHITE;
 
     // Begin a new path
     ctx.beginPath();
@@ -218,6 +256,41 @@ function drawAsteroid(asteroid) {
     // Loop through the rest of the vertices and draw lines to them
     for (var i = 1; i < asteroid.vertices.length; i++) {
         ctx.lineTo(asteroid.vertices[i].x, asteroid.vertices[i].y);
+    }
+
+    // Close the path
+    ctx.closePath();
+
+    // Stroke the path
+    ctx.stroke();
+
+    // Restore the context state
+    ctx.restore();
+}
+
+// Draw a power up on the canvas
+function drawPowerUp(powerUp) {
+    // Save the current context state
+    ctx.save();
+
+    // Translate the context to the power up's center
+    ctx.translate(powerUp.x, powerUp.y);
+
+    // Rotate the context to the power up's angle
+    ctx.rotate(powerUp.a);
+
+    // Set the stroke color to green
+    ctx.strokeStyle = COLOR_GREEN;
+
+    // Begin a new path
+    ctx.beginPath();
+
+    // Move to the first vertex of the power up
+    ctx.moveTo(powerUp.vertices[0].x, powerUp.vertices[0].y);
+
+    // Loop through the rest of the vertices and draw lines to them
+    for (var i = 1; i < powerUp.vertices.length; i++) {
+        ctx.lineTo(powerUp.vertices[i].x, powerUp.vertices[i].y);
     }
 
     // Close the path
@@ -359,6 +432,30 @@ function updateAsteroid(asteroid) {
     asteroid.a += asteroid.da;
 }
 
+// Update the powerup's position and angle
+function updatePowerup(powerup) {
+    // Update the powerup's position by adding its velocity
+    powerup.x += powerup.dx;
+    powerup.y += powerup.dy;
+
+    // Wrap the powerup around the edges of the canvas
+    if (powerup.x < 0) {
+        powerup.x = canvas.width;
+    }
+    if (powerup.x > canvas.width) {
+        powerup.x = 0;
+    }
+    if (powerup.y < 0) {
+        powerup.y = canvas.height;
+    }
+    if (powerup.y > canvas.height) {
+        powerup.y = 0;
+    }
+
+    // Update the powerup's angle by adding its angular velocity
+    powerup.a += powerup.da;
+}
+
 // Check if the ship is colliding with an asteroid
 function checkShipCollision() {
     // Loop through all the asteroids
@@ -374,6 +471,39 @@ function checkShipCollision() {
         if (distance < SHIP_SIZE / 2 + asteroid.size / 2) {
             // Set the ship's alive flag to false
             ship.alive = false;
+
+            // Break out of the loop
+            break;
+        }
+    }
+}
+
+// Check if the ship is colliding with a powerup
+function checkPowerupCollision() {
+    // Loop through all the powerups
+    for (var i = 0; i < powerups.length; i++) {
+        var powerup = powerups[i]; // get the current powerup
+
+        // Calculate the distance between the ship and the powerup
+        var dx = ship.x - powerup.x;
+        var dy = ship.y - powerup.y;
+        var distance = Math.sqrt(dx * dx + dy * dy); // use Pythagoras' theorem
+
+        // If the distance is less than the sum of their radii, they are colliding
+        if (distance < SHIP_SIZE / 2 + powerup.size / 2) {
+            // Remove the powerup from the powerups array
+            var index = powerups.indexOf(powerup); // find the index of the powerup in the array
+            if (index != -1) { // if the index is valid
+                powerups.splice(index, 1); // remove the powerup from the array
+            }
+
+            // Set the ship's invincible flag to true
+            ship.invincible = true;
+
+            // Set a timeout to turn off the ship's invincible flag
+            setTimeout(function() {
+                ship.invincible = false;
+            }, POWERUP_DURATION);
 
             // Break out of the loop
             break;
@@ -563,8 +693,13 @@ function gameLoop() {
             updateAsteroid(asteroid);
         }
     
-        // Check for collisions between the ship and the asteroids
-        checkShipCollision();
+        // If ship is not invincible, check for collisions between the ship and the asteroids
+        if (!ship.invincible){
+            checkShipCollision();
+        }
+
+        // Check for collisions between the ship and the powerups
+        checkPowerupCollision();
     
         // Loop through all the bullets and check for collisions with the asteroids
         for (var i = 0; i < bullets.length; i++) {
@@ -586,8 +721,8 @@ function gameLoop() {
         ctx.textBaseline = "top";
         ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
 
-        // With probability 1/200 create a new asteroid
-        if (Math.random() < 1 / 200) {
+        // With probability create a new asteroid
+        if (Math.random() < 1 / 500) {
             //if MAX_ASTEROIDS is not reached, create a new asteroid
             if (asteroids.length < MAX_ASTEROIDS){
                 createAsteroid();
