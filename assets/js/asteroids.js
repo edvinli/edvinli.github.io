@@ -691,100 +691,100 @@ function gameLoop() {
         updateBullet(bullet);
     }
 
-        // Loop through all the asteroids, draw and update them
-        for (var i = 0; i < asteroids.length; i++) {
-            var asteroid = asteroids[i]; // get the current asteroid
-            drawAsteroid(asteroid);
-            updateAsteroid(asteroid);
-        }
+    // Loop through all the asteroids, draw and update them
+    for (var i = 0; i < asteroids.length; i++) {
+        var asteroid = asteroids[i]; // get the current asteroid
+        drawAsteroid(asteroid);
+        updateAsteroid(asteroid);
+    }
 
-        // Loop through all the powerups, draw and update them
-        for (var i = 0; i < powerUps.length; i++) {
-            var powerUp = powerUps[i]; // get the current powerup
-            drawPowerUp(powerUp);
-            updatePowerUp(powerUp);
-        }
+    // Loop through all the powerups, draw and update them
+    for (var i = 0; i < powerUps.length; i++) {
+        var powerUp = powerUps[i]; // get the current powerup
+        drawPowerUp(powerUp);
+        updatePowerUp(powerUp);
+    }
     
-        // If ship is not invincible, check for collisions between the ship and the asteroids
-        if (!ship.invincible){
-            checkShipCollision();
-        }
+    // If ship is not invincible, check for collisions between the ship and the asteroids
+    if (!ship.invincible){
+        checkShipCollision();
+    }
 
-        // Check for collisions between the ship and the powerups
-        checkPowerupCollision();
+    // Check for collisions between the ship and the powerups
+    checkPowerupCollision();
+
+    // Loop through all the bullets and check for collisions with the asteroids
+    for (var i = 0; i < bullets.length; i++) {
+        var bullet = bullets[i]; // get the current bullet
+        checkBulletCollision(bullet);
+    }
+
+    // Draw the score
+    ctx.fillStyle = COLOR_WHITE;
+    ctx.font = "20px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("Score: " + SCORE, 10, 10);
+
+    // Draw the high score
+    ctx.fillStyle = COLOR_RED;
+    ctx.font = "20px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
+
+    // With probability create a new asteroid
+    if (Math.random() < 1 / 500) {
+        //if MAX_ASTEROIDS is not reached, create a new asteroid
+        if (asteroids.length < MAX_ASTEROIDS){
+            createAsteroid();
+        }
+    }
     
-        // Loop through all the bullets and check for collisions with the asteroids
-        for (var i = 0; i < bullets.length; i++) {
-            var bullet = bullets[i]; // get the current bullet
-            checkBulletCollision(bullet);
-        }
+    // If there are no more asteroids, the game is won
+    if (asteroids.length == 0) {
+        // Set the fill color to green
+        ctx.fillStyle = COLOR_GREEN;
 
-        // Draw the score
+        // Fill a text at the center of the canvas saying "You win!"
+        ctx.font = "50px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("You win!", canvas.width / 2, canvas.height / 2);
+    }
+
+    // If the ship is not alive, the game is over
+    if (!ship.alive) {
+        // Set the fill color to red
+        ctx.fillStyle = COLOR_RED;
+
+        // Fill a text at the center of the canvas saying "Game over"
+        ctx.font = "50px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Game over", canvas.width / 2, canvas.height / 2);
+
+        // Create a restart button
         ctx.fillStyle = COLOR_WHITE;
         ctx.font = "20px Arial";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        ctx.fillText("Score: " + SCORE, 10, 10);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Restart", canvas.width / 2, canvas.height / 2 + 50);
 
-        // Draw the high score
-        ctx.fillStyle = COLOR_RED;
-        ctx.font = "20px Arial";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
+        // If the mouse is clicked
+        canvas.addEventListener("mousedown", function(event) {
+            // Get the mouse position
+            var mousePos = getMousePos(canvas, event);
 
-        // With probability create a new asteroid
-        if (Math.random() < 1 / 500) {
-            //if MAX_ASTEROIDS is not reached, create a new asteroid
-            if (asteroids.length < MAX_ASTEROIDS){
-                createAsteroid();
+            // If the mouse is clicked on the restart button
+            if (mousePos.x > canvas.width / 2 - 50 && mousePos.x < canvas.width / 2 + 50 && mousePos.y > canvas.height / 2 + 40 && mousePos.y < canvas.height / 2 + 60) {
+                restartGame(); // restart the game
             }
-        }
+        });
+    }
     
-        // If there are no more asteroids, the game is won
-        if (asteroids.length == 0) {
-            // Set the fill color to green
-            ctx.fillStyle = COLOR_GREEN;
-    
-            // Fill a text at the center of the canvas saying "You win!"
-            ctx.font = "50px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("You win!", canvas.width / 2, canvas.height / 2);
-        }
-    
-        // If the ship is not alive, the game is over
-        if (!ship.alive) {
-            // Set the fill color to red
-            ctx.fillStyle = COLOR_RED;
-    
-            // Fill a text at the center of the canvas saying "Game over"
-            ctx.font = "50px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("Game over", canvas.width / 2, canvas.height / 2);
-
-            // Create a restart button
-            ctx.fillStyle = COLOR_WHITE;
-            ctx.font = "20px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("Restart", canvas.width / 2, canvas.height / 2 + 50);
-
-            // If the mouse is clicked
-            canvas.addEventListener("mousedown", function(event) {
-                // Get the mouse position
-                var mousePos = getMousePos(canvas, event);
-
-                // If the mouse is clicked on the restart button
-                if (mousePos.x > canvas.width / 2 - 50 && mousePos.x < canvas.width / 2 + 50 && mousePos.y > canvas.height / 2 + 40 && mousePos.y < canvas.height / 2 + 60) {
-                    restartGame(); // restart the game
-                }
-            });
-        }
-
-        // Request the next animation frame
-        requestAnimationFrame(gameLoop);
+    // Request the next animation frame
+    requestAnimationFrame(gameLoop);
     }
     
     // Start the game loop
