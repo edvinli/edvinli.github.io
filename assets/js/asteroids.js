@@ -19,6 +19,7 @@ var ASTEROID_VERTICES = 10; // number of vertices per asteroid
 var ASTEROID_JAGGEDNESS = 0.5; // how jagged the asteroids are (0 to 1)
 var ASTEROID_NUM = 5; // initial number of asteroids
 var SCORE = 0; // score
+var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
 
 // Define some colors
 var COLOR_BLACK = "black";
@@ -532,9 +533,12 @@ function gameLoop() {
         ctx.textBaseline = "top";
         ctx.fillText("Score: " + SCORE, 10, 10);
 
-        // With probability 1/50 create a new asteroid
-        if (Math.random() < 1 / 50) {
-            createAsteroid();
+        // With probability 1/200 create a new asteroid
+        if (Math.random() < 1 / 200) {
+            //if MAX_ASTEROIDS is not reached, create a new asteroid
+            if (asteroids.length < MAX_ASTEROIDS){
+                createAsteroid();
+            }
         }
     
         // If there are no more asteroids, the game is won
