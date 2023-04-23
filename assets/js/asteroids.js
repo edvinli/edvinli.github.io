@@ -529,9 +529,6 @@ function restartGame() {
     for (var i = 0; i < ASTEROID_NUM; i++) {
         createAsteroid();
     }
-
-    gameLoop(); // start the game loop
-
 }
 
 // The main game loop
@@ -621,8 +618,7 @@ function gameLoop() {
 
                 // If the mouse is clicked on the restart button
                 if (mousePos.x > canvas.width / 2 - 50 && mousePos.x < canvas.width / 2 + 50 && mousePos.y > canvas.height / 2 + 40 && mousePos.y < canvas.height / 2 + 60) {
-                    // Restart the game
-                    restartGame();
+                    restartGame(); // restart the game
                 }
             });
         }
