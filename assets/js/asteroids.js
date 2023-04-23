@@ -433,7 +433,7 @@ function keyDownHandler(event) {
         ship.thrusting = true;
     }
 
-    // If the down array key is pressed, set the ship's braking flag to true
+    // If the down array key is pressed, set the ship's breaking flag to true
     if (keyCode == KEY_DOWN) {
         ship.breaking = true;
     }
@@ -463,9 +463,9 @@ function keyUpHandler(event) {
         ship.thrusting = false;
     }
 
-    // If the down array key is released, set the ship's braking flag to false
+    // If the down array key is released, set the ship's breaking flag to false
     if (keyCode == KEY_DOWN) {
-        ship.braking = false;
+        ship.breaking = false;
     }
 
     // If the spacebar key is released, set the ship's shooting flag to false and its can shoot flag to true
