@@ -18,6 +18,7 @@ var ASTEROID_SIZE = 50; // pixels
 var ASTEROID_VERTICES = 10; // number of vertices per asteroid
 var ASTEROID_JAGGEDNESS = 0.5; // how jagged the asteroids are (0 to 1)
 var ASTEROID_NUM = 5; // initial number of asteroids
+var SCORE = 0; // score
 
 // Define some colors
 var COLOR_BLACK = "black";
@@ -407,6 +408,8 @@ function checkBulletCollision(bullet) {
                 createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2); // create a smaller asteroid at the same position with half the size
                 createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2); // create another smaller asteroid at the same position with half the size
             }
+            //Add to the score
+            SCORE += 10;
 
             // Break out of the loop
             break;
@@ -513,6 +516,13 @@ function gameLoop() {
             var bullet = bullets[i]; // get the current bullet
             checkBulletCollision(bullet);
         }
+
+        // Draw the score
+        ctx.fillStyle = COLOR_WHITE;
+        ctx.font = "20px Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText("Score: " + SCORE, 10, 10);
     
         // If there are no more asteroids, the game is won
         if (asteroids.length == 0) {
