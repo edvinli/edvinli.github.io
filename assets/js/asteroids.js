@@ -21,9 +21,10 @@ var ASTEROID_NUM = 5; // initial number of asteroids
 var SCORE = 0; // score
 var HIGH_SCORE = 0; // high score
 var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
-var POWERUP_PROBA = 0.025; // chance of a power up spawning when an asteroid is destroyed
+var POWERUP_PROBA = 0.035; // chance of a power up spawning when an asteroid is destroyed
 var POWERUP_DURATION = 500; // frames
 var POWER_UP_SIZE = 20; // pixels
+var ASTEROID_PROBA = 1/400; // chance of an asteroid spawning every frame
 
 // Define some colors
 var COLOR_BLACK = "black";
@@ -765,7 +766,7 @@ function gameLoop() {
     ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
 
     // With probability create a new asteroid
-    if (Math.random() < 1 / 500) {
+    if (Math.random() < ASTEROID_PROBA) {
         //if MAX_ASTEROIDS is not reached, create a new asteroid
         if (asteroids.length < MAX_ASTEROIDS){
             createAsteroid();
