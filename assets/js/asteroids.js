@@ -19,6 +19,7 @@ var ASTEROID_VERTICES = 10; // number of vertices per asteroid
 var ASTEROID_JAGGEDNESS = 0.5; // how jagged the asteroids are (0 to 1)
 var ASTEROID_NUM = 5; // initial number of asteroids
 var SCORE = 0; // score
+var HIGH_SCORE = 0; // high score
 var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
 
 // Define some colors
@@ -412,6 +413,11 @@ function checkBulletCollision(bullet) {
             //Add to the score
             SCORE += 10;
 
+            // Update the high score
+            if (SCORE > HIGH_SCORE) {
+                HIGH_SCORE = SCORE;
+            }
+
             // Break out of the loop
             break;
         }
@@ -572,6 +578,13 @@ function gameLoop() {
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         ctx.fillText("Score: " + SCORE, 10, 10);
+
+        // Draw the high score
+        ctx.fillStyle = COLOR_RED;
+        ctx.font = "20px Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
 
         // With probability 1/200 create a new asteroid
         if (Math.random() < 1 / 200) {
