@@ -491,6 +491,72 @@ window.addEventListener("keydown", function(e) {
     }
   }, false);
 
+// Get mouse position
+function getMousePos(canvas, event) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+        x: event.clientX - rect.left, // get the x coordinate of the mouse relative to the canvas
+        y: event.clientY - rect.top // get the y coordinate of the mouse relative to the canvas
+    };
+}
+
+// Restart the game
+function restartGame() {
+    // Reset the score
+    SCORE = 0;
+
+    // Reset the ship
+
+    // Set the ship's alive flag to true
+    ship.alive = true;
+
+    // Set the ship's x and y position to the center of the screen
+    ship.x = canvas.width / 2;
+    ship.y = canvas.height / 2;
+
+    // Set the ship's x and y velocity to 0
+    ship.vx = 0;
+    ship.vy = 0;
+
+    // Set the ship's angle to 0
+    ship.angle = 0;
+
+    // Set the ship's size to the default size
+    ship.size = SHIP_SIZE;
+
+    // Reset the ship's thruster
+
+    // Set the ship's thruster's on flag to false
+    ship.thruster.on = false;
+
+    // Set the ships break flag to false
+    ship.breaking = false;
+
+    // Reset the ship's bullets
+
+    // Set the ship's bullets array to an empty array
+    ship.bullets = [];
+
+    // Set the ship's shooting flag to false
+    ship.shooting = false;
+
+    // Set the ship's can shoot flag to true
+    ship.canShoot = true;
+
+    // Reset the asteroids
+
+    // Set the asteroids array to an empty array
+    asteroids = [];
+
+    // Create the asteroids
+
+    // Create the large asteroids
+    for (var i = 0; i < ASTEROID_NUM; i++) {
+        // Create the asteroid
+        createAsteroid();
+    }
+}
+
 // The main game loop
 function gameLoop() {
     // Clear the canvas
@@ -563,8 +629,27 @@ function gameLoop() {
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText("Game over", canvas.width / 2, canvas.height / 2);
+
+            // Create a restart button
+            ctx.fillStyle = COLOR_WHITE;
+            ctx.font = "20px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("Restart", canvas.width / 2, canvas.height / 2 + 50);
+
+            // If the mouse is clicked
+            canvas.addEventListener("mousedown", function(event) {
+                // Get the mouse position
+                var mousePos = getMousePos(canvas, event);
+
+                // If the mouse is clicked on the restart button
+                if (mousePos.x > canvas.width / 2 - 50 && mousePos.x < canvas.width / 2 + 50 && mousePos.y > canvas.height / 2 + 40 && mousePos.y < canvas.height / 2 + 60) {
+                    // Restart the game
+                    restartGame();
+                }
+            });
         }
-    
+
         // Request the next animation frame
         requestAnimationFrame(gameLoop);
     }
