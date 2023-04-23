@@ -531,6 +531,11 @@ function gameLoop() {
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         ctx.fillText("Score: " + SCORE, 10, 10);
+
+        // With probability 1/50 create a new asteroid
+        if (Math.random() < 1 / 50) {
+            createAsteroid();
+        }
     
         // If there are no more asteroids, the game is won
         if (asteroids.length == 0) {
