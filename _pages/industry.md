@@ -1,3 +1,10 @@
+---
+layout: archive
+title: "Industry projects"
+permalink: /industry/
+author_profile: true
+---
+
 ## Industry projects
 
 Below follows a list of some industry projects I've been part of.
