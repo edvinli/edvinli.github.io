@@ -12,6 +12,6 @@ I am a deep learning researcher at RISE Research Institutes of Sweden and a PhD 
 
 ## Research
 
-My research is focused on representation learning using deep nets in decentralized and federated systems. I'm especially interested in understanding out of distribution generalization. Beyond this, I have an interest in applying ML to solve problems related to sustainability and climate change. I am always open for collaborations in these areas, feel free to reach out. [Here is my Google Scholar profile](https://scholar.google.se/citations?user=Ft52aSsAAAAJ).
+My research is focused on representation learning using deep nets in decentralized and federated systems. I'm especially interested in understanding out of distribution generalization. Beyond this, I have an interest in applying ML to solve problems related to sustainability, climate change and social issues. I am always open for collaborations in these areas, feel free to reach out.
 
 If you are a student interested in doing a project or a master thesis I am always open for discussions. [Click here](https://edvinli.github.io/students/) for suggestions and previous work I have supervised.
