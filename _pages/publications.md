@@ -5,9 +5,7 @@ permalink: /publications/
 author_profile: true
 ---
 
-{% if author.googlescholar %}
-  You can also find my articles on <u><a href="{{author.googlescholar}}">my Google Scholar profile</a>.</u>
-{% endif %}
+You can find a complete publication list on my [Google Scholar profile](https://scholar.google.se/citations?user=Ft52aSsAAAAJ).
 
 {% include base_path %}
 - M. Toftås, E. Klefbom, **E. Listo Zec**, M. Willbo, O. Mogren [Concept-aware clustering for decentralized deep learning under temporal shift](https://arxiv.org/abs/2306.12768) 2023 ICML Workshop on Federated Learning and Analytics in Practice: Algorithms, Systems, Applications, and Opportunities [bibtex](/files/toftaas2023concept.html)
