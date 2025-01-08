@@ -8,7 +8,7 @@ redirect_from:
   - /about.html
 ---
 
-I am a ML Research Scientist at RISE Research Institutes of Sweden and a PhD student in decentralized learning at KTH Royal Institute of Technology. I am part of the [RISE AI deep learning group](http://mogren.one/group/) led by Olof Mogren. My academic supervisor is [Sarunas Girdzijauskas](https://www.kth.se/profile/sarunasg). During the spring of 2023 I visited the NYU Center for Data Science, supervised by [Kyunghyun Cho](https://kyunghyuncho.me/).
+I am an ML Research Scientist at RISE Research Institutes of Sweden and a PhD student in decentralized learning at KTH Royal Institute of Technology. I am part of the [RISE AI deep learning group](http://mogren.one/group/) led by Olof Mogren. My academic supervisor is [Sarunas Girdzijauskas](https://www.kth.se/profile/sarunasg). During the spring of 2023 I visited the NYU Center for Data Science, supervised by [Kyunghyun Cho](https://kyunghyuncho.me/).
 
 ## Research
 
