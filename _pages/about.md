@@ -8,10 +8,10 @@ redirect_from:
   - /about.html
 ---
 
-I am a deep learning researcher at RISE Research Institutes of Sweden and a PhD student in decentralized learning at KTH Royal Institute of Technology. I am part of the [RISE AI deep learning group](http://mogren.one/group/) led by Olof Mogren. My academic supervisor is [Sarunas Girdzijauskas](https://www.kth.se/profile/sarunasg). During the spring of 2023 I visited the NYU Center for Data Science, supervised by [Kyunghyun Cho](https://kyunghyuncho.me/).
+I am a ML Research Scientist at RISE Research Institutes of Sweden and a PhD student in decentralized learning at KTH Royal Institute of Technology. I am part of the [RISE AI deep learning group](http://mogren.one/group/) led by Olof Mogren. My academic supervisor is [Sarunas Girdzijauskas](https://www.kth.se/profile/sarunasg). During the spring of 2023 I visited the NYU Center for Data Science, supervised by [Kyunghyun Cho](https://kyunghyuncho.me/).
 
 ## Research
 
-My research is focused on representation learning using deep nets in decentralized and federated systems. I'm especially interested in understanding out of distribution generalization. Beyond this, I have an interest in applying ML to solve problems related to sustainability, climate change and social issues. I am always open for collaborations in these areas, feel free to reach out.
+My research throughout my PhD has been focused on representation learning using deep nets in decentralized and federated systems. I'm especially interested in understanding out of distribution generalization. Beyond this, I have an interest in applying ML to solve problems related to sustainability, climate change and social issues. I am always open for collaborations in these areas, feel free to reach out.
 
 If you are a student interested in doing a project or a master thesis I am always open for discussions. [Click here](https://edvinli.github.io/students/) for suggestions and previous work I have supervised.
