@@ -9,13 +9,13 @@ redirect_from:
 
 Education
 ======
-* Ph.D in Distributed deep learning, KTH Royal Institute of Technology, 2021-
+* Ph.D in Distributed deep learning, KTH Royal Institute of Technology, 2021-2025
 * MSc. in Engineering mathematics and computational science, Chalmers University of Technology, 2015-2017
 * BSc. in Engineering mathematics, Chalmers University of Technology, 2012-2015
 
 
 Work experience
 ======
-* Research Visitor, NYU Center for Data Science, supervised by Kyunghyun Cho, 2023
 * ML Research Scientist, RISE Research Institutes of Sweden, 2019-
+* Research Visitor, NYU Center for Data Science, a collaboration with Kyunghyun Cho, 2023
 * ML engineer, Zenuity/Zenseact, 2017-2019
