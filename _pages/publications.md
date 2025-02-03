@@ -8,6 +8,7 @@ author_profile: true
 You can find a complete publication list on my [Google Scholar profile](https://scholar.google.se/citations?user=Ft52aSsAAAAJ).
 
 {% include base_path %}
+- **E. Listo Zec**, T. Hagander, E. Ihre-Thomason, S. Girdzijauskas [On the effects of similarity metrics in decentralized deep learning under distributional shift](https://openreview.net/pdf?id=WppTEs4Kkn) 2025 Transactions on Machine Learning Research (TMLR) [bibtex](/files/listozeceffects.html)
 - M. Toftås, E. Klefbom, **E. Listo Zec**, M. Willbo, O. Mogren [Concept-aware clustering for decentralized deep learning under temporal shift](https://arxiv.org/abs/2306.12768) 2023 ICML Workshop on Federated Learning and Analytics in Practice: Algorithms, Systems, Applications, and Opportunities [bibtex](/files/toftaas2023concept.html)
 - E. Ekblom, **E. Listo Zec**, O. Mogren [EFFGAN: Ensembles of fine-tuned federated GANs](https://arxiv.org/abs/2206.11682) 2022 IEEE Internatinal Conference on Big Data [bibtex](/files/ekblom2022effgan.html)
 - **E. Listo Zec**, O. Mogren, AC. Mellquist, S Fallahi, P Algurén [Residual value prediction using deep learning](https://ieeexplore.ieee.org/abstract/document/10021044) 2022 IEEE International Conference on Big Data [bibtex](/files/listozec2022residual)
