@@ -5,11 +5,10 @@ const GROUND_LEVEL = 0.8;
 const GRAVITY = 0.5;
 const JUMP_STRENGTH = 20;
 const BASE_OBSTACLE_SPEED = 5;
-const MIN_OBSTACLE_SPACING = 200; // Minimum space between obstacles
-const MAX_OBSTACLE_SPACING = 500; // Maximum space between obstacles
-const MIN_OBSTACLE_SPAWNING = 500; // Minimum time between obstacle creation
-const MAX_OBSTACLE_SPAWNING = 1500; // Maximum time between obstacle creation
-
+const MIN_OBSTACLE_SPACING = 200;
+const MAX_OBSTACLE_SPACING = 500;
+const MIN_OBSTACLE_SPAWNING = 500;
+const MAX_OBSTACLE_SPAWNING = 1500;
 
 let dino = {
     x: 50,
@@ -22,7 +21,7 @@ let dino = {
     jumpStrength: JUMP_STRENGTH
 };
 
-let obstacles =;
+let obstacles = []; // Initialize as an empty array
 const maxObstacles = 5;
 let gameStarted = false;
 
@@ -33,10 +32,10 @@ function resizeCanvas() {
     const aspectRatio = 16 / 9;
     canvas.height = Math.min(canvas.height, canvas.width / aspectRatio);
 
-    adjustGameElements();
+    adjustGameElements(); // Crucial: Call AFTER resize
 }
 
-resizeCanvas();
+resizeCanvas(); // Call initially
 window.addEventListener('orientationchange', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
@@ -60,7 +59,6 @@ function createObstacle() {
         const lastObstacle = obstacles[obstacles.length - 1];
         newObstacleX = lastObstacle.x + lastObstacle.width + MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
         if (newObstacleX - dino.x < 200) return; // Don't create if too close to dino
-
         if (newObstacleX > canvas.width) return; // Don't create if off-screen
     }
 
@@ -129,7 +127,7 @@ function update() {
 
 function gameOver() {
     gameStarted = false;
-    obstacles =;
+    obstacles =; // Clear the obstacles array
     alert("Game Over!"); // Replace with a game over screen
 }
 
@@ -160,4 +158,4 @@ function obstacleSpawner() {
     }
 }
 
-gameLoop();
+gameLoop(); // Start the game loop
