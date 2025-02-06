@@ -4,8 +4,8 @@ const ctx = canvas.getContext("2d");
 
 const GROUND_LEVEL = 0.8;
 const GRAVITY = 0.2;
-const JUMP_STRENGTH = 15;
-const BASE_OBSTACLE_SPEED = 5;
+const JUMP_STRENGTH = 40; 
+const BASE_OBSTACLE_SPEED = 20;
 const MIN_OBSTACLE_SPACING = 180;
 const MAX_OBSTACLE_SPACING = 360;
 const MIN_OBSTACLE_SPAWNING = 900;
