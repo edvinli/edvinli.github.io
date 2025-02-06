@@ -26,7 +26,7 @@ const maxObstacles = 5;
 let gameStarted = false;
 
 function resizeCanvas() {
-    canvas.width = Math.min(800, window.innerWidth); // Limit width to 800px
+    canvas.width = Math.min(500, window.innerWidth); // Limit width to 800px
     canvas.height = canvas.width * (9 / 16); // Maintain 16:9 aspect ratio
 
     adjustGameElements();
