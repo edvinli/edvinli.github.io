@@ -7,6 +7,6 @@ redirect_from:
   - /resume
 ---
 
-This game is written using Mistral Le Chat, and my hands. I have never before used JavaScript.
+This game is written using LLMS, and my hands. I have limited experience with Javascript.
 
 {% include kawaii_asteroids.html %}
