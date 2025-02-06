@@ -2,9 +2,9 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 const GROUND_LEVEL = 0.8;
-const GRAVITY = 0.05; // Reduced gravity
-const JUMP_STRENGTH = 8;  // Reduced jump strength
-const BASE_OBSTACLE_SPEED = 2; // Reduced obstacle speed
+const GRAVITY = 0.05;
+const JUMP_STRENGTH = 8;
+const BASE_OBSTACLE_SPEED = 2;
 const MIN_OBSTACLE_SPACING = 200;
 const MAX_OBSTACLE_SPACING = 500;
 const MIN_OBSTACLE_SPAWNING = 500;
@@ -28,7 +28,8 @@ let lastTime = 0;
 
 function resizeCanvas() {
     canvas.width = Math.min(800, window.innerWidth);
-    canvas.height = canvas.width * (9 / 16);
+    const maxHeight = canvas.width * (16 / 9);
+    canvas.height = Math.min(maxHeight, window.innerHeight);
 
     adjustGameElements();
 }
