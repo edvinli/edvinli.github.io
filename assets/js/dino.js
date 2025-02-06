@@ -60,17 +60,19 @@ function drawObstacles() {  // Draw all obstacles
     }
 }
 
+const maxObstacles = 5; // Set your desired maximum number of obstacles
+
 function update() {
     // 1. Remove obstacles that have gone off-screen (in reverse order)
-    for (let i = obstacles.length - 1; i >= 0; i--) {  // Iterate backwards!
+    for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].x -= obstacles[i].speed;
         if (obstacles[i].x + obstacles[i].width < 0) {
-            obstacles.splice(i, 1); // Remove obstacle
+            obstacles.splice(i, 1);
         }
     }
 
-    // 2. Create a new obstacle *only if needed*
-    if (obstacles.length === 0 || obstacles[obstacles.length - 1].x > canvas.width / 2) { // Check if no obstacles or if the last one is far enough
+    // 2. Create a new obstacle *only if needed* AND below the max number
+    if ((obstacles.length === 0 || obstacles[obstacles.length - 1].x > canvas.width / 2) && obstacles.length < maxObstacles) {
         createObstacle();
     }
 
