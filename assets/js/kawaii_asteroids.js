@@ -65,12 +65,9 @@ var ship = {
 };
 
 var bullets = []; // array of bullet objects
-
 var asteroids = []; // array of asteroid objects
-
 var powerUps = []; // array of power up objects
-
-var glitterParticles =; // Initialize as an empty array
+var glitterParticles = []; // Initialize as an empty array
 
 // Create some asteroids randomly
 for (var i = 0; i < ASTEROID_NUM; i++) {
