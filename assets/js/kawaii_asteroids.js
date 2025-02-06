@@ -542,7 +542,7 @@ function updateShipInvincibility() {
         ship.invincibleTimer--;
 
         // If the ship's invincibility timer is zero
-        if (ship.invincibilityTimer == 0) {
+        if (ship.invincibleTimer == 0) {
             // Set the ship's invincible flag to false
             ship.invincible = false;
         }
