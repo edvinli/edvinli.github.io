@@ -2,7 +2,7 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 const GROUND_LEVEL = 0.8;
-const GRAVITY = 0.05;
+const GRAVITY = 3;
 const JUMP_STRENGTH = 40;
 const BASE_OBSTACLE_SPEED = 40;
 const MIN_OBSTACLE_SPACING = 180;
