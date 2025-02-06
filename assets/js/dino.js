@@ -6,7 +6,7 @@ const dino = {
     x: 50,
     y: 200,
     width: 50,
-    height: 100, // Increased height
+    height: 100,
     color: 'green',
     dy: 0,
     gravity: 0.5,
@@ -14,30 +14,21 @@ const dino = {
 };
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth;  // Full screen width
-    canvas.height = window.innerHeight; // Full screen height
-
-    // Or, for a specific aspect ratio (e.g., 16:9):
-    // const aspectRatio = 16 / 9;
-    // canvas.width = window.innerWidth;
-    // canvas.height = window.innerWidth / aspectRatio;
-
-    // Adjust game elements (dino, obstacles, etc.) based on new canvas size
-    adjustGameElements(); // See explanation below
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    adjustGameElements();
 }
 
-window.addEventListener('resize', resizeCanvas); // Resize on orientation change or window resize
-resizeCanvas(); // Initial resize
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 function adjustGameElements() {
-    // Example: Adjust dino size and position
-    dino.width = canvas.width * 0.1; // 10% of canvas width
-    dino.height = dino.width * 2;   // Maintain aspect ratio
-    dino.x = canvas.width * 0.1;      // 10% from the left
-    dino.y = canvas.height * 0.6;     // 60% from the top
+    dino.width = canvas.width * 0.1;
+    dino.height = dino.width * 2;
+    dino.x = canvas.width * 0.1;
+    dino.y = canvas.height * 0.6;
 
-    // Adjust obstacle sizes, positions, speeds, etc., similarly
-    for(let i = 0; i < obstacles.length; i++){
+    for (let i = 0; i < obstacles.length; i++) {
         obstacles[i].width = canvas.width * 0.05;
         obstacles[i].height = obstacles[i].width;
         obstacles[i].y = canvas.height - obstacles[i].height;
@@ -45,39 +36,33 @@ function adjustGameElements() {
     }
 }
 
-
-let obstacles = []; // Array to hold multiple obstacles
+let obstacles = [];
+const maxObstacles = 5; // Limit the number of obstacles
 
 function createObstacle() {
-    const minSpacing = 150; // Minimum distance between obstacles (adjust as needed)
+    const minSpacing = dino.width * 2;  // Spacing relative to dino size
+    let newObstacleX = canvas.width;
+    let validPosition = true;
 
-    let newObstacleX;
-    let validPosition = false;
-
-    // Try generating positions until a valid one is found
-    while (!validPosition) {
-        newObstacleX = canvas.width;  // Start at the right edge
-        validPosition = true; // Assume valid until proven otherwise
-
-        for (let i = 0; i < obstacles.length; i++) {
-            const existingObstacle = obstacles[i];
-            const distance = Math.abs(newObstacleX - existingObstacle.x);
-            if (distance < minSpacing) {
-                validPosition = false; // Overlap detected, try again
-                break; // No need to check other obstacles
-            }
+    if (obstacles.length > 0) {
+        const lastObstacle = obstacles[obstacles.length - 1];
+        if (lastObstacle.x + lastObstacle.width + minSpacing > canvas.width) {
+            validPosition = false; // Don't create if too close to the last one
         }
     }
 
-    const obstacle = {
-        x: newObstacleX, // Use the valid x position
-        y: canvas.height - 50,
-        width: 50,
-        height: 50,
-        color: 'red',
-        speed: 3
-    };
-    obstacles.push(obstacle);
+
+    if (validPosition) {
+        const obstacle = {
+            x: newObstacleX,
+            y: canvas.height - dino.height / 1.5, // Align with dino's bottom
+            width: dino.width / 2, // Half the dino's width
+            height: dino.width / 2,
+            color: 'red',
+            speed: dino.width * 0.005 // Speed relative to dino size
+        };
+        obstacles.push(obstacle);
+    }
 }
 
 function handleJump() {
@@ -91,17 +76,15 @@ function drawDino() {
     ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
 }
 
-function drawObstacles() {  // Draw all obstacles
-    for (let i = 0; i < obstacles.length; i++) {
-        ctx.fillStyle = obstacles[i].color;
-        ctx.fillRect(obstacles[i].x, obstacles[i].y, obstacles[i].width, obstacles[i].height);
+function drawObstacles() {
+    for (let obstacle of obstacles) {
+        ctx.fillStyle = obstacle.color;
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
     }
 }
 
-const maxObstacles = 5; // Set your desired maximum number of obstacles
-
 function update() {
-    // 1. Remove obstacles that have gone off-screen (in reverse order)
+    // Remove off-screen obstacles
     for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].x -= obstacles[i].speed;
         if (obstacles[i].x + obstacles[i].width < 0) {
@@ -109,30 +92,29 @@ function update() {
         }
     }
 
-    // 2. Create a new obstacle *only if needed* AND below the max number
-    if ((obstacles.length === 0 || obstacles[obstacles.length - 1].x > canvas.width / 2) && obstacles.length < maxObstacles) {
+    // Create new obstacle if needed
+    if (obstacles.length < maxObstacles && (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width * 0.7)) { // Slightly earlier spawn
         createObstacle();
     }
 
-    // Apply gravity to dino
+
     dino.dy += dino.gravity;
     dino.y += dino.dy;
 
-    // Prevent dino from falling through the ground
     if (dino.y + dino.height > canvas.height) {
         dino.y = canvas.height - dino.height;
         dino.dy = 0;
     }
 
-    // Check for collision with any obstacle  <-- This was missing!
-    for (let i = 0; i < obstacles.length; i++) {
-        if (dino.x < obstacles[i].x + obstacles[i].width &&
-            dino.x + dino.width > obstacles[i].x &&
-            dino.y < obstacles[i].y + obstacles[i].height &&
-            dino.y + dino.height > obstacles[i].y) {
+    // Collision detection
+    for (let obstacle of obstacles) {
+        if (dino.x < obstacle.x + obstacle.width &&
+            dino.x + dino.width > obstacle.x &&
+            dino.y < obstacle.y + obstacle.height &&
+            dino.y + dino.height > obstacle.y) {
             alert('Game Over!');
             document.location.reload();
-            break; // Exit the loop after collision
+            return; // Important: Exit update after collision
         }
     }
 }
@@ -140,7 +122,7 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawDino();
-    drawObstacles(); // Draw all obstacles
+    drawObstacles();
 }
 
 function gameLoop() {
@@ -149,21 +131,15 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Touch Event Listener
-canvas.addEventListener('touchstart', (event) => {
-    //... (get touch coordinates if needed)
-    handleJump();
-    event.preventDefault();
-});
-
+canvas.addEventListener('touchstart', handleJump);
 document.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
         handleJump();
     }
 });
 
-// Initialize obstacles with a random delay
-setTimeout(createObstacle, Math.random() * 2000 + 1000); // First obstacle after 1-3 seconds
-setInterval(createObstacle, Math.random() * 3000 + 1500); // Create new obstacles every 1.5-4.5 seconds
+// Initial obstacle creation and interval
+setTimeout(createObstacle, 1000); // Initial delay
+setInterval(createObstacle, 2000); // Interval
 
 gameLoop();
