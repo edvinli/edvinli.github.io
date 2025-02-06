@@ -5,7 +5,11 @@ const GROUND_LEVEL = 0.8;
 const GRAVITY = 0.5;
 const JUMP_STRENGTH = 20;
 const BASE_OBSTACLE_SPEED = 5;
-const OBSTACLE_SPAWN_RATE = 1500;
+const MIN_OBSTACLE_SPACING = 200; // Minimum space between obstacles
+const MAX_OBSTACLE_SPACING = 500; // Maximum space between obstacles
+const MIN_OBSTACLE_SPAWNING = 500; // Minimum time between obstacle creation
+const MAX_OBSTACLE_SPAWNING = 1500; // Maximum time between obstacle creation
+
 
 let dino = {
     x: 50,
@@ -18,7 +22,7 @@ let dino = {
     jumpStrength: JUMP_STRENGTH
 };
 
-let obstacles = [];
+let obstacles =;
 const maxObstacles = 5;
 let gameStarted = false;
 
@@ -26,13 +30,13 @@ function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const aspectRatio = 16 / 9;  // Adjust as needed
+    const aspectRatio = 16 / 9;
     canvas.height = Math.min(canvas.height, canvas.width / aspectRatio);
 
     adjustGameElements();
 }
 
-resizeCanvas(); // Call initially
+resizeCanvas();
 window.addEventListener('orientationchange', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
@@ -49,16 +53,15 @@ function adjustGameElements() {
     }
 }
 
-
 function createObstacle() {
-    const minSpacing = dino.width * 2;
     let newObstacleX = canvas.width;
 
     if (obstacles.length > 0) {
         const lastObstacle = obstacles[obstacles.length - 1];
-        if (lastObstacle.x + lastObstacle.width + minSpacing > canvas.width) {
-            return;
-        }
+        newObstacleX = lastObstacle.x + lastObstacle.width + MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
+        if (newObstacleX - dino.x < 200) return; // Don't create if too close to dino
+
+        if (newObstacleX > canvas.width) return; // Don't create if off-screen
     }
 
     const obstacle = {
@@ -72,7 +75,7 @@ function createObstacle() {
     obstacles.push(obstacle);
 }
 
-function handleJump(event) {  // Added event parameter
+function handleJump(event) {
     if (!gameStarted) {
         gameStarted = true;
         obstacleSpawner();
@@ -81,8 +84,8 @@ function handleJump(event) {  // Added event parameter
         dino.dy = -dino.jumpStrength;
     }
 
-    if (event) { // Check if it's a touch event
-      event.preventDefault(); // Prevent default touch behavior
+    if (event) {
+        event.preventDefault();
     }
 }
 
@@ -126,7 +129,7 @@ function update() {
 
 function gameOver() {
     gameStarted = false;
-    obstacles = [];
+    obstacles =;
     alert("Game Over!"); // Replace with a game over screen
 }
 
@@ -152,7 +155,8 @@ document.addEventListener('keydown', (event) => {
 function obstacleSpawner() {
     if (gameStarted) {
         createObstacle();
-        setTimeout(obstacleSpawner, OBSTACLE_SPAWN_RATE);
+        const randomDelay = Math.random() * (MAX_OBSTACLE_SPAWNING - MIN_OBSTACLE_SPAWNING) + MIN_OBSTACLE_SPAWNING;
+        setTimeout(obstacleSpawner, randomDelay);
     }
 }
 
