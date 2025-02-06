@@ -147,6 +147,75 @@ function createPowerUp(x, y) {
     powerUps.push(powerUp);
 }
 
+
+// Function to create glitter particles
+function createGlitter(x, y, count) {
+    for (let i = 0; i < count; i++) {
+        let angle = Math.random() * TWO_PI;
+        let speed = Math.random() * 5 + 2; // Random speed
+        let size = Math.random() * 3 + 1; // Random size
+        let color = getRandomGlitterColor(); // Get a random glitter color
+
+        glitterParticles.push({
+            x: x,
+            y: y,
+            dx: speed * Math.cos(angle),
+            dy: speed * Math.sin(angle),
+            size: size,
+            color: color,
+            alpha: 1, // Start with full alpha
+            lifetime: Math.random() * 30 + 20 // Random lifetime
+        });
+    }
+}
+
+// Array to store glitter particles
+var glitterParticles =;
+
+// Function to get a random glitter color
+function getRandomGlitterColor() {
+    const glitterColors = [
+        "#FFB6C1", // Light Pink
+        "#FF69B4", // Hot Pink
+        "#FFD700", // Gold
+        "#ADFF2F", // GreenYellow
+        "#87CEFA", // Light Sky Blue
+        "#DA70D6", // Orchid
+        "#FFA07A", // Light Salmon
+        "#FFFF00", // Yellow
+        "#00FF00", // Lime
+        "#00FFFF", // Cyan
+    ];
+    return glitterColors[Math.floor(Math.random() * glitterColors.length)];
+}
+
+// Function to draw glitter particles
+function drawGlitter(glitter) {
+    ctx.save();
+    ctx.globalAlpha = glitter.alpha; // Set alpha for fading effect
+    ctx.fillStyle = glitter.color;
+    ctx.beginPath();
+    ctx.arc(glitter.x, glitter.y, glitter.size, 0, TWO_PI);
+    ctx.fill();
+    ctx.restore();
+}
+
+// Function to update glitter particles
+function updateGlitter() {
+    for (let i = glitterParticles.length - 1; i >= 0; i--) { // Iterate backwards for safe removal
+        let glitter = glitterParticles[i];
+        glitter.x += glitter.dx;
+        glitter.y += glitter.dy;
+        glitter.alpha -= 0.03;  // Fade out
+        glitter.lifetime--;
+
+        if (glitter.lifetime <= 0 || glitter.alpha <= 0) {
+            glitterParticles.splice(i, 1);
+        }
+    }
+}
+
+
 // Draw the ship (Kawaii Style!)
 function drawShip() {
     ctx.save();
@@ -497,6 +566,10 @@ function checkBulletCollision(bullet) {
         if (distance < 2 + asteroid.size / 2) {
             // Remove the bullet from the bullets array
             var index = bullets.indexOf(bullet); // find the index of the bullet in the array
+
+            // Create glitter at the asteroid's position
+            createGlitter(asteroid.x, asteroid.y, 20); // 20 glitter particles
+            
             if (index != -1) { // if the index is valid
                 bullets.splice(index, 1); // remove the bullet from the array
             }
@@ -698,6 +771,12 @@ function gameLoop() {
     for (var i = 0; i < bullets.length; i++) {
         var bullet = bullets[i]; // get the current bullet
         checkBulletCollision(bullet);
+    }
+
+    // Update and draw glitter
+    updateGlitter();
+    for (let i = 0; i < glitterParticles.length; i++) {
+        drawGlitter(glitterParticles[i]);
     }
 
     // Draw the score and high score (Kawaii Font)
