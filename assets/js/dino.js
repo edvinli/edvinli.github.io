@@ -1,3 +1,4 @@
+      
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
@@ -22,7 +23,7 @@ let dino = {
 };
 
 let obstacles = [];
-const maxObstacles = 5;
+const maxObstacles = 5; // Variable declared but not currently used to limit max obstacles
 let gameStarted = false;
 let lastTime = 0;
 
@@ -60,7 +61,7 @@ function createObstacle() {
 
     const obstacle = {
         x: newObstacleX,
-        y: canvas.height * GROUND_LEVEL - dino.height / 1.5,
+        y: canvas.height * GROUND_LEVEL - dino.width / 2, // Corrected obstacle y position calculation
         width: dino.width / 2,
         height: dino.width / 2,
         color: 'red',
@@ -71,8 +72,7 @@ function createObstacle() {
 
 function handleJump(event) {
     if (!gameStarted) {
-        gameStarted = true;
-        obstacleSpawner();
+        startGame(); // Call startGame to initialize and start the game
     }
     if (dino.y + dino.height === canvas.height * GROUND_LEVEL) {
         dino.dy = -dino.jumpStrength;
@@ -123,8 +123,9 @@ function update(deltaTime) {
 
 function gameOver() {
     gameStarted = false;
-    obstacles =;
+    obstacles = []; // Corrected syntax error and cleared obstacles array
     alert("Game Over!");
+    // Optionally, you could show a "Restart" button here instead of just an alert.
 }
 
 function draw() {
@@ -156,5 +157,60 @@ function obstacleSpawner() {
     }
 }
 
+function startGame() {
+    if (!gameStarted) {
+        gameStarted = true;
+        obstacles = []; // Clear any previous obstacles
+        dino.y = canvas.height * GROUND_LEVEL - dino.height; // Reset dino position if needed
+        dino.dy = 0; // Reset dino vertical velocity
+        obstacleSpawner();
+        lastTime = performance.now(); // Reset lastTime for game loop timing
+        requestAnimationFrame(gameLoop); // Ensure game loop starts if not already running
+    }
+}
+
+// Example of a restart function that can be triggered by a button or key press
+function restartGame() {
+    gameStarted = false; // Stop the game loop temporarily
+    gameOver(); // Call gameOver to reset game state (clears obstacles and shows alert)
+    startGame(); // Immediately start a new game
+}
+
+// You can trigger restartGame() by adding a button and event listener in your HTML,
+// or by listening for another key press like 'Enter' and calling restartGame()
+
 lastTime = performance.now();
-gameLoop(lastTime);
+// Game starts on first jump now, no need to start gameLoop immediately.
+// gameLoop(lastTime); //  <-- Removed initial gameLoop call, game starts on first jump
+
+
+// **Further improvements and considerations (comments in code):**
+
+// 1. **Responsiveness Fine-tuning:**
+//    You might need to adjust constants like GRAVITY, JUMP_STRENGTH, BASE_OBSTACLE_SPEED etc.
+//    based on canvas.width to maintain consistent gameplay feel across different screen sizes.
+//    For example, you could scale GRAVITY and JUMP_STRENGTH proportionally to canvas.width or canvas.height.
+
+// 2. **Obstacle Spawning Logic:**
+//    The current obstacle spawning is random within a range. For more controlled difficulty progression:
+//    - Increase obstacle speed gradually over time.
+//    - Decrease obstacle spacing gradually over time.
+//    - Introduce different types of obstacles (e.g., varying heights or speeds).
+//    - Control obstacle density more precisely instead of just random delays.
+
+// 3. **Scorekeeping:**
+//    Add a score counter that increases over time or based on distance travelled.
+//    Display the score on the canvas.
+
+// 4. **Visual Enhancements:**
+//    - Add ground/background graphics.
+//    - Animate the dino and obstacles (e.g., dino running animation).
+//    - Improve obstacle shapes (currently just rectangles).
+//    - Add visual effects for jump and collision.
+
+// 5. **Game State Management:**
+//    For a more complex game, consider using a more structured game state management approach
+//    instead of just boolean flags like `gameStarted`. This can help manage different game phases
+//    (e.g., menu, playing, game over, paused).
+
+    
