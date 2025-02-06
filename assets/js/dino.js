@@ -9,7 +9,7 @@ const dino = {
     height: 100, // Increased height
     color: 'green',
     dy: 0,
-    gravity: 0.7,
+    gravity: 0.6,
     jumpStrength: 20
 };
 
