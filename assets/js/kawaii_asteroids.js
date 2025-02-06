@@ -32,6 +32,7 @@ var COLOR_PASTEL_BLUE = "#ADD8E6";
 var COLOR_PASTEL_YELLOW = "#FFFACD";
 var COLOR_PASTEL_GREEN = "#98FB98";
 var COLOR_PASTEL_PURPLE = "#E6E6FA";
+var COLOR_NEON_PINK = "#FF69B4"; // Neon pink color
 
 // Define some keys
 var KEY_LEFT = 37;
@@ -249,7 +250,7 @@ function drawAsteroid(asteroid) {
     ctx.rotate(asteroid.a);
 
     // Set the stroke color to white
-    ctx.strokeStyle = COLOR_PASTEL_BLUE;
+    ctx.strokeStyle = COLOR_NEON_PINK;
 
     // Begin a new path
     ctx.beginPath();
