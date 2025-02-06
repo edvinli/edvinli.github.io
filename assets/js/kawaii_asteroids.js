@@ -26,6 +26,7 @@ var POWERUP_DURATION = 500; // frames
 var POWER_UP_SIZE = 20; // pixels
 var ASTEROID_PROBA = 1/400; // chance of an asteroid spawning every frame
 
+
 // Define some colors
 var COLOR_PASTEL_GREEN = "#98FB98";
 var COLOR_NEON_PINK = "#FF69B4";
@@ -68,6 +69,8 @@ var bullets = []; // array of bullet objects
 var asteroids = []; // array of asteroid objects
 
 var powerUps = []; // array of power up objects
+
+var glitterParticles =; // Initialize as an empty array
 
 // Create some asteroids randomly
 for (var i = 0; i < ASTEROID_NUM; i++) {
