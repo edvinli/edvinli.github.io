@@ -86,9 +86,16 @@ function update() {
         dino.dy = 0;
     }
 
-    // Check for collision with any obstacle
+    // Check for collision with any obstacle  <-- This was missing!
     for (let i = 0; i < obstacles.length; i++) {
-        // ... (collision code remains the same)
+        if (dino.x < obstacles[i].x + obstacles[i].width &&
+            dino.x + dino.width > obstacles[i].x &&
+            dino.y < obstacles[i].y + obstacles[i].height &&
+            dino.y + dino.height > obstacles[i].y) {
+            alert('Game Over!');
+            document.location.reload();
+            break; // Exit the loop after collision
+        }
     }
 }
 
