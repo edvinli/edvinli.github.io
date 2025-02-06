@@ -27,12 +27,16 @@ var POWER_UP_SIZE = 20; // pixels
 var ASTEROID_PROBA = 1/400; // chance of an asteroid spawning every frame
 
 // Define some colors
-var COLOR_PASTEL_BLUE = "#ADD8E6";
-var COLOR_PASTEL_YELLOW = "#FFFACD";
 var COLOR_PASTEL_GREEN = "#98FB98";
-var COLOR_PASTEL_PURPLE = "#E6E6FA";
 var COLOR_NEON_PINK = "#FF69B4";
-var COLOR_KAWAII_RED = "#FF4569";
+
+// Define some colors (More Kawaii!)
+var COLOR_PASTEL_BLUE = "#A7C7E7"; // Softened blue
+var COLOR_PASTEL_YELLOW = "#FFF9C4"; // Softened yellow
+var COLOR_PASTEL_PINK = "#FFB6C1"; // Light pink
+var COLOR_PASTEL_LAVENDER = "#E6BEEB"; // Light lavender
+var COLOR_KAWAII_RED = "#FF69B4"; // Brighter pink-red
+var COLOR_KAWAII_GREEN = "#90EE90"; // Light Green
 
 // Define some keys
 var KEY_LEFT = 37;
@@ -143,158 +147,75 @@ function createPowerUp(x, y) {
     powerUps.push(powerUp);
 }
 
-// Draw the ship on the canvas
+// Draw the ship (Kawaii Style!)
 function drawShip() {
-    // Save the current context state
     ctx.save();
-
-    // Translate the context to the ship's center
     ctx.translate(ship.x, ship.y);
-
-    // Rotate the context to the ship's angle
     ctx.rotate(ship.a);
 
-    // Set the stroke color to green if invincible, white otherwise
-    ctx.strokeStyle = ship.invincible ? COLOR_PASTEL_GREEN : COLOR_NEON_PINK;
-
-    // Begin a new path
+    // Ship Body (Rounded rectangle with a cute tail)
+    ctx.strokeStyle = ship.invincible? COLOR_KAWAII_GREEN: COLOR_KAWAII_RED;
+    ctx.lineWidth = 3; // Thicker lines
     ctx.beginPath();
-
-    // Move to the tip of the ship
     ctx.moveTo(SHIP_SIZE / 2, 0);
-
-    // Draw a line to the bottom right of the ship
-    ctx.lineTo(-SHIP_SIZE / 2, SHIP_SIZE / 3);
-
-    // Draw a line to the bottom left of the ship
-    ctx.lineTo(-SHIP_SIZE / 2, -SHIP_SIZE / 3);
-
-    // Close the path
+    ctx.lineTo(-SHIP_SIZE / 3, SHIP_SIZE / 4);
+    ctx.quadraticCurveTo(-SHIP_SIZE / 2, 0, -SHIP_SIZE / 3, -SHIP_SIZE / 4); // Rounded back
     ctx.closePath();
-
-    // Stroke the path
     ctx.stroke();
 
-    // If the ship is thrusting, draw a flame behind it
-    if (ship.thrusting) {
-        // Set the stroke color to red
-        ctx.strokeStyle = COLOR_PASTEL_YELLOW;
-
-        // Begin a new path
-        ctx.beginPath();
-
-        // Move to the bottom left of the ship
-        ctx.moveTo(-SHIP_SIZE / 2, -SHIP_SIZE / 3);
-
-        // Draw a line to a random point behind the ship
-        ctx.lineTo(-SHIP_SIZE / 2 - Math.random() * SHIP_SIZE / 2, 0);
-
-        // Draw a line to the bottom right of the ship
-        ctx.lineTo(-SHIP_SIZE / 2, SHIP_SIZE / 3);
-
-        // Close the path
-        ctx.closePath();
-
-        // Stroke the path
-        ctx.stroke();
-    }
-
-    // If the ship is breaking, draw a blue flame behind it (instead of red)
-    if (ship.breaking) {
-        // Set the stroke color to blue
-        ctx.strokeStyle = COLOR_PASTEL_BLUE;
-
-        // Begin a new path
-        ctx.beginPath();
-
-        // Move to the bottom left of the ship
-        ctx.moveTo(-SHIP_SIZE / 2, -SHIP_SIZE / 3);
-
-        // Draw a line to a random point behind the ship
-        ctx.lineTo(-SHIP_SIZE / 2 - Math.random() * SHIP_SIZE / 2, 0);
-
-        // Draw a line to the bottom right of the ship
-        ctx.lineTo(-SHIP_SIZE / 2, SHIP_SIZE / 3);
-
-        // Close the path
-        ctx.closePath();
-
-        // Stroke the path
-        ctx.stroke();
-    }
-
-    // Restore the context state
-    ctx.restore();
-}
-
-// Draw a bullet on the canvas as a heart shape
-function drawBullet(bullet) {
-    // Save the current context state
-    ctx.save();
-
-    // Translate the context to the bullet's position
-    ctx.translate(bullet.x, bullet.y);
-
-    // Set the fill color to kawaii red
-    ctx.fillStyle = COLOR_KAWAII_RED;
-
-    // Begin a new path
+    // Cute Window
+    ctx.fillStyle = COLOR_PASTEL_BLUE;
     ctx.beginPath();
-
-    // Define the heart shape
-    var heartSize = 5; // Size of the heart
-    ctx.moveTo(0, 0 - heartSize * 0.3);
-    ctx.bezierCurveTo(
-        0 - heartSize * 0.5, 0 - heartSize * 0.7,
-        0 - heartSize, 0,
-        0, 0 + heartSize * 0.3
-    );
-    ctx.bezierCurveTo(
-        0 + heartSize, 0,
-        0 + heartSize * 0.5, 0 - heartSize * 0.7,
-        0, 0 - heartSize * 0.3
-    );
-
-    // Fill the heart shape
+    ctx.arc(0, 0, SHIP_SIZE / 6, 0, TWO_PI); // Circle window
     ctx.fill();
 
-    // Restore the context state
+    // Little sparkles (when thrusting)
+    if (ship.thrusting || ship.breaking) {
+        let flameColor = ship.thrusting? COLOR_PASTEL_YELLOW: COLOR_PASTEL_BLUE;
+        for (let i = 0; i < 3; i++) {
+            let angle = Math.random() * TWO_PI;
+            let radius = Math.random() * SHIP_SIZE / 3;
+            ctx.fillStyle = flameColor;
+            ctx.beginPath();
+            ctx.arc(-SHIP_SIZE/2 - radius*Math.cos(angle), radius*Math.sin(angle), 2, 0, TWO_PI);
+            ctx.fill();
+        }
+    }
+
+    ctx.restore();
+}
+
+// Draw a bullet (Kawaii Heart!)
+function drawBullet(bullet) {
+    ctx.save();
+    ctx.translate(bullet.x, bullet.y);
+    ctx.fillStyle = COLOR_KAWAII_RED;
+    ctx.beginPath();
+    let heartSize = 6; // Slightly bigger heart
+    ctx.moveTo(0, -heartSize * 0.4); // Adjusted for better heart shape
+    ctx.bezierCurveTo(-heartSize * 0.6, -heartSize * 0.8, -heartSize, 0, 0, heartSize * 0.4);
+    ctx.bezierCurveTo(heartSize, 0, heartSize * 0.6, -heartSize * 0.8, 0, -heartSize * 0.4);
+    ctx.fill();
     ctx.restore();
 }
 
 
-// Draw an asteroid on the canvas
+// Draw an asteroid (More Rounded)
 function drawAsteroid(asteroid) {
-    // Save the current context state
     ctx.save();
-
-    // Translate the context to the asteroid's center
     ctx.translate(asteroid.x, asteroid.y);
-
-    // Rotate the context to the asteroid's angle
     ctx.rotate(asteroid.a);
 
-    // Set the stroke color to white
-    ctx.strokeStyle = COLOR_NEON_PINK;
-
-    // Begin a new path
+    ctx.strokeStyle = COLOR_PASTEL_LAVENDER;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-
-    // Move to the first vertex of the asteroid
-    ctx.moveTo(asteroid.vertices[0].x, asteroid.vertices[0].y);
-
-    // Loop through the rest of the vertices and draw lines to them
-    for (var i = 1; i < asteroid.vertices.length; i++) {
+    ctx.moveTo(asteroid.vertices.x, asteroid.vertices.y);
+    for (let i = 1; i < asteroid.vertices.length; i++) {
         ctx.lineTo(asteroid.vertices[i].x, asteroid.vertices[i].y);
     }
-
-    // Close the path
     ctx.closePath();
-
-    // Stroke the path
     ctx.stroke();
 
-    // Restore the context state
     ctx.restore();
 }
 
@@ -729,9 +650,9 @@ function restartGame() {
     }
 }
 
-// The main game loop
+// Game Loop (Kawaii Background and Text)
 function gameLoop() {
-    // Clear the canvas
+    // Clear the canvas (Softer background)
     ctx.fillStyle = COLOR_PASTEL_BLUE;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -786,11 +707,14 @@ function gameLoop() {
     ctx.textBaseline = "top";
     ctx.fillText("Score: " + SCORE, 10, 10);
 
-    // Draw the high score
-    ctx.fillStyle = COLOR_PASTEL_YELLOW;
-    ctx.font = "20px Arial";
+    // Draw the score and high score (Kawaii Font)
+    ctx.fillStyle = COLOR_KAWAII_RED;
+    ctx.font = "24px 'Comic Sans MS'"; // Example kawaii font (use a web-safe one)
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
+    ctx.fillText("Score: " + SCORE, 10, 10);
+
+    ctx.fillStyle = COLOR_PASTEL_YELLOW;
     ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
 
     // Draw the powerup timer
@@ -822,21 +746,16 @@ function gameLoop() {
 
     // If the ship is not alive, the game is over
     if (!ship.alive) {
-        // Set the fill color to red
-        ctx.fillStyle = COLOR_PASTEL_PURPLE;
-
-        // Fill a text at the center of the canvas saying "Game over"
-        ctx.font = "50px Arial";
+        ctx.fillStyle = COLOR_PASTEL_PINK;
+        ctx.font = "48px 'Comic Sans MS'"; // Kawaii game over text
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("Game over", canvas.width / 2, canvas.height / 2);
+        ctx.fillText("Game Over 🥺", canvas.width / 2, canvas.height / 2 - 20); // Added a cute emoji
 
-        // Create a restart button
-        ctx.fillStyle = COLOR_NEON_PINK;
-        ctx.font = "20px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("Restart", canvas.width / 2, canvas.height / 2 + 50);
+        // Restart button (Kawaii Style)
+        ctx.fillStyle = COLOR_KAWAII_GREEN;
+        ctx.font = "24px 'Comic Sans MS'";
+        ctx.fillText("Restart ✨", canvas.width / 2, canvas.height / 2 + 40); // Added sparkles
 
         // If the mouse is clicked
         canvas.addEventListener("mousedown", function(event) {
