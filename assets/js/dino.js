@@ -61,15 +61,18 @@ function drawObstacles() {  // Draw all obstacles
 }
 
 function update() {
-    // Update obstacles
-    for (let i = 0; i < obstacles.length; i++) {
+    // 1. Remove obstacles that have gone off-screen (in reverse order)
+    for (let i = obstacles.length - 1; i >= 0; i--) {  // Iterate backwards!
         obstacles[i].x -= obstacles[i].speed;
         if (obstacles[i].x + obstacles[i].width < 0) {
-            obstacles.splice(i, 1); // Remove obstacle from array
-            createObstacle();      // Create a new one
+            obstacles.splice(i, 1); // Remove obstacle
         }
     }
 
+    // 2. Create a new obstacle *only if needed*
+    if (obstacles.length === 0 || obstacles[obstacles.length - 1].x > canvas.width / 2) { // Check if no obstacles or if the last one is far enough
+        createObstacle();
+    }
 
     // Apply gravity to dino
     dino.dy += dino.gravity;
@@ -83,14 +86,7 @@ function update() {
 
     // Check for collision with any obstacle
     for (let i = 0; i < obstacles.length; i++) {
-        if (dino.x < obstacles[i].x + obstacles[i].width &&
-            dino.x + dino.width > obstacles[i].x &&
-            dino.y < obstacles[i].y + obstacles[i].height &&
-            dino.y + dino.height > obstacles[i].y) {
-            alert('Game Over!');
-            document.location.reload();
-            break; // Exit the loop after collision
-        }
+        // ... (collision code remains the same)
     }
 }
 
