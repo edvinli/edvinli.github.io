@@ -21,7 +21,7 @@ let dino = {
     jumpStrength: JUMP_STRENGTH
 };
 
-let obstacles =;
+let obstacles = [];
 const maxObstacles = 5;
 let gameStarted = false;
 let lastTime = 0;
