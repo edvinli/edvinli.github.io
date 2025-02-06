@@ -2,9 +2,9 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 const GROUND_LEVEL = 0.8;
-const GRAVITY = 0.5;
-const JUMP_STRENGTH = 20;
-const BASE_OBSTACLE_SPEED = 5;
+const GRAVITY = 0.05; // Reduced gravity
+const JUMP_STRENGTH = 8;  // Reduced jump strength
+const BASE_OBSTACLE_SPEED = 2; // Reduced obstacle speed
 const MIN_OBSTACLE_SPACING = 200;
 const MAX_OBSTACLE_SPACING = 500;
 const MIN_OBSTACLE_SPAWNING = 500;
