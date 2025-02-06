@@ -27,12 +27,11 @@ var POWER_UP_SIZE = 20; // pixels
 var ASTEROID_PROBA = 1/400; // chance of an asteroid spawning every frame
 
 // Define some colors
-var COLOR_PASTEL_PINK = "#FFB6C1";
 var COLOR_PASTEL_BLUE = "#ADD8E6";
 var COLOR_PASTEL_YELLOW = "#FFFACD";
 var COLOR_PASTEL_GREEN = "#98FB98";
 var COLOR_PASTEL_PURPLE = "#E6E6FA";
-var COLOR_NEON_PINK = "#FF69B4"; // Neon pink color
+var COLOR_NEON_PINK = "#FF69B4";
 
 // Define some keys
 var KEY_LEFT = 37;
@@ -155,7 +154,7 @@ function drawShip() {
     ctx.rotate(ship.a);
 
     // Set the stroke color to green if invincible, white otherwise
-    ctx.strokeStyle = ship.invincible ? COLOR_PASTEL_GREEN : COLOR_PASTEL_PINK;
+    ctx.strokeStyle = ship.invincible ? COLOR_PASTEL_GREEN : COLOR_NEON_PINK;
 
     // Begin a new path
     ctx.beginPath();
@@ -755,7 +754,7 @@ function gameLoop() {
     }
 
     // Draw the score
-    ctx.fillStyle = COLOR_PASTEL_PINK;
+    ctx.fillStyle = COLOR_NEON_PINK;
     ctx.font = "20px Arial";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
@@ -807,7 +806,7 @@ function gameLoop() {
         ctx.fillText("Game over", canvas.width / 2, canvas.height / 2);
 
         // Create a restart button
-        ctx.fillStyle = COLOR_PASTEL_PINK;
+        ctx.fillStyle = COLOR_NEON_PINK;
         ctx.font = "20px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
