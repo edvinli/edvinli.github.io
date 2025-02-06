@@ -169,9 +169,6 @@ function createGlitter(x, y, count) {
     }
 }
 
-// Array to store glitter particles
-var glitterParticles =;
-
 // Function to get a random glitter color
 function getRandomGlitterColor() {
     const glitterColors = [
