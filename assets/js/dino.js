@@ -93,7 +93,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 // Initialize obstacles with a random delay
-setTimeout(createObstacle, Math.random() * 1000); // First obstacle after a short random delay
-setInterval(createObstacle, Math.random() * 2000 + 500); // Create new obstacles at random intervals
+setTimeout(createObstacle, Math.random() * 2000 + 1000); // First obstacle after 1-3 seconds
+setInterval(createObstacle, Math.random() * 3000 + 1500); // Create new obstacles every 1.5-4.5 seconds
 
 gameLoop();
