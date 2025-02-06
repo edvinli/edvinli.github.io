@@ -2,13 +2,13 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 const GROUND_LEVEL = 0.8;
-const GRAVITY = 0.05;
-const JUMP_STRENGTH = 8;
-const BASE_OBSTACLE_SPEED = 2;
-const MIN_OBSTACLE_SPACING = 200;
-const MAX_OBSTACLE_SPACING = 500;
-const MIN_OBSTACLE_SPAWNING = 500;
-const MAX_OBSTACLE_SPAWNING = 1500;
+const GRAVITY = 0.2;
+const JUMP_STRENGTH = 15;
+const BASE_OBSTACLE_SPEED = 5;
+const MIN_OBSTACLE_SPACING = 180;
+const MAX_OBSTACLE_SPACING = 360;
+const MIN_OBSTACLE_SPAWNING = 900;
+const MAX_OBSTACLE_SPAWNING = 1900;
 
 let dino = {
     x: 50,
@@ -21,15 +21,14 @@ let dino = {
     jumpStrength: JUMP_STRENGTH
 };
 
-let obstacles = [];
+let obstacles =;
 const maxObstacles = 5;
 let gameStarted = false;
 let lastTime = 0;
 
 function resizeCanvas() {
-    canvas.width = Math.min(700, window.innerWidth); // Limit maximum width
-    canvas.height = canvas.width; // Make height equal to width (square)
-
+    canvas.width = Math.min(800, window.innerWidth);
+    canvas.height = canvas.width;
     adjustGameElements();
 }
 
@@ -65,7 +64,7 @@ function createObstacle() {
         width: dino.width / 2,
         height: dino.width / 2,
         color: 'red',
-        speed: BASE_OBSTACLE_SPEED
+        speed: BASE_OBSTACLE_SPEED * (canvas.width / 800)
     };
     obstacles.push(obstacle);
 }
@@ -124,7 +123,7 @@ function update(deltaTime) {
 
 function gameOver() {
     gameStarted = false;
-    obstacles = [];
+    obstacles =;
     alert("Game Over!");
 }
 
@@ -137,7 +136,6 @@ function draw() {
 function gameLoop(currentTime) {
     const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
-
     update(deltaTime);
     draw();
     requestAnimationFrame(gameLoop);
