@@ -24,10 +24,11 @@ let dino = {
 let obstacles = [];
 const maxObstacles = 5;
 let gameStarted = false;
+let lastTime = 0;
 
 function resizeCanvas() {
-    canvas.width = Math.min(500, window.innerWidth); // Limit width to 800px
-    canvas.height = canvas.width * (9 / 16); // Maintain 16:9 aspect ratio
+    canvas.width = Math.min(800, window.innerWidth);
+    canvas.height = canvas.width * (9 / 16);
 
     adjustGameElements();
 }
@@ -95,13 +96,13 @@ function drawObstacles() {
     }
 }
 
-function update() {
+function update(deltaTime) {
     if (!gameStarted) return;
 
     obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
 
-    dino.dy += dino.gravity;
-    dino.y += dino.dy;
+    dino.dy += dino.gravity * deltaTime;
+    dino.y += dino.dy * deltaTime;
 
     if (dino.y + dino.height > canvas.height * GROUND_LEVEL) {
         dino.y = canvas.height * GROUND_LEVEL - dino.height;
@@ -109,7 +110,7 @@ function update() {
     }
 
     for (let obstacle of obstacles) {
-        obstacle.x -= obstacle.speed;
+        obstacle.x -= obstacle.speed * deltaTime;
 
         if (dino.x < obstacle.x + obstacle.width &&
             dino.x + dino.width > obstacle.x &&
@@ -133,8 +134,11 @@ function draw() {
     drawObstacles();
 }
 
-function gameLoop() {
-    update();
+function gameLoop(currentTime) {
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
+    update(deltaTime);
     draw();
     requestAnimationFrame(gameLoop);
 }
@@ -154,4 +158,5 @@ function obstacleSpawner() {
     }
 }
 
-gameLoop();
+lastTime = performance.now();
+gameLoop(lastTime);
