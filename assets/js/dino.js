@@ -1,19 +1,27 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const GROUND_LEVEL = 0.7;
+const GRAVITY = 0.5;
+const JUMP_STRENGTH = 20;
+const BASE_OBSTACLE_SPEED = 5;
+const OBSTACLE_SPAWN_DELAY = 1500; // Initial delay
+const OBSTACLE_SPAWN_RATE = 1000; // Rate of obstacle creation
+
 let dino = {
     x: 50,
-    y: 0, // Initial y will be set in resizeCanvas
+    y: 0,
     width: 50,
     height: 100,
     color: 'green',
     dy: 0,
-    gravity: 0.5,
-    jumpStrength: 20
+    gravity: GRAVITY,
+    jumpStrength: JUMP_STRENGTH
 };
 
 let obstacles = [];
 const maxObstacles = 5;
+let gameStarted = false; // Track if the game has started
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -22,21 +30,20 @@ function resizeCanvas() {
 }
 
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // Call initially
+resizeCanvas();
 
 function adjustGameElements() {
-    const aspectRatio = 16 / 9; // Example aspect ratio
-    canvas.height = Math.min(canvas.height, canvas.width / aspectRatio); // Maintain aspect ratio
+    const aspectRatio = 16 / 9;
+    canvas.height = Math.min(canvas.height, canvas.width / aspectRatio);
     dino.width = canvas.width * 0.05;
     dino.height = dino.width * 2;
     dino.x = canvas.width * 0.1;
-    dino.y = canvas.height * 0.7 - dino.height; // Adjusted y for consistent ground level
+    dino.y = canvas.height * GROUND_LEVEL - dino.height;
 
     for (let obstacle of obstacles) {
-        obstacle.width = canvas.width * 0.03;  // Adjust obstacle size
+        obstacle.width = canvas.width * 0.03;
         obstacle.height = obstacle.width;
-        obstacle.y = canvas.height * 0.7 - obstacle.height; // Match dino's ground level
-        obstacle.speed = canvas.width * 0.005;
+        obstacle.y = canvas.height * GROUND_LEVEL - obstacle.height;
     }
 }
 
@@ -47,23 +54,27 @@ function createObstacle() {
     if (obstacles.length > 0) {
         const lastObstacle = obstacles[obstacles.length - 1];
         if (lastObstacle.x + lastObstacle.width + minSpacing > canvas.width) {
-            return; // Don't create if too close
+            return;
         }
     }
 
     const obstacle = {
         x: newObstacleX,
-        y: canvas.height * 0.7 - dino.height / 1.5, // Consistent ground for obstacles
+        y: canvas.height * GROUND_LEVEL - dino.height / 1.5,
         width: dino.width / 2,
         height: dino.width / 2,
         color: 'red',
-        speed: dino.width * 0.005
+        speed: BASE_OBSTACLE_SPEED // Use base speed
     };
     obstacles.push(obstacle);
 }
 
 function handleJump() {
-    if (dino.y + dino.height === canvas.height * 0.7) { // Check against adjusted ground
+    if (!gameStarted) {
+        gameStarted = true; // Start the game on the first jump
+        obstacleSpawner(); // Start spawning obstacles
+    }
+    if (dino.y + dino.height === canvas.height * GROUND_LEVEL) {
         dino.dy = -dino.jumpStrength;
     }
 }
@@ -81,35 +92,36 @@ function drawObstacles() {
 }
 
 function update() {
-    // Remove off-screen obstacles (more efficient loop)
-    obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+    if (!gameStarted) return; // Don't update if game hasn't started
 
-    // Create new obstacle (improved logic)
-    if (obstacles.length < maxObstacles) {
-        if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width * 0.6) {
-            createObstacle();
-        }
-    }
+    obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
 
     dino.dy += dino.gravity;
     dino.y += dino.dy;
 
-    if (dino.y + dino.height > canvas.height * 0.7) { // Adjusted ground check
-        dino.y = canvas.height * 0.7 - dino.height; // Set to ground level
+    if (dino.y + dino.height > canvas.height * GROUND_LEVEL) {
+        dino.y = canvas.height * GROUND_LEVEL - dino.height;
         dino.dy = 0;
     }
 
-    // Collision detection
     for (let obstacle of obstacles) {
+        obstacle.x -= obstacle.speed;
+
         if (dino.x < obstacle.x + obstacle.width &&
             dino.x + dino.width > obstacle.x &&
             dino.y < obstacle.y + obstacle.height &&
             dino.y + dino.height > obstacle.y) {
-            alert('Game Over!');
-            document.location.reload();
-            return; // Important: Exit update after collision
+            gameOver();
+            return;
         }
     }
+}
+
+function gameOver() {
+    gameStarted = false; // Reset game state
+    obstacles = []; // Clear obstacles
+    alert("Game Over!"); // Replace with a game over screen
+    // You could reset other game variables here if needed.
 }
 
 function draw() {
@@ -131,8 +143,15 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-// Initial obstacle creation and interval
-setTimeout(createObstacle, 1000); // Initial delay
-setInterval(createObstacle, 2000); // Interval
+function obstacleSpawner() {
+    if (gameStarted) { // Only spawn if the game is running
+        createObstacle();
+        setTimeout(obstacleSpawner, OBSTACLE_SPAWN_RATE);
+    }
+}
 
-gameLoop();
+
+setTimeout(() => {
+    // Wait for initial canvas setup before starting game
+    gameLoop();
+}, 100); // Small delay to ensure canvas is ready
