@@ -22,9 +22,19 @@ let obstacles = [];
 const maxObstacles = 5;
 let gameStarted = false;
 
-// Set a fixed size for the canvas (adjust as needed)
-canvas.width = 800;
-canvas.height = 450;
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const aspectRatio = 16 / 9;  // Adjust as needed
+    canvas.height = Math.min(canvas.height, canvas.width / aspectRatio);
+
+    adjustGameElements();
+}
+
+resizeCanvas(); // Call initially
+window.addEventListener('orientationchange', resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
 
 function adjustGameElements() {
     dino.width = canvas.width * 0.05;
@@ -39,7 +49,6 @@ function adjustGameElements() {
     }
 }
 
-adjustGameElements();
 
 function createObstacle() {
     const minSpacing = dino.width * 2;
@@ -63,13 +72,17 @@ function createObstacle() {
     obstacles.push(obstacle);
 }
 
-function handleJump() {
+function handleJump(event) {  // Added event parameter
     if (!gameStarted) {
         gameStarted = true;
         obstacleSpawner();
     }
     if (dino.y + dino.height === canvas.height * GROUND_LEVEL) {
         dino.dy = -dino.jumpStrength;
+    }
+
+    if (event) { // Check if it's a touch event
+      event.preventDefault(); // Prevent default touch behavior
     }
 }
 
@@ -143,4 +156,4 @@ function obstacleSpawner() {
     }
 }
 
-gameLoop(); // Start the game loop
+gameLoop();
