@@ -2,9 +2,9 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 const GROUND_LEVEL = 0.8;
-const GRAVITY = 0.2;
-const JUMP_STRENGTH = 40; 
-const BASE_OBSTACLE_SPEED = 20;
+const GRAVITY = 0.05;
+const JUMP_STRENGTH = 40;
+const BASE_OBSTACLE_SPEED = 40;
 const MIN_OBSTACLE_SPACING = 180;
 const MAX_OBSTACLE_SPACING = 360;
 const MIN_OBSTACLE_SPAWNING = 900;
@@ -25,6 +25,7 @@ let obstacles = [];
 const maxObstacles = 5; // Variable declared but not currently used to limit max obstacles
 let gameStarted = false;
 let lastTime = 0;
+let firstGameStart = true; // ADDED: Flag to track first game start
 
 function resizeCanvas() {
     canvas.width = Math.min(800, window.innerWidth);
@@ -129,8 +130,16 @@ function gameOver() {
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawDino();
-    drawObstacles();
+
+    if (!gameStarted) { // ADDED: Draw "Jump to Start" text if game not started
+        ctx.font = "24px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText("Jump to Start", canvas.width / 2, canvas.height / 2);
+    } else {
+        drawDino();
+        drawObstacles();
+    }
 }
 
 function gameLoop(currentTime) {
@@ -165,6 +174,7 @@ function startGame() {
         obstacleSpawner();
         lastTime = performance.now(); // Reset lastTime for game loop timing
         requestAnimationFrame(gameLoop); // Ensure game loop starts if not already running
+        firstGameStart = false; // ADDED: Set firstGameStart to false after the very first start
     }
 }
 
@@ -179,37 +189,3 @@ function restartGame() {
 // or by listening for another key press like 'Enter' and calling restartGame()
 
 lastTime = performance.now();
-// Game starts on first jump now, no need to start gameLoop immediately.
-// gameLoop(lastTime); //  <-- Removed initial gameLoop call, game starts on first jump
-
-
-// **Further improvements and considerations (comments in code):**
-
-// 1. **Responsiveness Fine-tuning:**
-//    You might need to adjust constants like GRAVITY, JUMP_STRENGTH, BASE_OBSTACLE_SPEED etc.
-//    based on canvas.width to maintain consistent gameplay feel across different screen sizes.
-//    For example, you could scale GRAVITY and JUMP_STRENGTH proportionally to canvas.width or canvas.height.
-
-// 2. **Obstacle Spawning Logic:**
-//    The current obstacle spawning is random within a range. For more controlled difficulty progression:
-//    - Increase obstacle speed gradually over time.
-//    - Decrease obstacle spacing gradually over time.
-//    - Introduce different types of obstacles (e.g., varying heights or speeds).
-//    - Control obstacle density more precisely instead of just random delays.
-
-// 3. **Scorekeeping:**
-//    Add a score counter that increases over time or based on distance travelled.
-//    Display the score on the canvas.
-
-// 4. **Visual Enhancements:**
-//    - Add ground/background graphics.
-//    - Animate the dino and obstacles (e.g., dino running animation).
-//    - Improve obstacle shapes (currently just rectangles).
-//    - Add visual effects for jump and collision.
-
-// 5. **Game State Management:**
-//    For a more complex game, consider using a more structured game state management approach
-//    instead of just boolean flags like `gameStarted`. This can help manage different game phases
-//    (e.g., menu, playing, game over, paused).
-
-    
