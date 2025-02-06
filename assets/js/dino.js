@@ -10,15 +10,35 @@ const dino = {
     color: 'green',
     dy: 0,
     gravity: 0.7,
-    jumpStrength: 15
+    jumpStrength: 20
 };
 
 let obstacles = []; // Array to hold multiple obstacles
 
 function createObstacle() {
+    const minSpacing = 150; // Minimum distance between obstacles (adjust as needed)
+
+    let newObstacleX;
+    let validPosition = false;
+
+    // Try generating positions until a valid one is found
+    while (!validPosition) {
+        newObstacleX = canvas.width;  // Start at the right edge
+        validPosition = true; // Assume valid until proven otherwise
+
+        for (let i = 0; i < obstacles.length; i++) {
+            const existingObstacle = obstacles[i];
+            const distance = Math.abs(newObstacleX - existingObstacle.x);
+            if (distance < minSpacing) {
+                validPosition = false; // Overlap detected, try again
+                break; // No need to check other obstacles
+            }
+        }
+    }
+
     const obstacle = {
-        x: canvas.width,
-        y: canvas.height - 50, //
+        x: newObstacleX, // Use the valid x position
+        y: canvas.height - 50,
         width: 50,
         height: 50,
         color: 'red',
