@@ -7,6 +7,6 @@ redirect_from:
   - /resume
 ---
 
-This game is written using Bing AI, Github Copilot and my hands. I have never before used JavaScript.
+This game is written using LLMS, and my hands. I have limited experience with Javascript.
 
 {% include asteroids.html %}
