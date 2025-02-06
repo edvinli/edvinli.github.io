@@ -32,6 +32,7 @@ var COLOR_PASTEL_YELLOW = "#FFFACD";
 var COLOR_PASTEL_GREEN = "#98FB98";
 var COLOR_PASTEL_PURPLE = "#E6E6FA";
 var COLOR_NEON_PINK = "#FF69B4";
+var COLOR_KAWAII_RED = "#FF4569";
 
 // Define some keys
 var KEY_LEFT = 37;
@@ -226,15 +227,31 @@ function drawShip() {
     ctx.restore();
 }
 
-// Draw a bullet on the canvas
+// Draw a bullet on the canvas as a heart shape
 function drawBullet(bullet) {
-    // Set the fill color to white
-    ctx.fillStyle = COLOR_PASTEL_PURPLE;
+    // Save the current context state
+    ctx.save();
 
-    // Fill a circle at the bullet's position with a radius of 2 pixels
+    // Translate the context to the bullet's position
+    ctx.translate(bullet.x, bullet.y);
+
+    // Set the fill color to pastel purple
+    ctx.fillStyle = COLOR_KAWAII_RED;
+
+    // Begin a new path
     ctx.beginPath();
-    ctx.arc(bullet.x, bullet.y, 2, 0, TWO_PI);
+
+    // Define the heart shape
+    var heartSize = 5; // Size of the heart
+    ctx.moveTo(0, 0 - heartSize);
+    ctx.bezierCurveTo(0 - heartSize / 2, 0 - heartSize / 2, 0 - heartSize, 0 + heartSize / 4, 0, 0 + heartSize);
+    ctx.bezierCurveTo(0 + heartSize, 0 + heartSize / 4, 0 + heartSize / 2, 0 - heartSize / 2, 0, 0 - heartSize);
+
+    // Fill the heart shape
     ctx.fill();
+
+    // Restore the context state
+    ctx.restore();
 }
 
 // Draw an asteroid on the canvas
