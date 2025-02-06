@@ -9,8 +9,8 @@ const dino = {
     height: 100, // Increased height
     color: 'green',
     dy: 0,
-    gravity: 0.5,
-    jumpStrength: 10
+    gravity: 0.7,
+    jumpStrength: 15
 };
 
 let obstacles = []; // Array to hold multiple obstacles
