@@ -59,7 +59,6 @@ function createObstacle() {
         const lastObstacle = obstacles[obstacles.length - 1];
         newObstacleX = lastObstacle.x + lastObstacle.width + MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
         if (newObstacleX - dino.x < 200) return; // Don't create if too close to dino
-        if (newObstacleX > canvas.width) return; // Don't create if off-screen
     }
 
     const obstacle = {
@@ -127,7 +126,7 @@ function update() {
 
 function gameOver() {
     gameStarted = false;
-    obstacles =; // Clear the obstacles array
+    obstacles = []; // Clear the obstacles array
     alert("Game Over!"); // Replace with a game over screen
 }
 
