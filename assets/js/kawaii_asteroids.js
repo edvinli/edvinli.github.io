@@ -700,13 +700,6 @@ function gameLoop() {
         checkBulletCollision(bullet);
     }
 
-    // Draw the score
-    ctx.fillStyle = COLOR_NEON_PINK;
-    ctx.font = "20px Arial";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText("Score: " + SCORE, 10, 10);
-
     // Draw the score and high score (Kawaii Font)
     ctx.fillStyle = COLOR_KAWAII_RED;
     ctx.font = "24px 'Comic Sans MS'"; // Example kawaii font (use a web-safe one)
