@@ -1,6 +1,52 @@
 // Get the canvas element and its context
-var canvas = document.getElementById("canvas");
-var ctx = canvas.getContext("2d");
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;  // Full screen width
+    canvas.height = window.innerHeight; // Full screen height
+
+    // Or, for a specific aspect ratio (e.g., 16:9):
+    // const aspectRatio = 16 / 9;
+    // canvas.width = window.innerWidth;
+    // canvas.height = window.innerWidth / aspectRatio;
+
+    // Adjust game elements (dino, obstacles, etc.) based on new canvas size
+    adjustGameElements(); // See explanation below
+}
+
+window.addEventListener('resize', resizeCanvas); // Resize on orientation change or window resize
+resizeCanvas(); // Initial resize
+
+function adjustGameElements() {
+    // Example: Adjust dino size and position
+    dino.width = canvas.width * 0.1; // 10% of canvas width
+    dino.height = dino.width * 2;   // Maintain aspect ratio
+    dino.x = canvas.width * 0.1;      // 10% from the left
+    dino.y = canvas.height * 0.6;     // 60% from the top
+
+    // Adjust obstacle sizes, positions, speeds, etc., similarly
+    for(let i = 0; i < obstacles.length; i++){
+        obstacles[i].width = canvas.width * 0.05;
+        obstacles[i].height = obstacles[i].width;
+        obstacles[i].y = canvas.height - obstacles[i].height;
+        obstacles[i].speed = canvas.width * 0.003;
+    }
+}
+
+canvas.addEventListener('touchstart', (event) => {
+    // Get the touch position relative to the canvas
+    const touch = event.touches[0];
+    const touchX = touch.clientX - canvas.offsetLeft;
+    const touchY = touch.clientY - canvas.offsetTop;
+
+    // Example: Make dino jump on touch
+    if (dino.y + dino.height === canvas.height) {
+        dino.dy = -dino.jumpStrength;
+    }
+
+    event.preventDefault(); // Prevent default touch behavior (like scrolling)
+});
 
 const dino = {
     x: 50,
