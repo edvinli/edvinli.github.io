@@ -6,38 +6,50 @@ const dino = {
     x: 50,
     y: 200,
     width: 50,
-    height: 50,
+    height: 100, // Increased height
     color: 'green',
     dy: 0,
     gravity: 0.5,
     jumpStrength: 10
 };
 
-const obstacle = {
-    x: canvas.width,
-    y: 200,
-    width: 50,
-    height: 50,
-    color: 'red',
-    speed: 3
-};
+let obstacles = []; // Array to hold multiple obstacles
+
+function createObstacle() {
+    const obstacle = {
+        x: canvas.width,
+        y: 200,
+        width: 50,
+        height: 50,
+        color: 'red',
+        speed: 3
+    };
+    obstacles.push(obstacle);
+}
+
 
 function drawDino() {
     ctx.fillStyle = dino.color;
     ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
 }
 
-function drawObstacle() {
-    ctx.fillStyle = obstacle.color;
-    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+function drawObstacles() {  // Draw all obstacles
+    for (let i = 0; i < obstacles.length; i++) {
+        ctx.fillStyle = obstacles[i].color;
+        ctx.fillRect(obstacles[i].x, obstacles[i].y, obstacles[i].width, obstacles[i].height);
+    }
 }
 
 function update() {
-    // Move obstacle
-    obstacle.x -= obstacle.speed;
-    if (obstacle.x + obstacle.width < 0) {
-        obstacle.x = canvas.width;
+    // Update obstacles
+    for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].x -= obstacles[i].speed;
+        if (obstacles[i].x + obstacles[i].width < 0) {
+            obstacles.splice(i, 1); // Remove obstacle from array
+            createObstacle();      // Create a new one
+        }
     }
+
 
     // Apply gravity to dino
     dino.dy += dino.gravity;
@@ -49,20 +61,23 @@ function update() {
         dino.dy = 0;
     }
 
-    // Check for collision
-    if (dino.x < obstacle.x + obstacle.width &&
-        dino.x + dino.width > obstacle.x &&
-        dino.y < obstacle.y + obstacle.height &&
-        dino.y + dino.height > obstacle.y) {
-        alert('Game Over!');
-        document.location.reload();
+    // Check for collision with any obstacle
+    for (let i = 0; i < obstacles.length; i++) {
+        if (dino.x < obstacles[i].x + obstacles[i].width &&
+            dino.x + dino.width > obstacles[i].x &&
+            dino.y < obstacles[i].y + obstacles[i].height &&
+            dino.y + dino.height > obstacles[i].y) {
+            alert('Game Over!');
+            document.location.reload();
+            break; // Exit the loop after collision
+        }
     }
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawDino();
-    drawObstacle();
+    drawObstacles(); // Draw all obstacles
 }
 
 function gameLoop() {
@@ -76,5 +91,9 @@ document.addEventListener('keydown', (event) => {
         dino.dy = -dino.jumpStrength;
     }
 });
+
+// Initialize obstacles with a random delay
+setTimeout(createObstacle, Math.random() * 1000); // First obstacle after a short random delay
+setInterval(createObstacle, Math.random() * 2000 + 500); // Create new obstacles at random intervals
 
 gameLoop();
