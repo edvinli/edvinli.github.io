@@ -39,6 +39,11 @@ var COLOR_PASTEL_LAVENDER = "#E6BEEB"; // Light lavender
 var COLOR_KAWAII_RED = "#FF69B4"; // Brighter pink-red
 var COLOR_KAWAII_GREEN = "#90EE90"; // Light Green
 
+// Disco colors for the ship
+const DISCO_COLORS = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"];
+let discoColorIndex = 0;
+let discoColorTimer = 0;
+
 // Define some keys
 var KEY_LEFT = 37;
 var KEY_UP = 38;
@@ -220,7 +225,16 @@ function drawShip() {
     ctx.rotate(ship.a);
 
     // Ship Body (Rounded rectangle with a cute tail)
-    ctx.strokeStyle = ship.invincible? COLOR_KAWAII_GREEN: COLOR_KAWAII_RED;
+    if (ship.invincible) {
+        ctx.strokeStyle = DISCO_COLORS[discoColorIndex]; // Use disco color if invincible
+        discoColorTimer++;
+        if (discoColorTimer > 10) { // Change color every 10 frames
+            discoColorTimer = 0;
+            discoColorIndex = (discoColorIndex + 1) % DISCO_COLORS.length;
+        }
+    } else {
+        ctx.strokeStyle = COLOR_KAWAII_RED; // Default color
+    }
     ctx.lineWidth = 3; // Thicker lines
     ctx.beginPath();
     ctx.moveTo(SHIP_SIZE / 2, 0);
