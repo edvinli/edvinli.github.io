@@ -18,7 +18,7 @@ let obstacles = []; // Array to hold multiple obstacles
 function createObstacle() {
     const obstacle = {
         x: canvas.width,
-        y: 200,
+        y: canvas.height - 50, //
         width: 50,
         height: 50,
         color: 'red',
