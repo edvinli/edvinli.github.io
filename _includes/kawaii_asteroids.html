@@ -1,24 +1,36 @@
+<!DOCTYPE html>
 <html>
 <head>
     <title>KAWAII Asteroids</title>
     <style>
         canvas {
-            border: 1px solid black;
+            border: 3px solid #FF69B4; /* Kawaii pink border */
+            background-color: #A7C7E7; /* Soft pastel blue background for the canvas itself */
         }
-        /* Optional: If you want a more styled body */
         body {
-            background-color: #f0f0f0; /* Example background color */
-            font-family: sans-serif; /* Default font if Comic Sans isn't available */
-            text-align: center;      /* Center the content */
+            background-color: #FFF9C4; /* Soft pastel yellow background */
+            font-family: 'Comic Sans MS', sans-serif; /* Comic Sans with sans-serif fallback */
+            text-align: center;
+            color: #FF69B4; /* Kawaii pink text color */
         }
         h1 {
-            color: #FF69B4; /* Example color for the title */
+            color: #FFB6C1; /* Lighter pink for the title */
+            font-size: 2em; /* Slightly larger title */
         }
         p {
-            color: #90EE90; /* Example color for the instructions */
+            color: #90EE90; /* Light green for instructions */
+            margin-bottom: 20px; /* Add some space below the instructions */
+        }
+        a { /* Style for links if you have any */
+            color: #DA70D6; /* Orchid link color */
+            text-decoration: none; /* Remove underlines from links */
+        }
+        a:hover {
+            text-decoration: underline; /* Add underline on hover */
         }
     </style>
-    <link href="https://fonts.cdnfonts.com/css/comic-sans-ms-2" rel="stylesheet">  </head>
+    <link href="https://fonts.cdnfonts.com/css/comic-sans-ms-2" rel="stylesheet">
+</head>
 <body>
     <h1>KAWAII Asteroids</h1>
     <p>Use the arrow keys to move and spacebar to pew pew.</p>
