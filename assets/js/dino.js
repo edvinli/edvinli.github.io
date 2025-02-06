@@ -21,21 +21,18 @@ let dino = {
     jumpStrength: JUMP_STRENGTH
 };
 
-let obstacles = []; // Initialize as an empty array
+let obstacles = [];
 const maxObstacles = 5;
 let gameStarted = false;
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = Math.min(800, window.innerWidth); // Limit width to 800px
+    canvas.height = canvas.width * (9 / 16); // Maintain 16:9 aspect ratio
 
-    const aspectRatio = 16 / 9;
-    canvas.height = Math.min(canvas.height, canvas.width / aspectRatio);
-
-    adjustGameElements(); // Crucial: Call AFTER resize
+    adjustGameElements();
 }
 
-resizeCanvas(); // Call initially
+resizeCanvas();
 window.addEventListener('orientationchange', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
@@ -58,7 +55,7 @@ function createObstacle() {
     if (obstacles.length > 0) {
         const lastObstacle = obstacles[obstacles.length - 1];
         newObstacleX = lastObstacle.x + lastObstacle.width + MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
-        if (newObstacleX - dino.x < 200) return; // Don't create if too close to dino
+        if (newObstacleX - dino.x < 200) return;
     }
 
     const obstacle = {
@@ -126,8 +123,8 @@ function update() {
 
 function gameOver() {
     gameStarted = false;
-    obstacles = []; // Clear the obstacles array
-    alert("Game Over!"); // Replace with a game over screen
+    obstacles = [];
+    alert("Game Over!");
 }
 
 function draw() {
@@ -157,4 +154,4 @@ function obstacleSpawner() {
     }
 }
 
-gameLoop(); // Start the game loop
+gameLoop();
