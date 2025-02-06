@@ -1,6 +1,6 @@
 // Get the canvas element and its context
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
 
 const dino = {
     x: 50,
