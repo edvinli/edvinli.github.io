@@ -27,9 +27,8 @@ let gameStarted = false;
 let lastTime = 0;
 
 function resizeCanvas() {
-    canvas.width = Math.min(800, window.innerWidth);
-    const maxHeight = canvas.width * (16 / 9);
-    canvas.height = Math.min(maxHeight, window.innerHeight);
+    canvas.width = Math.min(700, window.innerWidth); // Limit maximum width
+    canvas.height = canvas.width; // Make height equal to width (square)
 
     adjustGameElements();
 }
