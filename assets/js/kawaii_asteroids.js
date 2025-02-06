@@ -235,7 +235,7 @@ function drawBullet(bullet) {
     // Translate the context to the bullet's position
     ctx.translate(bullet.x, bullet.y);
 
-    // Set the fill color to pastel purple
+    // Set the fill color to kawaii red
     ctx.fillStyle = COLOR_KAWAII_RED;
 
     // Begin a new path
@@ -243,9 +243,17 @@ function drawBullet(bullet) {
 
     // Define the heart shape
     var heartSize = 5; // Size of the heart
-    ctx.moveTo(0, 0 - heartSize);
-    ctx.bezierCurveTo(0 - heartSize / 2, 0 - heartSize / 2, 0 - heartSize, 0 + heartSize / 4, 0, 0 + heartSize);
-    ctx.bezierCurveTo(0 + heartSize, 0 + heartSize / 4, 0 + heartSize / 2, 0 - heartSize / 2, 0, 0 - heartSize);
+    ctx.moveTo(0, 0 - heartSize * 0.3);
+    ctx.bezierCurveTo(
+        0 - heartSize * 0.5, 0 - heartSize * 0.7,
+        0 - heartSize, 0,
+        0, 0 + heartSize * 0.3
+    );
+    ctx.bezierCurveTo(
+        0 + heartSize, 0,
+        0 + heartSize * 0.5, 0 - heartSize * 0.7,
+        0, 0 - heartSize * 0.3
+    );
 
     // Fill the heart shape
     ctx.fill();
@@ -253,6 +261,7 @@ function drawBullet(bullet) {
     // Restore the context state
     ctx.restore();
 }
+
 
 // Draw an asteroid on the canvas
 function drawAsteroid(asteroid) {
