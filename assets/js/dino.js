@@ -2,7 +2,7 @@
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
-const dino = {
+var dino = {
     x: 50,
     y: 200,
     width: 50,
