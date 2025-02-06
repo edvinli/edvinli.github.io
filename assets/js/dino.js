@@ -1,10 +1,9 @@
-// Get the canvas element and its context
-var canvas = document.getElementById("canvas");
-var ctx = canvas.getContext("2d");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-var dino = {
+let dino = {
     x: 50,
-    y: 200,
+    y: 0, // Initial y will be set in resizeCanvas
     width: 50,
     height: 100,
     color: 'green',
@@ -13,6 +12,9 @@ var dino = {
     jumpStrength: 20
 };
 
+let obstacles = [];
+const maxObstacles = 5;
+
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -20,53 +22,48 @@ function resizeCanvas() {
 }
 
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+resizeCanvas(); // Call initially
 
 function adjustGameElements() {
-    dino.width = canvas.width * 0.1;
+    const aspectRatio = 16 / 9; // Example aspect ratio
+    canvas.height = Math.min(canvas.height, canvas.width / aspectRatio); // Maintain aspect ratio
+    dino.width = canvas.width * 0.05;
     dino.height = dino.width * 2;
     dino.x = canvas.width * 0.1;
-    dino.y = canvas.height * 0.6;
+    dino.y = canvas.height * 0.7 - dino.height; // Adjusted y for consistent ground level
 
-    for (let i = 0; i < obstacles.length; i++) {
-        obstacles[i].width = canvas.width * 0.05;
-        obstacles[i].height = obstacles[i].width;
-        obstacles[i].y = canvas.height - obstacles[i].height;
-        obstacles[i].speed = canvas.width * 0.003;
+    for (let obstacle of obstacles) {
+        obstacle.width = canvas.width * 0.03;  // Adjust obstacle size
+        obstacle.height = obstacle.width;
+        obstacle.y = canvas.height * 0.7 - obstacle.height; // Match dino's ground level
+        obstacle.speed = canvas.width * 0.005;
     }
 }
 
-let obstacles = [];
-const maxObstacles = 5; // Limit the number of obstacles
-
 function createObstacle() {
-    const minSpacing = dino.width * 2;  // Spacing relative to dino size
+    const minSpacing = dino.width * 2;
     let newObstacleX = canvas.width;
-    let validPosition = true;
 
     if (obstacles.length > 0) {
         const lastObstacle = obstacles[obstacles.length - 1];
         if (lastObstacle.x + lastObstacle.width + minSpacing > canvas.width) {
-            validPosition = false; // Don't create if too close to the last one
+            return; // Don't create if too close
         }
     }
 
-
-    if (validPosition) {
-        const obstacle = {
-            x: newObstacleX,
-            y: canvas.height - dino.height / 1.5, // Align with dino's bottom
-            width: dino.width / 2, // Half the dino's width
-            height: dino.width / 2,
-            color: 'red',
-            speed: dino.width * 0.005 // Speed relative to dino size
-        };
-        obstacles.push(obstacle);
-    }
+    const obstacle = {
+        x: newObstacleX,
+        y: canvas.height * 0.7 - dino.height / 1.5, // Consistent ground for obstacles
+        width: dino.width / 2,
+        height: dino.width / 2,
+        color: 'red',
+        speed: dino.width * 0.005
+    };
+    obstacles.push(obstacle);
 }
 
 function handleJump() {
-    if (dino.y + dino.height === canvas.height) {
+    if (dino.y + dino.height === canvas.height * 0.7) { // Check against adjusted ground
         dino.dy = -dino.jumpStrength;
     }
 }
@@ -84,25 +81,21 @@ function drawObstacles() {
 }
 
 function update() {
-    // Remove off-screen obstacles
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].x -= obstacles[i].speed;
-        if (obstacles[i].x + obstacles[i].width < 0) {
-            obstacles.splice(i, 1);
+    // Remove off-screen obstacles (more efficient loop)
+    obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+
+    // Create new obstacle (improved logic)
+    if (obstacles.length < maxObstacles) {
+        if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width * 0.6) {
+            createObstacle();
         }
     }
-
-    // Create new obstacle if needed
-    if (obstacles.length < maxObstacles && (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width * 0.7)) { // Slightly earlier spawn
-        createObstacle();
-    }
-
 
     dino.dy += dino.gravity;
     dino.y += dino.dy;
 
-    if (dino.y + dino.height > canvas.height) {
-        dino.y = canvas.height - dino.height;
+    if (dino.y + dino.height > canvas.height * 0.7) { // Adjusted ground check
+        dino.y = canvas.height * 0.7 - dino.height; // Set to ground level
         dino.dy = 0;
     }
 
