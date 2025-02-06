@@ -2,6 +2,17 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
+const dino = {
+    x: 50,
+    y: 200,
+    width: 50,
+    height: 100, // Increased height
+    color: 'green',
+    dy: 0,
+    gravity: 0.5,
+    jumpStrength: 20
+};
+
 function resizeCanvas() {
     canvas.width = window.innerWidth;  // Full screen width
     canvas.height = window.innerHeight; // Full screen height
@@ -34,30 +45,6 @@ function adjustGameElements() {
     }
 }
 
-canvas.addEventListener('touchstart', (event) => {
-    // Get the touch position relative to the canvas
-    const touch = event.touches[0];
-    const touchX = touch.clientX - canvas.offsetLeft;
-    const touchY = touch.clientY - canvas.offsetTop;
-
-    // Example: Make dino jump on touch
-    if (dino.y + dino.height === canvas.height) {
-        dino.dy = -dino.jumpStrength;
-    }
-
-    event.preventDefault(); // Prevent default touch behavior (like scrolling)
-});
-
-const dino = {
-    x: 50,
-    y: 200,
-    width: 50,
-    height: 100, // Increased height
-    color: 'green',
-    dy: 0,
-    gravity: 0.5,
-    jumpStrength: 20
-};
 
 let obstacles = []; // Array to hold multiple obstacles
 
@@ -93,6 +80,11 @@ function createObstacle() {
     obstacles.push(obstacle);
 }
 
+function handleJump() {
+    if (dino.y + dino.height === canvas.height) {
+        dino.dy = -dino.jumpStrength;
+    }
+}
 
 function drawDino() {
     ctx.fillStyle = dino.color;
@@ -157,9 +149,16 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+// Touch Event Listener
+canvas.addEventListener('touchstart', (event) => {
+    //... (get touch coordinates if needed)
+    handleJump();
+    event.preventDefault();
+});
+
 document.addEventListener('keydown', (event) => {
-    if (event.code === 'Space' && dino.y + dino.height === canvas.height) {
-        dino.dy = -dino.jumpStrength;
+    if (event.code === 'Space') {
+        handleJump();
     }
 });
 
