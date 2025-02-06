@@ -1,12 +1,11 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-const GROUND_LEVEL = 0.7;
+const GROUND_LEVEL = 0.8;
 const GRAVITY = 0.5;
 const JUMP_STRENGTH = 20;
 const BASE_OBSTACLE_SPEED = 5;
-const OBSTACLE_SPAWN_DELAY = 1500; // Initial delay
-const OBSTACLE_SPAWN_RATE = 1000; // Rate of obstacle creation
+const OBSTACLE_SPAWN_RATE = 1500;
 
 let dino = {
     x: 50,
@@ -21,20 +20,13 @@ let dino = {
 
 let obstacles = [];
 const maxObstacles = 5;
-let gameStarted = false; // Track if the game has started
+let gameStarted = false;
 
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    adjustGameElements();
-}
-
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+// Set a fixed size for the canvas (adjust as needed)
+canvas.width = 800;
+canvas.height = 450;
 
 function adjustGameElements() {
-    const aspectRatio = 16 / 9;
-    canvas.height = Math.min(canvas.height, canvas.width / aspectRatio);
     dino.width = canvas.width * 0.05;
     dino.height = dino.width * 2;
     dino.x = canvas.width * 0.1;
@@ -46,6 +38,8 @@ function adjustGameElements() {
         obstacle.y = canvas.height * GROUND_LEVEL - obstacle.height;
     }
 }
+
+adjustGameElements();
 
 function createObstacle() {
     const minSpacing = dino.width * 2;
@@ -64,15 +58,15 @@ function createObstacle() {
         width: dino.width / 2,
         height: dino.width / 2,
         color: 'red',
-        speed: BASE_OBSTACLE_SPEED // Use base speed
+        speed: BASE_OBSTACLE_SPEED
     };
     obstacles.push(obstacle);
 }
 
 function handleJump() {
     if (!gameStarted) {
-        gameStarted = true; // Start the game on the first jump
-        obstacleSpawner(); // Start spawning obstacles
+        gameStarted = true;
+        obstacleSpawner();
     }
     if (dino.y + dino.height === canvas.height * GROUND_LEVEL) {
         dino.dy = -dino.jumpStrength;
@@ -92,7 +86,7 @@ function drawObstacles() {
 }
 
 function update() {
-    if (!gameStarted) return; // Don't update if game hasn't started
+    if (!gameStarted) return;
 
     obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
 
@@ -118,10 +112,9 @@ function update() {
 }
 
 function gameOver() {
-    gameStarted = false; // Reset game state
-    obstacles = []; // Clear obstacles
+    gameStarted = false;
+    obstacles = [];
     alert("Game Over!"); // Replace with a game over screen
-    // You could reset other game variables here if needed.
 }
 
 function draw() {
@@ -144,14 +137,10 @@ document.addEventListener('keydown', (event) => {
 });
 
 function obstacleSpawner() {
-    if (gameStarted) { // Only spawn if the game is running
+    if (gameStarted) {
         createObstacle();
         setTimeout(obstacleSpawner, OBSTACLE_SPAWN_RATE);
     }
 }
 
-
-setTimeout(() => {
-    // Wait for initial canvas setup before starting game
-    gameLoop();
-}, 100); // Small delay to ensure canvas is ready
+gameLoop(); // Start the game loop
