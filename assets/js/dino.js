@@ -44,6 +44,7 @@ function updatePlayer() {
         }
     }
 }
+
 function generateObstacle() {
     const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20; // Random height between 20 and 50
     const width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
@@ -100,10 +101,15 @@ function drawScore() {
     ctx.font = '20px Arial';
     ctx.fillText('Score: ' + score, 10, 30);
 }
+
 function drawGameOver() {
     ctx.fillStyle = 'black';
     ctx.font = '40px Arial';
     ctx.fillText('Game Over', size / 4, size / 2);
+
+    // Add "Jump to Restart" text
+    ctx.font = '20px Arial';
+    ctx.fillText('Jump to Restart', size / 4 + 20, size / 2 + 40); // Position below "Game Over"
 }
 
 function restartGame() {
