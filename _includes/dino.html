@@ -1,48 +1,14 @@
 <html>
 <head>
     <title>Dino</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0; /* Optional background color */
-        }
         canvas {
             border: 1px solid black;
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    <script>
-      // Immediately Invoked Function Expression (IIFE)
-      (function() {
-        fetch('{{ site.baseurl }}/assets/js/dino.js') // Fetch the external JavaScript file
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.text();
-            })
-            .then(code => {
-                // Create a new script element
-                const script = document.createElement('script');
-                script.textContent = code; // Set the fetched code as the script's content
-                document.body.appendChild(script); // Append the script to the body (to execute it)
-            })
-            .catch(error => {
-                console.error('Error fetching or executing script:', error);
-                // Optionally, display an error message on the page
-                const errorDiv = document.createElement('div');
-                errorDiv.textContent = 'Failed to load the game.';
-                errorDiv.style.color = 'red';
-                document.body.appendChild(errorDiv);
-            });
-        })(); // Execute the IIFE immediately
-    </script>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <script src="{{ site.baseurl }}/assets/js/dino.js" type="text/javascript"></script>
 </body>
 </html>
