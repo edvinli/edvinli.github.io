@@ -5,6 +5,9 @@ canvas.width = size;
 canvas.height = size;
 canvas.style.border = '1px solid black';
 
+// --- Constants ---
+const c = 30; // Speed of light (scaled down for gameplay)
+
 let player = {
     x: 50,
     y: size - 50,
@@ -26,7 +29,24 @@ let lastTime = 0;
 // --- Touch Control Variables ---
 let touchStartX = null;
 let touchEndX = null;
-const touchThreshold = 30; // Minimum distance for a swipe to register
+const touchThreshold = 30;
+
+// --- Settings ---
+let settingsOpen = false;
+let obstacleSpeedSetting = 9; // Initial obstacle speed
+
+// --- Relativistic Effects ---
+function lorentzFactor(v) {
+    // Avoid division by zero or invalid input
+    if (v >= c) {
+        return Infinity; // Or a very large number
+    }
+    return 1 / Math.sqrt(1 - (v * v) / (c * c));
+}
+
+function relativisticLengthContraction(originalLength, v) {
+    return originalLength / lorentzFactor(v);
+}
 
 function drawPlayer() {
     ctx.fillStyle = 'green';
@@ -37,7 +57,13 @@ function drawPlayer() {
 
 function drawObstacle(obstacle) {
     ctx.fillStyle = 'black';
-    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+    // Apply length contraction
+    const contractedWidth = relativisticLengthContraction(obstacle.width, obstacleSpeedSetting);
+
+     //Position the obstacle correctly after contraction
+    const contractedX = obstacle.x + (obstacle.width - contractedWidth)
+
+    ctx.fillRect(contractedX, obstacle.y, contractedWidth, obstacle.height);
 }
 
 function updatePlayer(deltaTime) {
@@ -62,7 +88,6 @@ function updatePlayer(deltaTime) {
         player.xVelocity = 0;
     }
 }
-
 function generateObstacle() {
     const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20;
     const width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
@@ -70,20 +95,23 @@ function generateObstacle() {
         x: size,
         y: size - height,
         width: width,
-        height: height
+        height: height,
+        originalWidth: width, // Store original width for relativistic calculations
     });
 }
 
 function updateObstacles(deltaTime) {
     for (let i = 0; i < obstacles.length; i++) {
-        obstacles[i].x -= obstacleSpeed * (deltaTime / 16.67);
+         //Use the setting, not the actual speed (which gets modified by score)
+        obstacles[i].x -= obstacleSpeedSetting * (deltaTime / 16.67);
 
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
             i--;
             score++;
             if (score % 5 == 0 && score != 0) {
-                obstacleSpeed += 1 * (deltaTime / 16.67);
+                 //Don't modify obstacleSpeed directly.  Increase it, but keep it relative to the setting.
+                obstacleSpeed += 1 * (deltaTime/16.67);
             }
         }
     }
@@ -93,19 +121,22 @@ function updateObstacles(deltaTime) {
         }
     }
 }
-
 function checkCollision() {
     for (let obstacle of obstacles) {
-        let distX = Math.abs(player.x - obstacle.x - obstacle.width / 2);
+        // Use contracted width for collision check.
+        const contractedWidth = relativisticLengthContraction(obstacle.originalWidth, obstacleSpeedSetting);
+        const contractedX = obstacle.x + (obstacle.originalWidth - contractedWidth);
+
+        let distX = Math.abs(player.x - contractedX - contractedWidth / 2);
         let distY = Math.abs(player.y - obstacle.y - obstacle.height / 2);
 
-        if (distX > (obstacle.width / 2 + player.radius)) { continue; }
+        if (distX > (contractedWidth / 2 + player.radius)) { continue; }
         if (distY > (obstacle.height / 2 + player.radius)) { continue; }
 
-        if (distX <= (obstacle.width / 2)) { return true; }
+        if (distX <= (contractedWidth / 2)) { return true; }
         if (distY <= (obstacle.height / 2)) { return true; }
 
-        let dx = distX - obstacle.width / 2;
+        let dx = distX - contractedWidth / 2;
         let dy = distY - obstacle.height / 2;
         return (dx * dx + dy * dy <= (player.radius * player.radius));
     }
@@ -139,19 +170,71 @@ function restartGame() {
         speed: 5,
     };
     obstacles = [];
-    obstacleSpeed = 9;
+    obstacleSpeed = obstacleSpeedSetting; // Reset to the setting value
     score = 0;
     gameRunning = true;
     lastTime = 0;
-    // Reset touch variables
     touchStartX = null;
     touchEndX = null;
     requestAnimationFrame(gameLoop);
 }
+// --- Settings UI ---
+function openSettings() {
+    settingsOpen = true;
+    // Create settings UI elements (using DOM manipulation)
+    const settingsDiv = document.createElement('div');
+    settingsDiv.id = 'settings-panel';
+    settingsDiv.style.position = 'absolute';
+    settingsDiv.style.top = '50px';
+    settingsDiv.style.left = '50px';
+    settingsDiv.style.backgroundColor = 'white';
+    settingsDiv.style.border = '1px solid black';
+    settingsDiv.style.padding = '10px';
 
+    const speedLabel = document.createElement('label');
+    speedLabel.textContent = 'Obstacle Speed: ';
+    settingsDiv.appendChild(speedLabel);
+
+    const speedInput = document.createElement('input');
+    speedInput.type = 'range';
+    speedInput.min = '1';
+    speedInput.max = String(c -1); // Max speed is c-1 (avoiding Infinity)
+    speedInput.value = String(obstacleSpeedSetting);
+    speedInput.id = 'speed-input';
+    settingsDiv.appendChild(speedInput);
+
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.onclick = closeSettings;
+    settingsDiv.appendChild(closeButton);
+
+    document.body.appendChild(settingsDiv);
+
+    // Update obstacle speed setting on input change
+    speedInput.addEventListener('input', () => {
+        obstacleSpeedSetting = parseFloat(speedInput.value);
+        // console.log("Setting Speed", obstacleSpeedSetting)
+    });
+}
+
+function closeSettings() {
+    settingsOpen = false;
+    const settingsDiv = document.getElementById('settings-panel');
+    if (settingsDiv) {
+        settingsDiv.remove();
+    }
+    //Restart the game with the new settings.
+    restartGame();
+}
+
+// --- Main Game Loop ---
 function gameLoop(timestamp) {
     if (!gameRunning) {
         drawGameOver();
+        return;
+    }
+     if (settingsOpen) {
+        // Don't update game logic if settings are open
         return;
     }
 
@@ -187,17 +270,13 @@ function jump() {
     }
 }
 
-
 // --- Touch Event Handlers ---
-
 canvas.addEventListener('touchstart', (event) => {
-    event.preventDefault(); // Prevent default touch behavior (scrolling, zooming)
+    event.preventDefault();
     touchStartX = event.touches[0].clientX;
-    touchEndX = event.touches[0].clientX; // Initialize touchEndX
-
-     // If there's no ongoing touch, consider this a potential jump
-     if (event.touches.length === 1 ) {
-        jump();  //Consider any touch as potential jump
+    touchEndX = event.touches[0].clientX;
+    if (event.touches.length === 1) {
+        jump();
     }
 });
 
@@ -214,19 +293,18 @@ canvas.addEventListener('touchend', (event) => {
         const deltaX = touchEndX - touchStartX;
 
         if (deltaX > touchThreshold) {
-            player.xVelocity = player.speed; // Move right
+            player.xVelocity = player.speed;
         } else if (deltaX < -touchThreshold) {
-            player.xVelocity = -player.speed; // Move left
-        } else{
+            player.xVelocity = -player.speed;
+        } else {
             player.xVelocity = 0;
         }
     }
-     // Reset touch variables for next gesture
-     touchStartX = null;
-     touchEndX = null;
+    touchStartX = null;
+    touchEndX = null;
 });
 
-// --- Keyboard Controls (Keep for PC/Debugging) ---
+// --- Keyboard Controls ---
 document.addEventListener('keydown', (event) => {
     if (event.code === 'Space' || event.code === 'ArrowUp') {
         jump();
@@ -236,6 +314,12 @@ document.addEventListener('keydown', (event) => {
     } else if (event.code === 'ArrowRight') {
         player.xVelocity = player.speed;
     }
+    // Open settings with 'S' key
+    if (event.code === 'KeyS') {
+        if (!settingsOpen) {
+            openSettings();
+        }
+    }
 });
 
 document.addEventListener('keyup', (event) => {
@@ -243,5 +327,4 @@ document.addEventListener('keyup', (event) => {
         player.xVelocity = 0;
     }
 });
-
 requestAnimationFrame(gameLoop);
