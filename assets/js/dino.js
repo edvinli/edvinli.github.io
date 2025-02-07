@@ -319,35 +319,49 @@ function jump() {
         restartGame();
     }
 }
+
 // --- Event Listeners ---
 
+// Helper function to get canvas-relative coordinates
+function getCanvasCoordinates(event) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+}
+
+
+// --- Consolidated Mouse and Touch Event Handling ---
+
+function handleStart(x, y) {
+    if (x >= size - SETTINGS_BUTTON_SIZE - SETTINGS_BUTTON_PADDING &&
+        x <= size - SETTINGS_BUTTON_PADDING &&
+        y >= SETTINGS_BUTTON_PADDING &&
+        y <= SETTINGS_BUTTON_SIZE + SETTINGS_BUTTON_PADDING) {
+        if (!gameState.settingsOpen) {
+            openSettings();
+        }
+    } else if (gameState.gameRunning) {
+      jump();
+    }
+}
+
+
 canvas.addEventListener('mousedown', (event) => {
-    jump();
+  const { x, y } = getCanvasCoordinates(event);
+  handleStart(x, y);
 });
 
-// Touch Events (Simplified - Handle Settings Button)
 canvas.addEventListener('touchstart', (event) => {
     event.preventDefault();
-    const touchX = event.touches[0].clientX;
-    const touchY = event.touches[0].clientY;
-
-    // Check if the touch is within the settings button bounds
-    if (touchX >= size - SETTINGS_BUTTON_SIZE - SETTINGS_BUTTON_PADDING &&
-        touchX <= size - SETTINGS_BUTTON_PADDING &&
-        touchY >= SETTINGS_BUTTON_PADDING &&
-        touchY <= SETTINGS_BUTTON_SIZE + SETTINGS_BUTTON_PADDING)
-        {
-          if(!gameState.settingsOpen){
-              openSettings();
-          }
-        } else {
-            gameState.touchStartX = touchX;
-            gameState.touchEndX = touchX;
-            jump(); // Call Jump only if not on the settings button
-        }
-
+    if (event.touches.length > 0) { // Ensure there's at least one touch
+        const { x, y } = getCanvasCoordinates(event.touches[0]);
+        handleStart(x, y);
+    }
 });
 
+// Keep the touchmove and touchend events (for X movement)
 canvas.addEventListener('touchmove', (event) => {
     event.preventDefault();
     if (gameState.touchStartX !== null) {
@@ -371,7 +385,6 @@ canvas.addEventListener('touchend', (event) => {
     gameState.touchStartX = null;
     gameState.touchEndX = null;
 });
-
 // Keyboard Controls
 document.addEventListener('keydown', (event) => {
     if (event.code === 'Space' || event.code === 'ArrowUp') {
