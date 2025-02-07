@@ -1,6 +1,6 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const size = 400;
+const size = 350;
 canvas.width = size;
 canvas.height = size;
 canvas.style.border = '1px solid black';
@@ -46,7 +46,7 @@ function updatePlayer() {
 }
 function generateObstacle() {
     const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20; // Random height between 20 and 50
-    const width = Math.floor(Math.random() * (40-20 +1)) + 20;
+    const width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
     obstacles.push({
         x: size,
         y: size - height,
@@ -63,15 +63,15 @@ function updateObstacles() {
             obstacles.splice(i, 1);
             i--;
             score++;
-            if (score % 5 == 0 && score !=0){
-                obstacleSpeed+=1;
+            if (score % 5 == 0 && score != 0) {
+                obstacleSpeed += 1;
             }
         }
     }
-    if (obstacles.length == 0 || obstacles[obstacles.length -1].x < size - 150){
-      if (Math.random() < 0.02) { // Adjust probability for obstacle frequency
-          generateObstacle();
-      }
+    if (obstacles.length == 0 || obstacles[obstacles.length - 1].x < size - 150) {
+        if (Math.random() < 0.02) { // Adjust probability for obstacle frequency
+            generateObstacle();
+        }
     }
 }
 
@@ -100,11 +100,29 @@ function drawScore() {
     ctx.font = '20px Arial';
     ctx.fillText('Score: ' + score, 10, 30);
 }
-function drawGameOver(){
-     ctx.fillStyle = 'black';
+function drawGameOver() {
+    ctx.fillStyle = 'black';
     ctx.font = '40px Arial';
-    ctx.fillText('Game Over', size/4, size/2);
+    ctx.fillText('Game Over', size / 4, size / 2);
 }
+
+function restartGame() {
+    player = {
+        x: 50,
+        y: size - 50,
+        radius: 15,
+        yVelocity: 0,
+        gravity: 0.6,
+        jumpStrength: -15,
+        isJumping: false
+    };
+    obstacles = [];
+    obstacleSpeed = 5;
+    score = 0;
+    gameRunning = true;
+    gameLoop(); // Call gameLoop here to restart the animation
+}
+
 
 function gameLoop() {
     if (!gameRunning) {
@@ -132,10 +150,16 @@ function gameLoop() {
 
 
 function jump() {
-    if (!player.isJumping) {
-        player.yVelocity = player.jumpStrength;
-        player.isJumping = true;
+    if (gameRunning) { // Jump only if game is running
+        if (!player.isJumping) {
+            player.yVelocity = player.jumpStrength;
+            player.isJumping = true;
+        }
+    } else {
+        // Restart the game if it's over
+        restartGame();
     }
+
 }
 // Event Listeners (Keyboard and Touch)
 document.addEventListener('keydown', (event) => {
