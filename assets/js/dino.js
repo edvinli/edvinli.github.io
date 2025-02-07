@@ -16,7 +16,7 @@ let player = {
 };
 
 let obstacles = [];
-let obstacleSpeed = 5;
+let obstacleSpeed = 9;
 let score = 0;
 let gameRunning = true;
 let lastTime = 0; // Initialize lastTime
