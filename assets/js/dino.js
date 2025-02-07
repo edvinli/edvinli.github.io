@@ -10,7 +10,7 @@ let player = {
     y: size - 50,
     radius: 15,
     yVelocity: 0,
-    gravity: 0.6,
+    gravity: 1.1,
     jumpStrength: -15,
     isJumping: false
 };
@@ -115,12 +115,12 @@ function restartGame() {
         y: size - 50,
         radius: 15,
         yVelocity: 0,
-        gravity: 0.6,
+        gravity: 1.1,
         jumpStrength: -15,
         isJumping: false
     };
     obstacles = [];
-    obstacleSpeed = 5;
+    obstacleSpeed = 9;
     score = 0;
     gameRunning = true;
     lastTime = 0; // Reset lastTime on restart
