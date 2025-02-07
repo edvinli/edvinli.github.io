@@ -4,7 +4,6 @@ const size = 400;
 canvas.width = size;
 canvas.height = size;
 canvas.style.border = '1px solid black';
-document.body.appendChild(canvas);
 
 let player = {
     x: 50,
