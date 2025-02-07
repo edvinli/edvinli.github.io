@@ -6,40 +6,47 @@ canvas.height = size;
 canvas.style.border = '1px solid black';
 
 // --- Constants ---
-const c = 30; // Speed of light (scaled down for gameplay)
-
-let player = {
-    x: 50,
-    y: size - 50,
-    radius: 15,
-    yVelocity: 0,
-    gravity: 1.1,
-    jumpStrength: -15,
-    isJumping: false,
-    xVelocity: 0,
-    speed: 5,
-};
-
-let obstacles = [];
-let obstacleSpeed = 9;
-let score = 0;
-let gameRunning = true;
-let lastTime = 0;
-
-// --- Touch Control Variables ---
-let touchStartX = null;
-let touchEndX = null;
+const c = 30; // Speed of light (scaled down)
+const GROUND_LEVEL = size - 50;
+const PLAYER_RADIUS = 15;
+const OBSTACLE_GENERATION_PROBABILITY = 0.02;
+const OBSTACLE_SPACING = 150;
+const targetFrameTime = 1000 / 60; // 60 FPS target
 const touchThreshold = 30;
+const JUMP_DEBOUNCE_TIME = 250;
+const SETTINGS_BUTTON_SIZE = 30; // Size of the settings button
+const SETTINGS_BUTTON_PADDING = 5; // Padding around the button
 
-// --- Settings ---
-let settingsOpen = false;
-let obstacleSpeedSetting = 9; // Initial obstacle speed
+// --- Game State ---
+let gameState = {
+    player: {
+        x: 50,
+        y: GROUND_LEVEL,
+        radius: PLAYER_RADIUS,
+        yVelocity: 0,
+        gravity: 1.1,
+        jumpStrength: -15,
+        isJumping: false,
+        xVelocity: 0,
+        speed: 5,
+    },
+    obstacles: [],
+    obstaclePool: [], // Object pool
+    obstacleSpeed: 9,
+    obstacleSpeedSetting: 9, // Initial obstacle speed setting
+    score: 0,
+    gameRunning: true,
+    lastTime: 0,
+    settingsOpen: false,
+    touchStartX: null,
+    touchEndX: null,
+    canJump: true,
+};
 
 // --- Relativistic Effects ---
 function lorentzFactor(v) {
-    // Avoid division by zero or invalid input
     if (v >= c) {
-        return Infinity; // Or a very large number
+        return Infinity;
     }
     return 1 / Math.sqrt(1 - (v * v) / (c * c));
 }
@@ -48,105 +55,25 @@ function relativisticLengthContraction(originalLength, v) {
     return originalLength / lorentzFactor(v);
 }
 
+// --- Drawing Functions ---
 function drawPlayer() {
     ctx.fillStyle = 'green';
     ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, 2 * Math.PI);
+    ctx.arc(gameState.player.x, gameState.player.y, gameState.player.radius, 0, 2 * Math.PI);
     ctx.fill();
 }
 
 function drawObstacle(obstacle) {
     ctx.fillStyle = 'black';
-    // Apply length contraction
-    const contractedWidth = relativisticLengthContraction(obstacle.width, obstacleSpeedSetting);
-
-     //Position the obstacle correctly after contraction
-    const contractedX = obstacle.x + (obstacle.width - contractedWidth)
-
+    const contractedWidth = relativisticLengthContraction(obstacle.originalWidth, gameState.obstacleSpeedSetting);
+    const contractedX = obstacle.x + (obstacle.originalWidth - contractedWidth);
     ctx.fillRect(contractedX, obstacle.y, contractedWidth, obstacle.height);
-}
-
-function updatePlayer(deltaTime) {
-    if (player.isJumping) {
-        player.yVelocity += player.gravity * (deltaTime / 16.67);
-        player.y += player.yVelocity * (deltaTime / 16.67);
-
-        if (player.y > size - 50) {
-            player.y = size - 50;
-            player.yVelocity = 0;
-            player.isJumping = false;
-        }
-    }
-
-    player.x += player.xVelocity * (deltaTime / 16.67);
-
-    if (player.x - player.radius < 0) {
-        player.x = player.radius;
-        player.xVelocity = 0;
-    } else if (player.x + player.radius > size) {
-        player.x = size - player.radius;
-        player.xVelocity = 0;
-    }
-}
-function generateObstacle() {
-    const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20;
-    const width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
-    obstacles.push({
-        x: size,
-        y: size - height,
-        width: width,
-        height: height,
-        originalWidth: width, // Store original width for relativistic calculations
-    });
-}
-
-function updateObstacles(deltaTime) {
-    for (let i = 0; i < obstacles.length; i++) {
-         //Use the setting, not the actual speed (which gets modified by score)
-        obstacles[i].x -= obstacleSpeedSetting * (deltaTime / 16.67);
-
-        if (obstacles[i].x + obstacles[i].width < 0) {
-            obstacles.splice(i, 1);
-            i--;
-            score++;
-            if (score % 5 == 0 && score != 0) {
-                 //Don't modify obstacleSpeed directly.  Increase it, but keep it relative to the setting.
-                obstacleSpeed += 1 * (deltaTime/16.67);
-            }
-        }
-    }
-    if (obstacles.length == 0 || obstacles[obstacles.length - 1].x < size - 150) {
-        if (Math.random() < 0.02) {
-            generateObstacle();
-        }
-    }
-}
-function checkCollision() {
-    for (let obstacle of obstacles) {
-        // Use contracted width for collision check.
-        const contractedWidth = relativisticLengthContraction(obstacle.originalWidth, obstacleSpeedSetting);
-        const contractedX = obstacle.x + (obstacle.originalWidth - contractedWidth);
-
-        let distX = Math.abs(player.x - contractedX - contractedWidth / 2);
-        let distY = Math.abs(player.y - obstacle.y - obstacle.height / 2);
-
-        if (distX > (contractedWidth / 2 + player.radius)) { continue; }
-        if (distY > (obstacle.height / 2 + player.radius)) { continue; }
-
-        if (distX <= (contractedWidth / 2)) { return true; }
-        if (distY <= (obstacle.height / 2)) { return true; }
-
-        let dx = distX - contractedWidth / 2;
-        let dy = distY - obstacle.height / 2;
-        return (dx * dx + dy * dy <= (player.radius * player.radius));
-    }
-    return false;
 }
 
 function drawScore() {
     ctx.fillStyle = 'black';
     ctx.font = '20px Arial';
-    ctx.fillText('Score: ' + score, 10, 30);
+    ctx.fillText('Score: ' + gameState.score, 10, 30);
 }
 
 function drawGameOver() {
@@ -157,30 +84,117 @@ function drawGameOver() {
     ctx.fillText('Jump to Restart', size / 4 + 20, size / 2 + 40);
 }
 
-function restartGame() {
-    player = {
-        x: 50,
-        y: size - 50,
-        radius: 15,
-        yVelocity: 0,
-        gravity: 1.1,
-        jumpStrength: -15,
-        isJumping: false,
-        xVelocity: 0,
-        speed: 5,
-    };
-    obstacles = [];
-    obstacleSpeed = obstacleSpeedSetting; // Reset to the setting value
-    score = 0;
-    gameRunning = true;
-    lastTime = 0;
-    touchStartX = null;
-    touchEndX = null;
-    requestAnimationFrame(gameLoop);
+function drawSettingsButton() {
+    ctx.fillStyle = 'gray';
+    ctx.fillRect(
+        size - SETTINGS_BUTTON_SIZE - SETTINGS_BUTTON_PADDING,
+        SETTINGS_BUTTON_PADDING,
+        SETTINGS_BUTTON_SIZE,
+        SETTINGS_BUTTON_SIZE
+    );
+    // Draw a simple gear icon (you can customize this)
+    ctx.fillStyle = 'white';
+    ctx.font = '20px Arial';
+    ctx.fillText('⚙️', size - SETTINGS_BUTTON_SIZE - SETTINGS_BUTTON_PADDING + 5, SETTINGS_BUTTON_PADDING + 22);
 }
+
+
+// --- Update Functions ---
+function updatePlayer(deltaTime) {
+    const player = gameState.player; // Shorter reference
+
+    if (player.isJumping) {
+        player.yVelocity += player.gravity * deltaTime;
+        player.y += player.yVelocity * deltaTime;
+
+        if (player.y > GROUND_LEVEL) {
+            player.y = GROUND_LEVEL;
+            player.yVelocity = 0;
+            player.isJumping = false;
+        }
+    }
+
+    player.x += player.xVelocity * deltaTime;
+
+    if (player.x - player.radius < 0) {
+        player.x = player.radius;
+        player.xVelocity = 0;
+    } else if (player.x + player.radius > size) {
+        player.x = size - player.radius;
+        player.xVelocity = 0;
+    }
+}
+
+function generateObstacle() {
+    let obstacle;
+    if (gameState.obstaclePool.length > 0) {
+        obstacle = gameState.obstaclePool.pop();
+        obstacle.height = Math.floor(Math.random() * (50 - 20 + 1)) + 20;
+        obstacle.width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
+        obstacle.originalWidth = obstacle.width;
+        obstacle.x = size;
+        obstacle.y = size - obstacle.height;
+    } else {
+        const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20;
+        const width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
+        obstacle = {
+            x: size,
+            y: size - height,
+            width: width,
+            height: height,
+            originalWidth: width,
+        };
+    }
+    gameState.obstacles.push(obstacle);
+}
+
+function updateObstacles(deltaTime) {
+    const { obstacles, obstaclePool } = gameState; // Destructuring for brevity
+
+    for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].x -= gameState.obstacleSpeedSetting * deltaTime;
+
+        if (obstacles[i].x + obstacles[i].width < 0) {
+            obstaclePool.push(obstacles[i]);
+            obstacles.splice(i, 1);
+            i--;
+            gameState.score++;
+            if (gameState.score % 5 == 0 && gameState.score != 0) {
+                gameState.obstacleSpeed += 1; // Fixed increment
+            }
+        }
+    }
+    if (obstacles.length == 0 || obstacles[obstacles.length - 1].x < size - OBSTACLE_SPACING) {
+        if (Math.random() < OBSTACLE_GENERATION_PROBABILITY) {
+            generateObstacle();
+        }
+    }
+}
+
+function checkCollision() {
+    for (let obstacle of gameState.obstacles) {
+        const contractedWidth = relativisticLengthContraction(obstacle.originalWidth, gameState.obstacleSpeedSetting);
+        const contractedX = obstacle.x + (obstacle.originalWidth - contractedWidth);
+
+        let distX = Math.abs(gameState.player.x - contractedX - contractedWidth / 2);
+        let distY = Math.abs(gameState.player.y - obstacle.y - obstacle.height / 2);
+
+        if (distX > (contractedWidth / 2 + gameState.player.radius)) { continue; }
+        if (distY > (obstacle.height / 2 + gameState.player.radius)) { continue; }
+
+        if (distX <= (contractedWidth / 2)) { return true; }
+        if (distY <= (obstacle.height / 2)) { return true; }
+
+        let dx = distX - contractedWidth / 2;
+        let dy = distY - obstacle.height / 2;
+        return (dx * dx + dy * dy <= (gameState.player.radius * gameState.player.radius));
+    }
+    return false;
+}
+
 // --- Settings UI ---
 function openSettings() {
-    settingsOpen = true;
+    gameState.settingsOpen = true;
     // Create settings UI elements (using DOM manipulation)
     const settingsDiv = document.createElement('div');
     settingsDiv.id = 'settings-panel';
@@ -190,6 +204,7 @@ function openSettings() {
     settingsDiv.style.backgroundColor = 'white';
     settingsDiv.style.border = '1px solid black';
     settingsDiv.style.padding = '10px';
+    settingsDiv.style.zIndex = '10'; // Make sure it's on top
 
     const speedLabel = document.createElement('label');
     speedLabel.textContent = 'Obstacle Speed: ';
@@ -198,8 +213,8 @@ function openSettings() {
     const speedInput = document.createElement('input');
     speedInput.type = 'range';
     speedInput.min = '1';
-    speedInput.max = String(c -1); // Max speed is c-1 (avoiding Infinity)
-    speedInput.value = String(obstacleSpeedSetting);
+    speedInput.max = String(c - 1); // Max speed is c-1 (avoiding Infinity)
+    speedInput.value = String(gameState.obstacleSpeedSetting);
     speedInput.id = 'speed-input';
     settingsDiv.appendChild(speedInput);
 
@@ -212,13 +227,13 @@ function openSettings() {
 
     // Update obstacle speed setting on input change
     speedInput.addEventListener('input', () => {
-        obstacleSpeedSetting = parseFloat(speedInput.value);
-        // console.log("Setting Speed", obstacleSpeedSetting)
+        gameState.obstacleSpeedSetting = parseFloat(speedInput.value);
+        // console.log("Setting Speed", gameState.obstacleSpeedSetting)
     });
 }
 
 function closeSettings() {
-    settingsOpen = false;
+    gameState.settingsOpen = false;
     const settingsDiv = document.getElementById('settings-panel');
     if (settingsDiv) {
         settingsDiv.remove();
@@ -227,104 +242,157 @@ function closeSettings() {
     restartGame();
 }
 
-// --- Main Game Loop ---
-function gameLoop(timestamp) {
-    if (!gameRunning) {
-        drawGameOver();
-        return;
-    }
-     if (settingsOpen) {
-        // Don't update game logic if settings are open
-        return;
-    }
+// --- Main Game Loop & Input ---
 
-    let deltaTime = timestamp - lastTime;
-    lastTime = timestamp;
+function restartGame() {
+    gameState.player = {
+        x: 50,
+        y: GROUND_LEVEL,
+        radius: PLAYER_RADIUS,
+        yVelocity: 0,
+        gravity: 1.1,
+        jumpStrength: -15,
+        isJumping: false,
+        xVelocity: 0,
+        speed: 5,
+    };
+    gameState.obstacles = [];
+    gameState.obstacleSpeed = gameState.obstacleSpeedSetting; // Reset to the setting value
+    gameState.score = 0;
+    gameState.gameRunning = true;
+    gameState.lastTime = 0;
+    gameState.touchStartX = null;
+    gameState.touchEndX = null;
+    gameState.canJump = true;
+    requestAnimationFrame(gameLoop);
+}
 
-    ctx.clearRect(0, 0, size, size);
 
+function update(deltaTime) {
     updatePlayer(deltaTime);
     updateObstacles(deltaTime);
+}
 
-    if (checkCollision()) {
-        gameRunning = false;
-    }
-
+function draw() {
+    ctx.clearRect(0, 0, size, size);
     drawPlayer();
-    for (let obstacle of obstacles) {
+    for (let obstacle of gameState.obstacles) {
         drawObstacle(obstacle);
     }
     drawScore();
+    drawSettingsButton(); // Draw the settings button
+}
+
+function gameLoop(timestamp) {
+    if (!gameState.gameRunning) {
+        drawGameOver();
+        return;
+    }
+
+    //Do NOT skip the drawSettingsButton() call!  We always draw it.
+    if (gameState.settingsOpen) {
+      //Settings UI is handled by the openSettings() function.
+      //Don't update/draw game, *but* must return to keep the loop going.
+       return;
+    }
+
+    let deltaTime = (timestamp - gameState.lastTime) / targetFrameTime;  //NORMALIZE
+    gameState.lastTime = timestamp;
+
+    update(deltaTime); // Call the update function
+
+    if (checkCollision()) {
+        gameState.gameRunning = false;
+    }
+    draw(); // Call the draw function.
 
     requestAnimationFrame(gameLoop);
 }
 
 function jump() {
-    if (gameRunning) {
-        if (!player.isJumping) {
-            player.yVelocity = player.jumpStrength;
-            player.isJumping = true;
-        }
-    } else {
+    if (gameState.gameRunning && !gameState.player.isJumping && gameState.canJump) {
+        gameState.player.yVelocity = gameState.player.jumpStrength;
+        gameState.player.isJumping = true;
+        gameState.canJump = false;
+        setTimeout(() => { gameState.canJump = true; }, JUMP_DEBOUNCE_TIME);
+    } else if (!gameState.gameRunning) {
         restartGame();
     }
 }
+// --- Event Listeners ---
 
-// --- Touch Event Handlers ---
+canvas.addEventListener('mousedown', (event) => {
+    jump();
+});
+
+// Touch Events (Simplified - Handle Settings Button)
 canvas.addEventListener('touchstart', (event) => {
     event.preventDefault();
-    touchStartX = event.touches[0].clientX;
-    touchEndX = event.touches[0].clientX;
-    if (event.touches.length === 1) {
-        jump();
-    }
+    const touchX = event.touches[0].clientX;
+    const touchY = event.touches[0].clientY;
+
+    // Check if the touch is within the settings button bounds
+    if (touchX >= size - SETTINGS_BUTTON_SIZE - SETTINGS_BUTTON_PADDING &&
+        touchX <= size - SETTINGS_BUTTON_PADDING &&
+        touchY >= SETTINGS_BUTTON_PADDING &&
+        touchY <= SETTINGS_BUTTON_SIZE + SETTINGS_BUTTON_PADDING)
+        {
+          if(!gameState.settingsOpen){
+              openSettings();
+          }
+        } else {
+            gameState.touchStartX = touchX;
+            gameState.touchEndX = touchX;
+            jump(); // Call Jump only if not on the settings button
+        }
+
 });
 
 canvas.addEventListener('touchmove', (event) => {
     event.preventDefault();
-    if (touchStartX !== null) {
-        touchEndX = event.touches[0].clientX;
+    if (gameState.touchStartX !== null) {
+        gameState.touchEndX = event.touches[0].clientX;
     }
 });
 
 canvas.addEventListener('touchend', (event) => {
     event.preventDefault();
-    if (touchStartX !== null && touchEndX !== null) {
-        const deltaX = touchEndX - touchStartX;
+    if (gameState.touchStartX !== null && gameState.touchEndX !== null) {
+        const deltaX = gameState.touchEndX - gameState.touchStartX;
 
         if (deltaX > touchThreshold) {
-            player.xVelocity = player.speed;
+            gameState.player.xVelocity = gameState.player.speed;
         } else if (deltaX < -touchThreshold) {
-            player.xVelocity = -player.speed;
+            gameState.player.xVelocity = -gameState.player.speed;
         } else {
-            player.xVelocity = 0;
+            gameState.player.xVelocity = 0;
         }
     }
-    touchStartX = null;
-    touchEndX = null;
+    gameState.touchStartX = null;
+    gameState.touchEndX = null;
 });
 
-// --- Keyboard Controls ---
+// Keyboard Controls
 document.addEventListener('keydown', (event) => {
     if (event.code === 'Space' || event.code === 'ArrowUp') {
         jump();
     }
     if (event.code === 'ArrowLeft') {
-        player.xVelocity = -player.speed;
+        gameState.player.xVelocity = -gameState.player.speed;
     } else if (event.code === 'ArrowRight') {
-        player.xVelocity = player.speed;
+        gameState.player.xVelocity = gameState.player.speed;
     }
-    // Open settings with 'S' key
-    if (event.code === 'KeyS') {
-        if (!settingsOpen) {
-            openSettings();
-        }
-    }
+    // Open settings with 'S' key (removed to favor button)
+    // if (event.code === 'KeyS') {
+    //     if (!gameState.settingsOpen) {
+    //         openSettings();
+    //     }
+    // }
 });
 
 document.addEventListener('keyup', (event) => {
     if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
-        player.xVelocity = 0;
+        gameState.player.xVelocity = 0;
     }
 });
 requestAnimationFrame(gameLoop);
