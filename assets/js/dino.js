@@ -1,191 +1,154 @@
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d');
+const size = 400;
+canvas.width = size;
+canvas.height = size;
+canvas.style.border = '1px solid black';
+document.body.appendChild(canvas);
 
-const GROUND_LEVEL = 0.8;
-const GRAVITY = 3;
-const JUMP_STRENGTH = 40;
-const BASE_OBSTACLE_SPEED = 40;
-const MIN_OBSTACLE_SPACING = 180;
-const MAX_OBSTACLE_SPACING = 360;
-const MIN_OBSTACLE_SPAWNING = 900;
-const MAX_OBSTACLE_SPAWNING = 1900;
-
-let dino = {
+let player = {
     x: 50,
-    y: 0,
-    width: 50,
-    height: 100,
-    color: 'green',
-    dy: 0,
-    gravity: GRAVITY,
-    jumpStrength: JUMP_STRENGTH
+    y: size - 50,
+    radius: 15,
+    yVelocity: 0,
+    gravity: 0.6,
+    jumpStrength: -15,
+    isJumping: false
 };
 
 let obstacles = [];
-const maxObstacles = 5; // Variable declared but not currently used to limit max obstacles
-let gameStarted = false;
-let lastTime = 0;
-let firstGameStart = true; // ADDED: Flag to track first game start
+let obstacleSpeed = 5;
+let score = 0;
+let gameRunning = true;
 
-function resizeCanvas() {
-    canvas.width = Math.min(800, window.innerWidth);
-    canvas.height = canvas.width;
-    adjustGameElements();
+function drawPlayer() {
+    ctx.fillStyle = 'green';
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, 2 * Math.PI);
+    ctx.fill();
 }
 
-resizeCanvas();
-window.addEventListener('orientationchange', resizeCanvas);
-window.addEventListener('resize', resizeCanvas);
-
-function adjustGameElements() {
-    dino.width = canvas.width * 0.05;
-    dino.height = dino.width * 2;
-    dino.x = canvas.width * 0.1;
-    dino.y = canvas.height * GROUND_LEVEL - dino.height;
-
-    for (let obstacle of obstacles) {
-        obstacle.width = canvas.width * 0.03;
-        obstacle.height = obstacle.width;
-        obstacle.y = canvas.height * GROUND_LEVEL - obstacle.height;
-    }
+function drawObstacle(obstacle) {
+    ctx.fillStyle = 'black';
+    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
 }
 
-function createObstacle() {
-    let newObstacleX = canvas.width;
+function updatePlayer() {
+    if (player.isJumping) {
+        player.yVelocity += player.gravity;
+        player.y += player.yVelocity;
 
-    if (obstacles.length > 0) {
-        const lastObstacle = obstacles[obstacles.length - 1];
-        newObstacleX = lastObstacle.x + lastObstacle.width + MIN_OBSTACLE_SPACING + Math.random() * (MAX_OBSTACLE_SPACING - MIN_OBSTACLE_SPACING);
-        if (newObstacleX - dino.x < 200) return;
-    }
-
-    const obstacle = {
-        x: newObstacleX,
-        y: canvas.height * GROUND_LEVEL - dino.width / 2, // Corrected obstacle y position calculation
-        width: dino.width / 2,
-        height: dino.width / 2,
-        color: 'red',
-        speed: BASE_OBSTACLE_SPEED * (canvas.width / 800)
-    };
-    obstacles.push(obstacle);
-}
-
-function handleJump(event) {
-    if (!gameStarted) {
-        startGame(); // Call startGame to initialize and start the game
-    }
-    if (dino.y + dino.height === canvas.height * GROUND_LEVEL) {
-        dino.dy = -dino.jumpStrength;
-    }
-
-    if (event) {
-        event.preventDefault();
-    }
-}
-
-function drawDino() {
-    ctx.fillStyle = dino.color;
-    ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
-}
-
-function drawObstacles() {
-    for (let obstacle of obstacles) {
-        ctx.fillStyle = obstacle.color;
-        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-    }
-}
-
-function update(deltaTime) {
-    if (!gameStarted) return;
-
-    obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
-
-    dino.dy += dino.gravity * deltaTime;
-    dino.y += dino.dy * deltaTime;
-
-    if (dino.y + dino.height > canvas.height * GROUND_LEVEL) {
-        dino.y = canvas.height * GROUND_LEVEL - dino.height;
-        dino.dy = 0;
-    }
-
-    for (let obstacle of obstacles) {
-        obstacle.x -= obstacle.speed * deltaTime;
-
-        if (dino.x < obstacle.x + obstacle.width &&
-            dino.x + dino.width > obstacle.x &&
-            dino.y < obstacle.y + obstacle.height &&
-            dino.y + dino.height > obstacle.y) {
-            gameOver();
-            return;
+        if (player.y > size - 50) {
+            player.y = size - 50;
+            player.yVelocity = 0;
+            player.isJumping = false;
         }
     }
 }
-
-function gameOver() {
-    gameStarted = false;
-    obstacles = []; // Corrected syntax error and cleared obstacles array
-    alert("Game Over!");
-    // Optionally, you could show a "Restart" button here instead of just an alert.
+function generateObstacle() {
+    const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20; // Random height between 20 and 50
+    const width = Math.floor(Math.random() * (40-20 +1)) + 20;
+    obstacles.push({
+        x: size,
+        y: size - height,
+        width: width,
+        height: height
+    });
 }
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function updateObstacles() {
+    for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].x -= obstacleSpeed;
 
-    if (!gameStarted) { // ADDED: Draw "Jump to Start" text if game not started
-        ctx.font = "24px Arial";
-        ctx.fillStyle = "black";
-        ctx.textAlign = "center";
-        ctx.fillText("Jump to Start", canvas.width / 2, canvas.height / 2);
-    } else {
-        drawDino();
-        drawObstacles();
+        if (obstacles[i].x + obstacles[i].width < 0) {
+            obstacles.splice(i, 1);
+            i--;
+            score++;
+            if (score % 5 == 0 && score !=0){
+                obstacleSpeed+=1;
+            }
+        }
+    }
+    if (obstacles.length == 0 || obstacles[obstacles.length -1].x < size - 150){
+      if (Math.random() < 0.02) { // Adjust probability for obstacle frequency
+          generateObstacle();
+      }
     }
 }
 
-function gameLoop(currentTime) {
-    const deltaTime = (currentTime - lastTime) / 1000;
-    lastTime = currentTime;
-    update(deltaTime);
-    draw();
+function checkCollision() {
+    for (let obstacle of obstacles) {
+        // Simplified circle-rectangle collision
+        let distX = Math.abs(player.x - obstacle.x - obstacle.width / 2);
+        let distY = Math.abs(player.y - obstacle.y - obstacle.height / 2);
+
+        if (distX > (obstacle.width / 2 + player.radius)) { continue; }
+        if (distY > (obstacle.height / 2 + player.radius)) { continue; }
+
+        if (distX <= (obstacle.width / 2)) { return true; }
+        if (distY <= (obstacle.height / 2)) { return true; }
+
+        let dx = distX - obstacle.width / 2;
+        let dy = distY - obstacle.height / 2;
+        return (dx * dx + dy * dy <= (player.radius * player.radius));
+
+    }
+    return false;
+}
+
+function drawScore() {
+    ctx.fillStyle = 'black';
+    ctx.font = '20px Arial';
+    ctx.fillText('Score: ' + score, 10, 30);
+}
+function drawGameOver(){
+     ctx.fillStyle = 'black';
+    ctx.font = '40px Arial';
+    ctx.fillText('Game Over', size/4, size/2);
+}
+
+function gameLoop() {
+    if (!gameRunning) {
+        drawGameOver();
+        return;
+    }
+
+    ctx.clearRect(0, 0, size, size);
+
+    updatePlayer();
+    updateObstacles();
+
+    if (checkCollision()) {
+        gameRunning = false;
+    }
+
+    drawPlayer();
+    for (let obstacle of obstacles) {
+        drawObstacle(obstacle);
+    }
+    drawScore();
+
     requestAnimationFrame(gameLoop);
 }
 
-canvas.addEventListener('touchstart', handleJump);
+
+function jump() {
+    if (!player.isJumping) {
+        player.yVelocity = player.jumpStrength;
+        player.isJumping = true;
+    }
+}
+// Event Listeners (Keyboard and Touch)
 document.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
-        handleJump();
+    if (event.code === 'Space' || event.code === 'ArrowUp') {
+        jump();
     }
 });
 
-function obstacleSpawner() {
-    if (gameStarted) {
-        createObstacle();
-        const randomDelay = Math.random() * (MAX_OBSTACLE_SPAWNING - MIN_OBSTACLE_SPAWNING) + MIN_OBSTACLE_SPAWNING;
-        setTimeout(obstacleSpawner, randomDelay);
-    }
-}
+canvas.addEventListener('touchstart', (event) => {
+    event.preventDefault();  // Prevent default touch behavior (like scrolling)
+    jump();
+});
 
-function startGame() {
-    if (!gameStarted) {
-        gameStarted = true;
-        obstacles = []; // Clear any previous obstacles
-        dino.y = canvas.height * GROUND_LEVEL - dino.height; // Reset dino position if needed
-        dino.dy = 0; // Reset dino vertical velocity
-        obstacleSpawner();
-        lastTime = performance.now(); // Reset lastTime for game loop timing
-        requestAnimationFrame(gameLoop); // Ensure game loop starts if not already running
-        firstGameStart = false; // ADDED: Set firstGameStart to false after the very first start
-    }
-}
-
-// Example of a restart function that can be triggered by a button or key press
-function restartGame() {
-    gameStarted = false; // Stop the game loop temporarily
-    gameOver(); // Call gameOver to reset game state (clears obstacles and shows alert)
-    startGame(); // Immediately start a new game
-}
-
-// You can trigger restartGame() by adding a button and event listener in your HTML,
-// or by listening for another key press like 'Enter' and calling restartGame()
-
-lastTime = performance.now();
+// Start the game
+gameLoop();
