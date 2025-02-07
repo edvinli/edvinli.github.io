@@ -395,5 +395,12 @@ document.addEventListener('keydown', (event) => {
     } else if (event.code === 'ArrowRight') {
         gameState.player.xVelocity = gameState.player.speed;
     }
-    // Open settings with 'S' key (removed to favor button)
-    // if (event.code ===
+
+});
+
+document.addEventListener('keyup', (event) => {
+    if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+        gameState.player.xVelocity = 0;
+    }
+});
+requestAnimationFrame(gameLoop);
