@@ -12,7 +12,9 @@ let player = {
     yVelocity: 0,
     gravity: 1.1,
     jumpStrength: -15,
-    isJumping: false
+    isJumping: false,
+    xVelocity: 0, // Add xVelocity for horizontal movement
+    speed: 5,    // Movement speed
 };
 
 let obstacles = [];
@@ -44,8 +46,20 @@ function updatePlayer(deltaTime) {
             player.isJumping = false;
         }
     }
-}
 
+    // Handle horizontal movement
+    player.x += player.xVelocity * (deltaTime / 16.67);
+
+    // Keep player within bounds
+    if (player.x - player.radius < 0) {
+        player.x = player.radius;
+        player.xVelocity = 0; // Stop moving if hits the edge
+    } else if (player.x + player.radius > size) {
+        player.x = size - player.radius;
+        player.xVelocity = 0; // Stop moving if hits the edge
+
+    }
+}
 function generateObstacle() {
     const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20;
     const width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
@@ -66,7 +80,7 @@ function updateObstacles(deltaTime) {
             i--;
             score++;
             if (score % 5 == 0 && score != 0) {
-                obstacleSpeed += 1 * (deltaTime / 16.67);
+                obstacleSpeed += 1 * (deltaTime / 16.67); // deltaTime scaling.
             }
         }
     }
@@ -117,7 +131,9 @@ function restartGame() {
         yVelocity: 0,
         gravity: 1.1,
         jumpStrength: -15,
-        isJumping: false
+        isJumping: false,
+        xVelocity: 0, // Reset xVelocity
+        speed: 5,     // Keep the speed
     };
     obstacles = [];
     obstacleSpeed = 9;
@@ -168,6 +184,20 @@ function jump() {
 document.addEventListener('keydown', (event) => {
     if (event.code === 'Space' || event.code === 'ArrowUp') {
         jump();
+    }
+
+    // Handle left and right arrow keys
+    if (event.code === 'ArrowLeft') {
+        player.xVelocity = -player.speed;  // Move left
+    } else if (event.code === 'ArrowRight') {
+        player.xVelocity = player.speed;   // Move right
+    }
+});
+
+// Add keyup event to stop horizontal movement when key is released
+document.addEventListener('keyup', (event) => {
+    if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+        player.xVelocity = 0; // Stop moving
     }
 });
 
