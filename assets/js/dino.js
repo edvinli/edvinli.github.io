@@ -19,6 +19,7 @@ let obstacles = [];
 let obstacleSpeed = 5;
 let score = 0;
 let gameRunning = true;
+let lastTime = 0; // Initialize lastTime
 
 function drawPlayer() {
     ctx.fillStyle = 'green';
@@ -32,10 +33,10 @@ function drawObstacle(obstacle) {
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
 }
 
-function updatePlayer() {
+function updatePlayer(deltaTime) {
     if (player.isJumping) {
-        player.yVelocity += player.gravity;
-        player.y += player.yVelocity;
+        player.yVelocity += player.gravity * (deltaTime / 16.67);
+        player.y += player.yVelocity * (deltaTime / 16.67);
 
         if (player.y > size - 50) {
             player.y = size - 50;
@@ -46,7 +47,7 @@ function updatePlayer() {
 }
 
 function generateObstacle() {
-    const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20; // Random height between 20 and 50
+    const height = Math.floor(Math.random() * (50 - 20 + 1)) + 20;
     const width = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
     obstacles.push({
         x: size,
@@ -56,21 +57,21 @@ function generateObstacle() {
     });
 }
 
-function updateObstacles() {
+function updateObstacles(deltaTime) {
     for (let i = 0; i < obstacles.length; i++) {
-        obstacles[i].x -= obstacleSpeed;
+        obstacles[i].x -= obstacleSpeed * (deltaTime / 16.67);
 
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
             i--;
             score++;
             if (score % 5 == 0 && score != 0) {
-                obstacleSpeed += 1;
+                obstacleSpeed += 1 * (deltaTime / 16.67);
             }
         }
     }
     if (obstacles.length == 0 || obstacles[obstacles.length - 1].x < size - 150) {
-        if (Math.random() < 0.02) { // Adjust probability for obstacle frequency
+        if (Math.random() < 0.02) {
             generateObstacle();
         }
     }
@@ -78,7 +79,6 @@ function updateObstacles() {
 
 function checkCollision() {
     for (let obstacle of obstacles) {
-        // Simplified circle-rectangle collision
         let distX = Math.abs(player.x - obstacle.x - obstacle.width / 2);
         let distY = Math.abs(player.y - obstacle.y - obstacle.height / 2);
 
@@ -91,7 +91,6 @@ function checkCollision() {
         let dx = distX - obstacle.width / 2;
         let dy = distY - obstacle.height / 2;
         return (dx * dx + dy * dy <= (player.radius * player.radius));
-
     }
     return false;
 }
@@ -106,10 +105,8 @@ function drawGameOver() {
     ctx.fillStyle = 'black';
     ctx.font = '40px Arial';
     ctx.fillText('Game Over', size / 4, size / 2);
-
-    // Add "Jump to Restart" text
     ctx.font = '20px Arial';
-    ctx.fillText('Jump to Restart', size / 4 + 20, size / 2 + 40); // Position below "Game Over"
+    ctx.fillText('Jump to Restart', size / 4 + 20, size / 2 + 40);
 }
 
 function restartGame() {
@@ -126,20 +123,23 @@ function restartGame() {
     obstacleSpeed = 5;
     score = 0;
     gameRunning = true;
-    gameLoop(); // Call gameLoop here to restart the animation
+    lastTime = 0; // Reset lastTime on restart
+    requestAnimationFrame(gameLoop); // Use rAF for initial call
 }
 
-
-function gameLoop() {
+function gameLoop(timestamp) {
     if (!gameRunning) {
         drawGameOver();
         return;
     }
 
+    let deltaTime = timestamp - lastTime;
+    lastTime = timestamp;
+
     ctx.clearRect(0, 0, size, size);
 
-    updatePlayer();
-    updateObstacles();
+    updatePlayer(deltaTime);
+    updateObstacles(deltaTime);
 
     if (checkCollision()) {
         gameRunning = false;
@@ -154,20 +154,17 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-
 function jump() {
-    if (gameRunning) { // Jump only if game is running
+    if (gameRunning) {
         if (!player.isJumping) {
             player.yVelocity = player.jumpStrength;
             player.isJumping = true;
         }
     } else {
-        // Restart the game if it's over
         restartGame();
     }
-
 }
-// Event Listeners (Keyboard and Touch)
+
 document.addEventListener('keydown', (event) => {
     if (event.code === 'Space' || event.code === 'ArrowUp') {
         jump();
@@ -175,9 +172,9 @@ document.addEventListener('keydown', (event) => {
 });
 
 canvas.addEventListener('touchstart', (event) => {
-    event.preventDefault();  // Prevent default touch behavior (like scrolling)
+    event.preventDefault();
     jump();
 });
 
-// Start the game
-gameLoop();
+// Start the game using requestAnimationFrame
+requestAnimationFrame(gameLoop);
