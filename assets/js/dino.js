@@ -342,7 +342,7 @@ function handleStart(x, y) {
         if (!gameState.settingsOpen) {
             openSettings();
         }
-    } else if (gameState.gameRunning) {
+    } else { // <- CHANGED: No more 'else if', just 'else'
       jump();
     }
 }
@@ -396,16 +396,4 @@ document.addEventListener('keydown', (event) => {
         gameState.player.xVelocity = gameState.player.speed;
     }
     // Open settings with 'S' key (removed to favor button)
-    // if (event.code === 'KeyS') {
-    //     if (!gameState.settingsOpen) {
-    //         openSettings();
-    //     }
-    // }
-});
-
-document.addEventListener('keyup', (event) => {
-    if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
-        gameState.player.xVelocity = 0;
-    }
-});
-requestAnimationFrame(gameLoop);
+    // if (event.code ===
