@@ -6,41 +6,47 @@ var ctx = canvas.getContext("2d");
 var PI = Math.PI;
 var TWO_PI = 2 * PI;
 var HALF_PI = PI / 2;
-var SHIP_SIZE = 30; // pixels
+var SHIP_SIZE = 35; // pixels - slightly larger for cuteness
 var SHIP_THRUST = 0.1; // acceleration per frame
 var SHIP_TURN_SPEED = 0.1; // radians per frame
 var SHIP_FRICTION = 0.99; // speed reduction per frame
-var SHIP_MAX_SPEED = 10; // pixels per frame
-var BULLET_SPEED = 15; // pixels per frame
-var BULLET_LIFETIME = 50; // frames
-var ASTEROID_SPEED = 2; // pixels per frame
-var ASTEROID_SIZE = 50; // pixels
+var SHIP_MAX_SPEED = 8; // pixels per frame - slightly slower?
+var BULLET_SPEED = 12; // pixels per frame
+var BULLET_LIFETIME = 60; // frames - last a bit longer
+var ASTEROID_SPEED = 1.5; // pixels per frame - slightly slower
+var ASTEROID_SIZE = 60; // pixels - bigger base size
 var ASTEROID_VERTICES = 10; // number of vertices per asteroid
-var ASTEROID_JAGGEDNESS = 0.5; // how jagged the asteroids are (0 to 1)
-var ASTEROID_NUM = 5; // initial number of asteroids
+var ASTEROID_JAGGEDNESS = 0.4; // how jagged the asteroids are (0 to 1) - slightly less jagged
+var ASTEROID_NUM = 4; // initial number of asteroids
 var SCORE = 0; // score
 var HIGH_SCORE = 0; // high score
 var MAX_ASTEROIDS = 15; // maximum number of asteroids on screen at once
-var POWERUP_PROBA = 0.05; // chance of a power up spawning when an asteroid is destroyed
+var POWERUP_PROBA = 0.1; // chance of a power up spawning - increased!
 var POWERUP_DURATION = 500; // frames
-var POWER_UP_SIZE = 20; // pixels
-var ASTEROID_PROBA = 1/400; // chance of an asteroid spawning every frame
+var POWER_UP_SIZE = 25; // pixels - slightly bigger
+var ASTEROID_PROBA = 1/500; // chance of an asteroid spawning every frame - slightly less frequent
 
 
-// Define some colors
-var COLOR_PASTEL_GREEN = "#98FB98";
-var COLOR_NEON_PINK = "#FF69B4";
-
-// Define some colors (More Kawaii!)
-var COLOR_PASTEL_BLUE = "#A7C7E7"; // Softened blue
-var COLOR_PASTEL_YELLOW = "#FFF9C4"; // Softened yellow
-var COLOR_PASTEL_PINK = "#FFB6C1"; // Light pink
-var COLOR_PASTEL_LAVENDER = "#E6BEEB"; // Light lavender
-var COLOR_KAWAII_RED = "#FF69B4"; // Brighter pink-red
+// Define some Kawaii colors! ✨
+var COLOR_BACKGROUND = "#A7C7E7"; // Soft Pastel Blue
+var COLOR_PASTEL_YELLOW = "#FFFACD"; // Lemon Chiffon (softer yellow)
+var COLOR_PASTEL_PINK = "#FFB6C1"; // Light Pink
+var COLOR_PASTEL_LAVENDER = "#E6E6FA"; // Lavender (softer)
+var COLOR_PASTEL_GREEN = "#98FB98"; // Pale Green
+var COLOR_KAWAII_RED = "#FF69B4"; // Hot Pink (for accents)
 var COLOR_KAWAII_GREEN = "#90EE90"; // Light Green
+var COLOR_SHIP_WINDOW = "#ADD8E6"; // Light Blue
 
-// Disco colors for the ship
-const DISCO_COLORS = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"];
+// Disco colors for the invincible ship (Kawaii Rainbow!)
+const DISCO_COLORS = [
+    "#FFB6C1", // Light Pink
+    "#FFA07A", // Light Salmon
+    "#FFFACD", // Lemon Chiffon
+    "#90EE90", // Light Green
+    "#ADD8E6", // Light Blue
+    "#E6E6FA", // Lavender
+    "#DA70D6"  // Orchid
+];
 let discoColorIndex = 0;
 let discoColorTimer = 0;
 
@@ -53,113 +59,99 @@ var KEY_DOWN = 40;
 
 // Define some variables
 var ship = {
-    x: canvas.width / 2, // x coordinate of the ship's center
-    y: canvas.height / 2, // y coordinate of the ship's center
-    a: -HALF_PI, // angle of the ship (0 is right, PI/2 is down)
-    dx: 0, // x velocity of the ship
-    dy: 0, // y velocity of the ship
-    thrusting: false, // whether the ship is thrusting or not
-    turningLeft: false, // whether the ship is turning left or not
-    turningRight: false, // whether the ship is turning right or not
-    shooting: false, // whether the ship is shooting or not
-    canShoot: true, // whether the ship can shoot or not (to prevent rapid fire)
-    alive: true, // whether the ship is alive or not
-    breaking: false, // whether the ship is breaking or not
-    invincible: false, // whether the ship is invincible or not
-    invincibleTimer: 0 // timer for the invincibility
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    a: -HALF_PI, // angle pointing up
+    dx: 0,
+    dy: 0,
+    thrusting: false,
+    turningLeft: false,
+    turningRight: false,
+    shooting: false,
+    canShoot: true,
+    alive: true,
+    breaking: false,
+    invincible: false,
+    invincibleTimer: 0
 };
 
-var bullets = []; // array of bullet objects
-var asteroids = []; // array of asteroid objects
-var powerUps = []; // array of power up objects
-var glitterParticles = []; // Initialize as an empty array
+var bullets = []; // array of bullet objects (hearts!)
+var asteroids = []; // array of asteroid objects (cute rocks!)
+var powerUps = []; // array of power up objects (stars/sparkles!)
+var glitterParticles = []; // array for sparkly explosions! ✨
 
-// Create some asteroids randomly
+// Create initial asteroids
 for (var i = 0; i < ASTEROID_NUM; i++) {
     createAsteroid();
 }
 
-// Define some functions
+// --- Functions ---
 
-// Create a new asteroid object and push it to the asteroids array
+// Create a new asteroid object
 function createAsteroid(x, y, size) {
-    x = x || Math.random() * canvas.width; // default to a random x coordinate
-    y = y || Math.random() * canvas.height; // default to a random y coordinate
-    size = size || ASTEROID_SIZE; // default to the initial asteroid size
+    x = x || Math.random() * canvas.width;
+    y = y || Math.random() * canvas.height;
+    // Avoid spawning too close to the center where the ship starts
+    if (Math.abs(x - canvas.width / 2) < ASTEROID_SIZE * 2 && Math.abs(y - canvas.height / 2) < ASTEROID_SIZE * 2) {
+        x += (Math.random() < 0.5 ? -1 : 1) * ASTEROID_SIZE * 2;
+        y += (Math.random() < 0.5 ? -1 : 1) * ASTEROID_SIZE * 2;
+    }
+    size = size || ASTEROID_SIZE;
 
     var asteroid = {
         x: x,
         y: y,
         size: size,
-        dx: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random x velocity with random direction
-        dy: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random y velocity with random direction
-        a: Math.random() * TWO_PI, // random angle
-        da: Math.random() * 0.02 * (Math.random() < 0.5 ? -1 : 1), // random angular velocity with random direction
-        vertices: [] // array of vertex objects relative to the asteroid's center
+        dx: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1),
+        dy: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1),
+        a: Math.random() * TWO_PI,
+        da: Math.random() * 0.01 * (Math.random() < 0.5 ? -1 : 1), // Slower rotation
+        vertices: []
     };
 
-    // Create some vertices for the asteroid shape
+    // Create vertices for the asteroid shape
     for (var i = 0; i < ASTEROID_VERTICES; i++) {
-        var angle = i * TWO_PI / ASTEROID_VERTICES; // equally spaced angles around the circle
-        var radius = size / 2 * (1 + Math.random() * ASTEROID_JAGGEDNESS); // random radius with some jaggedness
-        var x = Math.cos(angle) * radius; // x coordinate of the vertex relative to the asteroid's center
-        var y = Math.sin(angle) * radius; // y coordinate of the vertex relative to the asteroid's center
-
-        var vertex = {
-            x: x,
-            y: y,
-            angle: angle,
-            radius: radius
-        };
-         // Push the vertex to the asteroid's vertices array
-        asteroid.vertices.push(vertex);
+        var angle = i * TWO_PI / ASTEROID_VERTICES;
+        var radius = size / 2 * (1 - ASTEROID_JAGGEDNESS / 2 + Math.random() * ASTEROID_JAGGEDNESS); // Adjusted jaggedness application
+        var vertX = Math.cos(angle) * radius;
+        var vertY = Math.sin(angle) * radius;
+        asteroid.vertices.push({ x: vertX, y: vertY, angle: angle, radius: radius });
     }
-    //Push the asteroid to the asteroids array
     asteroids.push(asteroid);
 }
 
-// Create a new power up object and push it to the power ups array
+// Create a new power up object (Green Triangle for now)
 function createPowerUp(x, y) {
-    // Create a power up object where the asteroid was destroyed
     var powerUp = {
         x: x,
         y: y,
         size: POWER_UP_SIZE,
-        dx: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random x velocity with random direction
-        dy: Math.random() * ASTEROID_SPEED * (Math.random() < 0.5 ? -1 : 1), // random y velocity with random direction
-        a: Math.random() * TWO_PI, // random angle
-        da: Math.random() * 0.02 * (Math.random() < 0.5 ? -1 : 1), // random angular velocity with random direction
-        vertices: [] // array of vertex objects relative to the power up's center
+        dx: Math.random() * ASTEROID_SPEED * 0.5 * (Math.random() < 0.5 ? -1 : 1), // Slower drift
+        dy: Math.random() * ASTEROID_SPEED * 0.5 * (Math.random() < 0.5 ? -1 : 1),
+        a: Math.random() * TWO_PI,
+        da: Math.random() * 0.02 * (Math.random() < 0.5 ? -1 : 1),
+        vertices: []
     };
-
-    // Create vertices for a triangle shape
+    // Simple triangle shape
     for (var i = 0; i < 3; i++) {
-        var angle = i * TWO_PI / 3; // equally spaced angles around the circle
-        var radius = POWER_UP_SIZE / 2; // radius of the vertex
-        var x = Math.cos(angle) * radius; // x coordinate of the vertex relative to the power up's center
-        var y = Math.sin(angle) * radius; // y coordinate of the vertex relative to the power up's center
-
-        var vertex = {
-            x: x,
-            y: y,
-            angle: angle,
-            radius: radius
-        };
-        // Push the vertex to the power up's vertices array
-        powerUp.vertices.push(vertex);
+        var angle = i * TWO_PI / 3;
+        var radius = POWER_UP_SIZE / 2;
+        var vertX = Math.cos(angle) * radius;
+        var vertY = Math.sin(angle) * radius;
+        powerUp.vertices.push({ x: vertX, y: vertY, angle: angle, radius: radius });
     }
-    // Push the power up to the power ups array
     powerUps.push(powerUp);
 }
 
+// --- Glitter Effect Functions --- ✨
 
-// Function to create glitter particles
+// Create glitter particles at a location
 function createGlitter(x, y, count) {
     for (let i = 0; i < count; i++) {
         let angle = Math.random() * TWO_PI;
-        let speed = Math.random() * 5 + 2; // Random speed
+        let speed = Math.random() * 4 + 1; // Random speed
         let size = Math.random() * 3 + 1; // Random size
-        let color = getRandomGlitterColor(); // Get a random glitter color
+        let color = getRandomGlitterColor(); // Get a random kawaii color
 
         glitterParticles.push({
             x: x,
@@ -168,13 +160,13 @@ function createGlitter(x, y, count) {
             dy: speed * Math.sin(angle),
             size: size,
             color: color,
-            alpha: 1, // Start with full alpha
-            lifetime: Math.random() * 30 + 20 // Random lifetime
+            alpha: 1, // Start fully visible
+            lifetime: Math.random() * 40 + 30 // Random lifetime (frames)
         });
     }
 }
 
-// Function to get a random glitter color
+// Get a random glitter color
 function getRandomGlitterColor() {
     const glitterColors = [
         "#FFB6C1", // Light Pink
@@ -184,80 +176,113 @@ function getRandomGlitterColor() {
         "#87CEFA", // Light Sky Blue
         "#DA70D6", // Orchid
         "#FFA07A", // Light Salmon
-        "#FFFF00", // Yellow
-        "#00FF00", // Lime
-        "#00FFFF", // Cyan
+        "#FFFACD", // Lemon Chiffon
+        "#90EE90", // Light Green
+        "#00FA9A", // Medium Spring Green
+        "#ADD8E6", // Light Blue
     ];
     return glitterColors[Math.floor(Math.random() * glitterColors.length)];
 }
 
-// Function to draw glitter particles
+// Draw a single glitter particle
 function drawGlitter(glitter) {
     ctx.save();
-    ctx.globalAlpha = glitter.alpha; // Set alpha for fading effect
+    ctx.globalAlpha = glitter.alpha; // Apply fading effect
     ctx.fillStyle = glitter.color;
     ctx.beginPath();
+    // Little star shape maybe? Or just circle is fine.
     ctx.arc(glitter.x, glitter.y, glitter.size, 0, TWO_PI);
+    // // Simple Star:
+    // ctx.moveTo(glitter.x, glitter.y - glitter.size);
+    // for (let i = 0; i < 5; i++) {
+    //     ctx.lineTo(glitter.x + Math.cos((18 + i * 72) / 180 * PI) * glitter.size,
+    //                glitter.y - Math.sin((18 + i * 72) / 180 * PI) * glitter.size);
+    //     ctx.lineTo(glitter.x + Math.cos((54 + i * 72) / 180 * PI) * glitter.size * 0.5,
+    //                glitter.y - Math.sin((54 + i * 72) / 180 * PI) * glitter.size * 0.5);
+    // }
+    // ctx.closePath();
     ctx.fill();
     ctx.restore();
 }
 
-// Function to update glitter particles
+// Update glitter particles' position and lifetime
 function updateGlitter() {
     for (let i = glitterParticles.length - 1; i >= 0; i--) { // Iterate backwards for safe removal
         let glitter = glitterParticles[i];
         glitter.x += glitter.dx;
         glitter.y += glitter.dy;
-        glitter.alpha -= 0.03;  // Fade out
+        glitter.alpha -= 0.025; // Fade out rate
         glitter.lifetime--;
 
+        // Apply some friction to glitter
+        glitter.dx *= 0.98;
+        glitter.dy *= 0.98;
+
+        // Remove if faded or lifetime ended
         if (glitter.lifetime <= 0 || glitter.alpha <= 0) {
             glitterParticles.splice(i, 1);
         }
     }
 }
 
+// --- Drawing Functions ---
 
-// Draw the ship (Kawaii Style!)
+// Draw the Kawaii ship 🚀💖
 function drawShip() {
     ctx.save();
     ctx.translate(ship.x, ship.y);
     ctx.rotate(ship.a);
 
-    // Ship Body (Rounded rectangle with a cute tail)
+    // Ship Body (Rounded shape)
     if (ship.invincible) {
-        ctx.strokeStyle = DISCO_COLORS[discoColorIndex]; // Use disco color if invincible
+        ctx.strokeStyle = DISCO_COLORS[discoColorIndex]; // Rainbow flash!
+        ctx.lineWidth = 4; // Thicker glow
         discoColorTimer++;
-        if (discoColorTimer > 10) { // Change color every 10 frames
+        if (discoColorTimer > 5) { // Faster color change
             discoColorTimer = 0;
             discoColorIndex = (discoColorIndex + 1) % DISCO_COLORS.length;
         }
     } else {
-        ctx.strokeStyle = COLOR_KAWAII_RED; // Default color
+        ctx.strokeStyle = COLOR_KAWAII_RED; // Default Hot Pink
+        ctx.lineWidth = 3; // Standard thickness
     }
-    ctx.lineWidth = 3; // Thicker lines
+    ctx.fillStyle = COLOR_PASTEL_PINK; // Light pink fill
     ctx.beginPath();
+    // Nose
     ctx.moveTo(SHIP_SIZE / 2, 0);
-    ctx.lineTo(-SHIP_SIZE / 3, SHIP_SIZE / 4);
-    ctx.quadraticCurveTo(-SHIP_SIZE / 2, 0, -SHIP_SIZE / 3, -SHIP_SIZE / 4); // Rounded back
+    // Side fin - right
+    ctx.lineTo(-SHIP_SIZE / 4, SHIP_SIZE / 3);
+    // Rounded back/tail
+    ctx.quadraticCurveTo(-SHIP_SIZE / 2.5, 0, -SHIP_SIZE / 4, -SHIP_SIZE / 3);
+    // Side fin - left
+    ctx.lineTo(SHIP_SIZE / 2, 0);
     ctx.closePath();
+    ctx.fill();
     ctx.stroke();
 
     // Cute Window
-    ctx.fillStyle = COLOR_PASTEL_BLUE;
+    ctx.fillStyle = COLOR_SHIP_WINDOW;
     ctx.beginPath();
-    ctx.arc(0, 0, SHIP_SIZE / 6, 0, TWO_PI); // Circle window
+    ctx.arc(SHIP_SIZE / 6, 0, SHIP_SIZE / 7, 0, TWO_PI); // Circle window near the front
+    ctx.fill();
+    // Optional window shine:
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(SHIP_SIZE / 6 + 2, -2, SHIP_SIZE / 15, 0, TWO_PI);
     ctx.fill();
 
-    // Little sparkles (when thrusting)
+
+    // Sparkles for thrust/brake ✨
     if (ship.thrusting || ship.breaking) {
-        let flameColor = ship.thrusting? COLOR_PASTEL_YELLOW: COLOR_PASTEL_BLUE;
-        for (let i = 0; i < 3; i++) {
-            let angle = Math.random() * TWO_PI;
-            let radius = Math.random() * SHIP_SIZE / 3;
-            ctx.fillStyle = flameColor;
+        let sparkleColor = ship.thrusting ? COLOR_PASTEL_YELLOW : COLOR_PASTEL_BLUE; // Yellow for forward, blue for brake
+        let baseOffsetX = -SHIP_SIZE / 2.5; // Position behind the rounded back
+        for (let i = 0; i < 5; i++) { // More sparkles!
+            let angle = (Math.random() - 0.5) * 0.8; // Narrower angle backwards
+            let dist = Math.random() * SHIP_SIZE * 0.5 + SHIP_SIZE * 0.1;
+            let size = Math.random() * 2 + 1;
+            ctx.fillStyle = sparkleColor;
             ctx.beginPath();
-            ctx.arc(-SHIP_SIZE/2 - radius*Math.cos(angle), radius*Math.sin(angle), 2, 0, TWO_PI);
+            ctx.arc(baseOffsetX - dist * Math.cos(angle), dist * Math.sin(angle), size, 0, TWO_PI);
             ctx.fill();
         }
     }
@@ -265,596 +290,524 @@ function drawShip() {
     ctx.restore();
 }
 
-// Draw a bullet (Kawaii Heart!)
+// Draw a bullet (Kawaii Heart! ❤️)
 function drawBullet(bullet) {
     ctx.save();
     ctx.translate(bullet.x, bullet.y);
-    ctx.fillStyle = COLOR_KAWAII_RED;
+    // Rotate hearts slightly for fun? Optional.
+    // ctx.rotate(bullet.a || 0); // Need to add angle to bullet if you want rotation
+
+    ctx.fillStyle = COLOR_KAWAII_RED; // Hot Pink Hearts
     ctx.beginPath();
-    let heartSize = 6; // Slightly bigger heart
-    ctx.moveTo(0, -heartSize * 0.4); // Adjusted for better heart shape
-    ctx.bezierCurveTo(-heartSize * 0.6, -heartSize * 0.8, -heartSize, 0, 0, heartSize * 0.4);
-    ctx.bezierCurveTo(heartSize, 0, heartSize * 0.6, -heartSize * 0.8, 0, -heartSize * 0.4);
+    let heartSize = 5; // Size of the heart bullet
+    ctx.moveTo(0, -heartSize * 0.4);
+    ctx.bezierCurveTo(heartSize * 0.5, -heartSize, heartSize, -heartSize * 0.5, heartSize, 0);
+    ctx.bezierCurveTo(heartSize, heartSize * 0.6, heartSize * 0.6, heartSize * 0.8, 0, heartSize);
+    ctx.bezierCurveTo(-heartSize * 0.6, heartSize * 0.8, -heartSize, heartSize * 0.6, -heartSize, 0);
+    ctx.bezierCurveTo(-heartSize, -heartSize * 0.5, -heartSize * 0.5, -heartSize, 0, -heartSize * 0.4);
     ctx.fill();
     ctx.restore();
 }
 
-
-// Draw an asteroid (More Rounded)
+// Draw an asteroid (Pastel Rock ☁️)
 function drawAsteroid(asteroid) {
     ctx.save();
     ctx.translate(asteroid.x, asteroid.y);
     ctx.rotate(asteroid.a);
 
-    ctx.strokeStyle = COLOR_PASTEL_LAVENDER;
+    ctx.strokeStyle = COLOR_PASTEL_LAVENDER; // Soft Lavender outline
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(asteroid.vertices.x, asteroid.vertices.y);
+    ctx.moveTo(asteroid.vertices[0].x, asteroid.vertices[0].y);
     for (let i = 1; i < asteroid.vertices.length; i++) {
         ctx.lineTo(asteroid.vertices[i].x, asteroid.vertices[i].y);
     }
     ctx.closePath();
     ctx.stroke();
 
+    // Optional: Add a subtle fill?
+    // ctx.fillStyle = "rgba(230, 230, 250, 0.1)"; // Very light lavender fill
+    // ctx.fill();
+
     ctx.restore();
 }
 
-// Draw a power up on the canvas
+// Draw a power up (Green Triangle 🌟)
 function drawPowerUp(powerUp) {
-    // Save the current context state
     ctx.save();
-
-    // Translate the context to the power up's center
     ctx.translate(powerUp.x, powerUp.y);
-
-    // Rotate the context to the power up's angle
     ctx.rotate(powerUp.a);
-
-    // Set the stroke color to green
-    ctx.strokeStyle = COLOR_PASTEL_GREEN;
-
-    // Begin a new path
+    ctx.strokeStyle = COLOR_KAWAII_GREEN; // Light Green
+    ctx.lineWidth = 2;
     ctx.beginPath();
-
-    // Move to the first vertex of the power up
     ctx.moveTo(powerUp.vertices[0].x, powerUp.vertices[0].y);
-
-    // Loop through the rest of the vertices and draw lines to them
     for (var i = 1; i < powerUp.vertices.length; i++) {
         ctx.lineTo(powerUp.vertices[i].x, powerUp.vertices[i].y);
     }
-
-    // Close the path
     ctx.closePath();
-
-    // Stroke the path
     ctx.stroke();
 
-    // Restore the context state
+    // Maybe add a little sparkle inside?
+    ctx.fillStyle = COLOR_PASTEL_YELLOW;
+    ctx.beginPath();
+    ctx.arc(0, 0, POWER_UP_SIZE / 5, 0, TWO_PI);
+    ctx.fill();
+
     ctx.restore();
 }
 
-// Update the ship's position and velocity based on its state
+// --- Update Functions ---
+
+// Update the ship's state
 function updateShip() {
-    // If the ship is turning left, decrease its angle by the turn speed
-    if (ship.turningLeft) {
-        ship.a -= SHIP_TURN_SPEED;
-    }
+    // Handle turning
+    if (ship.turningLeft) ship.a -= SHIP_TURN_SPEED;
+    if (ship.turningRight) ship.a += SHIP_TURN_SPEED;
 
-    // If the ship is turning right, increase its angle by the turn speed
-    if (ship.turningRight) {
-        ship.a += SHIP_TURN_SPEED;
-    }
-
-    // If the ship is thrusting, increase its velocity by the thrust amount in the direction of its angle
+    // Handle thrusting/breaking
     if (ship.thrusting) {
         ship.dx += SHIP_THRUST * Math.cos(ship.a);
         ship.dy += SHIP_THRUST * Math.sin(ship.a);
     }
-
-    // If the ship is breaking, decrease its velocity by the thrust amount in the direction of its angle
-    if (ship.breaking) {
-        ship.dx -= SHIP_THRUST * Math.cos(ship.a);
-        ship.dy -= SHIP_THRUST * Math.sin(ship.a);
+     if (ship.breaking) {
+        // Apply brakes more effectively? Reduce velocity directly.
+         ship.dx *= 0.95;
+         ship.dy *= 0.95;
+        // Add slight counter-thrust effect if needed
+        // ship.dx -= SHIP_THRUST * 0.5 * Math.cos(ship.a);
+        // ship.dy -= SHIP_THRUST * 0.5 * Math.sin(ship.a);
     }
 
-    // Apply some friction to the ship's velocity to simulate drag
+    // Apply friction
     ship.dx *= SHIP_FRICTION;
     ship.dy *= SHIP_FRICTION;
 
-    // Limit the ship's speed to the max speed
-    var speed = Math.sqrt(ship.dx * ship.dx + ship.dy * ship.dy); // calculate the speed using Pythagoras' theorem
+    // Limit speed
+    var speed = Math.sqrt(ship.dx * ship.dx + ship.dy * ship.dy);
     if (speed > SHIP_MAX_SPEED) {
-        ship.dx *= SHIP_MAX_SPEED / speed; // scale down the x velocity to the max speed
-        ship.dy *= SHIP_MAX_SPEED / speed; // scale down the y velocity to the max speed
+        ship.dx *= SHIP_MAX_SPEED / speed;
+        ship.dy *= SHIP_MAX_SPEED / speed;
     }
 
-    // Update the ship's position by adding its velocity
+    // Update position
     ship.x += ship.dx;
     ship.y += ship.dy;
 
-    // Wrap the ship around the edges of the canvas
-    if (ship.x < 0) {
-        ship.x = canvas.width;
-    }
-    if (ship.x > canvas.width) {
-        ship.x = 0;
-    }
-    if (ship.y < 0) {
-        ship.y = canvas.height;
-    }
-    if (ship.y > canvas.height) {
-        ship.y = 0;
-    }
+    // Handle screen wrapping
+    if (ship.x < 0 - SHIP_SIZE / 2) ship.x = canvas.width + SHIP_SIZE / 2;
+    if (ship.x > canvas.width + SHIP_SIZE / 2) ship.x = 0 - SHIP_SIZE / 2;
+    if (ship.y < 0 - SHIP_SIZE / 2) ship.y = canvas.height + SHIP_SIZE / 2;
+    if (ship.y > canvas.height + SHIP_SIZE / 2) ship.y = 0 - SHIP_SIZE / 2;
 
-    // If the ship is shooting and can shoot, create a new bullet
+
+    // Handle shooting
     if (ship.shooting && ship.canShoot) {
         createBullet();
-        ship.canShoot = false; // prevent rapid fire
+        ship.canShoot = false;
+        // Add slight recoil?
+        // ship.dx -= Math.cos(ship.a) * 0.1;
+        // ship.dy -= Math.sin(ship.a) * 0.1;
     }
+
+    // Update invincibility timer
+    updateShipInvincibility();
 }
 
-// Create a new bullet object and push it to the bullets array
+// Create a new bullet (heart!)
 function createBullet() {
+    // Calculate offset from ship center to nose tip
+    var noseX = ship.x + Math.cos(ship.a) * SHIP_SIZE / 2;
+    var noseY = ship.y + Math.sin(ship.a) * SHIP_SIZE / 2;
+
     var bullet = {
-        x: ship.x + Math.cos(ship.a) * SHIP_SIZE / 2, // x coordinate of the bullet's center (same as the tip of the ship)
-        y: ship.y + Math.sin(ship.a) * SHIP_SIZE / 2, // y coordinate of the bullet's center (same as the tip of the ship)
-        dx: Math.cos(ship.a) * BULLET_SPEED + ship.dx, // x velocity of the bullet (add the ship's velocity for realism)
-        dy: Math.sin(ship.a) * BULLET_SPEED + ship.dy, // y velocity of the bullet (add the ship's velocity for realism)
-        lifetime: BULLET_LIFETIME // how long the bullet should live in frames
+        x: noseX,
+        y: noseY,
+        dx: Math.cos(ship.a) * BULLET_SPEED + ship.dx, // Add ship's velocity
+        dy: Math.sin(ship.a) * BULLET_SPEED + ship.dy,
+        lifetime: BULLET_LIFETIME,
+        // a: ship.a // Store angle if needed for rotation
     };
     bullets.push(bullet);
+    // Add sound effect here (e.g., pyu!)
 }
 
-// Update the bullet's position and lifetime
-function updateBullet(bullet) {
-    // Update the bullet's position by adding its velocity
+// Update bullet position and lifetime
+function updateBullet(bullet, index) { // Pass index for easier removal
     bullet.x += bullet.dx;
     bullet.y += bullet.dy;
 
-    // Wrap the bullet around the edges of the canvas
-    if (bullet.x < 0) {
-        bullet.x = canvas.width;
-    }
-    if (bullet.x > canvas.width) {
-        bullet.x = 0;
-    }
-    if (bullet.y < 0) {
-        bullet.y = canvas.height;
-    }
-    if (bullet.y > canvas.height) {
-        bullet.y = 0;
-    }
+    // Screen wrapping
+    if (bullet.x < 0) bullet.x = canvas.width;
+    if (bullet.x > canvas.width) bullet.x = 0;
+    if (bullet.y < 0) bullet.y = canvas.height;
+    if (bullet.y > canvas.height) bullet.y = 0;
 
-    // Decrease the bullet's lifetime by one
     bullet.lifetime--;
-
-    // If the bullet's lifetime is zero, remove it from the bullets array
-    if (bullet.lifetime == 0) {
-        var index = bullets.indexOf(bullet); // find the index of the bullet in the array
-        if (index != -1) { // if the index is valid
-            bullets.splice(index, 1); // remove the bullet from the array
-        }
+    if (bullet.lifetime <= 0) {
+        bullets.splice(index, 1); // Remove using index
     }
 }
 
-// Update the asteroid's position and angle
+// Update asteroid position and rotation
 function updateAsteroid(asteroid) {
-    // Update the asteroid's position by adding its velocity
     asteroid.x += asteroid.dx;
     asteroid.y += asteroid.dy;
-
-    // Wrap the asteroid around the edges of the canvas
-    if (asteroid.x < 0) {
-        asteroid.x = canvas.width;
-    }
-    if (asteroid.x > canvas.width) {
-        asteroid.x = 0;
-    }
-    if (asteroid.y < 0) {
-        asteroid.y = canvas.height;
-    }
-    if (asteroid.y > canvas.height) {
-        asteroid.y = 0;
-    }
-
-    // Update the asteroid's angle by adding its angular velocity
     asteroid.a += asteroid.da;
+
+    // Screen wrapping
+    let margin = asteroid.size / 2;
+    if (asteroid.x < 0 - margin) asteroid.x = canvas.width + margin;
+    if (asteroid.x > canvas.width + margin) asteroid.x = 0 - margin;
+    if (asteroid.y < 0 - margin) asteroid.y = canvas.height + margin;
+    if (asteroid.y > canvas.height + margin) asteroid.y = 0 - margin;
 }
 
-// Update the powerup's position and angle
+// Update powerup position and rotation
 function updatePowerUp(powerup) {
-    // Update the powerup's position by adding its velocity
     powerup.x += powerup.dx;
     powerup.y += powerup.dy;
-
-    // Wrap the powerup around the edges of the canvas
-    if (powerup.x < 0) {
-        powerup.x = canvas.width;
-    }
-    if (powerup.x > canvas.width) {
-        powerup.x = 0;
-    }
-    if (powerup.y < 0) {
-        powerup.y = canvas.height;
-    }
-    if (powerup.y > canvas.height) {
-        powerup.y = 0;
-    }
-
-    // Update the powerup's angle by adding its angular velocity
     powerup.a += powerup.da;
+
+     // Screen wrapping
+    let margin = powerup.size / 2;
+    if (powerup.x < 0 - margin) powerup.x = canvas.width + margin;
+    if (powerup.x > canvas.width + margin) powerup.x = 0 - margin;
+    if (powerup.y < 0 - margin) powerup.y = canvas.height + margin;
+    if (powerup.y > canvas.height + margin) powerup.y = 0 - margin;
 }
 
-// Check if the ship is colliding with an asteroid
+// --- Collision Detection ---
+
+// Check ship vs asteroid collision
 function checkShipCollision() {
-    // Loop through all the asteroids
-    for (var i = 0; i < asteroids.length; i++) {
-        var asteroid = asteroids[i]; // get the current asteroid
+    if (ship.invincible) return; // Can't collide if invincible
 
-        // Calculate the distance between the ship and the asteroid
-        var dx = ship.x - asteroid.x;
-        var dy = ship.y - asteroid.y;
-        var distance = Math.sqrt(dx * dx + dy * dy); // use Pythagoras' theorem
+    for (let i = 0; i < asteroids.length; i++) {
+        let asteroid = asteroids[i];
+        let dx = ship.x - asteroid.x;
+        let dy = ship.y - asteroid.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
 
-        // If the distance is less than the sum of their radii, they are colliding
-        if (distance < SHIP_SIZE / 2 + asteroid.size / 2) {
-            // Set the ship's alive flag to false
+        if (distance < SHIP_SIZE / 2.5 + asteroid.size / 2) { // Use smaller ship radius for collision
             ship.alive = false;
-
-            // Break out of the loop
+             // Create glitter explosion for ship death?
+            createGlitter(ship.x, ship.y, 50); // Big glitter poof!
+            // Add sound effect for death
             break;
         }
     }
 }
 
-// Check if the ship is colliding with a powerup
+// Check ship vs powerup collision
 function checkPowerupCollision() {
-    // Loop through all the powerups
-    for (var i = 0; i < powerUps.length; i++) {
-        var powerup = powerUps[i]; // get the current powerup
+    for (let i = powerUps.length - 1; i >= 0; i--) { // Loop backwards for removal
+        let powerup = powerUps[i];
+        let dx = ship.x - powerup.x;
+        let dy = ship.y - powerup.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Calculate the distance between the ship and the powerup
-        var dx = ship.x - powerup.x;
-        var dy = ship.y - powerup.y;
-        var distance = Math.sqrt(dx * dx + dy * dy); // use Pythagoras' theorem
-
-        // If the distance is less than the sum of their radii, they are colliding
         if (distance < SHIP_SIZE / 2 + powerup.size / 2) {
-
-            // Set the ship's invincible flag to true
-            ship.invincible = true;
-
-            // Remove the powerup from the powerups array
-            var index = powerUps.indexOf(powerup); // find the index of the powerup in the array
-            if (index != -1) { // if the index is valid
-                powerUps.splice(index, 1); // remove the powerup from the array
-            }
-
             makeShipInvincible();
-
-            // Break out of the loop
-            break;
+            powerUps.splice(i, 1); // Remove the collected powerup
+            // Add sound effect for powerup collect
+            break; // Only collect one powerup per frame
         }
     }
 }
 
-// Make ship invincible for POWERUP_DURATION frames
-function makeShipInvincible() {
-    // Set the ship's invincible flag to true
-    ship.invincible = true;
+// Check bullet vs asteroid collision
+function checkBulletCollisions() { // Check all bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let bullet = bullets[i];
+        for (let j = asteroids.length - 1; j >= 0; j--) {
+            let asteroid = asteroids[j];
 
-    // Set the ship's invincibility timer to POWERUP_DURATION
-    ship.invincibleTimer = POWERUP_DURATION;
+            let dx = bullet.x - asteroid.x;
+            let dy = bullet.y - asteroid.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Collision!
+            if (distance < 5 + asteroid.size / 2) { // 5 is approx heart radius
+                // Remove bullet
+                bullets.splice(i, 1);
+
+                // Create glitter explosion! ✨
+                createGlitter(asteroid.x, asteroid.y, Math.floor(asteroid.size / 2)); // More glitter for bigger asteroids
+
+                // Split or remove asteroid
+                if (asteroid.size > ASTEROID_SIZE / 3) { // Split threshold
+                    let newSize = asteroid.size / 2;
+                    createAsteroid(asteroid.x, asteroid.y, newSize);
+                    createAsteroid(asteroid.x, asteroid.y, newSize);
+                    SCORE += 20; // More points for splitting
+                } else {
+                    SCORE += 50; // More points for destroying small ones
+                }
+                // Always remove the original asteroid
+                asteroids.splice(j, 1);
+
+                // Maybe spawn powerup
+                if (Math.random() < POWERUP_PROBA) {
+                    createPowerUp(asteroid.x, asteroid.y);
+                }
+
+                // Update high score
+                if (SCORE > HIGH_SCORE) {
+                    HIGH_SCORE = SCORE;
+                }
+
+                 // Add sound effect for asteroid hit/destruction
+
+                // Since bullet hit, break inner loop and continue to next bullet
+                break;
+            }
+        }
+         // Important: If the inner loop broke because of a hit, the outer loop `i`
+         // might now point to the wrong bullet if `splice` was used.
+         // The backward loop already handles this correctly.
+    }
 }
 
-// Update the ship's invincibility timer
-function updateShipInvincibility() {
-    // If the ship is invincible
-    if (ship.invincible) {
-        // Decrease the ship's invincibility timer by one
-        ship.invincibleTimer--;
 
-        // If the ship's invincibility timer is zero
-        if (ship.invincibleTimer == 0) {
-            // Set the ship's invincible flag to false
+// --- Ship State Management ---
+
+// Make ship invincible
+function makeShipInvincible() {
+    ship.invincible = true;
+    ship.invincibleTimer = POWERUP_DURATION;
+    discoColorIndex = 0; // Reset disco effect start
+    discoColorTimer = 0;
+}
+
+// Update invincibility timer
+function updateShipInvincibility() {
+    if (ship.invincible) {
+        ship.invincibleTimer--;
+        if (ship.invincibleTimer <= 0) {
             ship.invincible = false;
         }
     }
 }
 
-// Check if a bullet is colliding with an asteroid
-function checkBulletCollision(bullet) {
-    // Loop through all the asteroids
-    for (var i = 0; i < asteroids.length; i++) {
-        var asteroid = asteroids[i]; // get the current asteroid
+// --- Event Handlers ---
 
-        // Calculate the distance between the bullet and the asteroid
-        var dx = bullet.x - asteroid.x;
-        var dy = bullet.y - asteroid.y;
-        var distance = Math.sqrt(dx * dx + dy * dy); // use Pythagoras' theorem
-        // If the distance is less than the sum of their radii, they are colliding
-        if (distance < 2 + asteroid.size / 2) {
-            // Remove the bullet from the bullets array
-            var index = bullets.indexOf(bullet); // find the index of the bullet in the array
-
-            // Create glitter at the asteroid's position
-            createGlitter(asteroid.x, asteroid.y, 20); // 20 glitter particles
-            
-            if (index != -1) { // if the index is valid
-                bullets.splice(index, 1); // remove the bullet from the array
-            }
-
-            // Remove the asteroid from the asteroids array
-            index = asteroids.indexOf(asteroid); // find the index of the asteroid in the array
-            if (index != -1) { // if the index is valid
-                asteroids.splice(index, 1); // remove the asteroid from the array
-            }
-
-            // If the asteroid is large enough, create two smaller asteroids in its place
-            if (asteroid.size > ASTEROID_SIZE / 4) {
-                createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2); // create a smaller asteroid at the same position with half the size
-                createAsteroid(asteroid.x, asteroid.y, asteroid.size / 2); // create another smaller asteroid at the same position with half the size
-            }
-
-            // Create a powerup at the asteroid's position with probability POWERUP_PROBA
-            if (Math.random() < POWERUP_PROBA){
-                createPowerUp(asteroid.x, asteroid.y);
-            }
-
-            //Add to the score
-            SCORE += 10;
-
-            // Update the high score
-            if (SCORE > HIGH_SCORE) {
-                HIGH_SCORE = SCORE;
-            }
-
-            // Break out of the loop
-            break;
-        }
-    }
-}
-
-// Handle key down events
 function keyDownHandler(event) {
-    var keyCode = event.keyCode; // get the key code of the pressed key
+    if (!ship.alive && event.keyCode !== 32) return; // Allow space to restart? No, handled by mouse click
 
-    // If the left arrow key is pressed, set the ship's turning left flag to true
-    if (keyCode == KEY_LEFT) {
-        ship.turningLeft = true;
-    }
-
-    // If the right arrow key is pressed, set the ship's turning right flag to true
-    if (keyCode == KEY_RIGHT) {
-        ship.turningRight = true;
-    }
-
-    // If the up arrow key is pressed, set the ship's thrusting flag to true
-    if (keyCode == KEY_UP) {
-        ship.thrusting = true;
-    }
-
-    // If the down array key is pressed, set the ship's breaking flag to true
-    if (keyCode == KEY_DOWN) {
-        ship.breaking = true;
-    }
-
-    // If the spacebar key is pressed, set the ship's shooting flag to true
-    if (keyCode == KEY_SPACE) {
-        ship.shooting = true;
+    switch (event.keyCode) {
+        case KEY_LEFT: ship.turningLeft = true; break;
+        case KEY_RIGHT: ship.turningRight = true; break;
+        case KEY_UP: ship.thrusting = true; break;
+        case KEY_DOWN: ship.breaking = true; break;
+        case KEY_SPACE: ship.shooting = true; break;
     }
 }
 
-// Handle key up events
 function keyUpHandler(event) {
-    var keyCode = event.keyCode; // get the key code of the released key
+     if (!ship.alive) return;
 
-    // If the left arrow key is released, set the ship's turning left flag to false
-    if (keyCode == KEY_LEFT) {
-        ship.turningLeft = false;
-    }
-
-    // If the right arrow key is released, set the ship's turning right flag to false
-    if (keyCode == KEY_RIGHT) {
-        ship.turningRight = false;
-    }
-
-    // If the up arrow key is released, set the ship's thrusting flag to false
-    if (keyCode == KEY_UP) {
-        ship.thrusting = false;
-    }
-
-    // If the down array key is released, set the ship's breaking flag to false
-    if (keyCode == KEY_DOWN) {
-        ship.breaking = false;
-    }
-
-    // If the spacebar key is released, set the ship's shooting flag to false and its can shoot flag to true
-    if (keyCode == KEY_SPACE) {
-        ship.shooting = false;
-        ship.canShoot = true;
+    switch (event.keyCode) {
+        case KEY_LEFT: ship.turningLeft = false; break;
+        case KEY_RIGHT: ship.turningRight = false; break;
+        case KEY_UP: ship.thrusting = false; break;
+        case KEY_DOWN: ship.breaking = false; break;
+        case KEY_SPACE: ship.shooting = false; ship.canShoot = true; break; // Allow shooting again
     }
 }
 
-// Add event listeners for key down and key up events
 document.addEventListener("keydown", keyDownHandler, false);
 document.addEventListener("keyup", keyUpHandler, false);
 
-// Prevent the keys from scrolling the page
+// Prevent arrow keys and spacebar from scrolling the page
 window.addEventListener("keydown", function(e) {
-    // space and arrow keys
-    if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+    if ([32, 37, 38, 39, 40].includes(e.keyCode)) {
       e.preventDefault();
     }
   }, false);
 
-// Get mouse position
+
+// --- Game Reset & Mouse Handling ---
+
+// Get mouse position relative to canvas
 function getMousePos(canvas, event) {
     var rect = canvas.getBoundingClientRect();
     return {
-        x: event.clientX - rect.left, // get the x coordinate of the mouse relative to the canvas
-        y: event.clientY - rect.top // get the y coordinate of the mouse relative to the canvas
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
     };
 }
 
-// Restart the game
+// Track if game over listener is active to prevent duplicates
+let isGameOverListenerActive = false;
+
+// Mouse click handler (specifically for restart)
+function gameOverClickHandler(event) {
+    if (!ship.alive) {
+        var mousePos = getMousePos(canvas, event);
+        // Define clickable area for restart text (adjust as needed)
+        let textWidth = ctx.measureText("Restart ✨").width; // Measure dynamically
+        let textX = canvas.width / 2;
+        let textY = canvas.height / 2 + 30; // Position of the restart text
+        let buttonHeight = 30; // Clickable height
+
+        if (mousePos.x > textX - textWidth / 2 - 10 && mousePos.x < textX + textWidth / 2 + 10 &&
+            mousePos.y > textY && mousePos.y < textY + buttonHeight)
+        {
+            restartGame();
+        }
+    }
+}
+
+
+// Restart the game state
 function restartGame() {
-    // Reset the score
     SCORE = 0;
-
-    // Reset ship variables
-    ship.x = canvas.width / 2;
-    ship.y = canvas.height / 2;
-    ship.dx = 0;
-    ship.dy = 0;
-    ship.thrusting = false;
-    ship.breaking = false;
-    ship.alive = true;
-    ship.a = -HALF_PI;
-    ship.canShoot = true;
-    ship.turningLeft = false;
-    ship.turningRight = false;
-    ship.shooting = false;
-    ship.invincible = false;
-    ship.invincibleTimer = 0;
-
-    // Reset the asteroid array
+    ship = { // Reset ship object completely
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        a: -HALF_PI,
+        dx: 0,
+        dy: 0,
+        thrusting: false,
+        turningLeft: false,
+        turningRight: false,
+        shooting: false,
+        canShoot: true,
+        alive: true,
+        breaking: false,
+        invincible: false, // Start briefly invincible after respawn? Maybe 1 sec.
+        invincibleTimer: 60 // Start with 1 second invincibility
+    };
     asteroids = [];
-
-    // Reset the bullet array
     bullets = [];
-
-    // Reset the powerup array
     powerUps = [];
+    glitterParticles = []; // Clear glitter too
 
     // Create new asteroids
     for (var i = 0; i < ASTEROID_NUM; i++) {
         createAsteroid();
     }
+
+    // Remove the game over listener if it was active
+    if (isGameOverListenerActive) {
+        canvas.removeEventListener("mousedown", gameOverClickHandler);
+        isGameOverListenerActive = false;
+    }
+    // Ensure ship starts invincible visual state correctly
+    if (ship.invincibleTimer > 0) ship.invincible = true;
 }
 
-// Game Loop (Kawaii Background and Text)
+// --- Main Game Loop ---
 function gameLoop() {
-    // Clear the canvas (Softer background)
-    ctx.fillStyle = COLOR_PASTEL_BLUE;
+    // Clear canvas with Kawaii background
+    ctx.fillStyle = COLOR_BACKGROUND;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // If the ship is alive, update it
-    if (ship.alive) {
-        drawShip();
-        updateShip();
-    }
-
-    // Loop through all the bullets, draw and update them
-    for (var i = 0; i < bullets.length; i++) {
-        var bullet = bullets[i]; // get the current bullet
-        drawBullet(bullet);
-        updateBullet(bullet);
-    }
-
-    // Loop through all the asteroids, draw and update them
-    for (var i = 0; i < asteroids.length; i++) {
-        var asteroid = asteroids[i]; // get the current asteroid
-        drawAsteroid(asteroid);
-        updateAsteroid(asteroid);
-    }
-
-    // Loop through all the powerups, draw and update them
-    for (var i = 0; i < powerUps.length; i++) {
-        var powerUp = powerUps[i]; // get the current powerup
-        drawPowerUp(powerUp);
-        updatePowerUp(powerUp);
-    }
-
-    // If ship is not invincible, check for collisions between the ship and the asteroids
-    if (!ship.invincible){
-        checkShipCollision();
-    }
-
-    // Check for collisions between the ship and the powerups
-    checkPowerupCollision();
-
-    // Update the ship's invincibility
-    updateShipInvincibility();
-
-    // Loop through all the bullets and check for collisions with the asteroids
-    for (var i = 0; i < bullets.length; i++) {
-        var bullet = bullets[i]; // get the current bullet
-        checkBulletCollision(bullet);
-    }
-
-    // Update and draw glitter
+    // Update and Draw Glitter (Draw below everything else? Or above?) - Let's draw below asteroids/bullets
     updateGlitter();
     for (let i = 0; i < glitterParticles.length; i++) {
         drawGlitter(glitterParticles[i]);
     }
 
-    // Draw the score and high score (Kawaii Font)
-    ctx.fillStyle = COLOR_KAWAII_RED;
-    ctx.font = "24px 'Comic Sans MS'"; // Example kawaii font (use a web-safe one)
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText("Score: " + SCORE, 10, 10);
+    // Update and Draw Asteroids
+    for (let i = asteroids.length - 1; i >= 0; i--) { // Loop backwards if needed for collision removal
+        updateAsteroid(asteroids[i]);
+        drawAsteroid(asteroids[i]);
+    }
 
-    ctx.fillStyle = COLOR_PASTEL_YELLOW;
-    ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
+    // Update and Draw Power Ups
+     for (let i = powerUps.length - 1; i >= 0; i--) {
+        updatePowerUp(powerUps[i]);
+        drawPowerUp(powerUps[i]);
+    }
 
-    // Draw the powerup timer
-    ctx.fillStyle = COLOR_PASTEL_GREEN;
-    ctx.font = "20px Arial";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "top";
-    ctx.fillText("Powerup Timer: " + ship.invincibleTimer, canvas.width - 10, 10);
-
-    // With probability create a new asteroid
-    if (Math.random() < ASTEROID_PROBA) {
-        //if MAX_ASTEROIDS is not reached, create a new asteroid
-        if (asteroids.length < MAX_ASTEROIDS){
-            createAsteroid();
+     // Update and Draw Bullets (Hearts!)
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        // Pass index for efficient removal in updateBullet if lifetime ends
+        updateBullet(bullets[i], i);
+        // Check if bullet still exists before drawing (might have expired)
+        if (bullets[i]) {
+            drawBullet(bullets[i]);
         }
     }
 
-    // If there are no more asteroids, the game is won
-    if (asteroids.length == 0) {
-        // Set the fill color to green
-        ctx.fillStyle = COLOR_PASTEL_GREEN;
+    // Check Collisions
+    if (ship.alive) {
+        checkShipCollision(); // Ship vs Asteroids
+        checkPowerupCollision(); // Ship vs Powerups
+    }
+    checkBulletCollisions(); // Bullets vs Asteroids
 
-        // Fill a text at the center of the canvas saying "You win!"
-        ctx.font = "50px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("You win!", canvas.width / 2, canvas.height / 2);
+    // Update and Draw Ship (if alive)
+    if (ship.alive) {
+        updateShip();
+        drawShip();
     }
 
-    // If the ship is not alive, the game is over
-    if (!ship.alive) {
-        ctx.fillStyle = COLOR_PASTEL_PINK;
-        ctx.font = "48px 'Comic Sans MS'"; // Kawaii game over text
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("Game Over 🥺", canvas.width / 2, canvas.height / 2 - 20); // Added a cute emoji
 
-        // Restart button (Kawaii Style)
+    // Spawn new asteroids occasionally
+    if (ship.alive && Math.random() < ASTEROID_PROBA && asteroids.length < MAX_ASTEROIDS) {
+        createAsteroid();
+    }
+
+    // Draw Score and High Score (Kawaii Style)
+    ctx.fillStyle = COLOR_KAWAII_RED;
+    ctx.font = "24px 'Comic Sans MS', cursive, sans-serif"; // Add fallbacks
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("Score: " + SCORE + " 💖", 10, 10);
+
+    ctx.fillStyle = COLOR_PASTEL_YELLOW; // Use a contrasting pastel
+    ctx.font = "20px 'Comic Sans MS', cursive, sans-serif";
+    ctx.fillText("High Score: " + HIGH_SCORE, 10, 40);
+
+    // Draw Powerup Timer (if active)
+    if (ship.invincible) {
         ctx.fillStyle = COLOR_KAWAII_GREEN;
-        ctx.font = "24px 'Comic Sans MS'";
-        ctx.fillText("Restart ✨", canvas.width / 2, canvas.height / 2 + 40); // Added sparkles
-
-        // If the mouse is clicked
-        canvas.addEventListener("mousedown", function(event) {
-            // Get the mouse position
-            var mousePos = getMousePos(canvas, event);
-
-            // If the mouse is clicked on the restart button
-            if (mousePos.x > canvas.width / 2 - 50 && mousePos.x < canvas.width / 2 + 50 && mousePos.y > canvas.height / 2 + 40 && mousePos.y < canvas.height / 2 + 60) {
-                restartGame(); // restart the game
-            }
-        });
+        ctx.font = "20px 'Comic Sans MS', cursive, sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "top";
+        // Display timer in seconds (approx)
+        ctx.fillText("✨ Shield: " + Math.ceil(ship.invincibleTimer / 60) + "s ✨", canvas.width - 10, 10);
     }
 
-    // Request the next animation frame
+    // --- Game Over / Win Condition ---
+
+    // Win Condition (Optional - if you want one)
+    // if (asteroids.length == 0 && ship.alive) {
+    //     ctx.fillStyle = COLOR_PASTEL_GREEN;
+    //     ctx.font = "50px 'Comic Sans MS', cursive, sans-serif";
+    //     ctx.textAlign = "center";
+    //     ctx.textBaseline = "middle";
+    //     ctx.fillText("You Win! 🎉", canvas.width / 2, canvas.height / 2);
+    //     // Maybe stop the game loop or add a next level button?
+    // }
+
+    // Game Over
+    if (!ship.alive) {
+        ctx.fillStyle = COLOR_PASTEL_PINK; // Soft pink game over
+        ctx.font = "48px 'Comic Sans MS', cursive, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Game Over 🥺", canvas.width / 2, canvas.height / 2 - 30);
+
+        // Draw Restart "Button" Text
+        ctx.fillStyle = COLOR_KAWAII_GREEN; // Bright green restart
+        ctx.font = "28px 'Comic Sans MS', cursive, sans-serif";
+        ctx.fillText("Restart ✨", canvas.width / 2, canvas.height / 2 + 30);
+
+        // Add the click listener *only once* when game over state is entered
+        if (!isGameOverListenerActive) {
+            canvas.addEventListener("mousedown", gameOverClickHandler);
+            isGameOverListenerActive = true;
+        }
+    }
+
+    // Request the next frame
     requestAnimationFrame(gameLoop);
-    }
+}
 
-    // Start the game loop
-    gameLoop();
+// --- Start the game ---
+// Optional: Add a start screen before calling gameLoop()
+restartGame(); // Initialize first game
+gameLoop(); // Start the main loop
