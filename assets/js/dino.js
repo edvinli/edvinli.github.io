@@ -11,7 +11,7 @@ canvas.style.border = '1px solid black';
 const PHYSICS = {
     GRAVITY: 0.0025, // Adjusted for ms delta time
     JUMP_STRENGTH: -0.8, // Adjusted for ms delta time
-    PLAYER_SPEED: 0.25, // Adjusted for ms delta time
+    PLAYER_SPEED: 0.25, // Adjusted for ms delta time (pixels per ms)
     BASE_OBSTACLE_SPEED: 0.3, // Adjusted for ms delta time (pixels per ms)
     SPEED_INCREASE_PER_5_SCORE: 0.03, // How much speed increases
 };
@@ -29,8 +29,10 @@ const APPEARANCE = {
     OBSTACLE_COLOR_HUE_START: 0, // Red
     OBSTACLE_COLOR_HUE_RANGE: 60, // Red to Yellow
     OBSTACLE_OUTLINE: '#222',
-    BACKGROUND_LAYER_1_COLOR: '#add8e6', // Light blue (distant)
-    BACKGROUND_LAYER_2_COLOR: '#87ceeb', // Sky blue (closer)
+    BACKGROUND_LAYER_1_COLOR: '#add8e6', // Light blue (distant sky)
+    BACKGROUND_LAYER_2_COLOR: '#87ceeb', // Sky blue (closer hills/clouds)
+    BACKGROUND_LAYER_1_SPEED_FACTOR: 0.15, // Distant layer scrolls slowest (relative to obstacles)
+    BACKGROUND_LAYER_2_SPEED_FACTOR: 0.4,  // Closer layer scrolls slower than obstacles, faster than layer 1
     SETTINGS_BUTTON_SIZE: 30,
     SETTINGS_BUTTON_PADDING: 5,
     TRAIL_LENGTH: 8,
@@ -71,6 +73,7 @@ let gameState = {
     score: 0,
     gameRunning: true,
     lastTime: 0,
+    deltaTime: 0, // Store deltaTime for use in updates/drawing
     settingsOpen: false,
     touchStartX: null,
     touchEndX: null,
@@ -90,6 +93,8 @@ function lorentzFactor(v) {
     if (safeV < 0) return 1; // No effect for negative speed (shouldn't happen here)
     const vSquared = safeV * safeV;
     const cSquared = RELATIVITY.C * RELATIVITY.C;
+    // Add a check for vSquared >= cSquared to prevent sqrt of negative
+    if (vSquared >= cSquared) return Infinity;
     return 1 / Math.sqrt(1 - vSquared / cSquared);
 }
 
@@ -104,29 +109,38 @@ function relativisticLengthContraction(originalLength, v) {
 // --- Drawing Functions ---
 
 function drawBackground() {
-    // Clear canvas is now done in main draw function
-    // Layer 1 (Distant - moves slower)
+    // Layer 1 (Distant - moves slowest)
+    const effectiveSpeedLayer1 = gameState.currentObstacleSpeed * APPEARANCE.BACKGROUND_LAYER_1_SPEED_FACTOR;
+    gameState.bgLayer1Offset = (gameState.bgLayer1Offset + effectiveSpeedLayer1 * gameState.deltaTime) % size;
+
+    // Draw Layer 1 - simple scrolling color (or could add clouds)
     ctx.fillStyle = APPEARANCE.BACKGROUND_LAYER_1_COLOR;
-    ctx.fillRect(0, 0, size, size); // Fill entire canvas first
+    // Draw two rectangles to simulate wrapping
+    ctx.fillRect(-gameState.bgLayer1Offset, 0, size, size);
+    ctx.fillRect(size - gameState.bgLayer1Offset, 0, size, size);
 
-    // Layer 2 (Closer - moves faster) - Draw simple "clouds" or hills
+
+    // Layer 2 (Closer - moves faster than layer 1, slower than foreground)
+    const effectiveSpeedLayer2 = gameState.currentObstacleSpeed * APPEARANCE.BACKGROUND_LAYER_2_SPEED_FACTOR;
+    gameState.bgLayer2Offset = (gameState.bgLayer2Offset + effectiveSpeedLayer2 * gameState.deltaTime) % size;
+
     ctx.fillStyle = APPEARANCE.BACKGROUND_LAYER_2_COLOR;
-    const layer2SpeedFactor = 0.5; // Moves at 50% of obstacle speed relative to player
-    const effectiveSpeedLayer2 = gameState.currentObstacleSpeed * layer2SpeedFactor;
-    gameState.bgLayer2Offset = (gameState.bgLayer2Offset + effectiveSpeedLayer2 * (gameState.deltaTime || 0)) % size; // Wrap around
-
     // Simple repeating pattern (e.g., hills)
     const hillHeight = 80;
-    const hillWidth = size / 2;
-    for (let i = -1; i < 3; i++) { // Draw enough hills to cover screen during movement
+    const hillWidth = size / 1.5; // Make hills wider for slower feel
+    for (let i = -2; i < 3; i++) { // Draw enough hills to cover screen during movement
+        const startX = i * hillWidth - gameState.bgLayer2Offset;
         ctx.beginPath();
-        ctx.moveTo(i * hillWidth - gameState.bgLayer2Offset, GROUND_LEVEL);
-        ctx.quadraticCurveTo(i * hillWidth + hillWidth / 2 - gameState.bgLayer2Offset, GROUND_LEVEL - hillHeight, i * hillWidth + hillWidth - gameState.bgLayer2Offset, GROUND_LEVEL);
-        ctx.lineTo(i * hillWidth - gameState.bgLayer2Offset, GROUND_LEVEL); // Close the shape path
+        ctx.moveTo(startX, GROUND_LEVEL);
+        ctx.quadraticCurveTo(startX + hillWidth / 2, GROUND_LEVEL - hillHeight, startX + hillWidth, GROUND_LEVEL);
+        //ctx.lineTo(startX + hillWidth, size); // Fill down to bottom
+        //ctx.lineTo(startX, size);
+        ctx.closePath(); // Close the shape path back to start automatically
         ctx.fill();
     }
-     // Draw text indicating speed C (optional visual cue)
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+
+     // Draw text indicating speed C (optional visual cue) - Draw AFTER backgrounds
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; // White, semi-transparent
     ctx.font = '12px Arial';
     ctx.textAlign = 'right';
     ctx.fillText(`Speed c: ${RELATIVITY.C.toFixed(1)} px/ms`, size - 10, size - 10);
@@ -166,7 +180,7 @@ function drawPlayerTrail() {
 function drawPlayer() {
     const player = gameState.player;
 
-    // Draw trail first
+    // Draw trail first so player is on top
     drawPlayerTrail();
 
     ctx.fillStyle = APPEARANCE.PLAYER_COLOR;
@@ -178,14 +192,20 @@ function drawPlayer() {
     ctx.fill();
     ctx.stroke();
 
-    // Simple "eye"
+    // Simple "eye" - make it look right (adjust based on xVelocity)
+    const eyeOffsetX = player.radius * 0.4 + (player.xVelocity !== 0 ? Math.sign(player.xVelocity) * player.radius * 0.1 : 0);
+    const pupilOffsetX = player.radius * 0.5 + (player.xVelocity !== 0 ? Math.sign(player.xVelocity) * player.radius * 0.15 : 0);
+    const eyeOffsetY = player.radius * -0.3;
+
+    // White part
     ctx.fillStyle = 'white';
     ctx.beginPath();
-    ctx.arc(player.x + player.radius * 0.4, player.y - player.radius * 0.3, player.radius * 0.3, 0, Math.PI * 2);
+    ctx.arc(player.x + eyeOffsetX, player.y + eyeOffsetY, player.radius * 0.3, 0, Math.PI * 2);
     ctx.fill();
+    // Pupil
     ctx.fillStyle = 'black';
     ctx.beginPath();
-    ctx.arc(player.x + player.radius * 0.5, player.y - player.radius * 0.3, player.radius * 0.15, 0, Math.PI * 2);
+    ctx.arc(player.x + pupilOffsetX, player.y + eyeOffsetY, player.radius * 0.15, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -243,7 +263,8 @@ function drawSettingsButton() {
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(btnX, btnY, APPEARANCE.SETTINGS_BUTTON_SIZE, APPEARANCE.SETTINGS_BUTTON_SIZE, 5); // Rounded corners
+    // Simple rect for button
+    ctx.rect(btnX, btnY, APPEARANCE.SETTINGS_BUTTON_SIZE, APPEARANCE.SETTINGS_BUTTON_SIZE);
     ctx.fill();
     ctx.stroke();
 
@@ -265,13 +286,12 @@ function updatePlayer(deltaTime) {
     player.y += player.yVelocity * deltaTime;
 
     // Ground collision
-    if (player.y >= GROUND_LEVEL - player.radius) {
-        player.y = GROUND_LEVEL - player.radius;
+    const groundPosition = GROUND_LEVEL - player.radius;
+    if (player.y >= groundPosition) {
+        player.y = groundPosition;
         player.yVelocity = 0;
         if (player.isJumping) {
-             // Simple land "squash" - can be expanded
-            // player.radius *= 0.9; // Temporary visual effect
-            // setTimeout(() => player.radius = APPEARANCE.PLAYER_RADIUS, 50);
+             // Optional landing effect could go here
         }
         player.isJumping = false;
     }
@@ -326,22 +346,22 @@ function updateObstacles(deltaTime) {
     const speedIncrease = Math.floor(gameState.score / 5) * PHYSICS.SPEED_INCREASE_PER_5_SCORE;
     gameState.currentObstacleSpeed = Math.min(
         gameState.obstacleSpeedSetting + speedIncrease,
-        RELATIVITY.C * 0.99 // Ensure it never quite reaches C
+        RELATIVITY.C * 0.995 // Ensure it never quite reaches C, slightly higher cap
     );
 
-    let lastObstacleX = 0; // Find the position of the rightmost obstacle
+    let lastObstacleX = -Infinity; // Find the position of the rightmost obstacle's *start*
 
     for (let i = obstacles.length - 1; i >= 0; i--) { // Iterate backwards for safe removal
         const obs = obstacles[i];
         obs.x -= gameState.currentObstacleSpeed * deltaTime;
 
-        // Track the rightmost obstacle's position (used for generation spacing)
-         if (i === obstacles.length - 1) {
-            lastObstacleX = obs.x + obs.originalWidth; // Use original width for spacing logic
-        }
+        // Track the rightmost obstacle's STARTING position (used for generation spacing)
+        // Update lastObstacleX only if this obstacle is further right
+        lastObstacleX = Math.max(lastObstacleX, obs.x);
 
         // Remove obstacles that are off-screen left
-        if (obs.x + obs.originalWidth < 0) { // Check using original width
+        // Check using originalWidth to ensure the whole original shape is gone
+        if (obs.x + obs.originalWidth < 0) {
             obstaclePool.push(obs); // Recycle
             obstacles.splice(i, 1);
             gameState.score++;
@@ -351,6 +371,8 @@ function updateObstacles(deltaTime) {
 
     // Generate new obstacles based on probability AND spacing
     const shouldGenerate = Math.random() < GAMEPLAY.OBSTACLE_GENERATION_PROBABILITY;
+    // Check if the START of the rightmost obstacle is far enough left
+    // to allow a new one to spawn at `size`
     const enoughSpacing = obstacles.length === 0 || lastObstacleX < size - GAMEPLAY.MIN_OBSTACLE_SPACING;
 
     if (shouldGenerate && enoughSpacing) {
@@ -378,7 +400,7 @@ function checkCollision() {
         const obsBottom = obstacle.y + obstacle.height;
 
         if (playerRight > obsLeft && playerLeft < obsRight && playerBottom > obsTop && playerTop < obsBottom) {
-            // More precise circle-rectangle collision (optional, AABB is often good enough)
+            // More precise circle-rectangle collision (Manhattan distance variation)
             // Find closest point on rectangle to circle center
             const closestX = Math.max(obsLeft, Math.min(player.x, obsRight));
             const closestY = Math.max(obsTop, Math.min(player.y, obsBottom));
@@ -411,7 +433,7 @@ function openSettings() {
 
     const settingsDiv = document.createElement('div');
     settingsDiv.id = 'settings-panel';
-    // Style the settings panel (make it more prominent)
+    // Style the settings panel
     Object.assign(settingsDiv.style, {
         position: 'absolute',
         top: '50%',
@@ -519,12 +541,20 @@ function restartGame() {
     gameState.score = 0;
     gameState.gameRunning = true;
     gameState.lastTime = performance.now(); // Use performance.now() for high-res time
+    gameState.deltaTime = 0; // Reset delta time
     gameState.touchStartX = null;
     gameState.touchEndX = null;
     gameState.canJump = true;
     gameState.bgLayer1Offset = 0;
     gameState.bgLayer2Offset = 0;
     gameState.shakeTime = 0; // Reset screen shake
+
+    // Ensure DOM settings panel is removed if somehow still present
+    const settingsDiv = document.getElementById('settings-panel');
+    if (settingsDiv) {
+        settingsDiv.remove();
+    }
+    gameState.settingsOpen = false; // Ensure settings state is closed
 
     requestAnimationFrame(gameLoop);
 }
@@ -535,7 +565,7 @@ function update(deltaTime) {
     gameState.deltaTime = deltaTime; // Store for potential use elsewhere (like background)
 
     updatePlayer(deltaTime);
-    updateObstacles(deltaTime);
+    updateObstacles(deltaTime); // Obstacles update calculates currentObstacleSpeed
 
     if (checkCollision()) {
         gameState.gameRunning = false;
@@ -547,6 +577,7 @@ function update(deltaTime) {
         gameState.shakeTime -= deltaTime;
         if (gameState.shakeTime <= 0) {
             gameState.shakeMagnitude = 0;
+            gameState.shakeTime = 0; // Ensure it's exactly 0
         }
     }
 }
@@ -565,13 +596,13 @@ function draw() {
     // Clear canvas (important!)
     ctx.clearRect(0, 0, size, size);
 
-    // Draw game elements
+    // --- Draw game elements in order (Back to Front) ---
     drawBackground();
     drawGround();
     for (let obstacle of gameState.obstacles) {
         drawObstacle(obstacle);
     }
-    drawPlayer(); // Draw player on top of obstacles
+    drawPlayer(); // Draw player potentially over trail and obstacles
     drawScore();
     drawSettingsButton(); // Always draw the button
 
@@ -579,7 +610,8 @@ function draw() {
     if (gameState.settingsOpen) {
          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Dark overlay
          ctx.fillRect(0, 0, size, size);
-         drawSettingsButton(); // Redraw button on top of overlay
+         // Redraw button on top of overlay so it's clickable
+         drawSettingsButton();
     }
 
 
@@ -588,18 +620,30 @@ function draw() {
         ctx.restore(); // Restore to pre-shake state
     }
 
-    // Draw Game Over screen if needed (drawn after shake restore)
-    if (!gameState.gameRunning) {
+    // Draw Game Over screen if needed (drawn last, after shake restore)
+    if (!gameState.gameRunning && !gameState.settingsOpen) {
         drawGameOver();
     }
 }
 
 function gameLoop(timestamp) {
+    // Ensure lastTime is valid
+    if (gameState.lastTime === 0) {
+        gameState.lastTime = timestamp;
+    }
     const deltaTime = timestamp - gameState.lastTime;
     gameState.lastTime = timestamp;
 
     // If settings are open, only draw the paused state and skip updates
     if (gameState.settingsOpen) {
+        // Update background offsets even when paused for visual continuity
+        const tempDelta = Math.min(deltaTime, 30); // Cap delta time to prevent huge jumps if tabbed out
+        gameState.deltaTime = tempDelta; // Set delta for background drawing
+        const effectiveSpeedLayer1 = gameState.currentObstacleSpeed * APPEARANCE.BACKGROUND_LAYER_1_SPEED_FACTOR;
+        gameState.bgLayer1Offset = (gameState.bgLayer1Offset + effectiveSpeedLayer1 * tempDelta) % size;
+        const effectiveSpeedLayer2 = gameState.currentObstacleSpeed * APPEARANCE.BACKGROUND_LAYER_2_SPEED_FACTOR;
+        gameState.bgLayer2Offset = (gameState.bgLayer2Offset + effectiveSpeedLayer2 * tempDelta) % size;
+
         draw(); // Draw the current state with overlay
         requestAnimationFrame(gameLoop); // Keep the loop going for drawing
         return;
@@ -614,7 +658,9 @@ function gameLoop(timestamp) {
     }
 
     // --- Normal Gameplay Update & Draw ---
-    update(deltaTime);
+    // Cap deltaTime to prevent physics glitches if the tab was inactive for a long time
+    const cappedDeltaTime = Math.min(deltaTime, 50); // E.g., max update step of 50ms (20 FPS min)
+    update(cappedDeltaTime);
     draw();
 
     requestAnimationFrame(gameLoop);
@@ -625,13 +671,11 @@ function jump() {
 
     if (gameState.gameRunning && !gameState.player.isJumping && gameState.canJump) {
         // Only allow jump if on or very near the ground
-        if (gameState.player.y >= GROUND_LEVEL - gameState.player.radius - 5) { // Small tolerance
+        if (gameState.player.y >= GROUND_LEVEL - gameState.player.radius - 1) { // Small tolerance
             gameState.player.yVelocity = PHYSICS.JUMP_STRENGTH;
             gameState.player.isJumping = true;
             gameState.canJump = false;
-            // Simple jump "stretch" - can be expanded
-            // gameState.player.radius *= 1.1; // Temporary visual effect
-            // setTimeout(() => gameState.player.radius = APPEARANCE.PLAYER_RADIUS, 100);
+            // Optional jump effect could go here
 
             setTimeout(() => { gameState.canJump = true; }, GAMEPLAY.JUMP_DEBOUNCE_TIME);
         }
@@ -649,7 +693,10 @@ function getCanvasCoordinates(event) {
   const clientY = event.clientY ?? event.touches?.[0]?.clientY;
 
   if (clientX === undefined || clientY === undefined) {
-      return null; // Should not happen with mousedown/touchstart[0]
+      // If event is touchend, touches might be empty, ignore coordinate calculation
+      if(event.type === 'touchend' || event.type === 'pointerup') return null;
+       console.warn("Could not get coordinates from event:", event);
+      return null;
   }
 
   return {
@@ -660,9 +707,14 @@ function getCanvasCoordinates(event) {
 
 
 function handleStart(event) {
-    event.preventDefault(); // Prevent default touch actions like scrolling
+    event.preventDefault(); // Prevent default touch actions like scrolling/selection
     const coords = getCanvasCoordinates(event);
-    if (!coords) return;
+    // If coords are null (e.g., from touchend), just return
+    if (!coords) {
+        // For touch start, we expect coords. If not present, log error maybe?
+         if (event.type === 'touchstart') console.error("No coordinates on touchstart?");
+        return;
+    }
 
     const { x, y } = coords;
 
@@ -675,15 +727,15 @@ function handleStart(event) {
             openSettings();
         } else {
             // Optional: Close settings if button is tapped again?
-            // closeSettings();
+             // closeSettings();
         }
-    } else if (!gameState.settingsOpen) { // Only jump if settings are closed
+    } else if (!gameState.settingsOpen) { // Only handle game input if settings are closed
         // Store touch start for potential swipe detection
-         if (event.type === 'touchstart') {
+         if (event.type === 'touchstart' || event.type === 'pointerdown') {
             gameState.touchStartX = coords.x;
             gameState.touchEndX = coords.x; // Initialize endX
         }
-        // Perform jump action immediately on tap/click
+        // Perform jump action immediately on tap/click that wasn't the settings button
         jump();
     }
 }
@@ -692,6 +744,7 @@ function handleStart(event) {
 if (window.PointerEvent) {
   canvas.addEventListener('pointerdown', handleStart);
   // Add pointermove/pointerup if needed for dragging/swiping mechanics later
+  // Note: Swipe logic currently uses touch events only, could be adapted
 } else {
   canvas.addEventListener('mousedown', handleStart);
   canvas.addEventListener('touchstart', handleStart, { passive: false });
@@ -700,14 +753,17 @@ if (window.PointerEvent) {
 
 // --- Horizontal Movement (Touch Swipe - Keep existing logic) ---
 canvas.addEventListener('touchmove', (event) => {
-    event.preventDefault();
+    // Prevent scrolling ONLY if a touch sequence has started inside the canvas
      if (gameState.touchStartX !== null && event.touches.length > 0 && !gameState.settingsOpen) {
+        event.preventDefault();
         gameState.touchEndX = event.touches[0].clientX - canvas.getBoundingClientRect().left; // Relative X
      }
-}, { passive: false });
+}, { passive: false }); // Need passive false to be able to preventDefault
 
 canvas.addEventListener('touchend', (event) => {
-    event.preventDefault();
+    // We might not need preventDefault here if start/move handled it
+    // event.preventDefault();
+
      if (gameState.touchStartX !== null && gameState.touchEndX !== null && !gameState.settingsOpen) {
         const deltaX = gameState.touchEndX - gameState.touchStartX;
         const effectiveSpeed = PHYSICS.PLAYER_SPEED; // Use the adjusted speed
@@ -717,15 +773,31 @@ canvas.addEventListener('touchend', (event) => {
         } else if (deltaX < -GAMEPLAY.TOUCH_THRESHOLD) {
             gameState.player.xVelocity = -effectiveSpeed;
         }
-         // Optional: Stop movement on tap (deltaX is small)
-         else if (Math.abs(deltaX) <= GAMEPLAY.TOUCH_THRESHOLD) {
-             gameState.player.xVelocity = 0; // Stop if it wasn't a clear swipe
-         }
+         // Optional: Stop movement on tap (deltaX is small) ONLY if a swipe didn't happen
+         // A jump happens on touchstart anyway, so maybe don't reset velocity here?
+         // else if (Math.abs(deltaX) <= GAMEPLAY.TOUCH_THRESHOLD) {
+             // gameState.player.xVelocity = 0; // Stop if it wasn't a clear swipe
+         // }
     }
-    // Reset touch tracking
+    // Reset touch tracking ALWAYS on touchend/pointerup
     gameState.touchStartX = null;
     gameState.touchEndX = null;
 });
+
+// Add pointer equivalents for swipe reset if using pointer events
+if (window.PointerEvent) {
+    canvas.addEventListener('pointerup', (event) => {
+        // Reset swipe tracking on pointer up as well
+        gameState.touchStartX = null;
+        gameState.touchEndX = null;
+    });
+    // Optional: Add pointercancel handler too
+    canvas.addEventListener('pointercancel', (event) => {
+        gameState.touchStartX = null;
+        gameState.touchEndX = null;
+    });
+}
+
 
 // --- Keyboard Controls ---
 document.addEventListener('keydown', (event) => {
@@ -733,13 +805,21 @@ document.addEventListener('keydown', (event) => {
 
     const effectiveSpeed = PHYSICS.PLAYER_SPEED; // Use adjusted speed
 
+    // Use a flag to see if we handled the key, to prevent default scrolling etc.
+    let handled = false;
     if (event.code === 'Space' || event.code === 'ArrowUp' || event.code === 'KeyW') {
-        event.preventDefault(); // Prevent spacebar scrolling
         jump();
+        handled = true;
     } else if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
         gameState.player.xVelocity = -effectiveSpeed;
+        handled = true; // Arrows don't usually scroll, but good practice
     } else if (event.code === 'ArrowRight' || event.code === 'KeyD') {
         gameState.player.xVelocity = effectiveSpeed;
+        handled = true;
+    }
+
+    if (handled) {
+        event.preventDefault(); // Prevent default action (like spacebar scrolling page)
     }
 });
 
@@ -747,14 +827,13 @@ document.addEventListener('keyup', (event) => {
     if (gameState.settingsOpen) return;
 
     // Stop horizontal movement if the corresponding key is released
-    if ((event.code === 'ArrowLeft' || event.code === 'KeyA') && gameState.player.xVelocity < 0) {
-        gameState.player.xVelocity = 0;
-    } else if ((event.code === 'ArrowRight' || event.code === 'KeyD') && gameState.player.xVelocity > 0) {
+    if (((event.code === 'ArrowLeft' || event.code === 'KeyA') && gameState.player.xVelocity < 0) ||
+        ((event.code === 'ArrowRight' || event.code === 'KeyD') && gameState.player.xVelocity > 0)) {
         gameState.player.xVelocity = 0;
     }
 });
 
 // --- Start the game ---
-// Ensure lastTime is set correctly before the first loop
+// Initialize lastTime before the first loop request
 gameState.lastTime = performance.now();
 requestAnimationFrame(gameLoop);
