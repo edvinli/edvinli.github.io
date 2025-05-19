@@ -20,14 +20,15 @@
 
 <script>
     let allData = [];
-    let currentGenderFilter = 'All';
-    const dataFilePath = '{{ site.baseurl }}/assets/data/goteborgsvarvet_2025_results.json';
+    let currentGenderFilter = 'All'; // 'All', 'Men', 'Women'
+    // IMPORTANT: Ensure this path is correct for your Jekyll setup and where you placed the JSON file.
+    const dataFilePath = '{{ site.baseurl }}/assets/data/goteborgsvarvet_2025_results.json'; 
 
     // Helper function to convert HH:MM:SS or MM:SS to total minutes
     function timeStringToMinutes(timeStr) {
         if (!timeStr || typeof timeStr !== 'string') return null;
         const parts = timeStr.split(':').map(Number);
-        if (parts.some(isNaN)) return null;
+        if (parts.some(isNaN)) return null; // Check if any part is not a number
 
         if (parts.length === 3) { // HH:MM:SS
             return parts[0] * 60 + parts[1] + parts[2] / 60;
@@ -38,27 +39,38 @@
     }
 
     async function loadDataAndPlot() {
+        console.log("Attempting to load data...");
         try {
             const response = await fetch(dataFilePath);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status} while fetching ${dataFilePath}`);
             }
             allData = await response.json();
-            allData = allData.filter(d => d.Finish_Minutes !== null && !isNaN(parseFloat(d.Finish_Minutes)));
+            
+            // Ensure Finish_Minutes is present and numeric, and filter out invalid entries
+            allData = allData.filter(d => d.Finish_Minutes !== null && typeof d.Finish_Minutes === 'number' && !isNaN(d.Finish_Minutes));
 
-            console.log(`Loaded ${allData.length} valid data points from ${dataFilePath}.`);
+            if (allData.length === 0) {
+                console.warn("No valid data points after filtering. Check JSON content and Finish_Minutes field.");
+                document.getElementById('plotContainer').textContent = 'No valid data loaded. Please check the data source.';
+                document.getElementById('dataInfo').textContent = 'Data source might be empty or improperly formatted.';
+                return;
+            }
+
+            console.log(`Successfully loaded and filtered ${allData.length} valid data points from ${dataFilePath}.`);
             document.getElementById('dataInfo').textContent = `Based on ${allData.length} valid participant finish times.`;
             
             updatePlot();
             setupEventListeners();
         } catch (error) {
-            console.error("Error loading or processing data:", error);
+            console.error("Error in loadDataAndPlot:", error);
             document.getElementById('plotContainer').textContent = 'Error loading data. Please check the console and data file path: ' + dataFilePath;
             document.getElementById('dataInfo').textContent = `Error: ${error.message}`;
         }
     }
 
     function updatePlot() {
+        console.log(`Updating plot for filter: ${currentGenderFilter}`);
         let filteredData = allData;
         let plotTitle = 'Distribution of Finish Times (All Runners)';
         let traceColor = 'rgba(44, 160, 44, 0.7)'; // Default green for 'All'
@@ -74,6 +86,7 @@
         }
 
         if (filteredData.length === 0) {
+            console.warn(`No data available for filter: ${currentGenderFilter}.`);
             Plotly.purge('plotContainer');
             document.getElementById('plotContainer').innerHTML = `<p>No data available for filter: ${currentGenderFilter}.</p>`;
             document.getElementById('dataInfo').textContent = `No data for ${currentGenderFilter}. Total valid entries: ${allData.length}.`;
@@ -85,17 +98,20 @@
         const trace = {
             x: timesMinutes,
             type: 'histogram',
-            xbins: { size: 2.5 },
+            xbins: { size: 2.5 }, // Bin size of 2.5 minutes
             marker: { color: traceColor, line: { color: 'rgba(0,0,0,1)', width: 1 }},
-            name: currentGenderFilter,
+            name: currentGenderFilter, // This name is for the trace itself, might appear in hover
             hoverinfo: 'x+y'
         };
         
+        // Calculate mean and median for the filtered data
         const meanTime = timesMinutes.reduce((a, b) => a + b, 0) / timesMinutes.length;
-        const sortedTimes = [...timesMinutes].sort((a, b) => a - b);
+        const sortedTimes = [...timesMinutes].sort((a, b) => a - b); // Create a new sorted array
         let medianTime;
         const mid = Math.floor(sortedTimes.length / 2);
         medianTime = (sortedTimes.length % 2 === 0) ? (sortedTimes[mid - 1] + sortedTimes[mid]) / 2 : sortedTimes[mid];
+        
+        console.log(`Mean for ${currentGenderFilter}: ${meanTime}, Median: ${medianTime}`);
 
         const layout = {
             title: plotTitle,
@@ -103,24 +119,27 @@
             yaxis: { title: 'Number of Runners' },
             bargap: 0.05,
             shapes: [
-                { type: 'line', x0: meanTime, x1: meanTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 2, dash: 'dash' }, name: 'Mean' },
-                { type: 'line', x0: medianTime, x1: medianTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'purple', width: 2, dash: 'dot' }, name: 'Median' }
+                { type: 'line', x0: meanTime, x1: meanTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 2, dash: 'dash' }, name: 'MeanLine' }, // Explicit name
+                { type: 'line', x0: medianTime, x1: medianTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'purple', width: 2, dash: 'dot' }, name: 'MedianLine' } // Explicit name
             ],
             annotations: [
                 { x: meanTime, y: 1.05, yref: 'paper', text: `Mean: ${meanTime.toFixed(1)} min`, showarrow: false, font: {color: 'red'} },
                 { x: medianTime, y: 1.01, yref: 'paper', text: `Median: ${medianTime.toFixed(1)} min`, showarrow: false, font: {color: 'purple'} }
             ],
-            showlegend: false
+            showlegend: false // We are using annotations for mean/median labels
         };
 
-        Plotly.newPlot('plotContainer', [trace], layout);
+        Plotly.newPlot('plotContainer', [trace], layout).catch(e => console.error("Plotly.newPlot error:", e));
         document.getElementById('dataInfo').textContent = `Showing ${filteredData.length} results for ${currentGenderFilter}. Mean/Median for this group shown.`;
     }
 
     function calculateAndDisplayPercentile() {
+        console.log("calculateAndDisplayPercentile called!");
         const userTimeStr = document.getElementById('userTimeInput').value;
-        const userTimeMinutes = timeStringToMinutes(userTimeStr);
         const resultDiv = document.getElementById('percentileResult');
+        
+        const userTimeMinutes = timeStringToMinutes(userTimeStr);
+        console.log("User input string:", userTimeStr, "Converted to minutes:", userTimeMinutes);
 
         if (userTimeMinutes === null) {
             resultDiv.textContent = 'Invalid time format. Please use HH:MM:SS or MM:SS.';
@@ -139,6 +158,8 @@
             groupName = "female runners";
         }
         
+        console.log("Current filter for percentile:", currentGenderFilter, "Data length:", dataForPercentile.length);
+
         if (dataForPercentile.length === 0) {
             resultDiv.textContent = `No data available for ${groupName} to calculate percentile.`;
             resultDiv.style.color = 'orange';
@@ -146,31 +167,83 @@
         }
 
         const finishTimesMinutes = dataForPercentile.map(d => d.Finish_Minutes).sort((a, b) => a - b);
-        let slowerCount = finishTimesMinutes.filter(time => userTimeMinutes < time).length;
-        const percentile = (slowerCount / finishTimesMinutes.length) * 100;
+        let slowerCount = finishTimesMinutes.filter(time => userTimeMinutes < time).length; // Count how many existing times are greater (slower) than user's time
+        
+        // Percentile means "percentage of scores that are lower".
+        // So if user is faster than X%, it means X% of people were SLOWER than the user.
+        // Or, if we want "you are in the Xth percentile", it means X% of people are AT OR BELOW your time.
+        // Let's calculate "faster than X% of runners".
+        let fasterThanCount = 0;
+        for (const time of finishTimesMinutes) {
+            if (userTimeMinutes < time) { // If user's time is less than another time, user is faster
+                fasterThanCount++;
+            }
+        }
+        const percentileFasterThan = (fasterThanCount / finishTimesMinutes.length) * 100;
 
-        resultDiv.textContent = `Your time of ${userTimeStr} (${userTimeMinutes.toFixed(2)} min) is faster than ${percentile.toFixed(1)}% of the ${finishTimesMinutes.length} ${groupName} in this dataset.`;
+
+        resultDiv.textContent = `Your time of ${userTimeStr} (${userTimeMinutes.toFixed(2)} min) is faster than ${percentileFasterThan.toFixed(1)}% of the ${finishTimesMinutes.length} ${groupName} in this dataset.`;
         resultDiv.style.color = 'green';
+        console.log(`Percentile result: ${resultDiv.textContent}`);
 
-        const currentLayout = document.getElementById('plotContainer').layout;
-        const userTimeShape = { type: 'line', x0: userTimeMinutes, x1: userTimeMinutes, y0: 0, y1: 1, yref: 'paper', line: { color: 'blue', width: 2, dash: 'longdash' }, name: 'Your Time' };
-        
-        let newShapes = currentLayout.shapes.filter(shape => shape.name !== 'Your Time');
-        newShapes.push(userTimeShape);
-        
-        Plotly.update('plotContainer', {}, { shapes: newShapes });
+        // --- Update Plot with User's Time Line ---
+        const plotDiv = document.getElementById('plotContainer');
+        if (plotDiv.layout && plotDiv.data) { // Check if plot exists
+            const currentLayout = plotDiv.layout;
+            
+            const userTimeShape = { 
+                type: 'line', 
+                x0: userTimeMinutes, x1: userTimeMinutes, 
+                y0: 0, y1: 1, yref: 'paper', 
+                line: { color: 'blue', width: 2, dash: 'longdash' }, 
+                name: 'YourTimeLine' // Explicit name
+            };
+
+            let newShapes = [];
+            if (currentLayout.shapes && Array.isArray(currentLayout.shapes)) {
+                // Keep MeanLine and MedianLine, remove old YourTimeLine
+                newShapes = currentLayout.shapes.filter(shape => shape.name === 'MeanLine' || shape.name === 'MedianLine');
+            }
+            
+            newShapes.push(userTimeShape);
+            console.log("Updating plot shapes:", newShapes);
+
+            Plotly.relayout(plotDiv, { shapes: newShapes }).catch(e => console.error("Plotly.relayout error for user line:", e));
+
+        } else {
+            console.warn("Plot container or layout not found for adding user time line.");
+        }
     }
 
     function setupEventListeners() {
-        document.getElementById('btnAll').addEventListener('click', () => { currentGenderFilter = 'All'; updatePlot(); document.getElementById('percentileResult').textContent = ''; });
-        document.getElementById('btnMen').addEventListener('click', () => { currentGenderFilter = 'Men'; updatePlot(); document.getElementById('percentileResult').textContent = ''; });
-        document.getElementById('btnWomen').addEventListener('click', () => { currentGenderFilter = 'Women'; updatePlot(); document.getElementById('percentileResult').textContent = ''; });
+        console.log("Setting up event listeners...");
+        document.getElementById('btnAll').addEventListener('click', () => { 
+            console.log("All button clicked");
+            currentGenderFilter = 'All'; 
+            updatePlot(); 
+            document.getElementById('percentileResult').textContent = ''; 
+        });
+        document.getElementById('btnMen').addEventListener('click', () => { 
+            console.log("Men button clicked");
+            currentGenderFilter = 'Men'; 
+            updatePlot(); 
+            document.getElementById('percentileResult').textContent = ''; 
+        });
+        document.getElementById('btnWomen').addEventListener('click', () => { 
+            console.log("Women button clicked");
+            currentGenderFilter = 'Women'; 
+            updatePlot(); 
+            document.getElementById('percentileResult').textContent = ''; 
+        });
         document.getElementById('btnCalcPercentile').addEventListener('click', calculateAndDisplayPercentile);
+        console.log("Event listeners set up.");
     }
 
+    // Load data when the page structure is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', loadDataAndPlot);
     } else {
+        // DOMContentLoaded has already fired
         loadDataAndPlot();
     }
 </script>
