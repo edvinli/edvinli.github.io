@@ -125,7 +125,7 @@
             } catch (error) {
                 console.error("Error fetching or parsing data:", error);
                 loadingMessageDiv.style.display = 'none';
-                errorMessageDiv.textContent = `Error loading results: ${error.message}. Please check the console and ensure the JSON file is correctly placed, formatted, and accessible at {{ "/assets/data/goteborgsvarvet_2025_results.json" | relative_url }}.`;
+                errorMessageDiv.textContent = `Error loading results: ${error.message}. Please check the console and ensure the JSON file is correctly placed, formatted, and accessible at https://edvinli.github.io/assets/data/goteborgsvarvet_2025_results.json.`;
             }
         }
 
