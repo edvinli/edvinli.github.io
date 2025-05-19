@@ -55,248 +55,258 @@
 </div>
 <div id="percentileResult"></div>
 
-<!-- Plotly.js CDN - UPDATED (check for the latest version on plotly's GitHub releases page) -->
+<!-- Plotly.js CDN - Using latest stable version (e.g., 2.32.0) -->
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 
 <script>
-    let allData = [];
-    const plotDiv = document.getElementById('plotContainer');
-    const userTimeInput = document.getElementById('userTime');
-    const genderFilterSelect = document.getElementById('genderFilter');
-    const percentileResultDiv = document.getElementById('percentileResult');
-    const inputErrorDiv = document.getElementById('inputError');
+    // Wrap the entire script in a self-executing anonymous function
+    // to create a local scope and avoid polluting the global scope.
+    // Also helps ensure code runs after HTML elements are potentially available.
+    (function() {
+        console.log("Main script wrapper executing."); // Log: Script execution starts
 
-    console.log("Script started. plotDiv element:", plotDiv);
+        let allData = [];
+        const plotDiv = document.getElementById('plotContainer');
+        const userTimeInput = document.getElementById('userTime');
+        const genderFilterSelect = document.getElementById('genderFilter');
+        const percentileResultDiv = document.getElementById('percentileResult');
+        const inputErrorDiv = document.getElementById('inputError');
 
-    // Function to parse HH:MM:SS to total minutes
-    function parseTimeToMinutes(timeStr) {
-        if (!timeStr || !/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) {
-            return null; // Invalid format
+        // Basic check if essential elements are found
+        if (!plotDiv || !userTimeInput || !genderFilterSelect || !percentileResultDiv || !inputErrorDiv) {
+            console.error("One or more essential HTML elements not found. Check IDs. plotDiv:", plotDiv, "userTimeInput:", userTimeInput, "genderFilterSelect:", genderFilterSelect);
+            if (plotDiv) plotDiv.innerHTML = "<p style='color:red;'>Error: Essential page elements missing for the chart. Check console.</p>";
+            return; // Stop script if elements are missing
         }
-        const parts = timeStr.split(':').map(Number);
-        if (parts.length === 3 && parts.every(p => !isNaN(p) && p >= 0) && parts[1] < 60 && parts[2] < 60) {
-            return parts[0] * 60 + parts[1] + parts[2] / 60;
-        }
-        return null; // Invalid values
-    }
+        console.log("Essential HTML elements for chart interaction found."); // Log: Elements found
 
-    // Function to fetch data and initialize
-    async function initialize() {
-        console.log("Initializing interactive chart...");
-        try {
-            const dataUrl = '{{ site.baseurl | relative_url }}/assets/data/goteborgsvarvet_2025_results.json';
-            console.log("Attempting to fetch data from:", dataUrl);
-            const response = await fetch(dataUrl);
-            console.log("Fetch response status:", response.status, "ok:", response.ok);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status} while fetching ${dataUrl}. Check if the file exists and the path is correct.`);
+        // Function to parse HH:MM:SS to total minutes
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr || !/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) {
+                return null; // Invalid format
             }
-            
-            const rawData = await response.text(); // Get text first to check if it's valid JSON
+            const parts = timeStr.split(':').map(Number);
+            if (parts.length === 3 && parts.every(p => !isNaN(p) && p >= 0) && parts[1] < 60 && parts[2] < 60) {
+                return parts[0] * 60 + parts[1] + parts[2] / 60;
+            }
+            return null; // Invalid values
+        }
+
+        // Function to fetch data and initialize
+        async function initialize() {
+            console.log("Initializing interactive chart..."); // Log: initialize() called
             try {
-                allData = JSON.parse(rawData);
-            } catch (jsonError) {
-                console.error("Error parsing JSON data:", jsonError);
-                console.error("Raw data received:", rawData.substring(0, 500) + "..."); // Log beginning of raw data
-                throw new Error(`Failed to parse JSON data. Is the file content valid JSON? Details: ${jsonError.message}`);
-            }
-            
-            console.log("Data fetched and parsed. Number of records:", allData.length);
-            if (allData.length > 0) {
-                console.log("First data record example:", allData[0]);
-            } else {
-                 console.warn("JSON data loaded, but it's an empty array.");
-                 plotDiv.innerHTML = '<p style="color:orange;">Race data loaded, but it appears to be empty.</p>';
-                 return; // Stop if no data
-            }
+                // IMPORTANT: Ensure '{{ site.baseurl | relative_url }}' resolves correctly for your GH Pages setup.
+                // If your site is at username.github.io (no repo name in path), site.baseurl is "" or "/".
+                // If site is username.github.io/repo-name/, site.baseurl is "/repo-name".
+                const dataUrl = `{{ site.baseurl | relative_url }}/assets/data/goteborgsvarvet_2025_results.json`;
+                console.log("Attempting to fetch data from:", dataUrl); // Log: Data URL
+                const response = await fetch(dataUrl);
+                console.log("Fetch response status:", response.status, "ok:", response.ok); // Log: Fetch status
 
-            // Ensure Finish_Minutes is a number and check for issues
-            let invalidMinutesCount = 0;
-            allData.forEach((d, index) => {
-                const originalMinutes = d.Finish_Minutes;
-                d.Finish_Minutes = parseFloat(d.Finish_Minutes);
-                if (isNaN(d.Finish_Minutes)) {
-                    console.warn(`Record ${index} has invalid Finish_Minutes (original: "${originalMinutes}", parsed: NaN):`, d);
-                    invalidMinutesCount++;
-                    // Optionally, you might want to remove such records or handle them
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status} while fetching ${dataUrl}. Check if the file exists and the path is correct (view Network tab in dev tools).`);
                 }
-            });
-            if (invalidMinutesCount > 0) {
-                console.warn(`${invalidMinutesCount} records had invalid Finish_Minutes values.`);
-            }
-            
-            plotDiv.innerHTML = ''; // Clear "Loading chart..."
-            console.log("Cleared 'Loading chart...' message from plotDiv.");
-
-            updatePlot(); // Initial plot
-            console.log("Initial plot generation called.");
-
-            userTimeInput.addEventListener('input', () => {
-                console.log("User time input event. Value:", userTimeInput.value);
-                updatePlot();
-            });
-            genderFilterSelect.addEventListener('change', () => {
-                console.log("Gender filter change event. Value:", genderFilterSelect.value);
-                updatePlot();
-            });
-            console.log("Event listeners added.");
-
-        } catch (error) {
-            console.error("Error during initialization:", error);
-            plotDiv.innerHTML = `<p style="color:red; font-weight:bold;">Error loading race data:</p><p style="color:red;">${error.message}</p><p>Please check the browser's developer console (F12) for more details (especially the Network tab for the JSON file request).</p>`;
-        }
-    }
-
-    // Function to update the plot and percentile
-    function updatePlot() {
-        console.log("updatePlot function called.");
-        if (!allData || allData.length === 0) {
-            console.warn("updatePlot called, but allData is empty or not initialized.");
-            // The "Loading chart..." or an error message from initialize() might still be there.
-            // If initialize failed, this function might not even be called initially.
-            // If it's called after a successful init but data became empty (shouldn't happen with this logic),
-            // we can set a message.
-            if (plotDiv.innerHTML.includes("Loading chart...")) {
-                 plotDiv.innerHTML = '<p style="color:orange;">Waiting for data or data is empty...</p>';
-            }
-            return;
-        }
-
-        const selectedGender = genderFilterSelect.value;
-        console.log("Selected gender for plot:", selectedGender);
-        let filteredData = allData;
-
-        if (selectedGender !== "All") {
-            filteredData = allData.filter(d => d["Gender Category"] === selectedGender);
-        }
-        console.log("Number of records after gender filtering:", filteredData.length);
-
-        if (filteredData.length === 0) {
-            plotDiv.innerHTML = `<p>No data available for the selected filter: "${selectedGender}".</p>`;
-            percentileResultDiv.textContent = '';
-            console.log("No data for the current filter, plot area updated.");
-            return;
-        }
-
-        // Filter out any records where Finish_Minutes might still be NaN or undefined
-        const finishTimesMinutes = filteredData.map(d => d.Finish_Minutes).filter(time => typeof time === 'number' && !isNaN(time));
-        console.log(`Plotting ${finishTimesMinutes.length} valid finish times (minutes). First 5:`, finishTimesMinutes.slice(0, 5));
-
-        if (finishTimesMinutes.length === 0) {
-            console.warn("No valid numeric finish times to plot after filtering NaNs for gender:", selectedGender);
-            plotDiv.innerHTML = `<p>No valid time data to plot for "${selectedGender}". Please check data quality (e.g., 'Finish_Minutes' values).</p>`;
-            percentileResultDiv.textContent = '';
-            return;
-        }
-
-        const userTimeStr = userTimeInput.value;
-        const userTimeMinutes = parseTimeToMinutes(userTimeStr);
-        console.log("User time input string:", userTimeStr, "| Parsed minutes:", userTimeMinutes);
-
-        let percentileText = "";
-        const shapes = [];
-
-        inputErrorDiv.style.display = 'none';
-        inputErrorDiv.textContent = '';
-
-        if (userTimeStr && userTimeMinutes === null) {
-            inputErrorDiv.textContent = "Invalid time format. Please use HH:MM:SS (e.g., 01:45:30).";
-            inputErrorDiv.style.display = 'block';
-            console.log("User time input is present but format is invalid.");
-        }
-
-        if (userTimeMinutes !== null) {
-            shapes.push({
-                type: 'line',
-                x0: userTimeMinutes,
-                y0: 0,
-                x1: userTimeMinutes,
-                y1: 1,
-                yref: 'paper', // y-coordinate is relative to the plot area
-                line: {
-                    color: 'red',
-                    width: 2,
-                    dash: 'dashdot'
+                
+                const rawData = await response.text();
+                try {
+                    allData = JSON.parse(rawData);
+                } catch (jsonError) {
+                    console.error("Error parsing JSON data:", jsonError);
+                    console.error("Raw data received (first 500 chars):", rawData.substring(0, 500) + "...");
+                    throw new Error(`Failed to parse JSON data. Is the file content valid JSON? Details: ${jsonError.message}`);
                 }
-            });
-            console.log("Added vertical line shape for user time at:", userTimeMinutes);
+                
+                console.log("Data fetched and parsed. Number of records:", allData.length); // Log: Data count
+                if (allData.length > 0) {
+                    console.log("First data record example:", allData[0]); // Log: First record
+                } else {
+                    console.warn("JSON data loaded, but it's an empty array.");
+                    plotDiv.innerHTML = '<p style="color:orange;">Race data loaded, but it appears to be empty.</p>';
+                    return; // Stop if no data
+                }
 
-            const SlowerOrEqualRunners = filteredData.filter(d => typeof d.Finish_Minutes === 'number' && !isNaN(d.Finish_Minutes) && d.Finish_Minutes >= userTimeMinutes).length;
-            const fasterRunnersCount = filteredData.filter(d => typeof d.Finish_Minutes === 'number' && !isNaN(d.Finish_Minutes) && d.Finish_Minutes < userTimeMinutes).length;
-
-            // Percentile: Percentage of people you are faster than
-            const percentile = (fasterRunnersCount / filteredData.length) * 100;
-
-
-            if (filteredData.length > 0) {
-                // More intuitive percentile: "You finished faster than X% of runners"
-                // Or "Your time is better than X% of runners in this category."
-                const runnersSlowerThanUser = filteredData.filter(d => typeof d.Finish_Minutes === 'number' && !isNaN(d.Finish_Minutes) && d.Finish_Minutes > userTimeMinutes).length;
-                const percentileBetterThan = (runnersSlowerThanUser / filteredData.length) * 100;
-
-                percentileText = `Your time of ${userTimeStr} is faster than <strong>${percentileBetterThan.toFixed(1)}%</strong> of runners in the "${selectedGender}" category.`;
-
-                if (percentileBetterThan.toFixed(1) === '100.0') {
-                    percentileText = `Your time of ${userTimeStr} is faster than all other recorded times in the "${selectedGender}" category!`;
-                } else if (percentileBetterThan.toFixed(1) === '0.0') {
-                    // Check if they are the slowest or among the slowest
-                    const fastestTimeInGroup = Math.min(...finishTimesMinutes);
-                    if (userTimeMinutes >= Math.max(...finishTimesMinutes)) {
-                        percentileText = `Your time of ${userTimeStr} appears to be the slowest recorded in the "${selectedGender}" category.`;
-                    } else {
-                         percentileText = `Your time of ${userTimeStr} is among the slower times in the "${selectedGender}" category.`;
+                let invalidMinutesCount = 0;
+                allData.forEach((d, index) => {
+                    const originalMinutes = d.Finish_Minutes;
+                    d.Finish_Minutes = parseFloat(d.Finish_Minutes);
+                    if (isNaN(d.Finish_Minutes)) {
+                        console.warn(`Record ${index} has invalid Finish_Minutes (original: "${originalMinutes}", parsed: NaN):`, d);
+                        invalidMinutesCount++;
                     }
+                });
+                if (invalidMinutesCount > 0) {
+                    console.warn(`${invalidMinutesCount} records had invalid Finish_Minutes values that were converted to NaN.`);
                 }
-                console.log("Calculated percentile text:", percentileText);
-            } else {
-                percentileText = "Cannot calculate percentile with no data for this filter.";
+                
+                plotDiv.innerHTML = ''; // Clear "Loading chart..."
+                console.log("Cleared 'Loading chart...' message from plotDiv.");
+
+                updatePlot(); // Initial plot
+                console.log("Initial plot generation called.");
+
+                userTimeInput.addEventListener('input', () => {
+                    console.log("User time input event. Value:", userTimeInput.value);
+                    updatePlot();
+                });
+                genderFilterSelect.addEventListener('change', () => {
+                    console.log("Gender filter change event. Value:", genderFilterSelect.value);
+                    updatePlot();
+                });
+                console.log("Event listeners added.");
+
+            } catch (error) {
+                console.error("Error during initialization:", error);
+                plotDiv.innerHTML = `<p style="color:red; font-weight:bold;">Error loading race data:</p><p style="color:red;">${error.message}</p><p>Please check the browser's developer console (F12) for more details (especially the Network tab for the JSON file request).</p>`;
             }
         }
-        percentileResultDiv.innerHTML = percentileText;
+
+        // Function to update the plot and percentile
+        function updatePlot() {
+            console.log("updatePlot function called."); // Log: updatePlot() called
+            if (!allData || typeof allData.filter !== 'function') { // Check if allData is an array
+                console.warn("updatePlot called, but allData is not an array or not initialized properly. allData:", allData);
+                if (plotDiv.innerHTML.includes("Loading chart...") || plotDiv.innerHTML === "") {
+                    plotDiv.innerHTML = '<p style="color:orange;">Data not available for plotting. Check initialization logs.</p>';
+                }
+                return;
+            }
+            if (allData.length === 0 && !plotDiv.innerHTML.includes("empty")) { // If initialized but data array was empty
+                 console.warn("updatePlot called, but allData is an empty array.");
+                 if (!plotDiv.innerHTML.includes("Race data loaded, but it appears to be empty.")) {
+                    plotDiv.innerHTML = '<p style="color:orange;">No data to display in the chart.</p>';
+                 }
+                 return;
+            }
 
 
-        const trace = {
-            x: finishTimesMinutes,
-            type: 'histogram',
-            // autobinx: false, // Let Plotly auto-bin for now, can fine-tune later
-            // xbins: {
-            // size: 5 // Bin size in minutes, e.g., every 5 minutes
-            // },
-            marker: {
-                color: 'rgb(100,150,200)',
-            },
-            name: 'Finish Times'
-        };
+            const selectedGender = genderFilterSelect.value;
+            console.log("Selected gender for plot:", selectedGender);
+            let filteredData = allData;
 
-        const layout = {
-            title: `Göteborgsvarvet 2025: Finish Time Distribution (${selectedGender})`,
-            xaxis: {
-                title: 'Finish Time (minutes)',
-            },
-            yaxis: {
-                title: 'Number of Runners'
-            },
-            shapes: shapes,
-            bargap: 0.05 // Gap between bars
-        };
+            if (selectedGender !== "All") {
+                filteredData = allData.filter(d => d && d["Gender Category"] === selectedGender);
+            }
+            console.log("Number of records after gender filtering:", filteredData.length);
 
-        console.log("Trace data for Plotly:", JSON.stringify(trace.x.slice(0,10)) + "..."); // Log part of x data
-        console.log("Layout for Plotly:", layout);
+            if (filteredData.length === 0) {
+                plotDiv.innerHTML = `<p>No data available for the selected filter: "${selectedGender}".</p>`;
+                percentileResultDiv.textContent = '';
+                console.log("No data for the current filter, plot area updated.");
+                return;
+            }
 
-        try {
-            Plotly.react(plotDiv, [trace], layout); // Use react for efficient updates
-            console.log("Plotly.react called, chart should be updated/rendered.");
-        } catch (plotlyError) {
-            console.error("Error calling Plotly.react:", plotlyError);
-            plotDiv.innerHTML = `<p style="color:red; font-weight:bold;">Chart Rendering Error:</p><p style="color:red;">${plotlyError.message}</p><p>Check console for details.</p>`;
+            const finishTimesMinutes = filteredData.map(d => d.Finish_Minutes).filter(time => typeof time === 'number' && !isNaN(time));
+            console.log(`Plotting ${finishTimesMinutes.length} valid finish times (minutes). First 5:`, finishTimesMinutes.slice(0, 5));
+
+            if (finishTimesMinutes.length === 0) {
+                console.warn("No valid numeric finish times to plot after filtering NaNs for gender:", selectedGender);
+                plotDiv.innerHTML = `<p>No valid time data to plot for "${selectedGender}". Please check data quality (e.g., 'Finish_Minutes' values).</p>`;
+                percentileResultDiv.textContent = '';
+                return;
+            }
+
+            const userTimeStr = userTimeInput.value;
+            const userTimeMinutes = parseTimeToMinutes(userTimeStr);
+            console.log("User time input string:", userTimeStr, "| Parsed minutes:", userTimeMinutes);
+
+            let percentileText = "";
+            const shapes = [];
+
+            inputErrorDiv.style.display = 'none';
+            inputErrorDiv.textContent = '';
+
+            if (userTimeStr && userTimeMinutes === null) {
+                inputErrorDiv.textContent = "Invalid time format. Please use HH:MM:SS (e.g., 01:45:30).";
+                inputErrorDiv.style.display = 'block';
+                console.log("User time input is present but format is invalid.");
+            }
+
+            if (userTimeMinutes !== null) {
+                shapes.push({
+                    type: 'line',
+                    x0: userTimeMinutes,
+                    y0: 0,
+                    x1: userTimeMinutes,
+                    y1: 1,
+                    yref: 'paper',
+                    line: { color: 'red', width: 2, dash: 'dashdot' }
+                });
+                console.log("Added vertical line shape for user time at:", userTimeMinutes);
+
+                const runnersSlowerThanUser = filteredData.filter(d => typeof d.Finish_Minutes === 'number' && !isNaN(d.Finish_Minutes) && d.Finish_Minutes > userTimeMinutes).length;
+                const totalComparableRunners = filteredData.filter(d => typeof d.Finish_Minutes === 'number' && !isNaN(d.Finish_Minutes)).length; // Count only those with valid times
+
+                if (totalComparableRunners > 0) {
+                    const percentileBetterThan = (runnersSlowerThanUser / totalComparableRunners) * 100;
+                    percentileText = `Your time of ${userTimeStr} is faster than <strong>${percentileBetterThan.toFixed(1)}%</strong> of runners in the "${selectedGender}" category.`;
+                    if (percentileBetterThan.toFixed(1) === '100.0') {
+                        percentileText = `Your time of ${userTimeStr} is faster than all other recorded times in the "${selectedGender}" category!`;
+                    } else if (percentileBetterThan.toFixed(1) === '0.0') {
+                        const maxTimeInGroup = Math.max(...finishTimesMinutes.filter(t => !isNaN(t))); // Ensure no NaNs here
+                        if (userTimeMinutes >= maxTimeInGroup) {
+                            percentileText = `Your time of ${userTimeStr} appears to be the slowest recorded in the "${selectedGender}" category.`;
+                        } else {
+                            percentileText = `Your time of ${userTimeStr} is among the slower times in the "${selectedGender}" category.`;
+                        }
+                    }
+                    console.log("Calculated percentile text:", percentileText);
+                } else {
+                     percentileText = "Cannot calculate percentile: No comparable runner data for this filter.";
+                }
+            }
+            percentileResultDiv.innerHTML = percentileText;
+
+            const trace = {
+                x: finishTimesMinutes,
+                type: 'histogram',
+                marker: { color: 'rgb(100,150,200)' },
+                name: 'Finish Times'
+            };
+
+            const layout = {
+                title: `Göteborgsvarvet 2025: Finish Time Distribution (${selectedGender})`,
+                xaxis: { title: 'Finish Time (minutes)' },
+                yaxis: { title: 'Number of Runners' },
+                shapes: shapes,
+                bargap: 0.05
+            };
+
+            console.log("Trace data for Plotly (first 10):", JSON.stringify(trace.x.slice(0,10)) + "...");
+            console.log("Layout for Plotly:", layout);
+
+            try {
+                if (typeof Plotly === 'undefined') {
+                    console.error("Plotly library is not loaded!");
+                    plotDiv.innerHTML = "<p style='color:red;'>Plotly library not loaded. Chart cannot be displayed.</p>";
+                    return;
+                }
+                Plotly.react(plotDiv, [trace], layout);
+                console.log("Plotly.react called, chart should be updated/rendered.");
+            } catch (plotlyError) {
+                console.error("Error calling Plotly.react:", plotlyError);
+                plotDiv.innerHTML = `<p style="color:red; font-weight:bold;">Chart Rendering Error:</p><p style="color:red;">${plotlyError.message}</p><p>Check console for details.</p>`;
+            }
         }
-    }
 
-    // Initialize when the DOM is ready
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log("DOMContentLoaded event fired. Starting initialization.");
-        initialize();
-    });
+        // DOMContentLoaded listener
+        console.log("Script parsed. Setting up DOMContentLoaded listener.");
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOMContentLoaded event fired. Attempting to start initialization.");
+            try {
+                if (typeof initialize === 'function') {
+                    initialize();
+                    console.log("Call to initialize() completed without throwing an immediate error from the listener.");
+                } else {
+                    console.error("initialize function is not defined when DOMContentLoaded fired!");
+                    if (plotDiv) plotDiv.innerHTML = "<p style='color:red;'>Critical error: Initialization function missing. Check script.</p>";
+                }
+            } catch (e) {
+                console.error("Error thrown DIRECTLY from initialize() call within DOMContentLoaded:", e);
+                if (plotDiv) plotDiv.innerHTML = `<p style="color:red; font-weight:bold;">Critical error during initialize() call:</p><p style="color:red;">${e.message}</p><p>Check console.</p>`;
+            }
+        });
+        console.log("DOMContentLoaded listener has been set.");
 
+    })(); // End of self-executing anonymous function
 </script>
