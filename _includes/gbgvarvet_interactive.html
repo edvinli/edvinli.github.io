@@ -1,258 +1,224 @@
+<!-- _includes/gbgvarvet_interactive.html -->
+
+<style>
+    .controls {
+        margin-bottom: 20px;
+        padding: 15px;
+        border: 1px solid #eee;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+    .controls label {
+        margin-right: 10px;
+    }
+    .controls input[type="text"], .controls select {
+        padding: 8px;
+        margin-right: 15px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    #plotContainer {
+        width: 100%;
+        max-width: 800px; /* Adjust as needed */
+        height: 500px; /* Adjust as needed */
+        margin: 0 auto;
+    }
+    #percentileResult {
+        margin-top: 15px;
+        font-weight: bold;
+        font-size: 1.1em;
+        text-align: center;
+    }
+    .error-message {
+        color: red;
+        font-style: italic;
+    }
+</style>
+
 <div class="controls">
-    <p><strong>Filter by Gender:</strong>
-        <button id="btnAll" class="button">All</button>
-        <button id="btnMen" class="button">Men</button>
-        <button id="btnWomen" class="button">Women</button>
-    </p>
-    <p>
-        <strong>Enter your time (HH:MM:SS or MM:SS):</strong>
-        <input type="text" id="userTimeInput" placeholder="e.g., 01:45:30">
-        <button id="btnCalcPercentile" class="button">Check Percentile</button>
-    </p>
-    <div id="percentileResult" style="margin-top: 10px; font-weight: bold;"></div>
+    <label for="userTime">Your Finish Time (HH:MM:SS):</label>
+    <input type="text" id="userTime" placeholder="e.g., 01:45:30">
+
+    <label for="genderFilter">Filter by Gender:</label>
+    <select id="genderFilter">
+        <option value="All">All Runners</option>
+        <option value="Men">Men</option>
+        <option value="Women">Women</option>
+    </select>
+
+    <p id="inputError" class="error-message" style="display:none;"></p>
 </div>
 
-<div id="plotContainer" style="width:100%;max-width:800px;height:500px; margin-top:20px;"></div>
-<p id="dataInfo" style="font-size: 0.9em; color: #555;"></p>
+<div id="plotContainer">
+    <p>Loading chart...</p>
+</div>
+<div id="percentileResult"></div>
 
 <!-- Plotly.js CDN -->
-<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
 <script>
-    alert("SCRIPT BLOCK STARTED!"); // Or console.log("SCRIPT BLOCK STARTED");
     let allData = [];
-    let currentGenderFilter = 'All'; // 'All', 'Men', 'Women'
-    // IMPORTANT: Ensure this path is correct for your Jekyll setup and where you placed the JSON file.
-    const dataFilePath = '{{ site.baseurl }}/assets/data/goteborgsvarvet_2025_results.json'; 
+    const plotDiv = document.getElementById('plotContainer');
+    const userTimeInput = document.getElementById('userTime');
+    const genderFilterSelect = document.getElementById('genderFilter');
+    const percentileResultDiv = document.getElementById('percentileResult');
+    const inputErrorDiv = document.getElementById('inputError');
 
-    // Helper function to convert HH:MM:SS or MM:SS to total minutes
-    function timeStringToMinutes(timeStr) {
-        if (!timeStr || typeof timeStr !== 'string') return null;
-        const parts = timeStr.split(':').map(Number);
-        if (parts.some(isNaN)) return null; // Check if any part is not a number
-
-        if (parts.length === 3) { // HH:MM:SS
-            return parts[0] * 60 + parts[1] + parts[2] / 60;
-        } else if (parts.length === 2) { // MM:SS
-            return parts[0] + parts[1] / 60;
+    // Function to parse HH:MM:SS to total minutes
+    function parseTimeToMinutes(timeStr) {
+        if (!timeStr || !/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) {
+            return null; // Invalid format
         }
-        return null; // Invalid format
+        const parts = timeStr.split(':').map(Number);
+        if (parts.length === 3 && parts.every(p => !isNaN(p) && p >= 0) && parts[1] < 60 && parts[2] < 60) {
+            return parts[0] * 60 + parts[1] + parts[2] / 60;
+        }
+        return null; // Invalid values
     }
 
-    async function loadDataAndPlot() {
-        console.log("Attempting to load data...");
+    // Function to fetch data and initialize
+    async function initialize() {
         try {
-            const response = await fetch(dataFilePath);
+            const response = await fetch('{{ site.baseurl }}/assets/data/goteborgsvarvet_2025_results.json');
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status} while fetching ${dataFilePath}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             allData = await response.json();
+            // Ensure Finish_Minutes is a number
+            allData.forEach(d => d.Finish_Minutes = parseFloat(d.Finish_Minutes));
             
-            // Ensure Finish_Minutes is present and numeric, and filter out invalid entries
-            allData = allData.filter(d => d.Finish_Minutes !== null && typeof d.Finish_Minutes === 'number' && !isNaN(d.Finish_Minutes));
-
-            if (allData.length === 0) {
-                console.warn("No valid data points after filtering. Check JSON content and Finish_Minutes field.");
-                document.getElementById('plotContainer').textContent = 'No valid data loaded. Please check the data source.';
-                document.getElementById('dataInfo').textContent = 'Data source might be empty or improperly formatted.';
-                return;
-            }
-
-            console.log(`Successfully loaded and filtered ${allData.length} valid data points from ${dataFilePath}.`);
-            document.getElementById('dataInfo').textContent = `Based on ${allData.length} valid participant finish times.`;
-            
-            updatePlot();
-            setupEventListeners();
+            plotDiv.innerHTML = ''; // Clear "Loading chart..."
+            updatePlot(); // Initial plot
         } catch (error) {
-            console.error("Error in loadDataAndPlot:", error);
-            document.getElementById('plotContainer').textContent = 'Error loading data. Please check the console and data file path: ' + dataFilePath;
-            document.getElementById('dataInfo').textContent = `Error: ${error.message}`;
+            console.error("Error loading or parsing data:", error);
+            plotDiv.innerHTML = `<p style="color:red;">Error loading race data: ${error.message}. Please check the console for more details.</p>`;
         }
+
+        userTimeInput.addEventListener('input', () => {
+            // Basic validation for live feedback, more robust in parseTimeToMinutes
+            if (userTimeInput.value && !/^\d{0,2}:?\d{0,2}:?\d{0,2}$/.test(userTimeInput.value)) {
+                 // allow partial input like 01: or 01:4
+            }
+            updatePlot();
+        });
+        genderFilterSelect.addEventListener('change', updatePlot);
     }
 
+    // Function to update the plot and percentile
     function updatePlot() {
-        console.log(`Updating plot for filter: ${currentGenderFilter}`);
-        let filteredData = allData;
-        let plotTitle = 'Distribution of Finish Times (All Runners)';
-        let traceColor = 'rgba(44, 160, 44, 0.7)'; // Default green for 'All'
+        if (allData.length === 0) return; // Data not loaded yet
 
-        if (currentGenderFilter === 'Men') {
-            filteredData = allData.filter(d => d['Gender Category'] === 'Men');
-            plotTitle = 'Distribution of Finish Times (Men)';
-            traceColor = 'rgba(31, 119, 180, 0.7)'; // Blue for Men
-        } else if (currentGenderFilter === 'Women') {
-            filteredData = allData.filter(d => d['Gender Category'] === 'Women');
-            plotTitle = 'Distribution of Finish Times (Women)';
-            traceColor = 'rgba(255, 127, 14, 0.7)'; // Orange for Women
+        const selectedGender = genderFilterSelect.value;
+        let filteredData = allData;
+
+        if (selectedGender !== "All") {
+            filteredData = allData.filter(d => d["Gender Category"] === selectedGender);
         }
 
         if (filteredData.length === 0) {
-            console.warn(`No data available for filter: ${currentGenderFilter}.`);
-            Plotly.purge('plotContainer');
-            document.getElementById('plotContainer').innerHTML = `<p>No data available for filter: ${currentGenderFilter}.</p>`;
-            document.getElementById('dataInfo').textContent = `No data for ${currentGenderFilter}. Total valid entries: ${allData.length}.`;
+            plotDiv.innerHTML = `<p>No data available for the selected filter: ${selectedGender}.</p>`;
+            percentileResultDiv.textContent = '';
             return;
         }
-        
-        const timesMinutes = filteredData.map(d => d.Finish_Minutes);
+
+        const finishTimesMinutes = filteredData.map(d => d.Finish_Minutes);
+
+        const userTimeStr = userTimeInput.value;
+        const userTimeMinutes = parseTimeToMinutes(userTimeStr);
+
+        let percentileText = "";
+        const shapes = [];
+
+        inputErrorDiv.style.display = 'none';
+        inputErrorDiv.textContent = '';
+
+        if (userTimeStr && userTimeMinutes === null) {
+            inputErrorDiv.textContent = "Invalid time format. Please use HH:MM:SS (e.g., 01:45:30).";
+            inputErrorDiv.style.display = 'block';
+        }
+
+        if (userTimeMinutes !== null) {
+            shapes.push({
+                type: 'line',
+                x0: userTimeMinutes,
+                y0: 0,
+                x1: userTimeMinutes,
+                y1: 1,
+                yref: 'paper', // y-coordinate is relative to the plot area
+                line: {
+                    color: 'red',
+                    width: 2,
+                    dash: 'dashdot'
+                }
+            });
+
+            // Calculate percentile: "You finished ahead of X% of runners in this category."
+            // This means we count runners Slower than or Equal to the user's time.
+            // Or, more commonly, "You are faster than X% of people".
+            // Let's use: You are in the top (100-P)%, or P% of people are slower than you.
+            // Count runners whose Finish_Minutes is GREATER than userTimeMinutes
+            const slowerRunners = filteredData.filter(d => d.Finish_Minutes > userTimeMinutes).length;
+            const percentile = (slowerRunners / filteredData.length) * 100;
+            
+            // Alternative: Rank (1st is best)
+            // const sortedTimes = [...new Set(finishTimesMinutes)].sort((a, b) => a - b);
+            // let rank = sortedTimes.findIndex(t => t >= userTimeMinutes);
+            // if (rank === -1) rank = sortedTimes.length; // Slower than everyone
+            // else rank +=1; // 1-based index
+            // const rankPercentile = ((filteredData.length - rank + 1) / filteredData.length) * 100;
+
+
+            if (filteredData.length > 0) {
+                percentileText = `Your time of ${userTimeStr} places you ahead of <strong>${percentile.toFixed(1)}%</strong> of runners in the "${selectedGender}" category.`;
+                 if (percentile.toFixed(1) === '100.0') {
+                    percentileText = `Your time of ${userTimeStr} is faster than all other recorded times in the "${selectedGender}" category!`;
+                } else if (percentile.toFixed(1) === '0.0' && filteredData.some(d => d.Finish_Minutes < userTimeMinutes)) {
+                     percentileText = `Your time of ${userTimeStr} is among the slower times in the "${selectedGender}" category.`;
+                } else if (percentile.toFixed(1) === '0.0') {
+                     percentileText = `Your time of ${userTimeStr} appears to be the slowest recorded in the "${selectedGender}" category.`;
+                }
+
+            } else {
+                percentileText = "Cannot calculate percentile with no data for this filter.";
+            }
+        }
+        percentileResultDiv.innerHTML = percentileText;
+
 
         const trace = {
-            x: timesMinutes,
+            x: finishTimesMinutes,
             type: 'histogram',
-            xbins: { size: 2.5 }, // Bin size of 2.5 minutes
-            marker: { color: traceColor, line: { color: 'rgba(0,0,0,1)', width: 1 }},
-            name: currentGenderFilter, // This name is for the trace itself, might appear in hover
-            hoverinfo: 'x+y'
+            autobinx: false,
+            xbins: {
+                // size: 5 // Bin size in minutes, e.g., every 5 minutes
+                // Or let Plotly decide:
+                // start: Math.min(...finishTimesMinutes),
+                // end: Math.max(...finishTimesMinutes)
+            },
+            marker: {
+                color: 'rgb(100,150,200)',
+            },
+            name: 'Finish Times'
         };
-        
-        // Calculate mean and median for the filtered data
-        const meanTime = timesMinutes.reduce((a, b) => a + b, 0) / timesMinutes.length;
-        const sortedTimes = [...timesMinutes].sort((a, b) => a - b); // Create a new sorted array
-        let medianTime;
-        const mid = Math.floor(sortedTimes.length / 2);
-        medianTime = (sortedTimes.length % 2 === 0) ? (sortedTimes[mid - 1] + sortedTimes[mid]) / 2 : sortedTimes[mid];
-        
-        console.log(`Mean for ${currentGenderFilter}: ${meanTime}, Median: ${medianTime}`);
 
         const layout = {
-            title: plotTitle,
-            xaxis: { title: 'Finish Time (Minutes)' },
-            yaxis: { title: 'Number of Runners' },
-            bargap: 0.05,
-            shapes: [
-                { type: 'line', x0: meanTime, x1: meanTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 2, dash: 'dash' }, name: 'MeanLine' }, // Explicit name
-                { type: 'line', x0: medianTime, x1: medianTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'purple', width: 2, dash: 'dot' }, name: 'MedianLine' } // Explicit name
-            ],
-            annotations: [
-                { x: meanTime, y: 1.05, yref: 'paper', text: `Mean: ${meanTime.toFixed(1)} min`, showarrow: false, font: {color: 'red'} },
-                { x: medianTime, y: 1.01, yref: 'paper', text: `Median: ${medianTime.toFixed(1)} min`, showarrow: false, font: {color: 'purple'} }
-            ],
-            showlegend: false // We are using annotations for mean/median labels
+            title: `Göteborgsvarvet 2025: Finish Time Distribution (${selectedGender})`,
+            xaxis: {
+                title: 'Finish Time (minutes)',
+                // tickformat: ".0f" // if you want integer minutes on ticks
+            },
+            yaxis: {
+                title: 'Number of Runners'
+            },
+            shapes: shapes,
+            bargap: 0.05 // Gap between bars
         };
 
-        Plotly.newPlot('plotContainer', [trace], layout).catch(e => console.error("Plotly.newPlot error:", e));
-        document.getElementById('dataInfo').textContent = `Showing ${filteredData.length} results for ${currentGenderFilter}. Mean/Median for this group shown.`;
+        Plotly.react(plotDiv, [trace], layout); // Use react for efficient updates
     }
 
-    function calculateAndDisplayPercentile() {
-        console.log("calculateAndDisplayPercentile called!");
-        const userTimeStr = document.getElementById('userTimeInput').value;
-        const resultDiv = document.getElementById('percentileResult');
-        
-        const userTimeMinutes = timeStringToMinutes(userTimeStr);
-        console.log("User input string:", userTimeStr, "Converted to minutes:", userTimeMinutes);
+    // Initialize when the DOM is ready
+    document.addEventListener('DOMContentLoaded', initialize);
 
-        if (userTimeMinutes === null) {
-            resultDiv.textContent = 'Invalid time format. Please use HH:MM:SS or MM:SS.';
-            resultDiv.style.color = 'red';
-            return;
-        }
-
-        let dataForPercentile = allData;
-        let groupName = "all runners";
-
-        if (currentGenderFilter === 'Men') {
-            dataForPercentile = allData.filter(d => d['Gender Category'] === 'Men');
-            groupName = "male runners";
-        } else if (currentGenderFilter === 'Women') {
-            dataForPercentile = allData.filter(d => d['Gender Category'] === 'Women');
-            groupName = "female runners";
-        }
-        
-        console.log("Current filter for percentile:", currentGenderFilter, "Data length:", dataForPercentile.length);
-
-        if (dataForPercentile.length === 0) {
-            resultDiv.textContent = `No data available for ${groupName} to calculate percentile.`;
-            resultDiv.style.color = 'orange';
-            return;
-        }
-
-        const finishTimesMinutes = dataForPercentile.map(d => d.Finish_Minutes).sort((a, b) => a - b);
-        let slowerCount = finishTimesMinutes.filter(time => userTimeMinutes < time).length; // Count how many existing times are greater (slower) than user's time
-        
-        // Percentile means "percentage of scores that are lower".
-        // So if user is faster than X%, it means X% of people were SLOWER than the user.
-        // Or, if we want "you are in the Xth percentile", it means X% of people are AT OR BELOW your time.
-        // Let's calculate "faster than X% of runners".
-        let fasterThanCount = 0;
-        for (const time of finishTimesMinutes) {
-            if (userTimeMinutes < time) { // If user's time is less than another time, user is faster
-                fasterThanCount++;
-            }
-        }
-        const percentileFasterThan = (fasterThanCount / finishTimesMinutes.length) * 100;
-
-
-        resultDiv.textContent = `Your time of ${userTimeStr} (${userTimeMinutes.toFixed(2)} min) is faster than ${percentileFasterThan.toFixed(1)}% of the ${finishTimesMinutes.length} ${groupName} in this dataset.`;
-        resultDiv.style.color = 'green';
-        console.log(`Percentile result: ${resultDiv.textContent}`);
-
-        // --- Update Plot with User's Time Line ---
-        const plotDiv = document.getElementById('plotContainer');
-        if (plotDiv.layout && plotDiv.data) { // Check if plot exists
-            const currentLayout = plotDiv.layout;
-            
-            const userTimeShape = { 
-                type: 'line', 
-                x0: userTimeMinutes, x1: userTimeMinutes, 
-                y0: 0, y1: 1, yref: 'paper', 
-                line: { color: 'blue', width: 2, dash: 'longdash' }, 
-                name: 'YourTimeLine' // Explicit name
-            };
-
-            let newShapes = [];
-            if (currentLayout.shapes && Array.isArray(currentLayout.shapes)) {
-                // Keep MeanLine and MedianLine, remove old YourTimeLine
-                newShapes = currentLayout.shapes.filter(shape => shape.name === 'MeanLine' || shape.name === 'MedianLine');
-            }
-            
-            newShapes.push(userTimeShape);
-            console.log("Updating plot shapes:", newShapes);
-
-            Plotly.relayout(plotDiv, { shapes: newShapes }).catch(e => console.error("Plotly.relayout error for user line:", e));
-
-        } else {
-            console.warn("Plot container or layout not found for adding user time line.");
-        }
-    }
-
-    function setupEventListeners() {
-        console.log("Setting up event listeners...");
-        document.getElementById('btnAll').addEventListener('click', () => { 
-            console.log("All button clicked");
-            currentGenderFilter = 'All'; 
-            updatePlot(); 
-            document.getElementById('percentileResult').textContent = ''; 
-        });
-        document.getElementById('btnMen').addEventListener('click', () => { 
-            console.log("Men button clicked");
-            currentGenderFilter = 'Men'; 
-            updatePlot(); 
-            document.getElementById('percentileResult').textContent = ''; 
-        });
-        document.getElementById('btnWomen').addEventListener('click', () => { 
-            console.log("Women button clicked");
-            currentGenderFilter = 'Women'; 
-            updatePlot(); 
-            document.getElementById('percentileResult').textContent = ''; 
-        });
-        document.getElementById('btnCalcPercentile').addEventListener('click', calculateAndDisplayPercentile);
-        console.log("Event listeners set up.");
-    }
-
-    // Load data when the page structure is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadDataAndPlot);
-    } else {
-        // DOMContentLoaded has already fired
-        loadDataAndPlot();
-    }
 </script>
-
-<style>
-    .controls { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; }
-    .controls p { margin-bottom: 10px; }
-    .button { padding: 8px 12px; margin-right: 5px; border: 1px solid #ccc; background-color: #f0f0f0; cursor: pointer; border-radius: 3px; }
-    .button:hover { background-color: #e0e0e0; }
-    #userTimeInput { padding: 8px; margin-right: 5px; border: 1px solid #ccc; border-radius: 3px; }
-</style>
