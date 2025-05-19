@@ -10,5 +10,3 @@ author_profile: true # if you use this feature
 Explore the distribution of finish times and see how your time compares!
 
 {% include gbgvarvet_interactive.html %}
-
-_Data last updated: [Date of your last data scrape]_
