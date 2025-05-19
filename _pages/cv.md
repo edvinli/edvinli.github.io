@@ -19,4 +19,4 @@ Work experience
 * ML Engineer, eghed, 2025-
 * ML Research Scientist, RISE Research Institutes of Sweden, 2019-2025
 * Research Visitor, NYU Center for Data Science, a collaboration with Kyunghyun Cho, 2023
-* ML engineer, Zenuity/Zenseact, 2017-2019
+* ML Engineer, Zenuity/Zenseact, 2017-2019
