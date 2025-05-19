@@ -8,9 +8,9 @@ redirect_from:
   - /about.html
 ---
 
-I am a Machine Learning Research Scientist at RISE Research Institutes of Sweden. My research focuses on representation learning and out-of-distribution generalization using deep neural networks.
+Currently I work as an ML Engineer at [eghed](https://eghed.se/). Previously I was an ML Research Scientist at at RISE Research Institutes of Sweden. My research focused on representation learning and out-of-distribution generalization using deep neural networks.
 
-Previously, I earned my PhD from KTH Royal Institute of Technology on [Decentralized deep learning in statistically heterogeneous environments](https://kth.diva-portal.org/smash/get/diva2:1921206/FULLTEXT01.pdf).
+I earned my PhD from KTH Royal Institute of Technology in 2025 on [Decentralized deep learning in statistically heterogeneous environments](https://kth.diva-portal.org/smash/get/diva2:1921206/FULLTEXT01.pdf).
 
 Beyond this, I am also interested in applying machine learning to address challenges in sustainability, climate change, and social issues. I am always eager to collaborate on projects in these areas.
 
