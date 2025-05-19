@@ -1,8 +1,8 @@
 ---
-layout: archive # Or your default page layout
+layout: default # Or whatever your default page layout is called (e.g., page, post, archive)
 title: "Göteborgsvarvet 2025 Results Explorer"
-permalink: /gbgvarv/
-author_profile: true # if you use this feature
+permalink: /gbgvarv/ # This defines the URL
+author_profile: true # if you use this
 ---
 
 ## Göteborgsvarvet 2025: Finish Time Analysis
@@ -32,9 +32,11 @@ Explore the distribution of finish times and see how your time compares!
 
 <script>
     let allData = [];
-    let currentGenderFilter = 'All'; // 'All', 'Men', 'Women'
-    const dataFilePath = '{{ site.baseurl }}/goteborgsvarvet_2025_results.json'; // Adjust path if needed
+    let currentGenderFilter = 'All';
+    // *** IMPORTANT: Update this path if you moved the JSON file ***
+    const dataFilePath = '{{ site.baseurl }}/assets/data/goteborgsvarvet_2025_results.json'; 
 
+    // ... (rest of the JavaScript from the previous answer) ...
     // Helper function to convert HH:MM:SS or MM:SS to total minutes
     function timeStringToMinutes(timeStr) {
         if (!timeStr || typeof timeStr !== 'string') return null;
@@ -56,19 +58,16 @@ Explore the distribution of finish times and see how your time compares!
                 throw new Error(`HTTP error! status: ${response.status} while fetching ${dataFilePath}`);
             }
             allData = await response.json();
-
-            // Ensure Finish_Minutes is present and numeric (it should be from Python export)
-            // If not, you might need to calculate it here from 'Finish' string if that's what you exported
             allData = allData.filter(d => d.Finish_Minutes !== null && !isNaN(parseFloat(d.Finish_Minutes)));
 
-            console.log(`Loaded ${allData.length} valid data points.`);
+            console.log(`Loaded ${allData.length} valid data points from ${dataFilePath}.`);
             document.getElementById('dataInfo').textContent = `Based on ${allData.length} valid participant finish times.`;
             
             updatePlot();
             setupEventListeners();
         } catch (error) {
             console.error("Error loading or processing data:", error);
-            document.getElementById('plotContainer').textContent = 'Error loading data. Please check the console and data file path.';
+            document.getElementById('plotContainer').textContent = 'Error loading data. Please check the console and data file path: ' + dataFilePath;
             document.getElementById('dataInfo').textContent = `Error: ${error.message}`;
         }
     }
@@ -76,17 +75,20 @@ Explore the distribution of finish times and see how your time compares!
     function updatePlot() {
         let filteredData = allData;
         let plotTitle = 'Distribution of Finish Times (All Runners)';
+        let traceColor = 'rgba(44, 160, 44, 0.7)'; // Default green for 'All'
 
         if (currentGenderFilter === 'Men') {
             filteredData = allData.filter(d => d['Gender Category'] === 'Men');
             plotTitle = 'Distribution of Finish Times (Men)';
+            traceColor = 'rgba(31, 119, 180, 0.7)'; // Blue for Men
         } else if (currentGenderFilter === 'Women') {
             filteredData = allData.filter(d => d['Gender Category'] === 'Women');
             plotTitle = 'Distribution of Finish Times (Women)';
+            traceColor = 'rgba(255, 127, 14, 0.7)'; // Orange for Women
         }
 
         if (filteredData.length === 0) {
-            Plotly.purge('plotContainer'); // Clear previous plot
+            Plotly.purge('plotContainer');
             document.getElementById('plotContainer').innerHTML = `<p>No data available for filter: ${currentGenderFilter}.</p>`;
             document.getElementById('dataInfo').textContent = `No data for ${currentGenderFilter}. Total valid entries: ${allData.length}.`;
             return;
@@ -97,29 +99,17 @@ Explore the distribution of finish times and see how your time compares!
         const trace = {
             x: timesMinutes,
             type: 'histogram',
-            xbins: { size: 2.5 }, // Adjust bin size as needed (e.g., 2.5 minutes)
-            marker: {
-                color: currentGenderFilter === 'Men' ? 'rgba(31, 119, 180, 0.7)' : 
-                       currentGenderFilter === 'Women' ? 'rgba(255, 127, 14, 0.7)' : 'rgba(44, 160, 44, 0.7)',
-                line: {
-                    color: 'rgba(0,0,0,1)',
-                    width: 1
-                }
-            },
+            xbins: { size: 2.5 },
+            marker: { color: traceColor, line: { color: 'rgba(0,0,0,1)', width: 1 }},
             name: currentGenderFilter,
             hoverinfo: 'x+y'
         };
         
-        // Calculate mean and median for the filtered data
         const meanTime = timesMinutes.reduce((a, b) => a + b, 0) / timesMinutes.length;
         const sortedTimes = [...timesMinutes].sort((a, b) => a - b);
         let medianTime;
         const mid = Math.floor(sortedTimes.length / 2);
-        if (sortedTimes.length % 2 === 0) {
-            medianTime = (sortedTimes[mid - 1] + sortedTimes[mid]) / 2;
-        } else {
-            medianTime = sortedTimes[mid];
-        }
+        medianTime = (sortedTimes.length % 2 === 0) ? (sortedTimes[mid - 1] + sortedTimes[mid]) / 2 : sortedTimes[mid];
 
         const layout = {
             title: plotTitle,
@@ -127,58 +117,14 @@ Explore the distribution of finish times and see how your time compares!
             yaxis: { title: 'Number of Runners' },
             bargap: 0.05,
             shapes: [
-                // Mean line
-                {
-                    type: 'line',
-                    x0: meanTime,
-                    x1: meanTime,
-                    y0: 0,
-                    y1: 1,
-                    yref: 'paper', // Makes y1 span the entire plot height
-                    line: {
-                        color: 'red',
-                        width: 2,
-                        dash: 'dash'
-                    },
-                    name: `Mean: ${meanTime.toFixed(2)} min`
-                },
-                // Median line
-                {
-                    type: 'line',
-                    x0: medianTime,
-                    x1: medianTime,
-                    y0: 0,
-                    y1: 1,
-                    yref: 'paper',
-                    line: {
-                        color: 'purple',
-                        width: 2,
-                        dash: 'dot'
-                    },
-                    name: `Median: ${medianTime.toFixed(2)} min`
-                }
+                { type: 'line', x0: meanTime, x1: meanTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'red', width: 2, dash: 'dash' }, name: 'Mean' },
+                { type: 'line', x0: medianTime, x1: medianTime, y0: 0, y1: 1, yref: 'paper', line: { color: 'purple', width: 2, dash: 'dot' }, name: 'Median' }
             ],
-            // To show shape names in legend, we need to add dummy traces
-            // or rely on annotations or text outside the plot.
-            // For simplicity, let's add text annotations for mean/median.
             annotations: [
-                {
-                    x: meanTime,
-                    y: 1.05, // Position above the plot
-                    yref: 'paper',
-                    text: `Mean: ${meanTime.toFixed(1)} min`,
-                    showarrow: false,
-                    font: {color: 'red'}
-                },
-                {
-                    x: medianTime,
-                    y: 1.01, // Position above the plot, slightly lower
-                    yref: 'paper',
-                    text: `Median: ${medianTime.toFixed(1)} min`,
-                    showarrow: false,
-                    font: {color: 'purple'}
-                }
-            ]
+                { x: meanTime, y: 1.05, yref: 'paper', text: `Mean: ${meanTime.toFixed(1)} min`, showarrow: false, font: {color: 'red'} },
+                { x: medianTime, y: 1.01, yref: 'paper', text: `Median: ${medianTime.toFixed(1)} min`, showarrow: false, font: {color: 'purple'} }
+            ],
+            showlegend: false // Hiding default legend for shapes, using annotations instead
         };
 
         Plotly.newPlot('plotContainer', [trace], layout);
@@ -214,110 +160,39 @@ Explore the distribution of finish times and see how your time compares!
         }
 
         const finishTimesMinutes = dataForPercentile.map(d => d.Finish_Minutes).sort((a, b) => a - b);
-        
-        let slowerCount = 0;
-        for (const time of finishTimesMinutes) {
-            if (userTimeMinutes < time) {
-                slowerCount++;
-            }
-        }
-        // Alternative: find index
-        // const slowerCount = finishTimesMinutes.filter(time => userTimeMinutes < time).length;
-
+        let slowerCount = finishTimesMinutes.filter(time => userTimeMinutes < time).length;
         const percentile = (slowerCount / finishTimesMinutes.length) * 100;
 
         resultDiv.textContent = `Your time of ${userTimeStr} (${userTimeMinutes.toFixed(2)} min) is faster than ${percentile.toFixed(1)}% of the ${finishTimesMinutes.length} ${groupName} in this dataset.`;
         resultDiv.style.color = 'green';
 
-        // Add a vertical line for user's time on the plot
         const currentLayout = document.getElementById('plotContainer').layout;
-        const userTimeShape = {
-            type: 'line',
-            x0: userTimeMinutes,
-            x1: userTimeMinutes,
-            y0: 0,
-            y1: 1,
-            yref: 'paper',
-            line: {
-                color: 'blue',
-                width: 2,
-                dash: 'longdash'
-            },
-            name: 'Your Time'
-        };
+        const userTimeShape = { type: 'line', x0: userTimeMinutes, x1: userTimeMinutes, y0: 0, y1: 1, yref: 'paper', line: { color: 'blue', width: 2, dash: 'longdash' }, name: 'Your Time' };
         
-        // Remove previous user time line if it exists
-        const newShapes = currentLayout.shapes.filter(shape => shape.name !== 'Your Time' && shape.name !== `Mean: ${currentLayout.annotations[0]?.text.split(' ')[1]}` && shape.name !== `Median: ${currentLayout.annotations[1]?.text.split(' ')[1]}`);
-
+        let newShapes = currentLayout.shapes.filter(shape => shape.name !== 'Your Time'); // Remove old user time
         newShapes.push(userTimeShape);
         
-        // Add mean/median shapes from layout again if they were filtered out
-        currentLayout.shapes.forEach(shape => {
-            if (shape.name && (shape.name.startsWith("Mean:") || shape.name.startsWith("Median:"))) {
-                 if (!newShapes.find(s => s.name === shape.name)) newShapes.push(shape);
-            }
-        });
-
-
         Plotly.update('plotContainer', {}, { shapes: newShapes });
     }
 
     function setupEventListeners() {
-        document.getElementById('btnAll').addEventListener('click', () => {
-            currentGenderFilter = 'All';
-            updatePlot();
-            document.getElementById('percentileResult').textContent = ''; // Clear percentile
-        });
-        document.getElementById('btnMen').addEventListener('click', () => {
-            currentGenderFilter = 'Men';
-            updatePlot();
-            document.getElementById('percentileResult').textContent = '';
-        });
-        document.getElementById('btnWomen').addEventListener('click', () => {
-            currentGenderFilter = 'Women';
-            updatePlot();
-            document.getElementById('percentileResult').textContent = '';
-        });
+        document.getElementById('btnAll').addEventListener('click', () => { currentGenderFilter = 'All'; updatePlot(); document.getElementById('percentileResult').textContent = ''; });
+        document.getElementById('btnMen').addEventListener('click', () => { currentGenderFilter = 'Men'; updatePlot(); document.getElementById('percentileResult').textContent = ''; });
+        document.getElementById('btnWomen').addEventListener('click', () => { currentGenderFilter = 'Women'; updatePlot(); document.getElementById('percentileResult').textContent = ''; });
         document.getElementById('btnCalcPercentile').addEventListener('click', calculateAndDisplayPercentile);
-        // Optionally, calculate percentile on input change after a delay (debouncing)
-        // document.getElementById('userTimeInput').addEventListener('input', () => { /* ... debounce ... calculateAndDisplayPercentile() */ });
     }
 
-    // Load data when the page is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', loadDataAndPlot);
     } else {
         loadDataAndPlot();
     }
-
 </script>
 
 <style>
-    .controls {
-        margin-bottom: 20px;
-        padding: 15px;
-        border: 1px solid #eee;
-        border-radius: 5px;
-        background-color: #f9f9f9;
-    }
-    .controls p {
-        margin-bottom: 10px;
-    }
-    .button { /* Basic styling for buttons */
-        padding: 8px 12px;
-        margin-right: 5px;
-        border: 1px solid #ccc;
-        background-color: #f0f0f0;
-        cursor: pointer;
-        border-radius: 3px;
-    }
-    .button:hover {
-        background-color: #e0e0e0;
-    }
-    #userTimeInput {
-        padding: 8px;
-        margin-right: 5px;
-        border: 1px solid #ccc;
-        border-radius: 3px;
-    }
+    .controls { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; }
+    .controls p { margin-bottom: 10px; }
+    .button { padding: 8px 12px; margin-right: 5px; border: 1px solid #ccc; background-color: #f0f0f0; cursor: pointer; border-radius: 3px; }
+    .button:hover { background-color: #e0e0e0; }
+    #userTimeInput { padding: 8px; margin-right: 5px; border: 1px solid #ccc; border-radius: 3px; }
 </style>
