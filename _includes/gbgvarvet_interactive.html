@@ -11,18 +11,13 @@
         <button id="plotUserTime">Show My Time</button>
     </div>
     <div id="userInfo" style="margin-top: 10px; font-weight: bold;"></div>
-    <canvas id="canvas" width="800" height="600"></canvas>
 
-    <script>
-        // For user/organization pages (like yourname.github.io) where baseurl is effectively "".
-        // This creates an absolute path from the root of the domain.
-        var gbgVarvetJsonPath = "/assets/data/goteborgsvarvet_2025_results.json";
+    <!-- The JSON path is now a data attribute on the canvas -->
+    <canvas id="canvas"
+            width="800"
+            height="600"
+            data-json-path="/assets/data/goteborgsvarvet_2025_results.json">
+    </canvas>
 
-        // If this were a project page (yourname.github.io/projectname), 
-        // and _config.yml had baseurl: "/projectname", you'd use:
-        // var gbgVarvetJsonPath = "{{ site.baseurl }}/assets/data/goteborgsvarvet_2025_results.json";
-        // Or even better for project pages:
-        // var gbgVarvetJsonPath = "{{ '/assets/data/goteborgsvarvet_2025_results.json' | relative_url }}";
-    </script>
     <script src="{{ '/assets/js/gbg_varvet.js' | relative_url }}" type="text/javascript"></script>
 </div>
