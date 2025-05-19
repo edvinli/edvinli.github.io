@@ -1,5 +1,5 @@
-<!-- Plotly.js CDN -->
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<!-- Plotly.js CDN - Using a specific, newer version -->
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script> {/* Updated CDN Link */}
 
 <style>
     .controls {
@@ -20,11 +20,13 @@
         margin-right: 15px;
         border: 1px solid #ccc;
         border-radius: 4px;
+        margin-bottom: 10px; /* Added for better spacing on smaller screens */
     }
     .controls button {
         background-color: #007bff;
         color: white;
         cursor: pointer;
+        border: none; /* Consistent with other inputs */
     }
     .controls button:hover {
         background-color: #0056b3;
@@ -40,6 +42,7 @@
     }
     #errorMessage {
         color: red;
+        font-weight: bold;
     }
 </style>
 
@@ -54,7 +57,7 @@
         <option value="Women">Women</option>
     </select>
 
-    <button onclick="updatePlot()">Update Plot</button>
+    <button id="updatePlotButton">Update Plot</button> {/* Removed inline onclick, added ID */}
     <div id="percentileResult"></div>
 </div>
 
@@ -63,160 +66,193 @@
 <div id="errorMessage"></div>
 
 <script>
-    let allResultsData = [];
-    const plotDiv = document.getElementById('histogramPlot');
-    const userTimeInput = document.getElementById('userTime');
-    const genderFilterSelect = document.getElementById('genderFilter');
-    const percentileResultDiv = document.getElementById('percentileResult');
-    const loadingMessageDiv = document.getElementById('loadingMessage');
-    const errorMessageDiv = document.getElementById('errorMessage');
+    // Ensure script runs after DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
 
-    // Function to parse HH:MM:SS to minutes
-    function parseTimeToMinutes(timeStr) {
-        if (!timeStr) return null;
-        const parts = timeStr.split(':');
-        if (parts.length < 2 || parts.length > 3) return null; // Must be MM:SS or HH:MM:SS
+        let allResultsData = [];
+        const plotDiv = document.getElementById('histogramPlot');
+        const userTimeInput = document.getElementById('userTime');
+        const genderFilterSelect = document.getElementById('genderFilter');
+        const percentileResultDiv = document.getElementById('percentileResult');
+        const loadingMessageDiv = document.getElementById('loadingMessage');
+        const errorMessageDiv = document.getElementById('errorMessage');
+        const updateButton = document.getElementById('updatePlotButton'); // Get button reference
 
-        let hours = 0, minutes = 0, seconds = 0;
+        // Function to parse HH:MM:SS or MM:SS to minutes
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr || typeof timeStr !== 'string') return null;
+            const parts = timeStr.trim().split(':');
 
-        if (parts.length === 3) { // HH:MM:SS
-            hours = parseInt(parts[0], 10);
-            minutes = parseInt(parts[1], 10);
-            seconds = parseInt(parts[2], 10);
-        } else if (parts.length === 2) { // MM:SS
-            minutes = parseInt(parts[0], 10);
-            seconds = parseInt(parts[1], 10);
-        } else {
-            return null; // Should not happen with previous check, but good for safety
+            let hours = 0, minutes = 0, seconds = 0;
+
+            if (parts.length === 3) { // HH:MM:SS
+                hours = parseInt(parts[0], 10);
+                minutes = parseInt(parts[1], 10);
+                seconds = parseInt(parts[2], 10);
+            } else if (parts.length === 2) { // MM:SS
+                minutes = parseInt(parts[0], 10);
+                seconds = parseInt(parts[1], 10);
+            } else {
+                return null; // Invalid format
+            }
+
+            if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) ||
+                hours < 0 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+                return null; // Invalid numbers
+            }
+            return hours * 60 + minutes + seconds / 60;
         }
 
-        if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
-        if (hours < 0 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) return null;
+        async function fetchDataAndInitialize() {
+            try {
+                const response = await fetch('{{ "/assets/data/goteborgsvarvet_2025_results.json" | relative_url }}');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}. Failed to fetch results data.`);
+                }
+                const jsonData = await response.json();
+                if (!Array.isArray(jsonData)) {
+                    throw new Error("Fetched data is not a valid JSON array.");
+                }
+                allResultsData = jsonData;
+                loadingMessageDiv.style.display = 'none';
 
-        return hours * 60 + minutes + seconds / 60;
-    }
-
-    // Fetch data and initialize
-    async function fetchDataAndInitialize() {
-        try {
-            // Adjust the path if your Jekyll site structure puts assets elsewhere relative to the root
-            // For `permalink: /gbgvarv/`, `assets/` should be relative to the site root.
-            const response = await fetch('{{ "/assets/data/goteborgsvarvet_2025_results.json" | relative_url }}');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                if (allResultsData.length === 0) {
+                    errorMessageDiv.textContent = "No results data found or data is empty. The JSON might be empty or incorrectly structured.";
+                    return;
+                }
+                // Initial plot with all data
+                updatePlot();
+            } catch (error) {
+                console.error("Error fetching or parsing data:", error);
+                loadingMessageDiv.style.display = 'none';
+                errorMessageDiv.textContent = `Error loading results: ${error.message}. Please check the console and ensure the JSON file is correctly placed, formatted, and accessible at {{ "/assets/data/goteborgsvarvet_2025_results.json" | relative_url }}.`;
             }
-            allResultsData = await response.json();
-            loadingMessageDiv.style.display = 'none';
-            if (allResultsData.length === 0) {
-                errorMessageDiv.textContent = "No results data found or data is empty.";
+        }
+
+        function updatePlot() {
+            errorMessageDiv.textContent = "";
+            percentileResultDiv.textContent = "";
+
+            const selectedGender = genderFilterSelect.value;
+            let filteredData = allResultsData;
+
+            if (selectedGender !== "All") {
+                filteredData = allResultsData.filter(d => d && d["Gender Category"] === selectedGender);
+            }
+
+            if (!filteredData || filteredData.length === 0) {
+                Plotly.purge(plotDiv);
+                const message = allResultsData.length === 0 ? "No results loaded." : `No data available for "${selectedGender}".`;
+                percentileResultDiv.textContent = message;
+                // Optionally display a blank plot or a message in the plot area
+                Plotly.newPlot(plotDiv, [], {
+                    title: `Göteborgsvarvet 2025: Finish Time Distribution (${selectedGender})`,
+                    xaxis: { title: 'Finish Time (Minutes)', range: [0,300] }, // Example range
+                    yaxis: { title: 'Number of Runners', range: [0,10] },   // Example range
+                    annotations: [{
+                        x: 150, // Center of example range
+                        y: 5,   // Center of example range
+                        text: message,
+                        showarrow: false,
+                        font: { size: 16 }
+                    }]
+                });
                 return;
             }
-            // Initial plot with all data
-            updatePlot();
-        } catch (error) {
-            console.error("Error fetching or parsing data:", error);
-            loadingMessageDiv.style.display = 'none';
-            errorMessageDiv.textContent = `Error loading results: ${error.message}. Please ensure the JSON file is correctly placed and formatted.`;
-        }
-    }
 
-    function updatePlot() {
-        errorMessageDiv.textContent = ""; // Clear previous errors
-        percentileResultDiv.textContent = ""; // Clear previous percentile
+            const finishTimesMinutes = filteredData.map(d => d.Finish_Minutes).filter(t => typeof t === 'number' && !isNaN(t));
 
-        const selectedGender = genderFilterSelect.value;
-        let filteredData = allResultsData;
-
-        if (selectedGender !== "All") {
-            filteredData = allResultsData.filter(d => d["Gender Category"] === selectedGender);
-        }
-
-        if (filteredData.length === 0) {
-            Plotly.purge(plotDiv); // Clear existing plot
-            percentileResultDiv.textContent = `No data available for "${selectedGender}".`;
-            return;
-        }
-
-        const finishTimesMinutes = filteredData.map(d => d.Finish_Minutes);
-
-        const trace = {
-            x: finishTimesMinutes,
-            type: 'histogram',
-            xbins: {
-                size: 5 // Bin size of 5 minutes, adjust as needed
-            },
-            marker: {
-                color: 'rgb(100,150,200)',
-            },
-            name: 'Finish Times'
-        };
-
-        const layout = {
-            title: `Göteborgsvarvet 2025: Finish Time Distribution (${selectedGender})`,
-            xaxis: {
-                title: 'Finish Time (Minutes)',
-                // Add tick formatting if desired, e.g., to show HH:MM
-            },
-            yaxis: {
-                title: 'Number of Runners'
-            },
-            bargap: 0.05,
-            shapes: [] // To hold the vertical line for user's time
-        };
-
-        const userTimeStr = userTimeInput.value;
-        const userTimeInMinutes = parseTimeToMinutes(userTimeStr);
-
-        if (userTimeInMinutes !== null) {
-            layout.shapes.push({
-                type: 'line',
-                x0: userTimeInMinutes,
-                y0: 0,
-                x1: userTimeInMinutes,
-                y1: 1,
-                yref: 'paper', // Makes y1 relative to plot height (0 to 1)
-                line: {
-                    color: 'red',
-                    width: 2,
-                    dash: 'dashdot'
-                }
-            });
-
-            // Calculate percentile
-            // Percentile: % of runners in this group who finished AT or BEFORE your time (lower is better)
-            const runnersAtOrBeforeUserTime = finishTimesMinutes.filter(t => t <= userTimeInMinutes).length;
-            const totalRunnersInGroup = finishTimesMinutes.length;
-            
-            if (totalRunnersInGroup > 0) {
-                const percentile = (runnersAtOrBeforeUserTime / totalRunnersInGroup) * 100;
-                const fasterThanPercent = 100 - percentile;
-
-                percentileResultDiv.innerHTML = `Your time (${userTimeStr}) places you in the <strong>${percentile.toFixed(1)}th percentile</strong> within the "${selectedGender}" group.<br>
-                                                 This means ${percentile.toFixed(1)}% of runners in this group finished at or before your time.
-                                                 You were faster than ${fasterThanPercent.toFixed(1)}% of runners in this group. (A lower percentile value is better).`;
-                if (userTimeInMinutes < Math.min(...finishTimesMinutes)) {
-                     percentileResultDiv.innerHTML += "<br>Wow, you're faster than everyone in this filtered group!";
-                } else if (userTimeInMinutes > Math.max(...finishTimesMinutes)) {
-                     percentileResultDiv.innerHTML += "<br>Your time is slower than everyone in this filtered group.";
-                }
-            } else {
-                percentileResultDiv.textContent = "Cannot calculate percentile with no data in the selected group.";
+            if (finishTimesMinutes.length === 0) {
+                Plotly.purge(plotDiv);
+                percentileResultDiv.textContent = `No valid finish times found for "${selectedGender}" after filtering.`;
+                return;
             }
 
-        } else if (userTimeStr.trim() !== "") {
-            // User entered something, but it was invalid
-            errorMessageDiv.textContent = "Invalid time format. Please use HH:MM:SS (e.g., 01:45:30) or MM:SS (e.g., 45:30).";
+            const trace = {
+                x: finishTimesMinutes,
+                type: 'histogram',
+                xbins: { size: 5 },
+                marker: { color: 'rgb(100,150,200)' },
+                name: 'Finish Times'
+            };
+
+            const layout = {
+                title: `Göteborgsvarvet 2025: Finish Time Distribution (${selectedGender})`,
+                xaxis: { title: 'Finish Time (Minutes)' },
+                yaxis: { title: 'Number of Runners' },
+                bargap: 0.05,
+                shapes: []
+            };
+
+            const userTimeStr = userTimeInput.value;
+            const userTimeInMinutes = parseTimeToMinutes(userTimeStr);
+
+            if (userTimeInMinutes !== null && userTimeInMinutes >= 0) {
+                layout.shapes.push({
+                    type: 'line',
+                    x0: userTimeInMinutes,
+                    y0: 0,
+                    x1: userTimeInMinutes,
+                    y1: 1,
+                    yref: 'paper',
+                    line: { color: 'red', width: 2, dash: 'dashdot' }
+                });
+
+                const sortedTimes = [...finishTimesMinutes].sort((a, b) => a - b);
+                let runnersAtOrBeforeUserTime = 0;
+                for (const t of sortedTimes) {
+                    if (t <= userTimeInMinutes) {
+                        runnersAtOrBeforeUserTime++;
+                    } else {
+                        break; 
+                    }
+                }
+                
+                const totalRunnersInGroup = sortedTimes.length;
+
+                if (totalRunnersInGroup > 0) {
+                    // Percentile: % of runners in this group who finished AT or AFTER your time.
+                    // A common definition for "percentile rank" is the percentage of scores less than or equal to the given score.
+                    // So, if your time is X, percentile is % of people who ran X or slower.
+                    // However, for races, we usually want to know % faster or % you beat.
+                    // Let's define percentile as: % of runners who finished AT or BEFORE your time (lower time is better, so lower percentile rank is better).
+                    const percentileRank = (runnersAtOrBeforeUserTime / totalRunnersInGroup) * 100;
+                    const fasterThanPercent = 100 - percentileRank; // % of people you were faster than
+
+                    percentileResultDiv.innerHTML = `Your time (${userTimeStr}) places you at the <strong>${percentileRank.toFixed(1)}th percentile</strong> within the "${selectedGender}" group.
+                                                     <br>This means ${percentileRank.toFixed(1)}% of runners in this group finished at or before your time.
+                                                     <br>You were faster than ${fasterThanPercent.toFixed(1)}% of runners in this group.`;
+                    if (userTimeInMinutes < sortedTimes[0]) {
+                         percentileResultDiv.innerHTML += "<br>Incredible! You're faster than everyone in this filtered group.";
+                    } else if (userTimeInMinutes > sortedTimes[sortedTimes.length - 1] && runnersAtOrBeforeUserTime === totalRunnersInGroup ) {
+                         // This condition means your time is slower than the slowest person but the percentile still counts them
+                         //  Let's refine the message for this edge case
+                         if (percentileRank === 100 && userTimeInMinutes > sortedTimes[sortedTimes.length - 1]) {
+                            percentileResultDiv.innerHTML += "<br>Your time is after the last recorded finisher in this group.";
+                         }
+                    }
+                } else {
+                    percentileResultDiv.textContent = "Cannot calculate percentile with no valid times in the selected group.";
+                }
+
+            } else if (userTimeStr.trim() !== "") {
+                errorMessageDiv.textContent = "Invalid time format. Please use HH:MM:SS (e.g., 01:45:30) or MM:SS (e.g., 45:30).";
+            }
+
+            Plotly.newPlot(plotDiv, [trace], layout, {responsive: true});
         }
 
+        // Attach event listeners
+        if (updateButton) {
+            updateButton.addEventListener('click', updatePlot);
+        }
+        genderFilterSelect.addEventListener('change', updatePlot);
+        // Optional: Update plot when user types in time and blurs the input
+        // userTimeInput.addEventListener('blur', updatePlot);
 
-        Plotly.newPlot(plotDiv, [trace], layout, {responsive: true});
-    }
 
-    // Event listeners
-    // userTimeInput.addEventListener('input', updatePlot); // Updates on every keystroke, might be too much
-    genderFilterSelect.addEventListener('change', updatePlot);
+        // Fetch data and initialize plot
+        fetchDataAndInitialize();
 
-    // Initialize when the DOM is fully loaded
-    document.addEventListener('DOMContentLoaded', fetchDataAndInitialize);
-
+    }); // End of DOMContentLoaded
 </script>
