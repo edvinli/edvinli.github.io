@@ -1,6 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
+    
+    // Read the JSON path from the canvas element's data attribute
+    const gbgVarvetJsonPathFromData = canvas.dataset.jsonPath;
+
+    // Ensure canvas and its context are obtained after checking canvas exists
+    if (!canvas) {
+        console.error("ERROR: Canvas element not found!");
+        const userInfoDivNoCanvas = document.getElementById('userInfo');
+        if(userInfoDivNoCanvas) userInfoDivNoCanvas.textContent = "Critical error: Canvas element missing from page.";
+        return; // Stop script execution if canvas is missing
+    }
     const ctx = canvas.getContext('2d');
+
 
     const filterAllButton = document.getElementById('filterAll');
     const filterMenButton = document.getElementById('filterMen');
@@ -8,6 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const userTimeInput = document.getElementById('userTimeInput');
     const plotUserTimeButton = document.getElementById('plotUserTime');
     const userInfoDiv = document.getElementById('userInfo');
+
+    // Check if all required elements are present
+    if (!filterAllButton || !filterMenButton || !filterWomenButton || !userTimeInput || !plotUserTimeButton || !userInfoDiv) {
+        console.error("ERROR: One or more UI elements (buttons, input, info div) are missing!");
+        if(userInfoDiv) userInfoDiv.textContent = "Critical error: UI elements missing. Check IDs.";
+        // Optionally, you could disable functionality or just log the error
+        // For now, we'll let it proceed but it might error later if an element is used
+    }
+
 
     let allResults = [];
     let filteredResults = [];
@@ -21,9 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchData() {
         try {
-            // gbgVarvetJsonPath is defined as a global variable in the HTML <script> tag
-            console.log("Attempting to fetch data from:", gbgVarvetJsonPath);
-            const response = await fetch(gbgVarvetJsonPath); // Use the path defined in HTML
+            console.log("Attempting to fetch data from (data-attribute):", gbgVarvetJsonPathFromData);
+            const response = await fetch(gbgVarvetJsonPathFromData);
 
             console.log("Fetch response status:", response.status, "URL:", response.url);
             if (!response.ok) {
@@ -40,11 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 r.Finish_Minutes = parseFloat(originalFinishMinutes);
                 if (isNaN(r.Finish_Minutes)) {
                     nanCount++;
-                    // console.warn("NaN for Finish_Minutes. Original:", originalFinishMinutes, "Record:", r);
                 }
                 if (typeof r['Gender Category'] === 'undefined') {
                     missingGenderCount++;
-                    // console.warn("Missing 'Gender Category' in record:", r);
                 }
             });
             if (nanCount > 0) {
@@ -58,10 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
             applyFilterAndDraw();
         } catch (error) {
             console.error("Could not load or process data:", error);
-            userInfoDiv.innerHTML = `Error loading race data. <br>Attempted to fetch: ${gbgVarvetJsonPath}. <br>Details: ${error.message}. <br>Please check the browser console.`;
-            ctx.font = "16px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText("Error loading race data. See console.", canvas.width / 2, 50);
+            if(userInfoDiv) {
+                userInfoDiv.innerHTML = `Error loading race data. <br>Attempted to fetch from: ${gbgVarvetJsonPathFromData}. <br>Details: ${error.message}. <br>Please check the browser console.`;
+            }
+            if(ctx) {
+                ctx.font = "16px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("Error loading race data. See console.", canvas.width / 2, 50);
+            }
         }
     }
 
@@ -73,15 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
             filteredResults = allResults.filter(result => result['Gender Category'] === currentFilter);
         }
         console.log(`Filtered results count: ${filteredResults.length}`);
-        if (filteredResults.length > 0) {
-            // console.log("First 3 filtered results:", filteredResults.slice(0,3));
-        } else if (allResults.length > 0) {
+        if (filteredResults.length === 0 && allResults.length > 0) {
             console.warn(`No results for filter "${currentFilter}". Check 'Gender Category' values in JSON. Expected "Men" or "Women".`);
         }
 
-
         drawHistogram();
-        updateUserInfo(); // Update info based on current user time and new filter
+        updateUserInfo();
     }
 
     function parseTimeToMinutes(timeStr) {
@@ -112,27 +131,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatMinutesToHHMM(totalMinutes) {
         if (totalMinutes === null || isNaN(totalMinutes)) return "N/A";
         const h = Math.floor(totalMinutes / 60);
-        const m = Math.round(totalMinutes % 60); // Round to nearest minute for display
+        const m = Math.round(totalMinutes % 60);
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
 
-
     function drawHistogram() {
+        if (!ctx) return; // Can't draw if no context
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (!filteredResults.length) {
             ctx.font = "16px Arial";
             ctx.textAlign = "center";
-            if (allResults.length === 0 && !userInfoDiv.textContent.startsWith("Error loading race data")) {
+            if (allResults.length === 0 && (!userInfoDiv || !userInfoDiv.textContent.startsWith("Error loading race data"))) {
                  ctx.fillText("Loading data...", canvas.width / 2, canvas.height / 2);
             } else if (allResults.length > 0) {
                 ctx.fillText(`No data for filter "${currentFilter}".`, canvas.width / 2, canvas.height / 2);
             }
-            // If error message is already in userInfoDiv, don't overwrite with "No data"
             return;
         }
 
-        const times = filteredResults.map(r => r.Finish_Minutes).filter(t => !isNaN(t)); // Use only valid times
+        const times = filteredResults.map(r => r.Finish_Minutes).filter(t => !isNaN(t));
         if (!times.length) {
             ctx.font = "16px Arial";
             ctx.textAlign = "center";
@@ -143,41 +161,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const minTime = Math.min(...times);
         const maxTime = Math.max(...times);
-
-        // Adjust bin calculation if minTime and maxTime are very close or same
         let startBin = Math.floor(minTime / BIN_SIZE_MINUTES) * BIN_SIZE_MINUTES;
         let endBin = Math.ceil(maxTime / BIN_SIZE_MINUTES) * BIN_SIZE_MINUTES;
-        if (endBin <= startBin) endBin = startBin + BIN_SIZE_MINUTES; // Ensure at least one bin range
+        if (endBin <= startBin) endBin = startBin + BIN_SIZE_MINUTES;
 
         const numBins = Math.max(1, Math.round((endBin - startBin) / BIN_SIZE_MINUTES));
-
         const bins = new Array(numBins).fill(0);
         filteredResults.forEach(result => {
-            if (isNaN(result.Finish_Minutes)) return; // Skip NaN times
+            if (isNaN(result.Finish_Minutes)) return;
             let binIndex = Math.floor((result.Finish_Minutes - startBin) / BIN_SIZE_MINUTES);
-            binIndex = Math.max(0, Math.min(binIndex, numBins - 1)); // Clamp index
+            binIndex = Math.max(0, Math.min(binIndex, numBins - 1));
             bins[binIndex]++;
         });
 
         const maxBinCount = Math.max(...bins, 1);
-
         const chartWidth = canvas.width - CHART_LEFT_MARGIN - CHART_PADDING;
         const chartHeight = canvas.height - CHART_PADDING - CHART_BOTTOM_MARGIN;
-        const barWidth = Math.max(1, chartWidth / numBins); // Ensure barWidth is at least 1
+        const barWidth = Math.max(1, chartWidth / numBins);
 
-        // Draw Y-axis (Number of Runners)
         ctx.beginPath();
         ctx.moveTo(CHART_LEFT_MARGIN, CHART_PADDING);
         ctx.lineTo(CHART_LEFT_MARGIN, canvas.height - CHART_BOTTOM_MARGIN);
         ctx.stroke();
-
-        // Draw X-axis (Finish Time)
         ctx.beginPath();
         ctx.moveTo(CHART_LEFT_MARGIN, canvas.height - CHART_BOTTOM_MARGIN);
         ctx.lineTo(canvas.width - CHART_PADDING, canvas.height - CHART_BOTTOM_MARGIN);
         ctx.stroke();
 
-        // Y-axis labels and grid lines
         ctx.font = "12px Arial";
         ctx.textAlign = "right";
         ctx.fillStyle = "black";
@@ -186,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = Math.round((maxBinCount / yTickCount) * i);
             const yPos = (canvas.height - CHART_BOTTOM_MARGIN) - (val / maxBinCount) * chartHeight;
             ctx.fillText(val, CHART_LEFT_MARGIN - 10, yPos + 4);
-
             ctx.beginPath();
             ctx.strokeStyle = "#eee";
             ctx.moveTo(CHART_LEFT_MARGIN + 1, yPos);
@@ -201,23 +210,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillText("Number of Runners", 0, 0);
         ctx.restore();
 
-        // Draw bars and X-axis labels
         ctx.fillStyle = "skyblue";
         ctx.textAlign = "center";
-        const maxLabels = Math.floor(chartWidth / 60); // approx one label every 60px
+        const maxLabels = Math.floor(chartWidth / 60);
         const labelStep = numBins <= maxLabels ? 1 : Math.ceil(numBins / maxLabels);
-
         for (let i = 0; i < numBins; i++) {
             const barHeight = (bins[i] / maxBinCount) * chartHeight;
             const x = CHART_LEFT_MARGIN + i * barWidth;
             const y = canvas.height - CHART_BOTTOM_MARGIN - barHeight;
-            if (barWidth > 1) {
-                 ctx.fillRect(x, y, barWidth - 1, barHeight);
-            } else {
-                 ctx.fillRect(x, y, 1, barHeight); // Avoid negative width if barWidth is 1
-            }
-
-
+            ctx.fillRect(x, y, barWidth > 1 ? barWidth - 1 : 1, barHeight);
             if (i % labelStep === 0) {
                 const timeForBin = startBin + i * BIN_SIZE_MINUTES;
                 ctx.fillStyle = "black";
@@ -227,11 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = "black";
         ctx.fillText("Finish Time (HH:MM)", CHART_LEFT_MARGIN + chartWidth / 2, canvas.height - CHART_BOTTOM_MARGIN + 45);
 
-        // Draw user's time line
         if (currentUserTimeMinutes !== null && !isNaN(currentUserTimeMinutes)) {
             const userTimeRatio = (currentUserTimeMinutes - startBin) / (endBin - startBin);
             const userTimeX = CHART_LEFT_MARGIN + userTimeRatio * chartWidth;
-
             if (userTimeX >= CHART_LEFT_MARGIN && userTimeX <= canvas.width - CHART_PADDING) {
                 ctx.beginPath();
                 ctx.strokeStyle = "red";
@@ -251,14 +250,12 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Cannot calculate percentile: userTime invalid or filteredResults is empty.");
             return null;
         }
-
         const validTimesInFilteredResults = filteredResults.filter(r => !isNaN(r.Finish_Minutes));
         if (validTimesInFilteredResults.length === 0) {
             console.warn("No valid Finish_Minutes in filteredResults for percentile calculation.");
             return null;
         }
         console.log("Using N_valid_filtered_results for percentile:", validTimesInFilteredResults.length);
-
         const slowerRunners = validTimesInFilteredResults.filter(r => r.Finish_Minutes > userTime).length;
         console.log("Number of slower runners:", slowerRunners);
         const percentile = (slowerRunners / validTimesInFilteredResults.length) * 100;
@@ -266,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateUserInfo() {
+        if (!userInfoDiv) return; // Can't update if div is missing
+
         if (currentUserTimeMinutes !== null) {
             const percentile = calculatePercentile(currentUserTimeMinutes);
             if (percentile !== null) {
@@ -273,46 +272,49 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 userInfoDiv.textContent = `Your time: ${formatMinutesToHHMMSS(currentUserTimeMinutes)}. Could not calculate percentile (e.g., no data for current filter or issue with time values).`;
             }
-        } else if (!userInfoDiv.textContent.startsWith("Error loading race data")) { // Don't overwrite error message
+        } else if (!userInfoDiv.textContent.startsWith("Error loading race data")) {
             userInfoDiv.textContent = "Enter your time to see where you rank.";
         }
     }
 
-    // Event Listeners
-    filterAllButton.addEventListener('click', () => {
+    // Event Listeners - Add null checks for buttons in case they are missing
+    if(filterAllButton) filterAllButton.addEventListener('click', () => {
         currentFilter = 'All';
         applyFilterAndDraw();
     });
-    filterMenButton.addEventListener('click', () => {
+    if(filterMenButton) filterMenButton.addEventListener('click', () => {
         currentFilter = 'Men';
         applyFilterAndDraw();
     });
-    filterWomenButton.addEventListener('click', () => {
+    if(filterWomenButton) filterWomenButton.addEventListener('click', () => {
         currentFilter = 'Women';
         applyFilterAndDraw();
     });
-
-    plotUserTimeButton.addEventListener('click', () => {
-        const timeStr = userTimeInput.value.trim();
+    if(plotUserTimeButton) plotUserTimeButton.addEventListener('click', () => {
+        const timeStr = userTimeInput.value.trim(); // userTimeInput also needs to be checked if it can be null
         const parsedTime = parseTimeToMinutes(timeStr);
         if (parsedTime !== null) {
             currentUserTimeMinutes = parsedTime;
             applyFilterAndDraw();
         } else {
             currentUserTimeMinutes = null;
-            applyFilterAndDraw(); // Redraw without user line
-            userInfoDiv.textContent = "Invalid time format. Please use HH:MM:SS (e.g., 01:45:30).";
-            userTimeInput.focus();
+            applyFilterAndDraw();
+            if(userInfoDiv) userInfoDiv.textContent = "Invalid time format. Please use HH:MM:SS (e.g., 01:45:30).";
+            if(userTimeInput) userTimeInput.focus();
         }
     });
-
-    userTimeInput.addEventListener('keypress', (event) => {
+    if(userTimeInput) userTimeInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent form submission if it's in a form
-            plotUserTimeButton.click();
+            event.preventDefault();
+            if(plotUserTimeButton) plotUserTimeButton.click();
         }
     });
 
     // Initial data load
-    fetchData();
+    if (gbgVarvetJsonPathFromData) {
+        fetchData();
+    } else {
+        console.error("ERROR: JSON data path not found on canvas data attribute (data-json-path).");
+        if(userInfoDiv) userInfoDiv.textContent = "Configuration error: Cannot find data path for results.";
+    }
 });
