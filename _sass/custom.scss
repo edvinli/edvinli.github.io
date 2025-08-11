@@ -1,0 +1,74 @@
+/* --
+Custom SCSS
+-- */
+
+// Import Google Fonts
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@400;700&display=swap');
+
+// Variables
+$body-font-family: "Lato", sans-serif;
+$heading-font-family: "Montserrat", sans-serif;
+$base-font-size: 18px;
+$text-color: #333;
+$background-color: #fdfdfd;
+$primary-color: #007bff; // A nice blue accent color
+
+// General styles
+body {
+  font-family: $body-font-family;
+  font-size: $base-font-size;
+  color: $text-color;
+  background-color: $background-color;
+  line-height: 1.8;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $heading-font-family;
+  font-weight: 700;
+  margin-bottom: 1em;
+}
+
+a {
+  color: $primary-color;
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+
+  &:hover {
+    color: darken($primary-color, 10%);
+  }
+}
+
+// Layout adjustments
+.page {
+  padding: 2em 0;
+}
+
+.page__inner-wrap {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 2em;
+}
+
+// Masthead
+.masthead {
+  border-bottom: 1px solid #eee;
+}
+
+.greedy-nav a {
+  color: #333;
+  font-weight: 700;
+}
+
+// Buttons
+.btn {
+  background-color: $primary-color;
+  color: #fff;
+  border-radius: 5px;
+  padding: 0.8em 1.2em;
+  font-weight: 700;
+  transition: background-color 0.2s ease-in-out;
+
+  &:hover {
+    background-color: darken($primary-color, 10%);
+  }
+}
