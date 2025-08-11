@@ -72,3 +72,42 @@ a {
     background-color: darken($primary-color, 10%);
   }
 }
+
+// Author profile
+.author__avatar {
+  display: block;
+  margin: 0 auto 1em;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+}
+
+.author__content {
+  text-align: center;
+}
+
+.author__name {
+  margin-bottom: 0.5em;
+}
+
+.author__bio {
+  margin-bottom: 1em;
+}
+
+.author__urls-wrapper {
+  text-align: center;
+  margin-bottom: 2em;
+
+  .btn--inverse {
+    display: none; // Hide the follow button
+  }
+}
+
+.author__urls {
+  list-style: none;
+  padding: 0;
+  display: inline-flex;
+  gap: 1em;
+  justify-content: center;
+  flex-wrap: wrap;
+}
