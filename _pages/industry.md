@@ -10,6 +10,7 @@ author_profile: true
 Below follows a list of some industry projects I've been part of.
 
 - [2025 - ] Trafikverket. _computer vision for digital maintenance of railway, self-supervised learning_
+- [2023-2024] [Structural Causal Models for Distributional Shift in Federated Learning](https://www.vinnova.se/en/p/structural-causal-models-for-distributional-shift-in-federated-learning/) Project partners: Ericsson Research. _federated learning, causality, distribution shifts_
 - [2020-2023] [ANIARA](https://aniara.ai-net.tech/) Project partners: Ericsson Research. _federated learning, network analysis_
 - [2019-2021] [AI driven financial risk assessment for circular business models](https://www.ri.se/en/what-we-do/projects/ai-driven-financial-risk-assessment-for-circular-business-models). Project partners: Nordea, SEB. _circular economy, computer vision, NLP_
 - [2019-2021] [Swedish Medical Language Data Lab](https://www.ri.se/sv/vad-vi-gor/projekt/swedish-medical-language-data-lab). Project partners: Region Halland, Peltarion, VGR, AI Sweden, Sahlgrenska University, Folktandvården. _federated learning, NLP, medicine_
