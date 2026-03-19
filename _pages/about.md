@@ -1,6 +1,6 @@
 ---
 permalink: /
-title: "About"
+title: ""
 excerpt: "About me"
 author_profile: true
 redirect_from:
@@ -8,10 +8,10 @@ redirect_from:
   - /about.html
 ---
 
-I work as a Senior ML Engineer at [eghed](https://eghed.se/). Previously I was an ML Research Scientist at RISE Research Institutes of Sweden, where my research focused on representation learning and out-of-distribution generalization using deep neural networks.
+senior ml engineer @ [eghed](https://eghed.se/). previously ml research scientist at rise research institutes of sweden.
 
-I earned my PhD from KTH Royal Institute of Technology in 2025 on [Decentralized deep learning in statistically heterogeneous environments](https://kth.diva-portal.org/smash/get/diva2:1921206/FULLTEXT01.pdf).
+phd from kth royal institute of technology, 2025 — [decentralized deep learning in statistically heterogeneous environments](https://kth.diva-portal.org/smash/get/diva2:1921206/FULLTEXT01.pdf).
 
-I am also interested in applying machine learning to challenges in sustainability, climate change, and social issues, and am always open to collaborations in these areas.
+research interests: representation learning, out-of-distribution generalization, federated learning. also interested in ml for sustainability, climate, and social impact — open to collaborations.
 
-**Looking for student projects?** I enjoy mentoring students — if you are interested in a project or Master's thesis, see [student project suggestions and previous work](/students/) or reach out directly.
+interested in a master thesis or project? see [students](/students/) or reach out directly.
