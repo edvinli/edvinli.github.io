@@ -12,7 +12,9 @@ body {
   border-bottom: 1px solid #eee;
 }
 
-.greedy-nav a {
+.greedy-nav a,
+.greedy-nav .site-title {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 700;
 }
 
