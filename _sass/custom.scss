@@ -26,3 +26,25 @@ body {
 .page {
   padding: 2em 0;
 }
+
+/* Improved list readability */
+.page__content ul li {
+  margin-bottom: 0.8em;
+  line-height: 1.65;
+}
+
+/* Year headings in publications/CV sit closer to their list */
+.page__content h2 {
+  margin-top: 1.75em;
+}
+
+/* Sidebar avatar: slightly larger and no border padding clutter */
+.author__avatar img {
+  padding: 0;
+  border: none;
+}
+
+/* Canvas pages */
+canvas {
+  border-radius: 4px;
+}
