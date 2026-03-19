@@ -16,6 +16,7 @@ body {
 .greedy-nav .site-title {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 700;
+  text-transform: lowercase;
 }
 
 /* Buttons */
@@ -40,10 +41,36 @@ body {
   margin-top: 1.75em;
 }
 
-/* Sidebar avatar: slightly larger and no border padding clutter */
+/* Body content links: inherit text color, bottom border instead of underline */
+.page__content a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(51, 51, 51, 0.25);
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-bottom-color: #333;
+  }
+}
+
+/* Sidebar avatar: rounded square, grayscale with color on hover */
 .author__avatar img {
+  border-radius: 6px;
   padding: 0;
   border: none;
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+
+  &:hover {
+    filter: grayscale(0%);
+  }
+}
+
+/* Sidebar links: clean text, no icon spacing artifacts */
+.author__urls {
+  a {
+    font-size: inherit;
+  }
 }
 
 /* Canvas pages */
