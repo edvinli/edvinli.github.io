@@ -1,16 +1,73 @@
 ---
 layout: archive
-title: "Industry projects"
+title: "industry projects"
 permalink: /industry/
 author_profile: true
 ---
 
-A selection of industry and applied research projects I have been part of.
+<div class="project-log">
 
-- [2025–] Trafikverket · *computer vision for digital maintenance of railway, self-supervised learning*
-- [2023–2024] [**Structural Causal Models for Distributional Shift in Federated Learning**](https://www.vinnova.se/en/p/structural-causal-models-for-distributional-shift-in-federated-learning/) · Ericsson Research · *federated learning, causality, distribution shifts*
-- [2020–2023] [**ANIARA**](https://aniara.ai-net.tech/) · Ericsson Research · *federated learning, network analysis*
-- [2019–2021] [**AI driven financial risk assessment for circular business models**](https://www.ri.se/en/what-we-do/projects/ai-driven-financial-risk-assessment-for-circular-business-models) · Nordea, SEB · *circular economy, computer vision, NLP*
-- [2019–2021] [**Swedish Medical Language Data Lab**](https://www.ri.se/sv/vad-vi-gor/projekt/swedish-medical-language-data-lab) · Region Halland, Peltarion, VGR, AI Sweden, Sahlgrenska University, Folktandvården · *federated learning, NLP, medicine*
-- [2019–2020] [**LOBSTR: Learning On-Board Signals for Timely Reaction**](https://www.vinnova.se/en/p/lobstr---learning-on-board-signals-for-timely-reaction/) · Scania · *federated learning, anomaly detection, vehicle control unit*
-- [2017–2018] [**BADA-SEMPA: Big Automotive Data Analytics — Sensor Modeling and Performance Analysis**](https://www.vinnova.se/en/p/big-automotive-data-analytics-sensor-modeling-and-performance-analysis-bada-sempa/) · Volvo, Zenseact, AFRY, Chalmers University of Technology · *GANs, time series, autonomous vehicles, sensor data*
+  <div class="project-entry">
+    <div class="project-date">2025--</div>
+    <div class="project-body">
+      trafikverket<br>
+      computer vision for digital maintenance of railway<br>
+      <span class="project-tags">self-supervised learning</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2023--2024</div>
+    <div class="project-body">
+      <a href="https://www.vinnova.se/en/p/structural-causal-models-for-distributional-shift-in-federated-learning/">structural causal models for distributional shift in federated learning</a><br>
+      ericsson research<br>
+      <span class="project-tags">federated learning · causality · distribution shifts</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2020--2023</div>
+    <div class="project-body">
+      <a href="https://aniara.ai-net.tech/">aniara</a><br>
+      ericsson research<br>
+      <span class="project-tags">federated learning · network analysis</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2019--2021</div>
+    <div class="project-body">
+      <a href="https://www.ri.se/en/what-we-do/projects/ai-driven-financial-risk-assessment-for-circular-business-models">ai driven financial risk assessment for circular business models</a><br>
+      nordea · seb<br>
+      <span class="project-tags">circular economy · computer vision · NLP</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2019--2021</div>
+    <div class="project-body">
+      <a href="https://www.ri.se/sv/vad-vi-gor/projekt/swedish-medical-language-data-lab">swedish medical language data lab</a><br>
+      region halland · peltarion · VGR · AI sweden · sahlgrenska university · folktandvården<br>
+      <span class="project-tags">federated learning · NLP · medicine</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2019--2020</div>
+    <div class="project-body">
+      <a href="https://www.vinnova.se/en/p/lobstr---learning-on-board-signals-for-timely-reaction/">lobstr — learning on-board signals for timely reaction</a><br>
+      scania<br>
+      <span class="project-tags">federated learning · anomaly detection · vehicle control unit</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2017--2018</div>
+    <div class="project-body">
+      <a href="https://www.vinnova.se/en/p/big-automotive-data-analytics-sensor-modeling-and-performance-analysis-bada-sempa/">bada-sempa — big automotive data analytics</a><br>
+      volvo · zenseact · AFRY · chalmers university of technology<br>
+      <span class="project-tags">GANs · time series · autonomous vehicles · sensor data</span>
+    </div>
+  </div>
+
+</div>
