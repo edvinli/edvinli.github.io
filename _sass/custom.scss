@@ -78,6 +78,19 @@ body {
   color: rgba(44, 42, 37, 0.6);
 }
 
+/* Homepage: topic tags and student callout */
+.topic-tags {
+  color: rgba(44, 42, 37, 0.45);
+  font-size: 0.9em;
+  margin: 0.25em 0 1.25em;
+}
+
+.home-callout {
+  margin-top: 2em;
+  padding-left: 0.75em;
+  border-left: 2px solid rgba(0, 0, 0, 0.15);
+}
+
 /* Industry project log */
 .project-log {
   margin-top: 1.5em;
