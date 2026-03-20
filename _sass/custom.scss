@@ -63,12 +63,7 @@ body {
   border-radius: 6px;
   padding: 0;
   border: none;
-  filter: grayscale(100%);
-  transition: filter 0.3s ease;
-
-  &:hover {
-    filter: grayscale(0%);
-  }
+  filter: grayscale(0%);
 }
 
 /* Sidebar links */
