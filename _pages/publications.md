@@ -1,49 +1,134 @@
 ---
 layout: archive
-title: "Publications"
+title: "publications"
 permalink: /publications/
 author_profile: true
 ---
 
-A complete list is available on my [Google Scholar profile](https://scholar.google.se/citations?user=Ft52aSsAAAAJ).
+complete list on [google scholar](https://scholar.google.se/citations?user=Ft52aSsAAAAJ).
 
 {% include base_path %}
 
-## 2025
+<div class="project-log">
 
-- [**On the effects of similarity metrics in decentralized deep learning under distributional shift**](https://openreview.net/pdf?id=WppTEs4Kkn) · **E. Listo Zec**, T. Hagander, E. Ihre-Thomason, S. Girdzijauskas · *Transactions on Machine Learning Research (TMLR)* · [bibtex](/files/listozeceffects.html)
+  <div class="project-entry">
+    <div class="project-date">2025</div>
+    <div class="project-body">
+      <a href="https://openreview.net/pdf?id=WppTEs4Kkn">on the effects of similarity metrics in decentralized deep learning under distributional shift</a><br>
+      <span class="project-tags">e. listo zec, t. hagander, e. ihre-thomason, s. girdzijauskas · transactions on machine learning research (tmlr) · <a href="/files/listozeceffects.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-## 2023
+  <div class="project-entry">
+    <div class="project-date">2023</div>
+    <div class="project-body">
+      <a href="https://arxiv.org/abs/2306.12768">concept-aware clustering for decentralized deep learning under temporal shift</a><br>
+      <span class="project-tags">m. toftås, e. klefbom, e. listo zec, m. willbo, o. mogren · icml workshop on federated learning and analytics in practice · <a href="/files/toftaas2023concept.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-- [**Concept-aware clustering for decentralized deep learning under temporal shift**](https://arxiv.org/abs/2306.12768) · M. Toftås, E. Klefbom, **E. Listo Zec**, M. Willbo, O. Mogren · *ICML Workshop on Federated Learning and Analytics in Practice* · [bibtex](/files/toftaas2023concept.html)
+  <div class="project-entry">
+    <div class="project-date">2022</div>
+    <div class="project-body">
+      <a href="https://arxiv.org/abs/2206.11682">effgan: ensembles of fine-tuned federated gans</a><br>
+      <span class="project-tags">e. ekblom, e. listo zec, o. mogren · ieee international conference on big data · <a href="/files/ekblom2022effgan.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-## 2022
+  <div class="project-entry">
+    <div class="project-date">2022</div>
+    <div class="project-body">
+      <a href="https://ieeexplore.ieee.org/abstract/document/10021044">residual value prediction using deep learning</a><br>
+      <span class="project-tags">e. listo zec, o. mogren, a.c. mellquist, s. fallahi, p. algurén · ieee international conference on big data · <a href="/files/listozec2022residual">[bibtex]</a></span>
+    </div>
+  </div>
 
-- [**EFFGAN: Ensembles of fine-tuned federated GANs**](https://arxiv.org/abs/2206.11682) · E. Ekblom, **E. Listo Zec**, O. Mogren · *IEEE International Conference on Big Data* · [bibtex](/files/ekblom2022effgan.html)
-- [**Residual value prediction using deep learning**](https://ieeexplore.ieee.org/abstract/document/10021044) · **E. Listo Zec**, O. Mogren, A.C. Mellquist, S. Fallahi, P. Algurén · *IEEE International Conference on Big Data* · [bibtex](/files/listozec2022residual)
-- [**Decentralized adaptive clustering of deep nets is beneficial for client collaboration**](https://arxiv.org/abs/2206.08839) · **E. Listo Zec**, E. Ekblom, M. Willbo, O. Mogren, S. Girdzijauskas · *FL-IJCAI'22: International Workshop on Trustworthy Federated Learning* · [bibtex](/files/zec2022decentralized.html)
-- [**Adaptive Expert Models for Personalization in Federated Learning**](https://arxiv.org/abs/2206.07832) · M. Isaksson, **E. Listo Zec**, R. Cöster, D. Gillblad, S. Girdzijauskas · *FL-IJCAI'22: International Workshop on Trustworthy Federated Learning* · [bibtex](/files/isaksson2022adaptive.html)
+  <div class="project-entry">
+    <div class="project-date">2022</div>
+    <div class="project-body">
+      <a href="https://arxiv.org/abs/2206.08839">decentralized adaptive clustering of deep nets is beneficial for client collaboration</a><br>
+      <span class="project-tags">e. listo zec, e. ekblom, m. willbo, o. mogren, s. girdzijauskas · fl-ijcai'22 · <a href="/files/zec2022decentralized.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-## 2021
+  <div class="project-entry">
+    <div class="project-date">2022</div>
+    <div class="project-body">
+      <a href="https://arxiv.org/abs/2206.07832">adaptive expert models for personalization in federated learning</a><br>
+      <span class="project-tags">m. isaksson, e. listo zec, r. cöster, d. gillblad, s. girdzijauskas · fl-ijcai'22 · <a href="/files/isaksson2022adaptive.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-- [**Decentralized federated learning of deep neural networks on non-iid data**](https://arxiv.org/abs/2107.08517) · N. Onoszko, G. Karlsson, O. Mogren, **E. Listo Zec** · *Workshop on Federated Learning for User Privacy and Data Confidentiality, ICML* · [bibtex](/files/onoszko-dfl.html)
+  <div class="project-entry">
+    <div class="project-date">2021</div>
+    <div class="project-body">
+      <a href="https://arxiv.org/abs/2107.08517">decentralized federated learning of deep neural networks on non-iid data</a><br>
+      <span class="project-tags">n. onoszko, g. karlsson, o. mogren, e. listo zec · workshop on federated learning for user privacy and data confidentiality, icml · <a href="/files/onoszko-dfl.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-## 2020
+  <div class="project-entry">
+    <div class="project-date">2020</div>
+    <div class="project-body">
+      <a href="https://arxiv.org/abs/2010.02056">specialized federated learning using a mixture of experts</a><br>
+      <span class="project-tags">e. listo zec, j. martinsson, o. mogren, l.r. sütfeld, d. gillblad · arxiv preprint · <a href="/files/listozec2020federated.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-- [**Specialized federated learning using a mixture of experts**](https://arxiv.org/abs/2010.02056) · **E. Listo Zec**, J. Martinsson, O. Mogren, L.R. Sütfeld, D. Gillblad · *arXiv preprint* · [bibtex](/files/listozec2020federated.html)
-- [**Adversarial representation learning for private speech generation**](https://openreview.net/forum?id=3IKKBxByalk) · D. Ericsson, A. Östberg, **E. Listo Zec**, J. Martinsson, O. Mogren · *Workshop on Self-Supervision in Audio and Speech, ICML* · [bibtex](/files/ericsson2020adversarial.html)
-- [**Adversarial representation learning for synthetic replacement of private attributes**](https://arxiv.org/abs/2006.08039) · J. Martinsson, **E. Listo Zec**, D. Gillblad, O. Mogren · *arXiv preprint* · [bibtex](/files/martinsson2020adversarial.html)
+  <div class="project-entry">
+    <div class="project-date">2020</div>
+    <div class="project-body">
+      <a href="https://openreview.net/forum?id=3IKKBxByalk">adversarial representation learning for private speech generation</a><br>
+      <span class="project-tags">d. ericsson, a. östberg, e. listo zec, j. martinsson, o. mogren · workshop on self-supervision in audio and speech, icml · <a href="/files/ericsson2020adversarial.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-## 2019
+  <div class="project-entry">
+    <div class="project-date">2020</div>
+    <div class="project-body">
+      <a href="https://arxiv.org/abs/2006.08039">adversarial representation learning for synthetic replacement of private attributes</a><br>
+      <span class="project-tags">j. martinsson, e. listo zec, d. gillblad, o. mogren · arxiv preprint · <a href="/files/martinsson2020adversarial.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-- [**Recurrent Conditional Generative Adversarial Networks for Autonomous Driving Sensor Modelling**](/files/Recurrent%20Conditional%20Generative%20Adversarial%20Networks%20for%0AAutonomous%20Driving%20Sensor%20Modelling.pdf) · H. Arnelid, **E. Listo Zec**, N. Mohammadiha · *IEEE International Conference on Intelligent Transportation Systems (ITSC)* · [bibtex](/files/arnelid2019recurrent.html)
-- [**Grammatical gender in Swedish is predictable using recurrent neural networks**](http://www.swecog.se/files/SweCog_2019.pdf) · **E. Listo Zec**, O. Mogren · *Proceedings of the 15th Swecog Conference*
-- [**Recurrent Conditional GANs for Time Series Sensor Modelling**](http://roseyu.com/time-series-workshop/submissions/2019/timeseries-ICML19_paper_2.pdf) · **E. Listo Zec**, H. Arnelid, N. Mohammadiha · *ICML Time Series Workshop*
+  <div class="project-entry">
+    <div class="project-date">2019</div>
+    <div class="project-body">
+      <a href="/files/Recurrent%20Conditional%20Generative%20Adversarial%20Networks%20for%0AAutonomous%20Driving%20Sensor%20Modelling.pdf">recurrent conditional generative adversarial networks for autonomous driving sensor modelling</a><br>
+      <span class="project-tags">h. arnelid, e. listo zec, n. mohammadiha · ieee itsc · <a href="/files/arnelid2019recurrent.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-## 2018
+  <div class="project-entry">
+    <div class="project-date">2019</div>
+    <div class="project-body">
+      <a href="http://www.swecog.se/files/SweCog_2019.pdf">grammatical gender in swedish is predictable using recurrent neural networks</a><br>
+      <span class="project-tags">e. listo zec, o. mogren · proceedings of the 15th swecog conference</span>
+    </div>
+  </div>
 
-- [**Statistical sensor modelling for autonomous driving using autoregressive input-output HMMs**](/files/Statistical%20Sensor%20Modelling%20for%20Autonomous%20Driving%0AUsing%20Autoregressive%20Input-Output%20HMMs.pdf) · **E. Listo Zec**, N. Mohammadiha, A. Schliep · *IEEE International Conference on Intelligent Transportation Systems (ITSC)* · [bibtex](/files/listozec2018statistical.html)
+  <div class="project-entry">
+    <div class="project-date">2019</div>
+    <div class="project-body">
+      <a href="http://roseyu.com/time-series-workshop/submissions/2019/timeseries-ICML19_paper_2.pdf">recurrent conditional gans for time series sensor modelling</a><br>
+      <span class="project-tags">e. listo zec, h. arnelid, n. mohammadiha · icml time series workshop</span>
+    </div>
+  </div>
 
-## 2017
+  <div class="project-entry">
+    <div class="project-date">2018</div>
+    <div class="project-body">
+      <a href="/files/Statistical%20Sensor%20Modelling%20for%20Autonomous%20Driving%0AUsing%20Autoregressive%20Input-Output%20HMMs.pdf">statistical sensor modelling for autonomous driving using autoregressive input-output hmms</a><br>
+      <span class="project-tags">e. listo zec, n. mohammadiha, a. schliep · ieee itsc · <a href="/files/listozec2018statistical.html">[bibtex]</a></span>
+    </div>
+  </div>
 
-- [**Probabilistic Modelling of Sensors in Autonomous Vehicles**](https://schlieplab.org/Static/Publications/2017-EdvinListoZec-MSc.pdf) · **E. Listo Zec** · *MSc Thesis, Chalmers University of Technology*
+  <div class="project-entry">
+    <div class="project-date">2017</div>
+    <div class="project-body">
+      <a href="https://schlieplab.org/Static/Publications/2017-EdvinListoZec-MSc.pdf">probabilistic modelling of sensors in autonomous vehicles</a><br>
+      <span class="project-tags">e. listo zec · msc thesis, chalmers university of technology</span>
+    </div>
+  </div>
+
+</div>
