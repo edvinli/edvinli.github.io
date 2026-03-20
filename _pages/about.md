@@ -12,8 +12,6 @@ senior ml engineer @ [eghed](https://eghed.se/). previously ml research scientis
 
 <p class="topic-tags">federated learning · representation learning · ood generalization · ml for climate & sustainability</p>
 
-also interested in applying ml to broader challenges in sustainability, climate, and social impact — open to collaborations.
-
 <p class="home-callout">looking for a thesis project? see <a href="/students/">students</a> or reach out.</p>
 
 ## recent publications
