@@ -5,8 +5,8 @@ permalink: /kawaii_asteroids/
 author_profile: true
 ---
 
-a kawaii variant of asteroids — shoot hearts 💖, collect shields ✨, survive on a pastel blue background.
+<p style="color: #ff6eb4; letter-spacing: 0.06em;">💖 hearts · ✨ glitter · pastel chaos</p>
 
-**controls:** arrow keys to navigate · spacebar to shoot
+<p style="color: #b39ddb; font-size: 0.9em;">arrow keys · spacebar to shoot</p>
 
 {% include kawaii_asteroids.html %}
