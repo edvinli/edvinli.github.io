@@ -10,3 +10,5 @@ a classic asteroids game built with html5 canvas and javascript — written with
 **controls:** arrow keys to navigate · spacebar to shoot
 
 {% include asteroids.html %}
+
+also try: [kawaii asteroids](/kawaii_asteroids/) 💖

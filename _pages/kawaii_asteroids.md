@@ -1,12 +1,12 @@
 ---
 layout: archive
-title: "KAWAII Asteroids"
+title: "kawaii asteroids"
 permalink: /kawaii_asteroids/
 author_profile: true
-redirect_from:
-  - /resume
 ---
 
-This game is written using LLMS, and my hands. I have limited experience with Javascript.
+a kawaii variant of asteroids — shoot hearts 💖, collect shields ✨, survive on a pastel blue background.
+
+**controls:** arrow keys to navigate · spacebar to shoot
 
 {% include kawaii_asteroids.html %}
