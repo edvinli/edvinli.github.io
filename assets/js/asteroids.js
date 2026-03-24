@@ -23,9 +23,11 @@ window.addEventListener("keydown", e => {
 // Restart button — registered once, not inside the loop
 canvas.addEventListener("mousedown", e => {
     if (!gameOver) return;
-    const r  = canvas.getBoundingClientRect();
-    const mx = e.clientX - r.left;
-    const my = e.clientY - r.top;
+    const r      = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / r.width;
+    const scaleY = canvas.height / r.height;
+    const mx = (e.clientX - r.left) * scaleX;
+    const my = (e.clientY - r.top)  * scaleY;
     const bx = canvas.width / 2;
     const by = canvas.height / 2 + 38;
     if (mx > bx - 52 && mx < bx + 52 && my > by && my < by + 28) startGame();
@@ -137,13 +139,10 @@ function updateShip() {
         ship.dy += SHIP.THRUST * Math.sin(ship.a);
     }
 
-    // Brake: oppose actual velocity direction
+    // Reverse: thrust opposite to ship's nose direction
     if (keys["ArrowDown"]) {
-        const spd = Math.hypot(ship.dx, ship.dy);
-        if (spd > 0.1) {
-            ship.dx -= SHIP.THRUST * (ship.dx / spd);
-            ship.dy -= SHIP.THRUST * (ship.dy / spd);
-        }
+        ship.dx -= SHIP.THRUST * Math.cos(ship.a);
+        ship.dy -= SHIP.THRUST * Math.sin(ship.a);
     }
 
     ship.dx *= SHIP.FRICTION;
