@@ -1,12 +1,12 @@
 ---
 layout: archive
-title: "Asteroids"
+title: "asteroids"
 permalink: /asteroids/
 author_profile: true
 ---
 
-A classic Asteroids game built with HTML5 Canvas and JavaScript — written with LLMs and my hands.
+a classic asteroids game built with html5 canvas and javascript — written with llms and my hands.
 
-**Controls:** arrow keys to navigate · spacebar to shoot
+**controls:** arrow keys to navigate · spacebar to shoot
 
 {% include asteroids.html %}
