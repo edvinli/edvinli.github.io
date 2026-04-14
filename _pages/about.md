@@ -13,6 +13,6 @@ phd from kth royal institute of technology, 2025 — [thesis](https://kth.diva-p
 
 previously ml research scientist at rise research institutes of sweden (2019–2025). visiting researcher at nyu, working with kyunghyun cho.
 
-<p class="topic-tags">ood generalization · representation learning · ml for climate & sustainability · federated learning</p>
+<p class="topic-tags">ood generalization · self-supervised learning · representation learning · ml for climate & sustainability · federated learning</p>
 
 <p class="home-callout">looking for a thesis project? see <a href="/students/">students</a> or reach out.</p>
