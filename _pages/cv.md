@@ -46,7 +46,7 @@ redirect_from:
     <div class="project-body">
       senior ML engineer<br>
       <span class="project-tags"><a href="https://eghed.se/">eghed</a></span><br>
-      leading the design and deployment of scalable ml systems for enterprise clients. architecting end-to-end pipelines bridging research and production using ray, docker, and kubernetes.
+      leading the design and deployment of scalable ml systems for enterprise clients. architecting end-to-end pipelines bridging research and production.
     </div>
   </div>
 
@@ -90,12 +90,12 @@ redirect_from:
 
   <div class="project-entry">
     <div class="project-date">ml</div>
-    <div class="project-body">distributed training · generative AI (GANs, transformers) · LLM fine-tuning · self-supervised learning</div>
+    <div class="project-body">self-supervised learning · distributed training · generative AI (GANs, transformers) · LLM fine-tuning</div>
   </div>
 
   <div class="project-entry">
     <div class="project-date">languages</div>
-    <div class="project-body">swedish (native) · english (fluent) · spanish (B2)</div>
+    <div class="project-body">swedish (native) · english (fluent) · spanish (B2) · japanese (beginner)</div>
   </div>
 
 </div>
