@@ -8,7 +8,7 @@ redirect_from:
   - /about.html
 ---
 
-senior ml engineer @ [eghed](https://eghed.se/), building scalable ml systems for enterprise clients.<br>
+senior ml engineer @ [eghed](https://eghed.se/), building scalable ml systems.<br>
 phd from kth royal institute of technology, 2025 — [thesis](https://kth.diva-portal.org/smash/get/diva2:1921206/FULLTEXT01.pdf).
 
 previously ml research scientist at rise research institutes of sweden (2019–2025). visiting researcher at nyu, working with kyunghyun cho.
