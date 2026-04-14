@@ -12,7 +12,8 @@ author_profile: true
     <div class="project-body">
       trafikverket<br>
       computer vision for digital maintenance of railway<br>
-      <span class="project-tags">self-supervised learning</span>
+      training DINOv2 transformers on 250 TB of railway imagery; optimized S3 I/O for H100 GPU throughput; exported to ONNX for production deployment.<br>
+      <span class="project-tags">self-supervised learning · DINOv2 · computer vision · MLOps</span>
     </div>
   </div>
 

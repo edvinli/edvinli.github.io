@@ -20,10 +20,26 @@ complete list on [google scholar](https://scholar.google.se/citations?user=Ft52a
   </div>
 
   <div class="project-entry">
+    <div class="project-date">2024</div>
+    <div class="project-body">
+      efficient node selection in private personalized decentralized learning<br>
+      <span class="project-tags">e. listo zec, j. östman, o. mogren, d. gillblad · northern lights deep learning conference · PMLR</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
     <div class="project-date">2023</div>
     <div class="project-body">
       <a href="https://arxiv.org/abs/2306.12768">concept-aware clustering for decentralized deep learning under temporal shift</a><br>
       <span class="project-tags">m. toftås, e. klefbom, e. listo zec, m. willbo, o. mogren · icml workshop on federated learning and analytics in practice · <a href="/files/toftaas2023concept.html">[bibtex]</a></span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2023</div>
+    <div class="project-body">
+      federated learning for performance prediction in multi-operator environments<br>
+      <span class="project-tags">x. lan, j. taghia, f. moradi, m.a. khoshkholghi, e. listo zec, o. mogren, t. mahmoodi, a. johnsson · ITU journal on future and evolving technologies</span>
     </div>
   </div>
 
@@ -64,6 +80,14 @@ complete list on [google scholar](https://scholar.google.se/citations?user=Ft52a
     <div class="project-body">
       <a href="https://arxiv.org/abs/2107.08517">decentralized federated learning of deep neural networks on non-iid data</a><br>
       <span class="project-tags">n. onoszko, g. karlsson, o. mogren, e. listo zec · workshop on federated learning for user privacy and data confidentiality, icml · <a href="/files/onoszko-dfl.html">[bibtex]</a></span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2021</div>
+    <div class="project-body">
+      scaling federated learning for fine-tuning of large language models<br>
+      <span class="project-tags">a. hilmkil, s. callh, m. barbieri, l.r. sütfeld, e. listo zec, o. mogren · international conference on applications of natural language to information systems (NLDB)</span>
     </div>
   </div>
 

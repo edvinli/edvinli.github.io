@@ -10,7 +10,7 @@ locale                   : "en-US"
 title                    : "Edvin Listo Zec"
 title_separator          : "-"
 name                     : &name "Edvin Listo Zec"
-description              : &description "ML Research Scientist"
+description              : &description "Senior ML Engineer"
 url                      : https://edvinli.github.io # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : "" # the subpath of your site, e.g. "/blog"
 repository               : "edvinli/edvinli.github.io"
@@ -82,7 +82,7 @@ analytics:
 author:
   name             : "Edvin Listo Zec"
   avatar           : "profile_pic2.jpg"
-  bio              : "ML Research Scientist, PhD"
+  bio              : "Senior ML Engineer, PhD"
   location         : "Gothenburg, Sweden"
   employer         :
   pubmed           : 
