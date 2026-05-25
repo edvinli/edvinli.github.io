@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const ctx = canvas.getContext('2d');
 
+    const canvasPct = document.getElementById('canvasPercentile');
+    const ctxPct = canvasPct ? canvasPct.getContext('2d') : null;
+    const userPctInfoDiv = document.getElementById('userPercentileInfo');
 
     const filterAllButton = document.getElementById('filterAll');
     const filterMenButton = document.getElementById('filterMen');
@@ -100,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         drawHistogram();
+        drawPercentileChart();
         updateUserInfo();
     }
 
@@ -240,6 +244,193 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.stroke();
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = "black";
+            }
+        }
+    }
+
+    function drawPercentileChart() {
+        if (!ctxPct) return;
+        ctxPct.clearRect(0, 0, canvasPct.width, canvasPct.height);
+
+        const PAD_TOP = 50;
+        const PAD_RIGHT = 60;
+        const PAD_LEFT = 75;
+        const PAD_BOTTOM = 70;
+        const chartLeft = PAD_LEFT;
+        const chartRight = canvasPct.width - PAD_RIGHT;
+        const chartTop = PAD_TOP;
+        const chartBottom = canvasPct.height - PAD_BOTTOM;
+        const chartWidth = chartRight - chartLeft;
+        const chartHeight = chartBottom - chartTop;
+
+        const men = allResults
+            .filter(r => r['Gender Category'] === 'Men' && !isNaN(r.Finish_Minutes))
+            .map(r => r.Finish_Minutes)
+            .sort((a, b) => a - b);
+        const women = allResults
+            .filter(r => r['Gender Category'] === 'Women' && !isNaN(r.Finish_Minutes))
+            .map(r => r.Finish_Minutes)
+            .sort((a, b) => a - b);
+
+        if (men.length === 0 && women.length === 0) {
+            ctxPct.font = "16px Arial";
+            ctxPct.textAlign = "center";
+            ctxPct.fillStyle = "black";
+            ctxPct.fillText("Loading data...", canvasPct.width / 2, canvasPct.height / 2);
+            return;
+        }
+
+        const allTimes = men.concat(women);
+        let minT = Infinity, maxT = -Infinity;
+        for (const t of allTimes) {
+            if (t < minT) minT = t;
+            if (t > maxT) maxT = t;
+        }
+        // Round to nearest 15-minute grid
+        const yMin = Math.floor(minT / 15) * 15;
+        const yMax = Math.ceil(maxT / 15) * 15;
+
+        const timeToY = (t) => chartBottom - ((t - yMin) / (yMax - yMin)) * chartHeight;
+        const pctToX = (p) => chartLeft + (p / 100) * chartWidth;
+
+        // Gridlines + y-axis labels every 15 minutes
+        ctxPct.font = "12px Arial";
+        ctxPct.textAlign = "right";
+        for (let t = yMin; t <= yMax; t += 15) {
+            const y = timeToY(t);
+            ctxPct.strokeStyle = "#eee";
+            ctxPct.beginPath();
+            ctxPct.moveTo(chartLeft, y);
+            ctxPct.lineTo(chartRight, y);
+            ctxPct.stroke();
+            ctxPct.fillStyle = "black";
+            ctxPct.fillText(formatMinutesToHHMM(t), chartLeft - 8, y + 4);
+        }
+
+        // x-axis gridlines + labels every 10%
+        ctxPct.textAlign = "center";
+        for (let p = 0; p <= 100; p += 10) {
+            const x = pctToX(p);
+            ctxPct.strokeStyle = "#eee";
+            ctxPct.beginPath();
+            ctxPct.moveTo(x, chartTop);
+            ctxPct.lineTo(x, chartBottom);
+            ctxPct.stroke();
+            ctxPct.fillStyle = "black";
+            ctxPct.fillText(`${p}%`, x, chartBottom + 18);
+        }
+
+        // axes
+        ctxPct.strokeStyle = "black";
+        ctxPct.lineWidth = 1;
+        ctxPct.beginPath();
+        ctxPct.moveTo(chartLeft, chartTop);
+        ctxPct.lineTo(chartLeft, chartBottom);
+        ctxPct.lineTo(chartRight, chartBottom);
+        ctxPct.stroke();
+
+        function drawCurve(sortedTimes, color) {
+            if (sortedTimes.length === 0) return;
+            ctxPct.beginPath();
+            ctxPct.strokeStyle = color;
+            ctxPct.lineWidth = 2.5;
+            const samples = Math.min(sortedTimes.length, Math.max(200, Math.floor(chartWidth)));
+            for (let i = 0; i < samples; i++) {
+                const idx = Math.floor(i * (sortedTimes.length - 1) / (samples - 1));
+                const p = (idx / (sortedTimes.length - 1)) * 100;
+                const x = pctToX(p);
+                const y = timeToY(sortedTimes[idx]);
+                if (i === 0) ctxPct.moveTo(x, y);
+                else ctxPct.lineTo(x, y);
+            }
+            ctxPct.stroke();
+            ctxPct.lineWidth = 1;
+        }
+
+        drawCurve(men, "#2b6cb0");
+        drawCurve(women, "#c53030");
+
+        // legend
+        ctxPct.font = "13px Arial";
+        ctxPct.textAlign = "left";
+        const legendX = chartLeft + 12;
+        let legendY = chartTop + 14;
+        ctxPct.fillStyle = "#2b6cb0";
+        ctxPct.fillRect(legendX, legendY - 8, 22, 4);
+        ctxPct.fillStyle = "black";
+        ctxPct.fillText(`Men (n = ${men.length.toLocaleString()})`, legendX + 30, legendY);
+        legendY += 18;
+        ctxPct.fillStyle = "#c53030";
+        ctxPct.fillRect(legendX, legendY - 8, 22, 4);
+        ctxPct.fillStyle = "black";
+        ctxPct.fillText(`Women (n = ${women.length.toLocaleString()})`, legendX + 30, legendY);
+
+        // axis titles
+        ctxPct.textAlign = "center";
+        ctxPct.font = "12px Arial";
+        ctxPct.fillStyle = "black";
+        ctxPct.fillText("Percentile (0% = fastest)", chartLeft + chartWidth / 2, chartBottom + 45);
+        ctxPct.save();
+        ctxPct.translate(PAD_LEFT / 3, chartTop + chartHeight / 2);
+        ctxPct.rotate(-Math.PI / 2);
+        ctxPct.fillText("Finish time (H:MM)", 0, 0);
+        ctxPct.restore();
+
+        // user time overlay
+        if (userPctInfoDiv) userPctInfoDiv.textContent = "";
+        if (currentUserTimeMinutes !== null && !isNaN(currentUserTimeMinutes)) {
+            const t = currentUserTimeMinutes;
+            const inRange = t >= yMin && t <= yMax;
+            const y = inRange ? timeToY(t) : null;
+
+            if (inRange) {
+                ctxPct.strokeStyle = "red";
+                ctxPct.lineWidth = 2;
+                ctxPct.setLineDash([5, 4]);
+                ctxPct.beginPath();
+                ctxPct.moveTo(chartLeft, y);
+                ctxPct.lineTo(chartRight, y);
+                ctxPct.stroke();
+                ctxPct.setLineDash([]);
+                ctxPct.lineWidth = 1;
+            }
+
+            const rank = (t, arr) => {
+                if (arr.length === 0) return null;
+                let lo = 0, hi = arr.length;
+                while (lo < hi) {
+                    const mid = (lo + hi) >>> 1;
+                    if (arr[mid] < t) lo = mid + 1;
+                    else hi = mid;
+                }
+                return (lo / arr.length) * 100;
+            };
+
+            const menPct = rank(t, men);
+            const womenPct = rank(t, women);
+
+            function plotDot(pct, color) {
+                if (pct === null || !inRange) return;
+                const x = pctToX(pct);
+                ctxPct.beginPath();
+                ctxPct.fillStyle = color;
+                ctxPct.arc(x, y, 6, 0, Math.PI * 2);
+                ctxPct.fill();
+                ctxPct.strokeStyle = "white";
+                ctxPct.lineWidth = 2;
+                ctxPct.stroke();
+                ctxPct.lineWidth = 1;
+                ctxPct.strokeStyle = "black";
+            }
+
+            plotDot(menPct, "#2b6cb0");
+            plotDot(womenPct, "#c53030");
+
+            if (userPctInfoDiv) {
+                const parts = [`Your time ${formatMinutesToHHMMSS(t)}:`];
+                if (menPct !== null) parts.push(`top ${menPct.toFixed(1)}% among men`);
+                if (womenPct !== null) parts.push(`top ${womenPct.toFixed(1)}% among women`);
+                userPctInfoDiv.textContent = parts.join("  •  ");
             }
         }
     }

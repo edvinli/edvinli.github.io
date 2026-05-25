@@ -16,8 +16,15 @@
     <canvas id="canvas"
             width="800"
             height="600"
-            data-json-path="/assets/data/goteborgsvarvet_2025_results.json">
+            data-json-path="/assets/data/goteborgsvarvet_2026_results.json">
     </canvas>
+
+    <h3 style="margin-top: 30px;">Finish time by percentile</h3>
+    <canvas id="canvasPercentile"
+            width="800"
+            height="500">
+    </canvas>
+    <div id="userPercentileInfo" style="margin-top: 8px; font-weight: bold;"></div>
 
     <script src="{{ '/assets/js/gbg_varvet.js' | relative_url }}" type="text/javascript"></script>
 </div>
