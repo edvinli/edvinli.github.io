@@ -5,8 +5,6 @@ permalink: /gbgvarv/
 author_profile: true # if you use this feature
 ---
 
-## Göteborgsvarvet 2026: Finish Time Analysis
-
 Explore the distribution of finish times and see how your time compares!
 
 {% include gbgvarvet_interactive.html %}

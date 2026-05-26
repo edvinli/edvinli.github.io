@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function parseTimeToMinutes(timeStr) {
-        if (!timeStr || !/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) {
+        if (!timeStr || !/^\d{1,2}:\d{1,2}:\d{1,2}$/.test(timeStr)) {
             return null;
         }
         const parts = timeStr.split(':');
@@ -486,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const parsedTime = parseTimeToMinutes(timeStr);
         if (parsedTime !== null) {
             currentUserTimeMinutes = parsedTime;
+            userTimeInput.value = formatMinutesToHHMMSS(parsedTime);
             applyFilterAndDraw();
         } else {
             currentUserTimeMinutes = null;
