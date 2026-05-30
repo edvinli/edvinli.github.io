@@ -11,10 +11,27 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!root) return;
   const DATA_URL = root.dataset.jsonPath;
 
-  const MEN_C = '#2b6cb0';
-  const WOMEN_C = '#c53030';
-  const ALL_C = '#6b46c1';
-  const USER_C = '#dd6b20';
+  // --- palette: tuned to the site's warm cream/paper, monospace theme ---
+  const PAGE_BG = '#faf9f5';   // must match the site body bg (_variables.scss)
+  const INK = '#2c2a25';       // warm near-black text
+  const GRID = '#e7e3da';      // faint warm gridlines
+  const FONT = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+  const MEN_C = '#3a6ea5';     // slate blue
+  const WOMEN_C = '#b5532e';   // terracotta
+  const ALL_C = '#6a3d9a';     // deep violet
+  const USER_C = '#c8791f';    // amber
+
+  // shared layout look — every chart merges its axes into this
+  function baseLayout(extra) {
+    return Object.assign({
+      font: { family: FONT, color: INK, size: 12 },
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      hoverlabel: { bgcolor: PAGE_BG, bordercolor: INK,
+        font: { family: FONT, color: INK, size: 12 } },
+    }, extra);
+  }
+  const axisStyle = { gridcolor: GRID, linecolor: GRID, zerolinecolor: GRID, ticks: '' };
 
   // canonical start-group order (matches the Python SCHEDULE)
   const ORDER = ['Elit', '1', '2', '3', '4', 'Varvetveteraner', '5', '6', '7',
@@ -104,9 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // light lavender -> deep purple gradient (earliest wave light, latest deep)
+  // medium -> deep violet gradient (earliest wave lighter, latest deeper);
+  // both ends read clearly on the cream page background.
   function ridgeColor(t) {
-    const a = [230, 179, 255], b = [122, 35, 196];
+    const a = [132, 87, 176], b = [74, 32, 120];
     const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
     return `rgb(${c[0]},${c[1]},${c[2]})`;
   }
@@ -140,14 +158,14 @@ document.addEventListener('DOMContentLoaded', () => {
         hovertemplate: '%{y} runners<extra></extra>' }];
     }
 
-    const layout = {
+    const layout = baseLayout({
       barmode: 'overlay',
       margin: { t: 10, r: 20, b: 50, l: 60 },
-      xaxis: { title: 'Finish time (net)', range: [lo, hi], ...tt },
-      yaxis: { title: 'Runners' },
+      xaxis: { title: 'Finish time (net)', range: [lo, hi], ...tt, ...axisStyle },
+      yaxis: { title: 'Runners', ...axisStyle },
       legend: { orientation: 'h', y: 1.12 },
       shapes: [], annotations: [],
-    };
+    });
     if (userMin !== null) {
       layout.shapes.push({ type: 'line', x0: userMin, x1: userMin, yref: 'paper',
         y0: 0, y1: 1, line: { color: USER_C, width: 2, dash: 'dash' } });
@@ -179,13 +197,13 @@ document.addEventListener('DOMContentLoaded', () => {
         hovertemplate: 'top %{x:.0f}% · %{y:.1f} min<extra>Women</extra>' },
     ];
 
-    const layout = {
+    const layout = baseLayout({
       margin: { t: 10, r: 20, b: 55, l: 60 },
-      xaxis: { title: 'Percentile (0% = fastest)', range: [0, 100] },
-      yaxis: { title: 'Finish time', tickvals: tt.tickvals, ticktext: tt.ticktext },
+      xaxis: { title: 'Percentile (0% = fastest)', range: [0, 100], ...axisStyle },
+      yaxis: { title: 'Finish time', tickvals: tt.tickvals, ticktext: tt.ticktext, ...axisStyle },
       legend: { orientation: 'h', y: 1.12 },
       shapes: [],
-    };
+    });
 
     const info = document.getElementById('gbg-rank-info');
     if (userMin !== null) {
@@ -198,9 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       const mp = topPct(men.sorted), wp = topPct(women.sorted);
       traces.push({ x: [mp], y: [userMin], mode: 'markers', name: 'you (men)',
-        marker: { color: MEN_C, size: 11, line: { color: '#fff', width: 2 } }, showlegend: false });
+        marker: { color: MEN_C, size: 11, line: { color: PAGE_BG, width: 2 } }, showlegend: false });
       traces.push({ x: [wp], y: [userMin], mode: 'markers', name: 'you (women)',
-        marker: { color: WOMEN_C, size: 11, line: { color: '#fff', width: 2 } }, showlegend: false });
+        marker: { color: WOMEN_C, size: 11, line: { color: PAGE_BG, width: 2 } }, showlegend: false });
       if (info) info.textContent =
         `Your time ${fmtHMS(userMin)}: top ${mp.toFixed(1)}% among men · top ${wp.toFixed(1)}% among women.`;
     } else if (info) {
@@ -232,7 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
       traces.push({
         x: grid.concat(grid.slice().reverse()),
         y: yTop.concat(grid.map(() => baseline)),
-        type: 'scatter', mode: 'lines', fill: 'toself', fillcolor: '#ffffff',
+        // fill MUST equal the page bg (PAGE_BG) so front ridges occlude those
+        // behind without a visible seam — keep in sync with the site body bg.
+        type: 'scatter', mode: 'lines', fill: 'toself', fillcolor: PAGE_BG,
         line: { width: 0 }, hoverinfo: 'skip', showlegend: false,
       });
       traces.push({
@@ -250,18 +270,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const tt = timeTicks(lo, hi);
-    const layout = {
+    const layout = baseLayout({
       margin: { t: 10, r: 20, b: 50, l: 110 },
-      plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
       hovermode: 'x',
-      xaxis: { title: 'Finish time (net)', range: [lo, hi], gridcolor: '#eee',
+      xaxis: { title: 'Finish time (net)', range: [lo, hi], ...axisStyle,
         zeroline: false, tickvals: tt.tickvals, ticktext: tt.ticktext,
         showspikes: true, spikemode: 'across', spikesnap: 'cursor',
         spikethickness: 1.2, spikecolor: USER_C, spikedash: 'solid' },
       yaxis: { title: 'Start group', tickvals, ticktext, showgrid: false,
         zeroline: false, range: [-0.6, (n - 1) + OVERLAP + 0.4] },
       showlegend: false,
-    };
+    });
     Plotly.react('gbg-ridge', traces, layout, config);
   }
 
@@ -278,19 +297,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const traces = [
       { x: present, y: p75, mode: 'lines', line: { width: 0 }, showlegend: false, hoverinfo: 'skip' },
-      { x: present, y: p25, mode: 'lines', fill: 'tonexty', fillcolor: 'rgba(107,70,193,0.18)',
+      { x: present, y: p25, mode: 'lines', fill: 'tonexty', fillcolor: 'rgba(106,61,154,0.16)',
         line: { width: 0 }, name: 'IQR (25–75%)', hoverinfo: 'skip' },
       { x: present, y: med, mode: 'lines+markers', name: 'median',
         line: { color: ALL_C, width: 2 }, marker: { size: 6 },
         text: med.map(fmtHMS), hovertemplate: '%{x}<br>median %{text}<extra></extra>' },
     ];
-    const layout = {
+    const layout = baseLayout({
       margin: { t: 10, r: 20, b: 90, l: 60 },
       xaxis: { title: 'Start group', type: 'category', categoryorder: 'array',
-        categoryarray: present, tickangle: -55 },
-      yaxis: { title: 'Finish time', tickvals: tt.tickvals, ticktext: tt.ticktext },
+        categoryarray: present, tickangle: -55, ...axisStyle },
+      yaxis: { title: 'Finish time', tickvals: tt.tickvals, ticktext: tt.ticktext, ...axisStyle },
       legend: { orientation: 'h', y: 1.12 },
-    };
+    });
     Plotly.react('gbg-seeding', traces, layout, config);
   }
 
@@ -313,12 +332,12 @@ document.addEventListener('DOMContentLoaded', () => {
       { x: women.x, y: women.y, mode: 'lines+markers', name: 'Women', line: { color: WOMEN_C },
         text: women.y.map(fmtHMS), hovertemplate: 'age %{x}+<br>median %{text}<extra>Women</extra>' },
     ];
-    const layout = {
+    const layout = baseLayout({
       margin: { t: 10, r: 20, b: 50, l: 60 },
-      xaxis: { title: 'Age band (lower bound of age class)' },
-      yaxis: { title: 'Median finish time', tickvals: tt.tickvals, ticktext: tt.ticktext },
+      xaxis: { title: 'Age band (lower bound of age class)', ...axisStyle },
+      yaxis: { title: 'Median finish time', tickvals: tt.tickvals, ticktext: tt.ticktext, ...axisStyle },
       legend: { orientation: 'h', y: 1.12 },
-    };
+    });
     Plotly.react('gbg-aging', traces, layout, config);
   }
 
