@@ -242,12 +242,22 @@ document.addEventListener('DOMContentLoaded', () => {
       tickvals.push(baseline); ticktext.push(g);
     });
 
+    // invisible full-width trace: drives the hover x-spike + the time label
+    traces.push({
+      x: grid, y: grid.map(() => -0.4), mode: 'markers',
+      marker: { opacity: 0, size: 1 }, text: grid.map(fmtHMS),
+      hovertemplate: '%{text}<extra></extra>', showlegend: false,
+    });
+
     const tt = timeTicks(lo, hi);
     const layout = {
       margin: { t: 10, r: 20, b: 50, l: 110 },
       plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
+      hovermode: 'x',
       xaxis: { title: 'Finish time (net)', range: [lo, hi], gridcolor: '#eee',
-        zeroline: false, tickvals: tt.tickvals, ticktext: tt.ticktext },
+        zeroline: false, tickvals: tt.tickvals, ticktext: tt.ticktext,
+        showspikes: true, spikemode: 'across', spikesnap: 'cursor',
+        spikethickness: 1.2, spikecolor: USER_C, spikedash: 'solid' },
       yaxis: { title: 'Start group', tickvals, ticktext, showgrid: false,
         zeroline: false, range: [-0.6, (n - 1) + OVERLAP + 0.4] },
       showlegend: false,
