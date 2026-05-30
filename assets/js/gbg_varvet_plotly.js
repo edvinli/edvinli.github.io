@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_GROUP);
     const n = present.length;
     const allTimes = sortNum(set.map((r) => r.finish_minutes));
-    const lo = Math.max(50, quantile(allTimes, 0.001) - 2);
+    const lo = 58;   // fixed left bound so the axis starts at ~0:58 (first tick 1:00)
     const hi = quantile(allTimes, 0.992);
     const grid = linspace(lo, hi, 220);
     const OVERLAP = 2.3;
