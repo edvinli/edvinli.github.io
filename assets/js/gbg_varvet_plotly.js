@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     '14 Team Brons', '15', '16', '17', '18', '19', '20', '21', '22', '23',
     '24', '25', '26', '27'];
 
-  const MIN_GROUP = 25;   // min runners to show a start group
+  const MIN_KDE = 2;      // need >=2 points for a sample std / KDE (not a display threshold)
   const MIN_BAND = 30;    // min runners to plot an age-band point
 
   const config = { responsive: true, displayModeBar: false };
@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderRidgeline() {
     const set = ridgeGender === 'All' ? ALL : ALL.filter((r) => r.gender === ridgeGender);
-    const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_GROUP);
+    const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_KDE);
     const n = present.length;
     const allTimes = sortNum(set.map((r) => r.finish_minutes));
     const lo = 58;   // fixed left bound so the axis starts at ~0:58 (first tick 1:00)
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderSeeding() {
     const set = currentSet();
-    const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_GROUP);
+    const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_KDE);
     const med = [], p25 = [], p75 = [];
     present.forEach((g) => {
       const s = sortNum(set.filter((r) => r.start_group === g).map((r) => r.finish_minutes));
@@ -421,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // populate the percentile-plot start-group dropdown
     const sel = document.getElementById('gbg-pct-group');
     if (sel) {
-      const groups = ORDER.filter((g) => ALL.filter((r) => r.start_group === g).length >= MIN_GROUP);
+      const groups = ORDER.filter((g) => ALL.filter((r) => r.start_group === g).length >= MIN_KDE);
       sel.innerHTML = '<option value="All">All groups</option>'
         + groups.map((g) => `<option value="${g}">${g}</option>`).join('');
       sel.addEventListener('change', () => { pctGroup = sel.value; renderPercentile(); });
