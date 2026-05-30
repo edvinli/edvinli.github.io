@@ -1,30 +1,66 @@
-<div>
-    <div>
-        Filter by:
-        <button id="filterAll">All</button>
-        <button id="filterMen">Men</button>
-        <button id="filterWomen">Women</button>
-    </div>
-    <div style="margin-top: 10px;">
-        Your Time (HH:MM:SS):
-        <input type="text" id="userTimeInput" placeholder="e.g., 01:45:30">
-        <button id="plotUserTime">Show My Time</button>
-    </div>
-    <div id="userInfo" style="margin-top: 10px; font-weight: bold;"></div>
+<div id="gbg-root" data-json-path="{{ '/assets/data/goteborgsvarvet_2026_anon.json' | relative_url }}">
 
-    <!-- The JSON path is now a data attribute on the canvas -->
-    <canvas id="canvas"
-            width="800"
-            height="600"
-            data-json-path="/assets/data/goteborgsvarvet_2026_results.json">
-    </canvas>
+  <style>
+    #gbg-root .gbg-controls { margin: 0 0 1.2em; display: flex; flex-wrap: wrap;
+      gap: 1.2em; align-items: center; }
+    #gbg-root .gbg-gender-btn { padding: 4px 14px; border: 1px solid #cbd5e0;
+      background: #fff; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+    #gbg-root .gbg-gender-btn.gbg-active { background: #6b46c1; color: #fff;
+      border-color: #6b46c1; }
+    #gbg-root #gbg-time-input { padding: 4px 8px; width: 9em; }
+    #gbg-root #gbg-time-btn { padding: 4px 12px; cursor: pointer; }
+    #gbg-root .gbg-plot { width: 100%; min-height: 360px; margin-bottom: 0.4em; }
+    #gbg-root #gbg-ridge { min-height: 720px; }
+    #gbg-root h3 { margin-top: 1.6em; }
+    #gbg-root .gbg-note { color: #718096; font-size: 0.85em; margin: 0.2em 0 0; }
+    #gbg-root .gbg-info { font-weight: 600; margin: 0.3em 0 0.6em; }
+  </style>
 
-    <h3 style="margin-top: 30px;">Finish time by percentile</h3>
-    <canvas id="canvasPercentile"
-            width="800"
-            height="500">
-    </canvas>
-    <div id="userPercentileInfo" style="margin-top: 8px; font-weight: bold;"></div>
+  <div class="gbg-controls">
+    <span>
+      Show:
+      <button class="gbg-gender-btn gbg-active" data-gender="All">All</button>
+      <button class="gbg-gender-btn" data-gender="Men">Men</button>
+      <button class="gbg-gender-btn" data-gender="Women">Women</button>
+    </span>
+    <span>
+      Your time:
+      <input type="text" id="gbg-time-input" placeholder="e.g. 1:45 or 1:45:30">
+      <button id="gbg-time-btn">Show</button>
+    </span>
+  </div>
 
-    <script src="{{ '/assets/js/gbg_varvet.js' | relative_url }}" type="text/javascript"></script>
+  <h3>Finish-time distribution</h3>
+  <p class="gbg-note">How the field spreads out, in 5-minute bins. Enter your time to mark where you landed.</p>
+  <div id="gbg-hist" class="gbg-plot"></div>
+
+  <h3>Where do you rank?</h3>
+  <p class="gbg-note">Finish time at every percentile, men vs women. Your time is placed against both.</p>
+  <div id="gbg-percentile" class="gbg-plot"></div>
+  <div id="gbg-rank-info" class="gbg-info"></div>
+
+  <h3>Distribution by start group</h3>
+  <p class="gbg-note">Each ridge is one start wave's finish-time distribution (groups with ≥25 runners).</p>
+  <div id="gbg-ridge" class="gbg-plot"></div>
+
+  <h3>Seeding quality</h3>
+  <p class="gbg-note">Median finish and the 25–75% spread per start group. Well-seeded waves rise steadily.</p>
+  <div id="gbg-seeding" class="gbg-plot"></div>
+
+  <h3>Aging curve</h3>
+  <p class="gbg-note">Median finish time by age band, men vs women (bands with ≥30 runners).</p>
+  <div id="gbg-aging" class="gbg-plot"></div>
+
+  <h3>Milestone bunching</h3>
+  <p class="gbg-note">1-minute bins. Watch for spikes just under round times (1:30, 2:00, 2:30, 3:00).</p>
+  <div id="gbg-milestones" class="gbg-plot"></div>
+
+  <p class="gbg-note" style="margin-top:1.6em">
+    Data source: Göteborgsvarvet 2026 public results (mikatiming). Independent,
+    non-commercial analysis. Aggregated and anonymized — no names, bib numbers,
+    or other identifying information are used.
+  </p>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <script src="{{ '/assets/js/gbg_varvet_plotly.js' | relative_url }}" type="text/javascript"></script>
 </div>
