@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let gender = 'All';
   let userMin = null;
   let pctGroup = 'All';   // start-group filter for the percentile plot only
+  let ridgeGender = 'All'; // gender filter for the ridgeline plot only
 
   // ---------------------------------------------------------------- helpers
   const sortNum = (a) => a.slice().sort((x, y) => x - y);
@@ -249,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderRidgeline() {
-    const set = currentSet();
+    const set = ridgeGender === 'All' ? ALL : ALL.filter((r) => r.gender === ridgeGender);
     const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_GROUP);
     const n = present.length;
     const allTimes = sortNum(set.map((r) => r.finish_minutes));
@@ -407,6 +408,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.getElementById('gbg-time-btn').addEventListener('click', apply);
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+
+    // ridgeline-only gender toggle (independent of the global buttons)
+    document.querySelectorAll('.gbg-ridge-btn').forEach((b) =>
+      b.addEventListener('click', () => {
+        ridgeGender = b.dataset.gender;
+        document.querySelectorAll('.gbg-ridge-btn').forEach((x) =>
+          x.classList.toggle('gbg-active', x.dataset.gender === ridgeGender));
+        renderRidgeline();
+      }));
 
     // populate the percentile-plot start-group dropdown
     const sel = document.getElementById('gbg-pct-group');

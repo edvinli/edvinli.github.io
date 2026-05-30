@@ -3,11 +3,11 @@
   <style>
     #gbg-root .gbg-controls { margin: 0 0 1.2em; display: flex; flex-wrap: wrap;
       gap: 1.2em; align-items: center; }
-    #gbg-root .gbg-gender-btn { padding: 4px 14px; border: 1px solid #d8d2c4;
-      background: transparent; border-radius: 4px; cursor: pointer; font-size: 0.9em;
-      color: #2c2a25; font-family: inherit; }
-    #gbg-root .gbg-gender-btn.gbg-active { background: #6a3d9a; color: #faf9f5;
-      border-color: #6a3d9a; }
+    #gbg-root .gbg-gender-btn, #gbg-root .gbg-ridge-btn { padding: 4px 14px;
+      border: 1px solid #d8d2c4; background: transparent; border-radius: 4px;
+      cursor: pointer; font-size: 0.9em; color: #2c2a25; font-family: inherit; }
+    #gbg-root .gbg-gender-btn.gbg-active, #gbg-root .gbg-ridge-btn.gbg-active {
+      background: #6a3d9a; color: #faf9f5; border-color: #6a3d9a; }
     #gbg-root #gbg-time-input { padding: 4px 8px; width: 9em; font-family: inherit;
       border: 1px solid #d8d2c4; border-radius: 4px; background: transparent; color: #2c2a25; }
     #gbg-root #gbg-time-btn { padding: 4px 12px; cursor: pointer; font-family: inherit;
@@ -50,6 +50,12 @@
 
   <h3>Distribution by start group</h3>
   <p class="gbg-note">Each ridge is one start wave's finish-time distribution (groups with ≥25 runners).</p>
+  <div style="margin: 0 0 0.6em;">
+    Show:
+    <button class="gbg-ridge-btn gbg-active" data-gender="All">All</button>
+    <button class="gbg-ridge-btn" data-gender="Men">Men</button>
+    <button class="gbg-ridge-btn" data-gender="Women">Women</button>
+  </div>
   <div id="gbg-ridge" class="gbg-plot"></div>
 
   <h3>Seeding quality</h3>
