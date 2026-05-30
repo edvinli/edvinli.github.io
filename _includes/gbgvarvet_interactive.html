@@ -3,11 +3,11 @@
   <style>
     #gbg-root .gbg-controls { margin: 0 0 1.2em; display: flex; flex-wrap: wrap;
       gap: 1.2em; align-items: center; }
-    #gbg-root .gbg-gender-btn, #gbg-root .gbg-ridge-btn, #gbg-root .gbg-seed-btn {
+    #gbg-root .gbg-hist-btn, #gbg-root .gbg-ridge-btn, #gbg-root .gbg-seed-btn {
       padding: 4px 14px; border: 1px solid #d8d2c4; background: transparent;
       border-radius: 4px; cursor: pointer; font-size: 0.9em; color: #2c2a25;
       font-family: inherit; }
-    #gbg-root .gbg-gender-btn.gbg-active, #gbg-root .gbg-ridge-btn.gbg-active,
+    #gbg-root .gbg-hist-btn.gbg-active, #gbg-root .gbg-ridge-btn.gbg-active,
     #gbg-root .gbg-seed-btn.gbg-active {
       background: #6a3d9a; color: #faf9f5; border-color: #6a3d9a; }
     #gbg-root #gbg-time-input { padding: 4px 8px; width: 9em; font-family: inherit;
@@ -25,12 +25,6 @@
 
   <div class="gbg-controls">
     <span>
-      Show:
-      <button class="gbg-gender-btn gbg-active" data-gender="All">All</button>
-      <button class="gbg-gender-btn" data-gender="Men">Men</button>
-      <button class="gbg-gender-btn" data-gender="Women">Women</button>
-    </span>
-    <span>
       Your time:
       <input type="text" id="gbg-time-input" placeholder="e.g. 1:45 or 1:45:30">
       <button id="gbg-time-btn">Show</button>
@@ -39,6 +33,12 @@
 
   <h3>Finish-time distribution</h3>
   <p class="gbg-note">How the field spreads out, in 1-minute bins. Enter your time to mark where you landed.</p>
+  <div style="margin: 0 0 0.6em;">
+    Show:
+    <button class="gbg-hist-btn gbg-active" data-gender="All">All</button>
+    <button class="gbg-hist-btn" data-gender="Men">Men</button>
+    <button class="gbg-hist-btn" data-gender="Women">Women</button>
+  </div>
   <div id="gbg-hist" class="gbg-plot"></div>
 
   <h3>Where do you rank?</h3>

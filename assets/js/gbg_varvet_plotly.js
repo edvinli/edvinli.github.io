@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const config = { responsive: true, displayModeBar: false };
 
   let ALL = [];
-  let gender = 'All';
+  let histGender = 'All'; // gender filter for the histogram plot only
   let userMin = null;
   let pctGroup = 'All';   // start-group filter for the percentile plot only
   let ridgeGender = 'All'; // gender filter for the ridgeline plot only
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const currentSet = () =>
-    gender === 'All' ? ALL : ALL.filter((r) => r.gender === gender);
+    histGender === 'All' ? ALL : ALL.filter((r) => r.gender === histGender);
 
   // ---------------------------------------------------------------- charts
   function renderHistogram() {
@@ -161,14 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     let traces;
-    if (gender === 'All') {
+    if (histGender === 'All') {
       traces = [
         mkBar(ALL.filter((r) => r.gender === 'Men').map((r) => r.finish_minutes), 'Men', MEN_C, 0.6),
         mkBar(ALL.filter((r) => r.gender === 'Women').map((r) => r.finish_minutes), 'Women', WOMEN_C, 0.6),
       ];
     } else {
-      traces = [mkBar(currentSet().map((r) => r.finish_minutes), gender,
-        gender === 'Men' ? MEN_C : WOMEN_C, 1)];
+      traces = [mkBar(currentSet().map((r) => r.finish_minutes), histGender,
+        histGender === 'Men' ? MEN_C : WOMEN_C, 1)];
     }
 
     const layout = baseLayout({
@@ -399,16 +399,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAging();
   }
 
-  function setGender(g) {
-    gender = g;
-    document.querySelectorAll('.gbg-gender-btn').forEach((b) =>
-      b.classList.toggle('gbg-active', b.dataset.gender === g));
-    renderAll();
-  }
-
   function initControls() {
-    document.querySelectorAll('.gbg-gender-btn').forEach((b) =>
-      b.addEventListener('click', () => setGender(b.dataset.gender)));
+    // histogram-only gender toggle
+    document.querySelectorAll('.gbg-hist-btn').forEach((b) =>
+      b.addEventListener('click', () => {
+        histGender = b.dataset.gender;
+        document.querySelectorAll('.gbg-hist-btn').forEach((x) =>
+          x.classList.toggle('gbg-active', x.dataset.gender === histGender));
+        renderHistogram();
+      }));
+
     const input = document.getElementById('gbg-time-input');
     const apply = () => {
       const t = parseTime(input.value);
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gbg-time-btn').addEventListener('click', apply);
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
 
-    // ridgeline-only gender toggle (independent of the global buttons)
+    // ridgeline-only gender toggle
     document.querySelectorAll('.gbg-ridge-btn').forEach((b) =>
       b.addEventListener('click', () => {
         ridgeGender = b.dataset.gender;
@@ -429,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderRidgeline();
       }));
 
-    // seeding-only gender toggle (independent of the global buttons)
+    // seeding-only gender toggle
     document.querySelectorAll('.gbg-seed-btn').forEach((b) =>
       b.addEventListener('click', () => {
         seedGender = b.dataset.gender;
@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
       sel.addEventListener('change', () => { pctGroup = sel.value; renderPercentile(); });
     }
 
-    setGender('All');
+    renderAll();   // initial paint; each plot then driven by its own control
   }
 
   function showError(msg) {
