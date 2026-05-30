@@ -1,2 +1,6 @@
 _site/
 
+# Raw race data may contain personal data (names, bibs). Only anonymized
+# JSON (gender/age/group/time, no identifiers) belongs in assets/data/.
+assets/data/*.csv
+
