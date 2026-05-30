@@ -258,9 +258,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const grid = linspace(lo, hi, 220);
     const OVERLAP = 2.3;
 
-    const traces = [], tickvals = [], ticktext = [];
+    const traces = [], tickvals = [], ticktext = [], countAnno = [];
     present.forEach((g, i) => {
-      const v = sample(set.filter((r) => r.start_group === g).map((r) => r.finish_minutes), 1500);
+      // use every runner in the group — KDE over all points is cheap and keeps
+      // the bandwidth (which depends on n) exact; the drawn polygon is still
+      // just `grid` points regardless of n, so Plotly's render cost is unchanged.
+      const v = set.filter((r) => r.start_group === g).map((r) => r.finish_minutes);
       let d = gaussianKde(v, grid);
       const dmax = Math.max(...d) || 1;
       d = d.map((x) => x / dmax);                 // equal peak height (classic ridgeline)
@@ -281,6 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
         line: { color: col, width: 1.2 }, hoverinfo: 'skip', showlegend: false,
       });
       tickvals.push(baseline); ticktext.push(g);
+      countAnno.push({ xref: 'paper', x: 1.004, y: baseline, yref: 'y',
+        xanchor: 'left', yanchor: 'bottom', showarrow: false,
+        text: `n=${v.length.toLocaleString()}`,
+        font: { family: FONT, size: 9, color: 'rgba(44,42,37,0.5)' } });
     });
 
     // invisible point grid covering the whole plot: drives the hover x-spike
@@ -300,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tt = timeTicks(lo, hi);
     const layout = baseLayout({
-      margin: { t: 10, r: 20, b: 50, l: 110 },
+      margin: { t: 10, r: 64, b: 50, l: 110 },
       hovermode: 'closest', hoverdistance: -1,
       xaxis: { title: 'Finish time (net)', range: [lo, hi], ...axisStyle,
         zeroline: false, tickvals: tt.tickvals, ticktext: tt.ticktext,
@@ -308,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         spikethickness: 1.2, spikecolor: USER_C, spikedash: 'solid' },
       yaxis: { title: 'Start group', tickvals, ticktext, showgrid: false,
         zeroline: false, range: [-0.6, (n - 1) + OVERLAP + 0.4] },
+      annotations: countAnno,
       showlegend: false,
     });
     Plotly.react('gbg-ridge', traces, layout, config);
