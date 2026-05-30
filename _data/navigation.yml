@@ -14,3 +14,6 @@ main:
     
   - title: "Asteroids"
     url: /asteroids/
+
+  - title: "Göteborgsvarvet"
+    url: /gbgvarv/
