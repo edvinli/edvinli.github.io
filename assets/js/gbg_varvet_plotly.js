@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderHistogram() {
     const lo = 55, hi = quantile(sortNum(ALL.map((r) => r.finish_minutes)), 0.995);
     const tt = timeTicks(lo, hi);
-    const xbins = { start: lo, end: hi, size: 5 };
+    const xbins = { start: lo, end: hi, size: 1 };
 
     let traces;
     if (gender === 'All') {
@@ -312,27 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
     Plotly.react('gbg-aging', traces, layout, config);
   }
 
-  function renderMilestones() {
-    const set = currentSet();
-    const v = set.map((r) => r.finish_minutes);
-    const lo = 60, hi = quantile(sortNum(v), 0.99);
-    const tt = timeTicks(lo, hi);
-    const ms = [90, 120, 150, 180];
-
-    const trace = { x: v, type: 'histogram', xbins: { start: lo, end: hi, size: 1 },
-      marker: { color: ALL_C }, hovertemplate: '%{x} · %{y} runners<extra></extra>' };
-    const layout = {
-      margin: { t: 10, r: 20, b: 50, l: 60 },
-      xaxis: { title: 'Finish time (net) — 1-minute bins', range: [lo, hi], ...tt },
-      yaxis: { title: 'Runners' },
-      shapes: ms.map((m) => ({ type: 'line', x0: m, x1: m, yref: 'paper', y0: 0, y1: 1,
-        line: { color: WOMEN_C, width: 1.2 } })),
-      annotations: ms.map((m) => ({ x: m, yref: 'paper', y: 1.02, text: fmtHM(m),
-        showarrow: false, font: { color: WOMEN_C, size: 10 } })),
-    };
-    Plotly.react('gbg-milestones', [trace], layout, config);
-  }
-
   // ---------------------------------------------------------------- wiring
   function renderAll() {
     renderHistogram();
@@ -340,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRidgeline();
     renderSeeding();
     renderAging();
-    renderMilestones();
   }
 
   function setGender(g) {
