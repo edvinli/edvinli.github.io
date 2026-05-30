@@ -138,30 +138,40 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderHistogram() {
     const lo = 55, hi = quantile(sortNum(ALL.map((r) => r.finish_minutes)), 0.995);
     const tt = timeTicks(lo, hi);
-    const xbins = { start: lo, end: hi, size: 1 };
+    const SIZE = 1;                                   // 1-minute bins
+    const nbins = Math.ceil((hi - lo) / SIZE);
+    const centers = [], labels = [];                  // bin centers + H:MM:SS range labels
+    for (let i = 0; i < nbins; i++) {
+      const e = lo + i * SIZE;
+      centers.push(e + SIZE / 2);
+      labels.push(`${fmtHMS(e)}–${fmtHMS(e + SIZE)}`);
+    }
+    const binCounts = (vals) => {
+      const c = new Array(nbins).fill(0);
+      vals.forEach((v) => { const k = Math.floor((v - lo) / SIZE); if (k >= 0 && k < nbins) c[k]++; });
+      return c;
+    };
+    // manual bars (not type:histogram) so each bar can carry an H:MM:SS hover label
+    const mkBar = (vals, who, color, opacity) => ({
+      x: centers, y: binCounts(vals), type: 'bar', width: SIZE,
+      name: `${who} (${vals.length.toLocaleString()})`,
+      marker: { color }, opacity, customdata: labels,
+      hovertemplate: `<b>${who}</b><br>%{customdata}<br>%{y:,} runners<extra></extra>`,
+    });
 
     let traces;
     if (gender === 'All') {
-      const men = ALL.filter((r) => r.gender === 'Men').map((r) => r.finish_minutes);
-      const women = ALL.filter((r) => r.gender === 'Women').map((r) => r.finish_minutes);
       traces = [
-        { x: men, type: 'histogram', name: `Men (${men.length.toLocaleString()})`,
-          marker: { color: MEN_C }, opacity: 0.6, xbins,
-          hovertemplate: '%{y} runners<extra>Men</extra>' },
-        { x: women, type: 'histogram', name: `Women (${women.length.toLocaleString()})`,
-          marker: { color: WOMEN_C }, opacity: 0.6, xbins,
-          hovertemplate: '%{y} runners<extra>Women</extra>' },
+        mkBar(ALL.filter((r) => r.gender === 'Men').map((r) => r.finish_minutes), 'Men', MEN_C, 0.6),
+        mkBar(ALL.filter((r) => r.gender === 'Women').map((r) => r.finish_minutes), 'Women', WOMEN_C, 0.6),
       ];
     } else {
-      const v = currentSet().map((r) => r.finish_minutes);
-      traces = [{ x: v, type: 'histogram',
-        name: `${gender} (${v.length.toLocaleString()})`,
-        marker: { color: gender === 'Men' ? MEN_C : WOMEN_C }, xbins,
-        hovertemplate: '%{y} runners<extra></extra>' }];
+      traces = [mkBar(currentSet().map((r) => r.finish_minutes), gender,
+        gender === 'Men' ? MEN_C : WOMEN_C, 1)];
     }
 
     const layout = baseLayout({
-      barmode: 'overlay',
+      barmode: 'overlay', bargap: 0,
       margin: { t: 10, r: 20, b: 50, l: 60 },
       xaxis: { title: 'Finish time (net)', range: [lo, hi], ...tt, ...axisStyle },
       yaxis: { title: 'Runners', ...axisStyle },
