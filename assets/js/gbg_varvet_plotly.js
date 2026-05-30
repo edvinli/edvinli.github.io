@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let ALL = [];
   let gender = 'All';
   let userMin = null;
+  let pctGroup = 'All';   // start-group filter for the percentile plot only
 
   // ---------------------------------------------------------------- helpers
   const sortNum = (a) => a.slice().sort((x, y) => x - y);
@@ -176,8 +177,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderPercentile() {
+    const base = pctGroup === 'All' ? ALL : ALL.filter((r) => r.start_group === pctGroup);
+    const label = pctGroup === 'All' ? '' : ` (group ${pctGroup})`;
+    const info = document.getElementById('gbg-rank-info');
+
     const build = (g) => {
-      const s = sortNum(ALL.filter((r) => r.gender === g).map((r) => r.finish_minutes));
+      const s = sortNum(base.filter((r) => r.gender === g).map((r) => r.finish_minutes));
+      if (s.length < 2) return null;
       const idx = sample(s.map((_, i) => i), 400);
       return {
         x: idx.map((i) => (i / (s.length - 1)) * 100),
@@ -186,26 +192,34 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     };
     const men = build('Men'), women = build('Women');
-    const lo = Math.min(men.y[0], women.y[0]);
-    const hi = Math.max(men.y[men.y.length - 1], women.y[women.y.length - 1]);
-    const tt = timeTicks(lo, hi);
+    const present = [men, women].filter(Boolean);
 
-    const traces = [
-      { x: men.x, y: men.y, mode: 'lines', name: 'Men', line: { color: MEN_C, width: 2.5 },
-        hovertemplate: 'top %{x:.0f}% · %{y:.1f} min<extra>Men</extra>' },
-      { x: women.x, y: women.y, mode: 'lines', name: 'Women', line: { color: WOMEN_C, width: 2.5 },
-        hovertemplate: 'top %{x:.0f}% · %{y:.1f} min<extra>Women</extra>' },
-    ];
+    const baseLay = (lo, hi) => {
+      const tt = timeTicks(lo, hi);
+      return baseLayout({
+        margin: { t: 10, r: 20, b: 55, l: 60 },
+        xaxis: { title: 'Percentile (0% = fastest)', range: [0, 100], ...axisStyle },
+        yaxis: { title: 'Finish time', tickvals: tt.tickvals, ticktext: tt.ticktext, ...axisStyle },
+        legend: { orientation: 'h', y: 1.12 },
+        shapes: [],
+      });
+    };
 
-    const layout = baseLayout({
-      margin: { t: 10, r: 20, b: 55, l: 60 },
-      xaxis: { title: 'Percentile (0% = fastest)', range: [0, 100], ...axisStyle },
-      yaxis: { title: 'Finish time', tickvals: tt.tickvals, ticktext: tt.ticktext, ...axisStyle },
-      legend: { orientation: 'h', y: 1.12 },
-      shapes: [],
-    });
+    if (!present.length) {
+      Plotly.react('gbg-percentile', [], baseLay(60, 180), config);
+      if (info) info.textContent = `No data for group ${pctGroup}.`;
+      return;
+    }
 
-    const info = document.getElementById('gbg-rank-info');
+    const ys = present.flatMap((c) => c.y);
+    const layout = baseLay(Math.min(...ys), Math.max(...ys));
+
+    const traces = [];
+    if (men) traces.push({ x: men.x, y: men.y, mode: 'lines', name: 'Men',
+      line: { color: MEN_C, width: 2.5 }, hovertemplate: 'top %{x:.0f}% · %{y:.1f} min<extra>Men</extra>' });
+    if (women) traces.push({ x: women.x, y: women.y, mode: 'lines', name: 'Women',
+      line: { color: WOMEN_C, width: 2.5 }, hovertemplate: 'top %{x:.0f}% · %{y:.1f} min<extra>Women</extra>' });
+
     if (userMin !== null) {
       layout.shapes.push({ type: 'line', x0: 0, x1: 100, y0: userMin, y1: userMin,
         line: { color: USER_C, width: 2, dash: 'dash' } });
@@ -214,15 +228,22 @@ document.addEventListener('DOMContentLoaded', () => {
         while (lo2 < hi2) { const m = (lo2 + hi2) >> 1; if (s[m] < userMin) lo2 = m + 1; else hi2 = m; }
         return (lo2 / s.length) * 100;
       };
-      const mp = topPct(men.sorted), wp = topPct(women.sorted);
-      traces.push({ x: [mp], y: [userMin], mode: 'markers', name: 'you (men)',
-        marker: { color: MEN_C, size: 11, line: { color: PAGE_BG, width: 2 } }, showlegend: false });
-      traces.push({ x: [wp], y: [userMin], mode: 'markers', name: 'you (women)',
-        marker: { color: WOMEN_C, size: 11, line: { color: PAGE_BG, width: 2 } }, showlegend: false });
-      if (info) info.textContent =
-        `Your time ${fmtHMS(userMin)}: top ${mp.toFixed(1)}% among men · top ${wp.toFixed(1)}% among women.`;
+      const segs = [];
+      if (men) {
+        const mp = topPct(men.sorted);
+        traces.push({ x: [mp], y: [userMin], mode: 'markers', name: 'you (men)',
+          marker: { color: MEN_C, size: 11, line: { color: PAGE_BG, width: 2 } }, showlegend: false });
+        segs.push(`top ${mp.toFixed(1)}% among men`);
+      }
+      if (women) {
+        const wp = topPct(women.sorted);
+        traces.push({ x: [wp], y: [userMin], mode: 'markers', name: 'you (women)',
+          marker: { color: WOMEN_C, size: 11, line: { color: PAGE_BG, width: 2 } }, showlegend: false });
+        segs.push(`top ${wp.toFixed(1)}% among women`);
+      }
+      if (info) info.textContent = `Your time ${fmtHMS(userMin)}${label}: ${segs.join(' · ')}.`;
     } else if (info) {
-      info.textContent = 'Enter your time above to see where you rank.';
+      info.textContent = `Enter your time above to see where you rank${label}.`;
     }
     Plotly.react('gbg-percentile', traces, layout, config);
   }
@@ -378,6 +399,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.getElementById('gbg-time-btn').addEventListener('click', apply);
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+
+    // populate the percentile-plot start-group dropdown
+    const sel = document.getElementById('gbg-pct-group');
+    if (sel) {
+      const groups = ORDER.filter((g) => ALL.filter((r) => r.start_group === g).length >= MIN_GROUP);
+      sel.innerHTML = '<option value="All">All groups</option>'
+        + groups.map((g) => `<option value="${g}">${g}</option>`).join('');
+      sel.addEventListener('change', () => { pctGroup = sel.value; renderPercentile(); });
+    }
+
     setGender('All');
   }
 
