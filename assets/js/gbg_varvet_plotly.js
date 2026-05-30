@@ -262,17 +262,25 @@ document.addEventListener('DOMContentLoaded', () => {
       tickvals.push(baseline); ticktext.push(g);
     });
 
-    // invisible full-width trace: drives the hover x-spike + the time label
+    // invisible point grid covering the whole plot: drives the hover x-spike
+    // and a single H:MM:SS label that follows the cursor. A full grid (vs a
+    // single row) lets 'closest' hovermode fire anywhere — and 'closest' shows
+    // no x-axis coordinate box, so only the H:MM:SS label appears.
+    const hx = [], hy = [], ht = [];
+    const yLevels = linspace(0, (n - 1) + OVERLAP, 14);
+    grid.forEach((gx) => {
+      const lab = fmtHMS(gx);
+      yLevels.forEach((gy) => { hx.push(gx); hy.push(gy); ht.push(lab); });
+    });
     traces.push({
-      x: grid, y: grid.map(() => -0.4), mode: 'markers',
-      marker: { opacity: 0, size: 1 }, text: grid.map(fmtHMS),
-      hovertemplate: '%{text}<extra></extra>', showlegend: false,
+      x: hx, y: hy, mode: 'markers', marker: { opacity: 0, size: 1 },
+      text: ht, hovertemplate: '%{text}<extra></extra>', showlegend: false,
     });
 
     const tt = timeTicks(lo, hi);
     const layout = baseLayout({
       margin: { t: 10, r: 20, b: 50, l: 110 },
-      hovermode: 'x',
+      hovermode: 'closest', hoverdistance: -1,
       xaxis: { title: 'Finish time (net)', range: [lo, hi], ...axisStyle,
         zeroline: false, tickvals: tt.tickvals, ticktext: tt.ticktext,
         showspikes: true, spikemode: 'across', spikesnap: 'cursor',
