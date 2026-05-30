@@ -78,6 +78,39 @@ document.addEventListener('DOMContentLoaded', () => {
     return out;
   }
 
+  function linspace(lo, hi, n) {
+    const out = [], step = (hi - lo) / (n - 1);
+    for (let i = 0; i < n; i++) out.push(lo + step * i);
+    return out;
+  }
+
+  // Gaussian KDE, Silverman bandwidth — mirrors plot_joydivision_startgroups.py
+  function gaussianKde(samples, grid) {
+    const n = samples.length;
+    const mean = samples.reduce((a, b) => a + b, 0) / n;
+    let varsum = 0;
+    for (const x of samples) varsum += (x - mean) * (x - mean);
+    const sd = Math.sqrt(varsum / (n - 1));
+    const s = sortNum(samples);
+    const iqr = quantile(s, 0.75) - quantile(s, 0.25);
+    let spread = iqr > 0 ? Math.min(sd, iqr / 1.349) : sd;
+    if (spread <= 0) spread = sd > 0 ? sd : 1;
+    const bw = 0.9 * spread * Math.pow(n, -1 / 5);
+    const inv = 1 / (n * bw * Math.sqrt(2 * Math.PI));
+    return grid.map((g) => {
+      let acc = 0;
+      for (let i = 0; i < n; i++) { const u = (g - samples[i]) / bw; acc += Math.exp(-0.5 * u * u); }
+      return acc * inv;
+    });
+  }
+
+  // light lavender -> deep purple gradient (earliest wave light, latest deep)
+  function ridgeColor(t) {
+    const a = [230, 179, 255], b = [122, 35, 196];
+    const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+
   const currentSet = () =>
     gender === 'All' ? ALL : ALL.filter((r) => r.gender === gender);
 
@@ -179,28 +212,47 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderRidgeline() {
     const set = currentSet();
     const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_GROUP);
-    const xs = [], ys = [];
-    present.forEach((g) => {
-      const v = sample(set.filter((r) => r.start_group === g).map((r) => r.finish_minutes), 800);
-      v.forEach((t) => { xs.push(t); ys.push(g); });
-    });
-    const lo = quantile(sortNum(xs), 0.002), hi = quantile(sortNum(xs), 0.998);
-    const tt = timeTicks(lo, hi);
+    const n = present.length;
+    const allTimes = sortNum(set.map((r) => r.finish_minutes));
+    const lo = Math.max(50, quantile(allTimes, 0.001) - 2);
+    const hi = quantile(allTimes, 0.992);
+    const grid = linspace(lo, hi, 220);
+    const OVERLAP = 2.3;
 
-    const trace = {
-      type: 'violin', x: xs, y: ys, orientation: 'h', side: 'positive',
-      points: false, spanmode: 'soft', width: 2.2,
-      line: { color: ALL_C, width: 1 }, fillcolor: 'rgba(107,70,193,0.35)',
-      hoverinfo: 'skip',
-    };
+    const traces = [], tickvals = [], ticktext = [];
+    present.forEach((g, i) => {
+      const v = sample(set.filter((r) => r.start_group === g).map((r) => r.finish_minutes), 1500);
+      let d = gaussianKde(v, grid);
+      const dmax = Math.max(...d) || 1;
+      d = d.map((x) => x / dmax);                 // equal peak height (classic ridgeline)
+      const baseline = n - 1 - i;                 // earliest wave at top
+      const yTop = d.map((val) => baseline + val * OVERLAP);
+      const col = ridgeColor(i / Math.max(1, n - 1));
+      // opaque fill first (occludes the ridge drawn behind/above), then the line
+      traces.push({
+        x: grid.concat(grid.slice().reverse()),
+        y: yTop.concat(grid.map(() => baseline)),
+        type: 'scatter', mode: 'lines', fill: 'toself', fillcolor: '#ffffff',
+        line: { width: 0 }, hoverinfo: 'skip', showlegend: false,
+      });
+      traces.push({
+        x: grid, y: yTop, type: 'scatter', mode: 'lines',
+        line: { color: col, width: 1.2 }, hoverinfo: 'skip', showlegend: false,
+      });
+      tickvals.push(baseline); ticktext.push(g);
+    });
+
+    const tt = timeTicks(lo, hi);
     const layout = {
-      margin: { t: 10, r: 20, b: 50, l: 95 },
-      xaxis: { title: 'Finish time (net)', range: [lo, hi], ...tt },
-      yaxis: { categoryorder: 'array', categoryarray: [...present].reverse(),
-        title: 'Start group' },
+      margin: { t: 10, r: 20, b: 50, l: 110 },
+      plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
+      xaxis: { title: 'Finish time (net)', range: [lo, hi], gridcolor: '#eee',
+        zeroline: false, tickvals: tt.tickvals, ticktext: tt.ticktext },
+      yaxis: { title: 'Start group', tickvals, ticktext, showgrid: false,
+        zeroline: false, range: [-0.6, (n - 1) + OVERLAP + 0.4] },
       showlegend: false,
     };
-    Plotly.react('gbg-ridge', [trace], layout, config);
+    Plotly.react('gbg-ridge', traces, layout, config);
   }
 
   function renderSeeding() {
