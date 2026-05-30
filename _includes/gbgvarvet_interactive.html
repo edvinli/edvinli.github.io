@@ -3,10 +3,12 @@
   <style>
     #gbg-root .gbg-controls { margin: 0 0 1.2em; display: flex; flex-wrap: wrap;
       gap: 1.2em; align-items: center; }
-    #gbg-root .gbg-gender-btn, #gbg-root .gbg-ridge-btn { padding: 4px 14px;
-      border: 1px solid #d8d2c4; background: transparent; border-radius: 4px;
-      cursor: pointer; font-size: 0.9em; color: #2c2a25; font-family: inherit; }
-    #gbg-root .gbg-gender-btn.gbg-active, #gbg-root .gbg-ridge-btn.gbg-active {
+    #gbg-root .gbg-gender-btn, #gbg-root .gbg-ridge-btn, #gbg-root .gbg-seed-btn {
+      padding: 4px 14px; border: 1px solid #d8d2c4; background: transparent;
+      border-radius: 4px; cursor: pointer; font-size: 0.9em; color: #2c2a25;
+      font-family: inherit; }
+    #gbg-root .gbg-gender-btn.gbg-active, #gbg-root .gbg-ridge-btn.gbg-active,
+    #gbg-root .gbg-seed-btn.gbg-active {
       background: #6a3d9a; color: #faf9f5; border-color: #6a3d9a; }
     #gbg-root #gbg-time-input { padding: 4px 8px; width: 9em; font-family: inherit;
       border: 1px solid #d8d2c4; border-radius: 4px; background: transparent; color: #2c2a25; }
@@ -60,6 +62,12 @@
 
   <h3>Seeding quality</h3>
   <p class="gbg-note">Median finish and the 25–75% spread per start group. Well-seeded waves rise steadily.</p>
+  <div style="margin: 0 0 0.6em;">
+    Show:
+    <button class="gbg-seed-btn gbg-active" data-gender="All">All</button>
+    <button class="gbg-seed-btn" data-gender="Men">Men</button>
+    <button class="gbg-seed-btn" data-gender="Women">Women</button>
+  </div>
   <div id="gbg-seeding" class="gbg-plot"></div>
 
   <h3>Aging curve</h3>

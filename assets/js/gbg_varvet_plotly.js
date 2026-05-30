@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let userMin = null;
   let pctGroup = 'All';   // start-group filter for the percentile plot only
   let ridgeGender = 'All'; // gender filter for the ridgeline plot only
+  let seedGender = 'All';  // gender filter for the seeding plot only
 
   // ---------------------------------------------------------------- helpers
   const sortNum = (a) => a.slice().sort((x, y) => x - y);
@@ -333,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderSeeding() {
-    const set = currentSet();
+    const set = seedGender === 'All' ? ALL : ALL.filter((r) => r.gender === seedGender);
     const present = ORDER.filter((g) => set.filter((r) => r.start_group === g).length >= MIN_KDE);
     const med = [], p25 = [], p75 = [];
     present.forEach((g) => {
@@ -426,6 +427,15 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.gbg-ridge-btn').forEach((x) =>
           x.classList.toggle('gbg-active', x.dataset.gender === ridgeGender));
         renderRidgeline();
+      }));
+
+    // seeding-only gender toggle (independent of the global buttons)
+    document.querySelectorAll('.gbg-seed-btn').forEach((b) =>
+      b.addEventListener('click', () => {
+        seedGender = b.dataset.gender;
+        document.querySelectorAll('.gbg-seed-btn').forEach((x) =>
+          x.classList.toggle('gbg-active', x.dataset.gender === seedGender));
+        renderSeeding();
       }));
 
     // populate the percentile-plot start-group dropdown
