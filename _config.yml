@@ -10,7 +10,7 @@ locale                   : "en-US"
 title                    : "Edvin Listo Zec"
 title_separator          : "-"
 name                     : &name "Edvin Listo Zec"
-description              : &description "Senior ML Engineer"
+description              : &description "Senior ML engineer in Gothenburg building large-scale ML systems. PhD in distributed deep learning from KTH; previously ML research scientist at RISE and visiting researcher at NYU."
 url                      : https://edvinli.github.io # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : "" # the subpath of your site, e.g. "/blog"
 repository               : "edvinli/edvinli.github.io"
@@ -56,12 +56,12 @@ yandex_site_verification :
 
 # Social Sharing
 twitter:
-  username               : &twitter
+  username               : &twitter "eduniw"
 facebook:
   username               :
   app_id                 :
   publisher              :
-og_image                 :  # Open Graph/Twitter default site image
+og_image                 : "profile_pic2.jpg"  # Open Graph/Twitter default site image
 # For specifying social profiles
 # - https://developers.google.com/structured-data/customize/social-profiles
 social:
@@ -203,7 +203,7 @@ sass:
 permalink: /:categories/:title/
 # paginate: 5 # amount of posts to show
 # paginate_path: /page:num/
-timezone: America/Los_Angeles # http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+timezone: Europe/Stockholm # http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
 
 # Plugins

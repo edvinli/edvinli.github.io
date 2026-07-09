@@ -1,7 +1,7 @@
 ---
 permalink: /
-title: ""
-excerpt: "About me"
+seo_title: "Edvin Listo Zec — Senior ML Engineer"
+excerpt: "Senior ML engineer in Gothenburg building large-scale ML systems. PhD in distributed deep learning from KTH; previously ML research scientist at RISE and visiting researcher at NYU."
 author_profile: true
 redirect_from:
   - /about/
