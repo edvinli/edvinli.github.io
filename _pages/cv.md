@@ -84,18 +84,28 @@ redirect_from:
 <div class="project-log">
 
   <div class="project-entry">
-    <div class="project-date">tools</div>
-    <div class="project-body">python · pytorch · ray · docker · kubernetes · kubeflow · mlflow · aws/gcp · numpy · pandas · sql · git</div>
+    <div class="project-date">core</div>
+    <div class="project-body">python · pytorch · distributed & multi-gpu training · numpy · pandas · sql · git</div>
   </div>
 
   <div class="project-entry">
     <div class="project-date">ml</div>
-    <div class="project-body">self-supervised learning · distributed training · generative AI (GANs, transformers) · LLM fine-tuning</div>
+    <div class="project-body">self-supervised & representation learning · ood generalization · generative models (gans, transformers) · llm fine-tuning · federated & decentralized learning</div>
   </div>
 
   <div class="project-entry">
-    <div class="project-date">languages</div>
-    <div class="project-body">swedish (native) · english (fluent) · spanish (B2) · japanese (beginner)</div>
+    <div class="project-date">mlops</div>
+    <div class="project-body">docker · mlflow · onnx</div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">working knowledge</div>
+    <div class="project-body">kubernetes · kubeflow · ray · aws · gcp</div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">spoken</div>
+    <div class="project-body">swedish (native) · english (fluent) · spanish (b2) · japanese (beginner)</div>
   </div>
 
 </div>
