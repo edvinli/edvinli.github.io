@@ -19,13 +19,14 @@
     #gbg-root .gbg-plot { width: 100%; min-height: 360px; margin-bottom: 0.4em; }
     #gbg-root #gbg-ridge { min-height: 860px; }
     #gbg-root h3 { margin-top: 1.6em; }
-    #gbg-root .gbg-note { color: #718096; font-size: 0.85em; margin: 0.2em 0 0; }
+    #gbg-root .gbg-note { color: #5c6470; font-size: 0.85em; margin: 0.2em 0 0; }
     #gbg-root .gbg-info { font-weight: 600; margin: 0.3em 0 0.6em; }
+    @media (max-width: 600px) { #gbg-root #gbg-ridge { min-height: 560px; } }
   </style>
 
   <div class="gbg-controls">
     <span>
-      Your time:
+      <label for="gbg-time-input">Your time:</label>
       <input type="text" id="gbg-time-input" placeholder="e.g. 1:45 or 1:45:30">
       <button id="gbg-time-btn">Show</button>
     </span>
@@ -44,7 +45,7 @@
   <h3>Where do you rank?</h3>
   <p class="gbg-note">Finish time at every percentile, men vs women. Your time is placed against both.</p>
   <div style="margin: 0 0 0.6em;">
-    Start group:
+    <label for="gbg-pct-group">Start group:</label>
     <select id="gbg-pct-group"><option value="All">All groups</option></select>
   </div>
   <div id="gbg-percentile" class="gbg-plot"></div>
