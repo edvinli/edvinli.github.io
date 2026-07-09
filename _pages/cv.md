@@ -95,12 +95,7 @@ redirect_from:
 
   <div class="project-entry">
     <div class="project-date">mlops</div>
-    <div class="project-body">docker · mlflow · onnx</div>
-  </div>
-
-  <div class="project-entry">
-    <div class="project-date">working knowledge</div>
-    <div class="project-body">kubernetes · kubeflow · ray · aws · gcp</div>
+    <div class="project-body">docker · mlflow · onnx — working knowledge: kubernetes · kubeflow · ray · aws · gcp</div>
   </div>
 
   <div class="project-entry">
