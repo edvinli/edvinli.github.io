@@ -8,14 +8,13 @@ redirect_from:
   - /about.html
 ---
 
-senior ml engineer @ [eghed](https://eghed.se/), a machine learning consultancy in gothenburg.<br>
+senior ml engineer @ [eghed](https://eghed.se/), a machine learning consultancy in gothenburg.
+
 i build large-scale ml systems that make it from research into production — most recently
 self-supervised vision transformers (dinov2) trained on 250 tb of railway imagery for
 [trafikverket](/industry/).
 
 phd in distributed deep learning from kth, 2025 — [thesis](https://kth.diva-portal.org/smash/get/diva2:1921206/FULLTEXT01.pdf).
-before eghed, ml research scientist at rise (2019–2025) and visiting researcher at nyu with
-kyunghyun cho, with papers at tmlr, icml workshops, and ieee big data.
 
 <p class="topic-tags">federated & decentralized learning · self-supervised learning · ood generalization · representation learning · ml for climate & sustainability</p>
 

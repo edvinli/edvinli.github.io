@@ -1,17 +1,17 @@
 # main links links
 main:
-  - title: "Publications"
-    url: /publications/ 
-
-  - title: "Students"
-    url: /students/        
-
-  - title: "Industry projects"
-    url: /industry/    
-
   - title: "CV"
     url: /cv/
-    
+
+  - title: "Publications"
+    url: /publications/
+
+  - title: "Industry projects"
+    url: /industry/
+
+  - title: "Students"
+    url: /students/
+
   - title: "Asteroids"
     url: /asteroids/
 
