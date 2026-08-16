@@ -12,6 +12,14 @@ complete list on [google scholar](https://scholar.google.se/citations?user=Ft52a
 <div class="project-log">
 
   <div class="project-entry">
+    <div class="project-date">2026</div>
+    <div class="project-body">
+      <a href="https://openreview.net/forum?id=dQAsAmb1Xb">overcoming label shift in target-aware federated learning</a><br>
+      <span class="project-tags">e. listo zec, a. breitholtz, f.d. johansson · transactions on machine learning research (tmlr) · <a href="/files/listozecovercoming.html">[bibtex]</a></span>
+    </div>
+  </div>
+
+  <div class="project-entry">
     <div class="project-date">2025</div>
     <div class="project-body">
       <a href="https://openreview.net/pdf?id=WppTEs4Kkn">on the effects of similarity metrics in decentralized deep learning under distributional shift</a><br>
