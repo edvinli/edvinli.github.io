@@ -180,7 +180,7 @@
     }
   },
   "manifest": {
-    "model_version": "1.0.0",
+    "model_version": "1.0.0-rc1",
     "as_of": "2026-08-23",
     "election_date": "2026-09-13",
     "samples": 100000,
@@ -198,7 +198,10 @@
       "total_national_votes": 6500000,
       "constituency_vote_unit": 25
     },
-    "git_commit": "d2511b418d68b69a9cf6929be2dc949444391d25",
-    "generated_at_utc": "2026-08-26T19:19:15.855415+00:00"
-  }
+    "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+    "source_worktree_clean": true,
+    "generated_at_utc": "2026-08-27T12:29:17.964520+00:00",
+    "git_commit": "bd834a9e069881220c147d3b72d87683f57d69df"
+  },
+  "deterministic_payload_sha256": "33e818990cf10994f652ad2d9ea32f1ff762cbd1ed4669e28197a1c8dc892ffd"
 }

@@ -1,6 +1,9 @@
 {
   "metadata": {
-    "model": "ElectionSimulator_v1",
+    "model": "ElectionSimulator_v1.0-rc1",
+    "artifact_schema_version": "1.0",
+    "interpretation": "Retrospective historical evaluation (not independent holdout validation)",
+    "validation_note": "The model-family choices and polling calibration used evidence from the same 2018/2022 period; coverage and horizon patterns are descriptive, not formal calibration or monotonicity claims.",
     "samples_per_case": 5000,
     "primary_seed": 12345,
     "seeds_evaluated": [
@@ -25,13 +28,26 @@
     "geography_mode": "chronological",
     "total_evaluations": 60,
     "generated_at": "2026-08-27",
-    "payload_sha256": "a5fc6346e319c4e8fdd9f7b2d5c95d9e7c3ba78ffe98455f02a9ccf8bc85c905"
+    "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+    "source_worktree_clean": true,
+    "input_hashes": {
+      "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+      "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+      "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+      "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+    },
+    "model_config_hashes_by_election": {
+      "2018": "bdb250c7eaa3ce52bf66440c8ff1ca0dec8286af84cf82efce523bbf1db742f1",
+      "2022": "b5208dec2ff7e40a274c5c211bbcb349a2b7343b6c2208df4ff7e509cf7dd1fc"
+    },
+    "payload_sha256": "c5c5ec3d987ccd1912925f9bef7896e18293788ecd46ede4e6efe08317a879d8"
   },
   "multi_seed_stability": {
     "per_seed": [
       {
         "seed": 12345,
         "baseline_crps": 5.0208,
+        "baseline_energy_score": 17.7956,
         "simulator_crps": 3.7238,
         "energy_score": 12.962,
         "simulator_median_mae": 5.021,
@@ -43,6 +59,7 @@
       {
         "seed": 24680,
         "baseline_crps": 5.0208,
+        "baseline_energy_score": 17.7956,
         "simulator_crps": 3.7292,
         "energy_score": 12.9697,
         "simulator_median_mae": 5.031,
@@ -54,6 +71,7 @@
       {
         "seed": 98765,
         "baseline_crps": 5.0208,
+        "baseline_energy_score": 17.7956,
         "simulator_crps": 3.7235,
         "energy_score": 12.9652,
         "simulator_median_mae": 5.021,
@@ -65,6 +83,7 @@
       {
         "seed": 54321,
         "baseline_crps": 5.0208,
+        "baseline_energy_score": 17.7956,
         "simulator_crps": 3.7333,
         "energy_score": 12.9866,
         "simulator_median_mae": 5.042,
@@ -76,6 +95,7 @@
       {
         "seed": 13579,
         "baseline_crps": 5.0208,
+        "baseline_energy_score": 17.7956,
         "simulator_crps": 3.7233,
         "energy_score": 12.9643,
         "simulator_median_mae": 5.042,
@@ -94,6 +114,7 @@
       "energy_score_std": 0.0099,
       "energy_score_min": 12.962,
       "energy_score_max": 12.9866,
+      "baseline_energy_score_mean": 17.7956,
       "median_mae_mean": 5.031,
       "mean_mae_mean": 5.096,
       "cov_50_mean": 0.469,
@@ -105,6 +126,7 @@
     "overall": {
       "baseline_point_mae": 5.021,
       "baseline_crps": 5.0208,
+      "baseline_energy_score": 17.7956,
       "simulator_median_mae": 5.021,
       "simulator_mean_mae": 5.099,
       "simulator_crps": 3.7238,
@@ -117,6 +139,7 @@
       "2018": {
         "baseline_point_mae": 5.625,
         "baseline_crps": 5.625,
+        "baseline_energy_score": 20.556,
         "simulator_median_mae": 5.708,
         "simulator_mean_mae": 6.134,
         "simulator_crps": 4.5962,
@@ -125,6 +148,7 @@
       "2022": {
         "baseline_point_mae": 4.417,
         "baseline_crps": 4.4167,
+        "baseline_energy_score": 15.0352,
         "simulator_median_mae": 4.333,
         "simulator_mean_mae": 4.063,
         "simulator_crps": 2.8515,
@@ -134,6 +158,7 @@
     "by_horizon": {
       "112": {
         "baseline_crps": 8.625,
+        "baseline_energy_score": 30.3985,
         "simulator_median_mae": 8.688,
         "simulator_mean_mae": 8.558,
         "simulator_crps": 6.1533,
@@ -141,6 +166,7 @@
       },
       "84": {
         "baseline_crps": 7.5,
+        "baseline_energy_score": 27.0273,
         "simulator_median_mae": 7.562,
         "simulator_mean_mae": 7.645,
         "simulator_crps": 5.5824,
@@ -148,6 +174,7 @@
       },
       "56": {
         "baseline_crps": 5.75,
+        "baseline_energy_score": 21.0176,
         "simulator_median_mae": 6.0,
         "simulator_mean_mae": 5.981,
         "simulator_crps": 4.5605,
@@ -155,6 +182,7 @@
       },
       "28": {
         "baseline_crps": 3.625,
+        "baseline_energy_score": 12.4559,
         "simulator_median_mae": 3.562,
         "simulator_mean_mae": 4.08,
         "simulator_crps": 2.8596,
@@ -162,6 +190,7 @@
       },
       "14": {
         "baseline_crps": 2.625,
+        "baseline_energy_score": 8.7879,
         "simulator_median_mae": 2.5,
         "simulator_mean_mae": 2.58,
         "simulator_crps": 1.8226,
@@ -169,6 +198,7 @@
       },
       "7": {
         "baseline_crps": 2.0,
+        "baseline_energy_score": 7.0863,
         "simulator_median_mae": 1.812,
         "simulator_mean_mae": 1.748,
         "simulator_crps": 1.3645,
@@ -179,6 +209,16 @@
   "cases": [
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "bdb250c7eaa3ce52bf66440c8ff1ca0dec8286af84cf82efce523bbf1db742f1",
       "election_year": 2018,
       "election_date": "2018-09-09",
       "horizon_days": 112,
@@ -190,6 +230,7 @@
       "simulator_median_mae": 7.875,
       "simulator_mean_mae": 8.933,
       "simulator_mean_crps": 6.4523,
+      "baseline_energy_score": 28.178,
       "joint_energy_score": 22.2586,
       "party_metrics": {
         "M": {
@@ -468,6 +509,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "bdb250c7eaa3ce52bf66440c8ff1ca0dec8286af84cf82efce523bbf1db742f1",
       "election_year": 2018,
       "election_date": "2018-09-09",
       "horizon_days": 84,
@@ -479,6 +530,7 @@
       "simulator_median_mae": 8.0,
       "simulator_mean_mae": 8.876,
       "simulator_mean_crps": 6.7076,
+      "baseline_energy_score": 29.1548,
       "joint_energy_score": 22.685,
       "party_metrics": {
         "M": {
@@ -757,6 +809,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "bdb250c7eaa3ce52bf66440c8ff1ca0dec8286af84cf82efce523bbf1db742f1",
       "election_year": 2018,
       "election_date": "2018-09-09",
       "horizon_days": 56,
@@ -768,6 +830,7 @@
       "simulator_median_mae": 7.75,
       "simulator_mean_mae": 7.444,
       "simulator_mean_crps": 6.2837,
+      "baseline_energy_score": 28.8444,
       "joint_energy_score": 21.7182,
       "party_metrics": {
         "M": {
@@ -1046,6 +1109,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "bdb250c7eaa3ce52bf66440c8ff1ca0dec8286af84cf82efce523bbf1db742f1",
       "election_year": 2018,
       "election_date": "2018-09-09",
       "horizon_days": 28,
@@ -1057,6 +1130,7 @@
       "simulator_median_mae": 4.75,
       "simulator_mean_mae": 5.613,
       "simulator_mean_crps": 3.9862,
+      "baseline_energy_score": 16.3095,
       "joint_energy_score": 14.0369,
       "party_metrics": {
         "M": {
@@ -1335,6 +1409,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "bdb250c7eaa3ce52bf66440c8ff1ca0dec8286af84cf82efce523bbf1db742f1",
       "election_year": 2018,
       "election_date": "2018-09-09",
       "horizon_days": 14,
@@ -1346,6 +1430,7 @@
       "simulator_median_mae": 3.375,
       "simulator_mean_mae": 3.538,
       "simulator_mean_crps": 2.4442,
+      "baseline_energy_score": 11.5758,
       "joint_energy_score": 8.6076,
       "party_metrics": {
         "M": {
@@ -1624,6 +1709,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "bdb250c7eaa3ce52bf66440c8ff1ca0dec8286af84cf82efce523bbf1db742f1",
       "election_year": 2018,
       "election_date": "2018-09-09",
       "horizon_days": 7,
@@ -1635,6 +1730,7 @@
       "simulator_median_mae": 2.5,
       "simulator_mean_mae": 2.402,
       "simulator_mean_crps": 1.7032,
+      "baseline_energy_score": 9.2736,
       "joint_energy_score": 6.4061,
       "party_metrics": {
         "M": {
@@ -1913,6 +2009,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "b5208dec2ff7e40a274c5c211bbcb349a2b7343b6c2208df4ff7e509cf7dd1fc",
       "election_year": 2022,
       "election_date": "2022-09-11",
       "horizon_days": 112,
@@ -1924,6 +2030,7 @@
       "simulator_median_mae": 9.5,
       "simulator_mean_mae": 8.183,
       "simulator_mean_crps": 5.8544,
+      "baseline_energy_score": 32.619,
       "joint_energy_score": 18.8768,
       "party_metrics": {
         "M": {
@@ -2202,6 +2309,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "b5208dec2ff7e40a274c5c211bbcb349a2b7343b6c2208df4ff7e509cf7dd1fc",
       "election_year": 2022,
       "election_date": "2022-09-11",
       "horizon_days": 84,
@@ -2213,6 +2330,7 @@
       "simulator_median_mae": 7.125,
       "simulator_mean_mae": 6.414,
       "simulator_mean_crps": 4.4572,
+      "baseline_energy_score": 24.8998,
       "joint_energy_score": 14.9203,
       "party_metrics": {
         "M": {
@@ -2491,6 +2609,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "b5208dec2ff7e40a274c5c211bbcb349a2b7343b6c2208df4ff7e509cf7dd1fc",
       "election_year": 2022,
       "election_date": "2022-09-11",
       "horizon_days": 56,
@@ -2502,6 +2630,7 @@
       "simulator_median_mae": 4.25,
       "simulator_mean_mae": 4.517,
       "simulator_mean_crps": 2.8373,
+      "baseline_energy_score": 13.1909,
       "joint_energy_score": 10.2114,
       "party_metrics": {
         "M": {
@@ -2780,6 +2909,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "b5208dec2ff7e40a274c5c211bbcb349a2b7343b6c2208df4ff7e509cf7dd1fc",
       "election_year": 2022,
       "election_date": "2022-09-11",
       "horizon_days": 28,
@@ -2791,6 +2930,7 @@
       "simulator_median_mae": 2.375,
       "simulator_mean_mae": 2.547,
       "simulator_mean_crps": 1.733,
+      "baseline_energy_score": 8.6023,
       "joint_energy_score": 6.6122,
       "party_metrics": {
         "M": {
@@ -3069,6 +3209,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "b5208dec2ff7e40a274c5c211bbcb349a2b7343b6c2208df4ff7e509cf7dd1fc",
       "election_year": 2022,
       "election_date": "2022-09-11",
       "horizon_days": 14,
@@ -3080,6 +3230,7 @@
       "simulator_median_mae": 1.625,
       "simulator_mean_mae": 1.623,
       "simulator_mean_crps": 1.2011,
+      "baseline_energy_score": 6.0,
       "joint_energy_score": 4.8819,
       "party_metrics": {
         "M": {
@@ -3358,6 +3509,16 @@
     },
     {
       "seed": 12345,
+      "model_version": "1.0.0-rc1",
+      "source_git_commit": "bd834a9e069881220c147d3b72d87683f57d69df",
+      "source_worktree_clean": true,
+      "input_hashes": {
+        "poll_data_hash": "9c75c96d80fe4f02ccafbd7b5a2063aadabc19e08bed5839b574b28d8af0bf53",
+        "election_data_hash": "3a99ffb1b0fbef60d61712764a2136982ecf01c4879a43edc6d9a38ddb4ba0fc",
+        "mandate_data_hash": "444c457061abc8c9516f7aad6f35d6e85bb4d720f8244fb029d9b1438d3bd11e",
+        "geography_data_hash": "cb296ab2b1780425a1611649cf8ead030020bb1a7dce9b4ea7e4b136425b1743"
+      },
+      "model_config_hash": "b5208dec2ff7e40a274c5c211bbcb349a2b7343b6c2208df4ff7e509cf7dd1fc",
       "election_year": 2022,
       "election_date": "2022-09-11",
       "horizon_days": 7,
@@ -3369,6 +3530,7 @@
       "simulator_median_mae": 1.125,
       "simulator_mean_mae": 1.094,
       "simulator_mean_crps": 1.0257,
+      "baseline_energy_score": 4.899,
       "joint_energy_score": 4.3286,
       "party_metrics": {
         "M": {
