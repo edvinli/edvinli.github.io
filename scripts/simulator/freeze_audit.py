@@ -1,29 +1,24 @@
-"""Production Freeze Audit for ElectionSimulator v1.
+"""Production Freeze Audit for ElectionSimulator v1."""
 
-Executes all verification checks required for Part A of the production freeze:
-1. Numerical comparison of old vs corrected dynamics draws (demonstrating why h=21 matched).
-2. VoteShareModel regression validation.
-3. Official Valmyndigheten return worked example / oracle reproduction.
-4. 100k threshold quantization audit (continuous vs integer 4% and 12%).
-5. Clean-process 100k benchmark.
-"""
+from __future__ import annotations
 
+import hashlib
 import json
+import resource
 import time
+from typing import Any
 import numpy as np
-import pandas as pd
-from fractions import Fraction
 
 from scripts.geography.config import OFFICIAL_CONSTITUENCY_CODES
 from scripts.mandates.allocator import allocate_riksdag_seats
 from scripts.mandates.config import FIXED_SEATS_2026
 from scripts.simulator.config import DEFAULT_SIMULATIONS_DIR, MODEL_PARTIES_9, PARLIAMENTARY_PARTIES_8
 from scripts.simulator.engine import simulate_election
-from scripts.simulator.fast_allocator import fast_allocate_seats_from_matrix
+from scripts.simulator.reproducibility import compute_simulation_payload_sha256
 from scripts.vote_share_calibration.national_engine import generate_national_vote_shares
 
 
-def audit_old_vs_new_dynamics_scaling() -> dict:
+def audit_old_vs_new_dynamics_scaling() -> dict[str, Any]:
     """Demonstrate why the old dynamics code produced identical national draws at h=21 but differed at h > 112."""
     print(">>> 1. Auditing Old vs New Dynamics Scaling ...")
     h_21 = 21
@@ -40,52 +35,39 @@ def audit_old_vs_new_dynamics_scaling() -> dict:
     )
     shares_21_new = res_21.nat_shares_matrix
 
-    # 2. Recreate old logic directly
-    # Old logic:
-    # eval_h = min(horizon_days, 112)
-    # if horizon_days > eval_h:
-    #     scale_factor = (horizon_days / eval_h) ** 0.5
-    #     symmetric_deltas = symmetric_deltas * scale_factor
-
-    # At h=21: eval_h = min(21, 112) = 21. Condition (21 > 21) is False. scale_factor = 1.0 (identity).
-    # At h=150: eval_h = min(150, 112) = 112. Condition (150 > 112) is True. scale_factor = sqrt(150/112) = 1.1573.
-
     is_h21_scale_active = 21 > min(21, 112)  # False!
     is_h150_scale_active = 150 > min(150, 112)  # True!
 
     print(f"  At h=21  (2026-08-23 -> 2026-09-13): 'horizon_days > eval_h' = {is_h21_scale_active} (Scale factor: 1.0)")
     print(f"  At h=150 (Long horizon hindcast):    'horizon_days > eval_h' = {is_h150_scale_active} (Scale factor: sqrt(150/112) = {np.sqrt(150/112):.4f})")
 
-    # Hashes of arrays
-    hash_21 = hash(shares_21_new.tobytes())
+    sha256_21 = hashlib.sha256(shares_21_new.tobytes()).hexdigest()
 
     return {
         "h21_scale_active": is_h21_scale_active,
         "h150_scale_active": is_h150_scale_active,
-        "h21_array_hash": str(hash_21),
+        "h21_array_sha256": sha256_21,
         "explanation": "At h=21, the old condition (21 > min(21, 112)) evaluated to False, so scale_factor=1.0 was used and draws were mathematically identical. For h > 112, the old code scaled deltas by sqrt(h/112), altering dynamics.",
     }
 
 
-def audit_valmyndigheten_return_oracle() -> dict:
+def audit_valmyndigheten_return_oracle() -> dict[str, Any]:
     """Reproduce official Valmyndigheten statutory worked example on returned fixed seats."""
     print(">>> 2. Auditing Official Valmyndigheten Return Oracle ...")
-    # Base votes across all 29 constituencies
-    cv = {c: {"M": 20_000, "S": 20_000, "SD": 15_000, "C": 10_000, "V": 10_000, "KD": 8_000, "MP": 8_000, "L": 8_000, "REST": 1_000} for c in OFFICIAL_CONSTITUENCY_CODES}
-
-    # Inject concentrated votes for party M in large constituencies to trigger an excess of fixed seats (F_M > E_M)
-    for c in ["01", "02", "03", "04", "05"]:
-        cv[c]["M"] = 120_000
+    cv = {c: {"M": 25_000, "S": 35_000, "SD": 20_000, "C": 10_000, "V": 10_000, "KD": 8_000, "MP": 8_000, "L": 8_000, "REST": 1_000} for c in OFFICIAL_CONSTITUENCY_CODES}
+    cv["01"]["OVER"] = 140_000
+    cv["02"]["OVER"] = 150_000
+    cv["01"]["RECIPIENT_A"] = 22_000
 
     res = allocate_riksdag_seats(cv, FIXED_SEATS_2026)
     total_seats = sum(res.final_seats_by_party.values())
 
     retracted = [e for e in res.event_log if e.phase == "excess_retracted"]
-    reallocated = [e for e in res.event_log if e.phase == "excess_reallocated"]
+    reallocated = [e for e in res.event_log if e.phase == "returned_reallocated"]
 
     print(f"  Statutory returned seat oracle: Total seats = {total_seats} (Expected: 349)")
     print(f"  Retracted excess events: {len(retracted)} | Reallocated events: {len(reallocated)}")
-    print(f"  Final seats: M={res.final_seats_by_party.get('M',0)}, S={res.final_seats_by_party.get('S',0)}, SD={res.final_seats_by_party.get('SD',0)}, V={res.final_seats_by_party.get('V',0)}")
+    print(f"  Final seats: M={res.final_seats_by_party.get('M',0)}, S={res.final_seats_by_party.get('S',0)}, OVER={res.final_seats_by_party.get('OVER',0)}, RECIPIENT_A={res.final_seats_by_party.get('RECIPIENT_A',0)}")
 
     return {
         "status": "PASS",
@@ -96,9 +78,9 @@ def audit_valmyndigheten_return_oracle() -> dict:
     }
 
 
-def audit_threshold_quantization_100k() -> dict:
-    """Audit continuous vs integer threshold classifications on 100,000 simulated elections."""
-    print(">>> 3. Auditing 100k Threshold Quantization & Local 12% Exception ...")
+def audit_threshold_quantization_and_local12_100k() -> dict[str, Any]:
+    """Audit continuous vs integer threshold classifications and measured local 12% events on 100,000 simulations."""
+    print(">>> 3. Auditing 100k Threshold Quantization & Measured Local 12% Events ...")
     res_nat = generate_national_vote_shares(
         as_of="2026-08-23",
         election_date="2026-09-13",
@@ -128,57 +110,92 @@ def audit_threshold_quantization_100k() -> dict:
                 if int_qual[p_idx] != cont_qual[p_idx]:
                     national_mismatches += 1
 
+    # Measure actual local 12% events across all parties
+    local_12_probs = {p: res.summary.parties[p].prob_local_12pct_exception_sub_4pct for p in PARLIAMENTARY_PARTIES_8}
+    total_local_12_events = sum(int(round(v * 100_000)) for v in local_12_probs.values())
+
     print(f"  National 4% quantization mismatches across 100,000 draws x 8 parties: {national_mismatches} (0.000%)")
-    print(f"  Local 12% sub-4% exceptions observed: 0 (sub-4% L maxed at local share < 10.5%)")
+    print(f"  Total measured local 12% sub-4% events across 100k draws: {total_local_12_events}")
 
     return {
         "total_draws": 100_000,
         "national_4pct_mismatches": national_mismatches,
-        "local_12pct_sub4_exceptions": 0,
+        "local_12pct_sub4_events_total": total_local_12_events,
+        "local_12pct_sub4_probabilities": local_12_probs,
     }
 
 
-def run_clean_batch_benchmark() -> dict:
-    """Run pure clean batch production benchmark for 100,000 simulations."""
-    print(">>> 4. Running Clean-Process Production Benchmark (N = 100,000) ...")
+def run_benchmark_fresh_and_warm() -> dict[str, Any]:
+    """Measure fresh-process and warm steady-state performance on N=100,000 simulations."""
+    print(">>> 4. Running Production Benchmark (Fresh & Warm, N = 100,000) ...")
+    
+    # 1. Fresh Run
     t0 = time.perf_counter()
-    res = simulate_election(
+    res_fresh = simulate_election(
         as_of="2026-08-23",
         election_date="2026-09-13",
         samples=100_000,
         seed=12345,
     )
     t1 = time.perf_counter()
+    fresh_sec = t1 - t0
+    fresh_rate = 100_000 / fresh_sec
 
-    elapsed = t1 - t0
-    rate = 100_000 / elapsed
-    ms_per_sim = (elapsed / 100_000) * 1000
+    # 2. Warm Run
+    t2 = time.perf_counter()
+    res_warm = simulate_election(
+        as_of="2026-08-23",
+        election_date="2026-09-13",
+        samples=100_000,
+        seed=12345,
+    )
+    t3 = time.perf_counter()
+    warm_sec = t3 - t2
+    warm_rate = 100_000 / warm_sec
 
-    print(f"  Clean 100k Simulation: {elapsed:.2f} s ({rate:.1f} sims/sec, {ms_per_sim:.3f} ms/sim)")
+    # Peak memory usage in MB
+    rusage = resource.getrusage(resource.RUSAGE_SELF)
+    # On macOS ru_maxrss is in bytes
+    peak_mem_mb = rusage.ru_maxrss / (1024 * 1024)
+
+    # Compute deterministic payload SHA-256 hash
+    payload_sha256 = compute_simulation_payload_sha256(
+        res_fresh.vote_shares_matrix,
+        res_fresh.seats_matrix,
+        {"as_of": res_fresh.summary.as_of, "total_samples": 100_000},
+    )
+
+    print(f"  Fresh 100k Runtime: {fresh_sec:.2f} s ({fresh_rate:.1f} sims/sec, {(fresh_sec/100):.3f} ms/sim)")
+    print(f"  Warm  100k Runtime: {warm_sec:.2f} s ({warm_rate:.1f} sims/sec, {(warm_sec/100):.3f} ms/sim)")
+    print(f"  Peak Memory:        {peak_mem_mb:.2f} MB")
+    print(f"  Payload SHA-256:    {payload_sha256}")
 
     return {
         "n_samples": 100_000,
-        "elapsed_sec": round(elapsed, 2),
-        "rate_sims_per_sec": round(rate, 1),
-        "ms_per_sim": round(ms_per_sim, 3),
+        "fresh_runtime_sec": round(fresh_sec, 2),
+        "fresh_rate_sims_per_sec": round(fresh_rate, 1),
+        "warm_runtime_sec": round(warm_sec, 2),
+        "warm_rate_sims_per_sec": round(warm_rate, 1),
+        "peak_memory_mb": round(peak_mem_mb, 2),
+        "deterministic_payload_sha256": payload_sha256,
     }
 
 
 def main():
     print("==========================================================================================")
-    print("RUNNING FINAL PRODUCTION FREEZE AUDIT (PART A)")
+    print("RUNNING FINAL PRODUCTION FREEZE & INTEGRITY AUDIT")
     print("==========================================================================================")
 
     res_scaling = audit_old_vs_new_dynamics_scaling()
     res_oracle = audit_valmyndigheten_return_oracle()
-    res_quant = audit_threshold_quantization_100k()
-    res_bench = run_clean_batch_benchmark()
+    res_quant = audit_threshold_quantization_and_local12_100k()
+    res_bench = run_benchmark_fresh_and_warm()
 
     report = {
         "scaling_audit": res_scaling,
         "valmyndigheten_oracle": res_oracle,
-        "threshold_quantization": res_quant,
-        "clean_benchmark": res_bench,
+        "threshold_quantization_and_local_12": res_quant,
+        "benchmark": res_bench,
     }
 
     out_path = "data/processed/simulations/final_freeze_audit_report.json"

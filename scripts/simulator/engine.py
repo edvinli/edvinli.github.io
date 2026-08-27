@@ -27,7 +27,7 @@ from .config import (
     MODEL_PARTIES_9,
     PARLIAMENTARY_PARTIES_8,
 )
-from .fast_allocator import fast_allocate_seats_from_matrix
+from .fast_allocator import dispatch_production_allocation, fast_allocate_seats_from_matrix
 from .reproducibility import build_reproducibility_manifest
 from .summary import GroupSummary, GroupSummaryHelper, SimulationSummary, compute_simulation_summary
 
@@ -105,6 +105,7 @@ def simulate_election(
     baseline_year: int = DEFAULT_GEOGRAPHY_BASELINE_YEAR,
     processed_geo_dir: Path | str | None = None,
     total_national_votes: int = 6_500_000,
+    geography_mode: str = "chronological",
 ) -> SimulationResult:
     """Execute complete end-to-end Monte Carlo simulation of the Swedish Riksdag election.
 
@@ -139,7 +140,7 @@ def simulate_election(
     B_cached, R_cached = _get_cached_geography_structures(
         baseline_year=baseline_year,
         target_year=target_year,
-        mode="production",
+        mode=geography_mode,
         processed_dir_str=str(p_geo_dir),
     )
     B_base = B_cached.copy()
@@ -161,6 +162,7 @@ def simulate_election(
     # 3. Batch Geographic Projection + Integerization + Mandate Allocation
     seats_matrix = np.zeros((samples, 8), dtype=np.int64)
     threshold_flags = (nat_shares_matrix[:, :8] >= 0.04)
+    local_12_pct_flags = np.zeros((samples, 8), dtype=bool)
 
     X_buf = np.empty((29, 9), dtype=np.float64)
 
@@ -181,10 +183,16 @@ def simulate_election(
         cr_res = biproportional_controlled_rounding(X_buf, R_int, C_int, solver="auto")
         int_mat = cr_res.rounded_matrix
 
-        # Mandate allocation
-        s_dict = fast_allocate_seats_from_matrix(int_mat, fixed_seats_arr=fixed_seats_arr)
+        # Mandate allocation with production dispatcher
+        disp_res = dispatch_production_allocation(int_mat, fixed_seats_arr=fixed_seats_arr)
+        s_dict = disp_res.seats_by_party
         for p_idx, p in enumerate(PARLIAMENTARY_PARTIES_8):
             seats_matrix[i, p_idx] = s_dict[p]
+            if disp_res.local_12pct_qualified:
+                # Check if this specific party qualified locally
+                const_valid_i = np.sum(int_mat, axis=1)
+                if np.any(25 * int_mat[:, p_idx] >= 3 * const_valid_i):
+                    local_12_pct_flags[i, p_idx] = True
 
     # Invariant 2: Total seats per sample strictly equals 349
     sample_seat_totals = np.sum(seats_matrix, axis=1)
@@ -221,6 +229,7 @@ def simulate_election(
         vote_shares_matrix=nat_shares_matrix,
         seats_matrix=seats_matrix,
         manifest=manifest,
+        local_12_pct_flags=local_12_pct_flags,
     )
 
     return SimulationResult(

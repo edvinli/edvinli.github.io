@@ -88,28 +88,35 @@ def _get_cached_geography_structures(
             B[code_to_idx[c_code], party_to_idx[p_code]] = float(r["votes"])
 
     # 2. Determine target constituency row sums R_c
-    sub_el_target = el_df[el_df["election_year"] == target_year]
-    sub_el_base = el_df[el_df["election_year"] == baseline_year]
-
     if mode == "oracle":
-        if sub_el_target["valid_votes"].isnull().any():
+        sub_el_target = el_df[el_df["election_year"] == target_year]
+        if sub_el_target.empty or sub_el_target["valid_votes"].isnull().any():
             raise ValueError(f"Oracle mode requested but target election {target_year} has missing valid votes")
         R = np.zeros(len(OFFICIAL_CONSTITUENCY_CODES), dtype=np.float64)
         for _, r in sub_el_target.iterrows():
             c_code = f"{int(r['constituency_code']):02d}"
-            R[code_to_idx[c_code]] = float(r["valid_votes"])
-    elif mode == "production":
-        R = np.zeros(len(OFFICIAL_CONSTITUENCY_CODES), dtype=np.float64)
-        for c_code in OFFICIAL_CONSTITUENCY_CODES:
-            row_t = sub_el_target[sub_el_target["constituency_code"] == int(c_code)].iloc[0]
-            row_b = sub_el_base[sub_el_base["constituency_code"] == int(c_code)].iloc[0]
-            el_t = float(row_t["eligible_voters"])
-            el_b = float(row_b["eligible_voters"])
-            val_b = float(row_b["valid_votes"])
-            rate_b = val_b / el_b if el_b > 0 else 0.85
-            R[code_to_idx[c_code]] = el_t * rate_b
+            if c_code in code_to_idx:
+                R[code_to_idx[c_code]] = float(r["valid_votes"])
+    elif mode in ("chronological", "production"):
+        if target_year <= 2022:
+            # Strictly chronological: row totals are derived entirely from baseline valid votes
+            # Zero information from target election electorate or valid votes is accessed!
+            R = np.sum(B, axis=1)
+        else:
+            # Forward 2026 production forecast: use decided 2026 electorate scaled by baseline turnout
+            sub_el_target = el_df[el_df["election_year"] == target_year]
+            sub_el_base = el_df[el_df["election_year"] == baseline_year]
+            R = np.zeros(len(OFFICIAL_CONSTITUENCY_CODES), dtype=np.float64)
+            for c_code in OFFICIAL_CONSTITUENCY_CODES:
+                row_t = sub_el_target[sub_el_target["constituency_code"] == int(c_code)].iloc[0]
+                row_b = sub_el_base[sub_el_base["constituency_code"] == int(c_code)].iloc[0]
+                el_t = float(row_t["eligible_voters"])
+                el_b = float(row_b["eligible_voters"])
+                val_b = float(row_b["valid_votes"])
+                rate_b = val_b / el_b if el_b > 0 else 0.85
+                R[code_to_idx[c_code]] = el_t * rate_b
     else:
-        raise ValueError(f"Unknown mode '{mode}'. Must be 'oracle' or 'production'")
+        raise ValueError(f"Unknown mode '{mode}'. Must be 'chronological', 'production', or 'oracle'")
 
     return B, R
 

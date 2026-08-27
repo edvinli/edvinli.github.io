@@ -32,6 +32,7 @@ def evaluate_seat_point_baseline(
     election_date: date,
     baseline_year: int,
     total_national_votes: int = 6_500_000,
+    geography_mode: str = "chronological",
     data_dir: Path | str | None = None,
 ) -> dict[str, int]:
     """Evaluate deterministic point-forecast baseline.
@@ -56,7 +57,7 @@ def evaluate_seat_point_baseline(
     B_cached, R_cached = _get_cached_geography_structures(
         baseline_year=baseline_year,
         target_year=target_year,
-        mode="production",
+        mode=geography_mode,
         processed_dir_str=str(p_geo_dir),
     )
     B_base = B_cached.copy()
@@ -97,6 +98,7 @@ def evaluate_election_simulator_v1(
     baseline_year: int,
     samples: int = 5_000,
     seed: int = 12345,
+    geography_mode: str = "chronological",
     data_dir: Path | str | None = None,
 ) -> SimulationResult:
     """Evaluate frozen ElectionSimulator v1 historically."""
@@ -107,5 +109,6 @@ def evaluate_election_simulator_v1(
         samples=samples,
         seed=seed,
         baseline_year=baseline_year,
+        geography_mode=geography_mode,
         processed_geo_dir=root_data / "geography",
     )

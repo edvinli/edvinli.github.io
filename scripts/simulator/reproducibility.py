@@ -90,3 +90,23 @@ def build_reproducibility_manifest(
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
     }
     return manifest
+
+
+def compute_simulation_payload_sha256(
+    national_matrix: Any,
+    seats_matrix: Any,
+    summary_dict: dict[str, Any],
+) -> str:
+    """Compute deterministic SHA-256 checksum over deterministic simulation payload."""
+    import numpy as np
+    h = hashlib.sha256()
+    nat_arr = np.asarray(national_matrix, dtype=np.float64)
+    seat_arr = np.asarray(seats_matrix, dtype=np.int64)
+    h.update(nat_arr.tobytes())
+    h.update(seat_arr.tobytes())
+    # Deterministic summary serialization (excluding any timestamps)
+    clean_summary = {k: v for k, v in summary_dict.items() if k not in ("generated_at_utc", "runtime_seconds")}
+    summary_bytes = json.dumps(clean_summary, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    h.update(summary_bytes)
+    return h.hexdigest()
+

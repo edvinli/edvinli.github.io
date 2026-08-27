@@ -1,0 +1,14 @@
+{
+  "unique_cases_tested": 20000,
+  "runtime_seconds": 458.41,
+  "fast_path_count": 3127,
+  "exact_tie_fallback_count": 0,
+  "local_12_fallback_count": 2857,
+  "overhang_fallback_count": 14016,
+  "multi_return_cases": 2857,
+  "gotland_cases": 2857,
+  "historical_map_cases": 8000,
+  "fast_kernel_evaluations": 3127,
+  "fast_kernel_accuracy_pct": 100.0,
+  "production_dispatcher_accuracy_pct": 100.0
+}

@@ -386,3 +386,65 @@ class TestMandateAllocation(unittest.TestCase):
         for ev in res.event_log:
             self.assertIsInstance(ev.comparison_number, Fraction)
             self.assertIsInstance(ev.divisor, Fraction)
+
+    def test_valmyndigheten_official_return_oracle(self) -> None:
+        """Official Valmyndigheten return oracle: asserts exact phase ordering, retractions, recipients, and adjustment seats."""
+        # Statutory worked scenario: Party OVER has high concentration in constituencies 01 and 02
+        cv = {c: {"M": 25000, "S": 35000, "SD": 20000, "C": 10000, "V": 10000} for c in OFFICIAL_CONSTITUENCIES}
+        # In constituency 01 (Stockholm kommun, 29 fixed seats), give OVER 140,000 votes
+        cv["01"]["OVER"] = 140000
+        # In constituency 02 (Stockholm län, 41 fixed seats), give OVER 150,000 votes
+        cv["02"]["OVER"] = 150000
+        # In constituency 01, RECIPIENT_A has 22,000 votes
+        cv["01"]["RECIPIENT_A"] = 22000
+
+        res = allocate_riksdag_seats(
+            constituency_votes=cv,
+            fixed_seats_by_constituency=FIXED_SEATS_2026,
+        )
+
+        # 1. Total Riksdag seats strictly conserved
+        self.assertEqual(res.total_seats, TOTAL_RIKSDAG_SEATS)
+        self.assertEqual(sum(res.final_seats_by_party.values()), TOTAL_RIKSDAG_SEATS)
+
+        # 2. Assert excess seats retracted and reallocated
+        retracted_events = [e for e in res.event_log if e.phase == "excess_retracted"]
+        reallocated_events = [e for e in res.event_log if e.phase == "returned_reallocated"]
+        self.assertGreater(len(retracted_events), 0)
+        self.assertEqual(len(retracted_events), len(reallocated_events))
+
+        for ret_ev in retracted_events:
+            self.assertEqual(ret_ev.party, "OVER")
+            self.assertIn(ret_ev.constituency_code, ["01", "02"])
+            self.assertNotEqual(ret_ev.constituency_code, "09")  # Gotland protection
+
+        # 3. Assert adjustment seats sum to 39
+        sum_adj = sum(res.national_adjustment_seats.values())
+        self.assertEqual(sum_adj, TOTAL_ADJUSTMENT_SEATS)
+
+    def test_2018_local_qualification_fixed_seat_map_regression(self) -> None:
+        """Verify that historical 2018 seat allocation strictly uses 2018 fixed seats and rejects 2026 map."""
+        # In 2018, Kalmar (08) had 8 fixed seats. In 2026, Kalmar has 7 fixed seats.
+        # In 2018, Stockholm län (02) had 39 fixed seats. In 2026, Stockholm län has 41 fixed seats.
+        cv = {c: {"M": 20000, "S": 30000, "SD": 20000, "C": 10000, "V": 10000} for c in OFFICIAL_CONSTITUENCIES}
+        # In Kalmar (08):
+        cv["08"] = {"S": 14000, "M": 8000, "SD": 7000, "C": 5000, "V": 4000, "LOCAL_KLM": 5400}
+
+        # Allocation under 2018 map (8 fixed seats in Kalmar)
+        res_2018 = allocate_riksdag_seats(cv, fixed_seats_by_constituency=FIXED_SEATS_2018)
+        # Allocation under 2026 map (7 fixed seats in Kalmar)
+        res_2026 = allocate_riksdag_seats(cv, fixed_seats_by_constituency=FIXED_SEATS_2026)
+
+        # In 2018, Kalmar awards 8 total fixed seats (S gets 3 seats)
+        total_kalmar_2018 = sum(res_2018.final_fixed_seats_by_party_constituency["08"].values())
+        self.assertEqual(total_kalmar_2018, 8)
+        self.assertEqual(res_2018.final_fixed_seats_by_party_constituency["08"]["S"], 3)
+
+        # In 2026, Kalmar awards 7 total fixed seats (S gets 2 seats)
+        total_kalmar_2026 = sum(res_2026.final_fixed_seats_by_party_constituency["08"].values())
+        self.assertEqual(total_kalmar_2026, 7)
+        self.assertEqual(res_2026.final_fixed_seats_by_party_constituency["08"]["S"], 2)
+
+        # Ensure both configurations strictly conserve 349 total seats
+        self.assertEqual(res_2018.total_seats, TOTAL_RIKSDAG_SEATS)
+        self.assertEqual(res_2026.total_seats, TOTAL_RIKSDAG_SEATS)

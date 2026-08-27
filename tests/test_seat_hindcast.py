@@ -2,6 +2,7 @@
 
 import unittest
 from datetime import date
+from pathlib import Path
 import numpy as np
 
 from scripts.seat_hindcasts.config import EVALUATION_ELECTIONS, PARLIAMENTARY_PARTIES_8
@@ -118,6 +119,56 @@ class TestSeatHindcast(unittest.TestCase):
             seed=seed,
         )
         np.testing.assert_allclose(sim_res.vote_shares_matrix / 100.0, standalone_res.nat_shares_matrix, atol=1e-12)
+
+    def test_strict_future_leakage_independence(self) -> None:
+        """Verify that chronological hindcasts are 100% independent of future target-election electorate rows."""
+        import tempfile
+        import pandas as pd
+        from scripts.geography.config import DEFAULT_PROCESSED_GEOGRAPHY_DIR
+
+        elec_date = date(2018, 9, 9)
+        as_of = date(2018, 8, 12)  # 28 days prior
+        n_samples = 100
+        seed = 42
+
+        # 1. Baseline run with standard data
+        res_baseline = evaluate_election_simulator_v1(
+            as_of=as_of,
+            election_date=elec_date,
+            baseline_year=2014,
+            samples=n_samples,
+            seed=seed,
+            geography_mode="chronological",
+        )
+
+        # 2. Create temp processed geography directory where 2018 & 2022 target electorate data is corrupted
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            # Copy baseline party votes
+            pv_df = pd.read_csv(DEFAULT_PROCESSED_GEOGRAPHY_DIR / "constituency_party_votes_2014_2022.csv")
+            pv_df.to_csv(tmp_path / "constituency_party_votes_2014_2022.csv", index=False)
+
+            # Corrupt target year electorates (2018 and 2022) with arbitrary wild numbers
+            el_df = pd.read_csv(DEFAULT_PROCESSED_GEOGRAPHY_DIR / "constituency_electorates_2014_2026.csv")
+            el_df.loc[el_df["election_year"] >= 2018, "valid_votes"] = 999_999_999
+            el_df.loc[el_df["election_year"] >= 2018, "eligible_voters"] = 999_999_999
+            el_df.to_csv(tmp_path / "constituency_electorates_2014_2026.csv", index=False)
+
+            # Re-run chronological simulator pointing to corrupted future data
+            from scripts.simulator.engine import simulate_election
+            res_corrupted = simulate_election(
+                as_of=as_of,
+                election_date=elec_date,
+                samples=n_samples,
+                seed=seed,
+                baseline_year=2014,
+                geography_mode="chronological",
+                processed_geo_dir=tmp_path,
+            )
+
+            # Assert 100% bit-for-bit identical seat matrices and vote share matrices
+            np.testing.assert_array_equal(res_baseline.seats_matrix, res_corrupted.seats_matrix)
+            np.testing.assert_array_equal(res_baseline.vote_shares_matrix, res_corrupted.vote_shares_matrix)
 
 
 if __name__ == "__main__":
