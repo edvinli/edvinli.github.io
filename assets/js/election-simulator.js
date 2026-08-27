@@ -392,29 +392,13 @@
     var lede = byId("election-hero-lede");
     if (lede) {
       var draws = samples === null
-        ? "a published set of simulated election outcomes"
-        : grouped(samples) + " simulated election outcomes";
-      lede.innerHTML = "This page visualises " + escapeHtml(draws) +
-        " produced in advance by the model and published as static data. " +
-        "All ranges are <strong>predictive intervals</strong>, not confidence intervals. " +
-        "Nothing is recalculated in your browser.";
+        ? "a published set of"
+        : grouped(samples);
+      lede.textContent = "Based on " + draws + " simulated election outcomes. " +
+        "The ranges show uncertainty in possible election results.";
     }
 
-    var certified = isCertified(metadata, manifest);
-    var chip = byId("election-cert-chip");
-    if (chip) {
-      chip.className = "election-chip " + (certified ? "election-chip--certified" : "election-chip--uncertified");
-      chip.innerHTML = "<span class=\"election-chip__mark\" aria-hidden=\"true\">" + (certified ? "\u2713" : "!") + "</span>" +
-        "<span class=\"election-chip__text\">" +
-        (certified
-          ? "Certified publication <span class=\"election-chip__sub\">clean source provenance</span>"
-          : "Uncertified publication <span class=\"election-chip__sub\">source provenance is not clean or complete</span>") +
-        "</span>";
-    }
-    setText("election-hero-channel", pointer
-      ? "Loaded through the current.json publication pointer."
-      : "Loaded from the legacy flat publication directory (no publication pointer present).");
-    return certified;
+    return isCertified(metadata, manifest);
   }
 
   // ---------------------------------------------------------------------
@@ -678,7 +662,7 @@
 
     var representative = display.source === "representative_joint_simulation_draw";
     setText("election-parliament-caption", representative
-      ? "One coherent simulated chamber: the published representative draw from the joint simulation. It is not assembled from the marginal medians above, so the party totals here need not equal them."
+      ? "One simulated 349-seat parliament, shown as an example of how the party results can fit together. It is not created by adding the separate party medians above."
       : "This legacy publication exposes only marginal medians. The chamber below is those medians normalised to a legal 349-seat allocation \u2014 a compatibility rendering, not a joint simulation draw.");
 
     var legend = byId("election-parliament-legend");
@@ -750,12 +734,11 @@
           return "<span class=\"eg-pill__swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>";
         }).join("");
         button.innerHTML =
-          "<span class=\"eg-pill__key\">" + escapeHtml(String(name).replace(/_/g, " ")) + "</span>" +
           "<span class=\"eg-pill__parties\">" + swatches + "<span>" + escapeHtml((group.parties || []).join(" + ")) + "</span></span>" +
           "<span class=\"eg-pill__prob\">" + escapeHtml(probability(group.prob_majority)) + "</span>" +
           "<span class=\"eg-pill__seats\">median " + format(group.median_seats, 0) + " seats</span>";
-        button.setAttribute("aria-label", "Group " + String(name).replace(/_/g, " ") + ": " +
-          (group.parties || []).join(" plus ") + ", majority probability " + probability(group.prob_majority) +
+        button.setAttribute("aria-label", (group.parties || []).join(" plus ") +
+          ": majority probability " + probability(group.prob_majority) +
           ", median " + format(group.median_seats, 0) + " seats.");
         if (button.addEventListener) {
           button.addEventListener("click", function () { active = name; update(); });
@@ -868,21 +851,11 @@
   function renderValidation(calibration, metadata) {
     reveal("election-validation");
     var sources = calibration.source_files || {};
-    var head = sources.pop_head_to_head;
-    var headSummary = head && head.summary ? head.summary : {};
-    var statusText = headSummary.benchmark_status || "not run";
 
     var blocks = [];
-    blocks.push("<p>Historical scores are retrospective evidence, not independent holdout validation. " +
-      "The PoP head-to-head benchmark status is <strong>" + escapeHtml(statusText) + "</strong>.</p>");
+    blocks.push("<p>Historical scores are retrospective evidence, not independent holdout validation.</p>");
     blocks.push("<p>Uncertainty is represented by joint Python simulations; intervals are predictive intervals. " +
       "REST is aggregate modeled-ineligible vote mass and cannot independently qualify.</p>");
-
-    var evidence = calibration.evidence_type || "";
-    if (evidence) {
-      blocks.push("<p class=\"election-note\">Evidence type: <code>" + escapeHtml(evidence) + "</code>" +
-        (calibration.status ? " \u00b7 calibration artefact status: <code>" + escapeHtml(calibration.status) + "</code>" : "") + "</p>");
-    }
 
     var coverage = coverageRow(sources.vote_share_hindcast);
     if (coverage) {
@@ -898,16 +871,6 @@
             (row.width === null ? "\u2014" : format(row.width, 2) + " pp") + "</td></tr>";
         }).join("") +
         "</tbody></table>");
-    }
-
-    var decision = headSummary.comparison_decision;
-    if (decision && decision.status) {
-      blocks.push("<p class=\"election-note\">Benchmark comparison decision: <code>" + escapeHtml(decision.status) + "</code>" +
-        (decision.automatic_adoption === false ? " \u00b7 no automatic model adoption." : "") + "</p>");
-    }
-    var thresholdDiag = headSummary.threshold_support_diagnostic;
-    if (thresholdDiag && thresholdDiag.status) {
-      blocks.push("<p class=\"election-note\">Threshold-support diagnostic: <code>" + escapeHtml(thresholdDiag.status) + "</code>.</p>");
     }
 
     var semantics = [
@@ -953,7 +916,9 @@
       ["Model", (metadata.model && metadata.model.version) || "\u2014"],
       ["Source commit", metadata.source_git_commit || "\u2014"],
       ["Payload hash", metadata.deterministic_payload_sha256 || (manifest && manifest.deterministic_payload_sha256) || "\u2014"],
-      ["Publication", certified ? "CERTIFIED (clean source)" : "UNCERTIFIED (source provenance is not clean/complete)"]
+      ["Source state", metadata.source_worktree_clean === true
+        ? "committed revision, no uncommitted changes"
+        : "uncommitted or unrecorded changes in the source revision"]
     ];
     var hashes = metadata.input_hashes || {};
     Object.keys(hashes).forEach(function (key) {
@@ -976,9 +941,13 @@
       renderChanges(data[0], data[1]);
       renderValidation(data[4], data[5]);
       var certified = renderMetadata(data[5], data[6]);
+      // The status strings stay in the DOM as the published load contract,
+      // but a successful load has no news for the reader, so it is hidden.
       status.textContent = certified ? "Certified forecast loaded." : "Forecast loaded, but it is not certified.";
+      status.hidden = true;
     })
     .catch(function (error) {
+      status.hidden = false;
       status.className += " election-status--error";
       status.textContent = "Forecast unavailable: " + error.message;
     });

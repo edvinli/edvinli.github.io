@@ -12,7 +12,7 @@ excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat
     <p class="notice--warning">This forecast needs JavaScript to load its static data. The downloadable JSON files remain available in the publication directory.</p>
   </noscript>
   <header class="election-hero" id="election-hero">
-    <p class="election-hero__kicker">Sweden · Riksdag · pre-published simulation</p>
+    <p class="election-hero__kicker">Sweden · Riksdag · 2026 election forecast</p>
     <dl class="election-hero__facts">
       <div class="election-hero__fact">
         <dt>Forecast as of</dt>
@@ -28,10 +28,8 @@ excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat
       </div>
     </dl>
     <p class="election-hero__lede" id="election-hero-lede">Loading the published simulation…</p>
-    <p class="election-chip election-chip--pending" id="election-cert-chip"><span class="election-chip__text">Checking publication certification…</span></p>
     <p class="election-status" id="election-app-status" role="status" aria-live="polite">Loading the latest forecast…</p>
-    <p class="election-hero__channel election-muted" id="election-hero-channel"></p>
-    <p class="election-hero__links"><a href="#election-methodology">Methodology &amp; validation</a><span aria-hidden="true"> · </span><a href="#election-technical">Technical metadata</a><span aria-hidden="true"> · </span><a href="{{ site.baseurl }}/files/election-simulator/forecast.json">Raw forecast JSON</a></p>
+    <p class="election-hero__links"><a href="#election-methodology">Methodology &amp; validation</a><span aria-hidden="true"> · </span><a href="#election-technical">Technical metadata</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
   <section id="election-headline" class="election-panel" hidden>
@@ -46,7 +44,7 @@ excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat
   <section id="election-seats" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Seats</h2>
-      <p class="election-muted">The Riksdag has 349 seats and 175 is a majority. Bars show the marginal median seat count per party; the darker line shows the central 90% predictive range.</p>
+      <p class="election-muted">The Riksdag has 349 seats; 175 are needed for a majority. Each bar shows a party’s median seat count across the simulations, and the darker line shows its central 90% predictive interval. Party medians are calculated separately and therefore do not necessarily add up to 349.</p>
     </div>
     <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
     <div id="election-seat-axis" class="es-axis"></div>
@@ -60,8 +58,8 @@ excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat
   </section>
   <section id="election-groups" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Party-group probabilities</h2>
-      <p class="election-muted">Only the groups published in <code>groups.json</code> are shown. Group membership is defined by the publication, not by this page.</p>
+      <h2>Majority scenarios</h2>
+      <p class="election-muted">Select a party combination to see its combined seat distribution and chance of reaching 175 seats.</p>
     </div>
     <div id="election-group-pills" class="eg-pills"></div>
     <div id="election-group-result" class="eg-result"></div>

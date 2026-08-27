@@ -262,7 +262,6 @@ canvas {
   max-width: 62ch;
 }
 
-.election-hero__channel,
 .election-hero__links {
   font-size: 0.82rem;
   margin: 0.5rem 0 0;
@@ -274,44 +273,15 @@ canvas {
   white-space: nowrap;
 }
 
-/* Certification indicator: unmistakable, but not the loudest thing here. */
-.election-chip {
-  align-items: baseline;
-  border: 1px solid var(--el-rule-strong);
-  border-radius: 2px;
-  display: inline-flex;
-  font-size: 0.82rem;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0.35rem 0.6rem;
-}
-
-.election-chip__mark {
-  font-family: var(--el-mono);
-  font-weight: 700;
-}
-
-.election-chip__sub {
-  color: var(--el-muted);
-  display: block;
-  font-size: 0.76rem;
-}
-
-.election-chip--certified {
-  border-color: rgba(31, 107, 58, 0.5);
-  color: var(--el-good);
-}
-
-.election-chip--uncertified {
-  border-color: rgba(138, 90, 0, 0.55);
-  color: var(--el-warn);
-}
-
 .election-status {
   color: var(--el-muted);
   font-family: var(--el-mono);
   font-size: 0.78rem;
   margin: 0.6rem 0 0;
+}
+
+.election-status[hidden] {
+  display: none;
 }
 
 .election-status--error {
@@ -861,14 +831,6 @@ canvas {
   background: var(--el-fill-soft);
   border-color: var(--el-ink);
   box-shadow: inset 0 0 0 1px var(--el-ink);
-}
-
-.eg-pill__key {
-  color: var(--el-muted);
-  font-family: var(--el-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .eg-pill__parties {
