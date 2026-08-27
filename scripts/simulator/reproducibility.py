@@ -21,6 +21,12 @@ GENERATED_OUTPUT_PREFIXES: tuple[str, ...] = (
     "data/processed/seat_hindcasts/",
     "data/processed/prospective_forecasts/",
     "data/processed/botten_ada_benchmark/",
+    # The stable consumer path contains the version store and may be a regular
+    # directory or a legacy symlink on older checkouts.
+    "files/election-simulator",
+    # Retain compatibility with the short-lived sibling-store layout used by
+    # earlier exporter builds; it is generated evidence, not source code.
+    "files/.election-simulator.versions/",
 )
 
 
@@ -60,7 +66,11 @@ def is_git_worktree_clean(repo_dir: Path | str | None = None) -> bool:
             if " -> " in path or not path:
                 dirty_source_paths.append(path)
                 continue
-            if not any(path.startswith(prefix) for prefix in GENERATED_OUTPUT_PREFIXES):
+            is_generated_output = any(
+                path == prefix.rstrip("/") or path.startswith(prefix.rstrip("/") + "/")
+                for prefix in GENERATED_OUTPUT_PREFIXES
+            )
+            if not is_generated_output:
                 dirty_source_paths.append(path)
         return not bool(dirty_source_paths)
     except Exception:

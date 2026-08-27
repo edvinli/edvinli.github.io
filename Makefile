@@ -1,4 +1,4 @@
-.PHONY: fetch-pollofpolls process-pollofpolls test-pollofpolls opinion-state backtest fetch-election-results process-election-results hindcast election-residuals election-layer election-layer-v2 vote-share-calibration fetch-mandate-data process-mandate-data test-mandate-allocation
+.PHONY: fetch-pollofpolls process-pollofpolls test-pollofpolls opinion-state backtest pop-baseline pop-baseline-benchmark pop-publication fetch-election-results process-election-results hindcast election-residuals election-layer election-layer-v2 vote-share-calibration fetch-mandate-data process-mandate-data test-mandate-allocation fetch-scb-support-voting process-scb-support-voting test-scb-support-voting process-threshold-events test-threshold-events run-scb-behavioral-diagnostic test-scb-behavioral-diagnostic run-pop-state-diagnostics test-pop-state-diagnostics run-opinion-precision-challenger test-opinion-precision-challenger
 
 PYTHON := $(shell which uv >/dev/null 2>&1 && echo "uv run python" || echo "python3")
 
@@ -16,6 +16,15 @@ opinion-state:
 
 backtest:
 	$(PYTHON) -m scripts.pollofpolls.backtest $(if $(MODEL),--model $(MODEL),) $(if $(START),--start $(START),) $(if $(END),--end $(END),) $(if $(HORIZONS),--horizons $(HORIZONS),) $(if $(SAMPLES),--samples $(SAMPLES),) $(if $(SEED),--seed $(SEED),)
+
+pop-baseline:
+	$(PYTHON) -m scripts.pop_baseline --origin $(ORIGIN) --horizon $(if $(HORIZON),$(HORIZON),28) $(if $(SAMPLES),--samples $(SAMPLES),) $(if $(SEED),--seed $(SEED),) $(if $(NO_SUPPORT),--disable-support-voting,)
+
+pop-baseline-benchmark:
+	$(PYTHON) -m scripts.pop_baseline.benchmark $(if $(SAMPLES),--samples $(SAMPLES),) $(if $(SEED),--seed $(SEED),) $(if $(START),--start $(START),) $(if $(END),--end $(END),) $(if $(HORIZONS),--horizons $(HORIZONS),)
+
+pop-publication:
+	$(PYTHON) -m scripts.publication_pipeline $(if $(AS_OF),--as-of $(AS_OF),) $(if $(SAMPLES),--samples $(SAMPLES),) $(if $(SEED),--seed $(SEED),)
 
 fetch-election-results:
 	$(PYTHON) -m scripts.elections.pipeline
@@ -79,3 +88,36 @@ test-seat-hindcast:
 
 test-adversarial-mandates:
 	$(PYTHON) -m unittest tests/test_adversarial_mandates.py
+
+fetch-scb-support-voting:
+	$(PYTHON) -m scripts.scb_support_voting.pipeline --fetch
+
+process-scb-support-voting:
+	$(PYTHON) -m scripts.scb_support_voting.pipeline --offline
+
+test-scb-support-voting:
+	$(PYTHON) -m unittest tests/test_scb_support_voting.py
+
+process-threshold-events:
+	$(PYTHON) -m scripts.threshold_events.pipeline
+
+test-threshold-events:
+	$(PYTHON) -m unittest tests/test_threshold_events.py
+
+run-scb-behavioral-diagnostic:
+	$(PYTHON) -m scripts.scb_behavioral_diagnostic.pipeline
+
+test-scb-behavioral-diagnostic:
+	$(PYTHON) -m unittest tests/test_scb_behavioral_diagnostic.py
+
+run-pop-state-diagnostics:
+	$(PYTHON) -m scripts.pop_state_diagnostics.pipeline
+
+test-pop-state-diagnostics:
+	$(PYTHON) -m unittest tests/test_pop_state_diagnostics.py
+
+run-opinion-precision-challenger:
+	$(PYTHON) -m scripts.opinion_precision_challenger.pipeline
+
+test-opinion-precision-challenger:
+	$(PYTHON) -m unittest tests/test_opinion_precision_challenger.py

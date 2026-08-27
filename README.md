@@ -1,31 +1,73 @@
-A Github Pages template for academic websites. This was forked (then detached) by [Stuart Geiger](https://github.com/staeiou) from the [Minimal Mistakes Jekyll Theme](https://mmistakes.github.io/minimal-mistakes/), which is © 2016 Michael Rose and released under the MIT License. See LICENSE.md.
+# Swedish Election Simulator v1.0
 
-I think I've got things running smoothly and fixed some major bugs, but feel free to file issues or make pull requests if you want to improve the generic template / theme.
+A leakage-safe, empirically validated probabilistic forecasting model for Swedish parliamentary elections.
 
-### Note: if you are using this repo and now get a notification about a security vulnerability, delete the Gemfile.lock file. 
+---
 
-# Instructions
+## 🎯 Modeling Philosophy & Architecture
 
-1. Register a GitHub account if you don't have one and confirm your e-mail (required!)
-1. Fork [this repository](https://github.com/academicpages/academicpages.github.io) by clicking the "fork" button in the top right. 
-1. Go to the repository's settings (rightmost item in the tabs that start with "Code", should be below "Unwatch"). Rename the repository "[your GitHub username].github.io", which will also be your website's URL.
-1. Set site-wide configuration and create content & metadata (see below -- also see [this set of diffs](http://archive.is/3TPas) showing what files were changed to set up [an example site](https://getorg-testacct.github.io) for a user with the username "getorg-testacct")
-1. Upload any files (like PDFs, .zip files, etc.) to the files/ directory. They will appear at https://[your GitHub username].github.io/files/example.pdf.  
-1. Check status by going to the repository settings, in the "GitHub pages" section
-1. (Optional) Use the Jupyter notebooks or python scripts in the `markdown_generator` folder to generate markdown files for publications and talks from a TSV file.
+`ElectionSimulator v1.0` forecasts the joint probability distribution over Swedish Riksdag election outcomes by propagating uncertainty through three disentangled layers:
 
-See more info at https://academicpages.github.io/
+1. **Current Opinion State ($X_0 \sim F_{\text{state}}$)**: Multivariate ALR covariance estimated from recent poll residuals and house effects.
+2. **Campaign Dynamics ($\Delta_h \sim F_{\text{movement}, h}$)**: Exact-horizon joint CLR transitions sampled from all available historical polling with sign symmetry ($\pm \Delta$).
+3. **Structural Polling Error ($R \sim F_{\text{election\_error}}$)**: Empirical poll-to-election residuals (1998–2022) capturing late-decider swing and systematic pollster misses.
+4. **Geography & Mandates**: 29-constituency historical projection and exact legal 310 fixed + 39 adjustment Sainte-Laguë mandate allocation.
 
-## To run locally (not on GitHub Pages, to serve on your own computer)
+For a detailed breakdown of our modeling philosophy, comparisons with Poll of Polls, and our empirical findings on tactical voting and state dynamics, see **[`docs/MODELING_PHILOSOPHY.md`](docs/MODELING_PHILOSOPHY.md)**.
 
-1. Clone the repository and made updates as detailed above
-1. Make sure you have ruby-dev, bundler, and nodejs installed: `sudo apt install ruby-dev ruby-bundler nodejs`
-1. Run `bundle clean` to clean up the directory (no need to run `--force`)
-1. Run `bundle install` to install ruby dependencies. If you get errors, delete Gemfile.lock and try again.
-1. Run `bundle exec jekyll liveserve` to generate the HTML and serve it from `localhost:4000` the local server will automatically rebuild and refresh the pages on change.
+---
 
-# Changelog -- bugfixes and enhancements
+## 📊 Comparison with Poll of Polls
 
-There is one logistical issue with a ready-to-fork template theme like academic pages that makes it a little tricky to get bug fixes and updates to the core theme. If you fork this repository, customize it, then pull again, you'll probably get merge conflicts. If you want to save your various .yml configuration files and markdown files, you can delete the repository and fork it again. Or you can manually patch. 
+| Component | Poll of Polls (PoP) | Swedish Election Simulator v1.0 |
+| :--- | :--- | :--- |
+| **Starting Point** | Daily PoP estimate | Daily PoP estimate (`M, L, C, KD, S, V, MP, SD, REST`) |
+| **Current-State Uncertainty** | Not separately modeled | Multivariate ALR covariance from poll residuals |
+| **Future Movement** | Random walk from current mandate period | Exact-horizon joint empirical movements from all history |
+| **Directional Symmetry** | Symmetric gain/loss assumption | Empirical joint vectors with random sign symmetry ($\pm \Delta$) |
+| **Election-Day Error** | No separate general layer | Empirical poll-to-election residual layer (1998–2022) |
+| **Tactical Voting** | Explicit formula near 4% threshold | **None** (empirically tested and rejected) |
+| **Geography** | Simpler seat conversion approach | 29-constituency historical projection |
+| **Mandates** | Simulation / mandate calculation | Exact legal 310+39 modified Sainte-Laguë allocator |
+| **Validation Philosophy** | Scenario exploration model | Strict out-of-sample proper scoring (CRPS, Energy Score) |
 
-To support this, all changes to the underlying code appear as a closed issue with the tag 'code change' -- get the list [here](https://github.com/academicpages/academicpages.github.io/issues?q=is%3Aclosed%20is%3Aissue%20label%3A%22code%20change%22%20). Each issue thread includes a comment linking to the single commit or a diff across multiple commits, so those with forked repositories can easily identify what they need to patch.
+---
+
+## 🔬 Key Empirical Findings
+
+- **Tactical Voting Rejected ([`docs/scb_behavioral_diagnostic.md`](docs/scb_behavioral_diagnostic.md))**:
+  - Across 9 elections (1991–2022), there were **0** cases where a party below 4% in final polls crossed on election day.
+  - In 29 SCB PSU survey waves (2010–2026), second-choice affinity converted into cross-voting at an ordinary baseline rate ($\theta = +0.095$), with no threshold activation ($\alpha = -0.0559$, identical to 7% placebo).
+- **All-History Dynamics Validated ([`docs/pop_state_dependence_evidence.md`](docs/pop_state_dependence_evidence.md))**:
+  - In 3,610 rolling out-of-sample forecast cases, all-history Dynamics v2 ($\text{ES} = 1.265$) decisively outperformed state-conditioned nearest neighbors ($\text{ES} = 1.396$) and recent-period conditioning ($\text{ES} = 1.440$).
+  - Raw directional momentum failed severely ($\text{ES} = 1.867$), demonstrating that sign symmetry ($\pm \Delta$) is essential.
+
+---
+
+## 📁 Technical Documentation
+
+- **[Modeling Philosophy & Design Choices](docs/MODELING_PHILOSOPHY.md)**: Full design rationale, benchmark evaluation, and rejected alternatives log.
+- **[Election Simulator v1.0 Specification](docs/election_simulator.md)**: End-to-end mathematical specification.
+- **[PoP State-Dependence Diagnostic](docs/pop_state_dependence_evidence.md)**: Out-of-sample evaluation of state-conditioned dynamics.
+- **[SCB Behavioral Threshold Diagnostic](docs/scb_behavioral_diagnostic.md)**: Regression analysis of 29 PSU survey waves.
+- **[Historical Threshold Events](docs/threshold_event_evidence.md)**: Final 14-day polling vs election returns (1991–2022).
+- **[Riksdag Mandate Allocation](docs/riksdag_mandate_allocation.md)**: Legal 349-seat Sainte-Laguë implementation.
+
+---
+
+## 🛠️ Reproduction & Testing
+
+```bash
+# Run full unit test suite (92 tests)
+make test-mandate-allocation
+make test-scb-support-voting
+make test-threshold-events
+make test-scb-behavioral-diagnostic
+make test-pop-state-diagnostics
+
+# Run data processing & diagnostic pipelines
+make process-scb-support-voting
+make process-threshold-events
+make run-scb-behavioral-diagnostic
+make run-pop-state-diagnostics
+```
