@@ -44,6 +44,7 @@ class SimulationResult:
     largest_seat_parties: list[str] # length N
     group_helper: GroupSummaryHelper
     manifest: dict[str, Any]
+    quantization_audit: dict[str, Any] | None = None
 
     def summarize_group(
         self,
@@ -106,6 +107,7 @@ def simulate_election(
     processed_geo_dir: Path | str | None = None,
     total_national_votes: int = 6_500_000,
     geography_mode: str = "chronological",
+    collect_quantization_audit: bool = False,
 ) -> SimulationResult:
     """Execute complete end-to-end Monte Carlo simulation of the Swedish Riksdag election.
 
@@ -164,6 +166,24 @@ def simulate_election(
     threshold_flags = (nat_shares_matrix[:, :8] >= 0.04)
     local_12_pct_flags = np.zeros((samples, 8), dtype=bool)
 
+    quantization_audit: dict[str, Any] | None = None
+    if collect_quantization_audit:
+        quantization_audit = {
+            "total_samples": int(samples),
+            "total_party_constituency_pairs_checked": int(
+                samples * len(OFFICIAL_CONSTITUENCY_CODES) * len(PARLIAMENTARY_PARTIES_8)
+            ),
+            "relevant_party_constituency_pairs": 0,
+            "pre_ipf_local_12_events": 0,
+            "post_integer_local_12_events": 0,
+            "pre_post_local_12_mismatches": 0,
+            "mismatch_examples": [],
+            "minimum_national_4pct_continuous_distance_pp": None,
+            "minimum_national_4pct_integer_margin_votes": None,
+            "minimum_local_12pct_pre_distance_pp": None,
+            "minimum_local_12pct_post_margin_votes": None,
+        }
+
     X_buf = np.empty((29, 9), dtype=np.float64)
 
     for i in range(samples):
@@ -182,6 +202,76 @@ def simulate_election(
         # Exact-margin controlled rounding preserving BOTH R_int and C_int
         cr_res = biproportional_controlled_rounding(X_buf, R_int, C_int, solver="auto")
         int_mat = cr_res.rounded_matrix
+
+        if quantization_audit is not None:
+            # Compare the continuous IPF share with the actual post-rounding
+            # integer test used by the production allocator.  National
+            # eligibility is based on the same Hamilton-rounded C_int.
+            national_eligible_i = 25 * C_int[:8] >= total_national_votes
+            relevant_i = ~national_eligible_i
+            pre_row_totals = np.sum(X_buf, axis=1)
+            pre_local_i = 25 * X_buf[:, :8] >= 3 * pre_row_totals[:, np.newaxis]
+            post_local_i = 25 * int_mat[:, :8] >= 3 * R_int[:, np.newaxis]
+            relevant_mask = np.broadcast_to(relevant_i[np.newaxis, :], pre_local_i.shape)
+            pre_relevant = pre_local_i & relevant_mask
+            post_relevant = post_local_i & relevant_mask
+            mismatch_mask = pre_relevant != post_relevant
+            quantization_audit["relevant_party_constituency_pairs"] += int(np.sum(relevant_mask))
+            quantization_audit["pre_ipf_local_12_events"] += int(np.sum(pre_relevant))
+            quantization_audit["post_integer_local_12_events"] += int(np.sum(post_relevant))
+            quantization_audit["pre_post_local_12_mismatches"] += int(np.sum(mismatch_mask))
+
+            # Retain a bounded, reproducible sample of mismatches for forensic
+            # review rather than writing one giant per-cell artifact.
+            examples = quantization_audit["mismatch_examples"]
+            if len(examples) < 100 and np.any(mismatch_mask):
+                for c_idx, p_idx in zip(*np.where(mismatch_mask)):
+                    if len(examples) >= 100:
+                        break
+                    pre_share = float(X_buf[c_idx, p_idx] / pre_row_totals[c_idx])
+                    post_share = float(int_mat[c_idx, p_idx] / R_int[c_idx])
+                    examples.append({
+                        "sample_index": int(i),
+                        "constituency_code": OFFICIAL_CONSTITUENCY_CODES[int(c_idx)],
+                        "party": PARLIAMENTARY_PARTIES_8[int(p_idx)],
+                        "national_integer_votes": int(C_int[p_idx]),
+                        "pre_ipf_share": pre_share,
+                        "post_integer_share": post_share,
+                        "pre_qualifies_12pct": bool(pre_local_i[c_idx, p_idx]),
+                        "post_qualifies_12pct": bool(post_local_i[c_idx, p_idx]),
+                    })
+
+            # Distances are expressed in percentage points for the continuous
+            # shares and integer votes for the exact cross-product margins.
+            continuous_4_dist = np.abs(nat_shares_matrix[i, :8] - 0.04) * 100.0
+            min_cont_4 = float(np.min(continuous_4_dist))
+            old_min_cont_4 = quantization_audit["minimum_national_4pct_continuous_distance_pp"]
+            quantization_audit["minimum_national_4pct_continuous_distance_pp"] = (
+                min_cont_4 if old_min_cont_4 is None else min(old_min_cont_4, min_cont_4)
+            )
+            integer_4_margin = np.abs(25 * C_int[:8] - total_national_votes)
+            min_int_4 = int(np.min(integer_4_margin))
+            old_min_int_4 = quantization_audit["minimum_national_4pct_integer_margin_votes"]
+            quantization_audit["minimum_national_4pct_integer_margin_votes"] = (
+                min_int_4 if old_min_int_4 is None else min(old_min_int_4, min_int_4)
+            )
+            relevant_pre_dist = np.abs(
+                (25 * X_buf[:, :8] / np.maximum(3 * pre_row_totals[:, np.newaxis], 1e-12)) - 1.0
+            ) * 12.0
+            if np.any(relevant_mask):
+                min_pre_12 = float(np.min(relevant_pre_dist[relevant_mask]))
+                old_min_pre_12 = quantization_audit["minimum_local_12pct_pre_distance_pp"]
+                quantization_audit["minimum_local_12pct_pre_distance_pp"] = (
+                    min_pre_12 if old_min_pre_12 is None else min(old_min_pre_12, min_pre_12)
+                )
+            integer_12_margin = np.abs(25 * int_mat[:, :8] - 3 * R_int[:, np.newaxis])
+            integer_12_margin = integer_12_margin[relevant_mask]
+            if integer_12_margin.size:
+                min_int_12 = int(np.min(integer_12_margin))
+                old_min_int_12 = quantization_audit["minimum_local_12pct_post_margin_votes"]
+                quantization_audit["minimum_local_12pct_post_margin_votes"] = (
+                    min_int_12 if old_min_int_12 is None else min(old_min_int_12, min_int_12)
+                )
 
         # Mandate allocation with production dispatcher
         disp_res = dispatch_production_allocation(int_mat, fixed_seats_arr=fixed_seats_arr)
@@ -241,4 +331,5 @@ def simulate_election(
         largest_seat_parties=largest_seat_parties,
         group_helper=group_helper,
         manifest=manifest,
+        quantization_audit=quantization_audit,
     )

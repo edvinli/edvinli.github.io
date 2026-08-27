@@ -1,4 +1,4 @@
-# Swedish Riksdag Election Simulator v1
+# Swedish Riksdag Election Simulator v1.0-rc1
 
 ## 1. Overview & Architecture
 
@@ -53,8 +53,8 @@ The Riksdag mandate allocator strictly implements **Vallagen (2005:837) 14 kap. 
 ## 3. Geography Baseline Sensitivity Audit (2018 vs 2022)
 
 Across 1,016 scenarios (central forecast, threshold sensitivity sweeps for L, KD, MP, and 1,000 Monte Carlo draws):
-* **Deterministic Agreement Rate**: **100.0% (0 / 1,016 differed)**
-* **Constituency $\times$ Party Cell Seat Differences**: 0 across all evaluated scenarios.
+* **Deterministic Agreement Rate**: **100.0% (0 / 1,016 differed)** for the reported national seat vectors.
+* **Cell-level outputs**: constituency $\times$ party allocation differences are reported separately; national agreement does not certify every cell-level tie-break outcome.
 * **Separation of Concerns**: Statutory stress scenarios are tested and reported separately from empirical forecast probabilities.
 
 ---
@@ -82,21 +82,26 @@ Across 1,016 scenarios (central forecast, threshold sensitivity sweeps for L, KD
 ## 6. Reproducibility Manifest
 
 Every simulation emits metadata capturing all cryptographic dependencies:
-* `model_version`: 1.0.0
+* `model_version`: 1.0.0-rc1
 * `as_of` & `election_date`
 * `samples` & `base_seed`
 * SHA-256 hashes of `swedishpolls_individual_polls.csv`, `riksdag_election_results.csv`, `historical_certified_mandates.csv`, and `constituency_party_votes_2014_2022.csv`
-* `model_config_hash` & `git_commit`
+* `model_config_hash`, `source_git_commit`, and source-worktree cleanliness at generation time
+* Deterministic payload SHA-256 excluding timestamps and runtime fields
 * UTC timestamp.
 
 Given the same seed and input data, outputs are bit-for-bit identical across executions.
+
+`source_git_commit` identifies the clean code/data commit used for generation. The artifact may be committed afterward and therefore must not claim that its own containing commit generated it.
+
+The release certification, immutable prospective archive, and external-model
+benchmark contract are documented in [`election_simulator_rc1.md`](election_simulator_rc1.md).
 
 ---
 
 ## 7. Performance & Benchmark Profile
 
-* **Fast Vectorized Path (Batch Simulation)**:
-  * 100,000 simulations complete in **~100 seconds** (~1,000 sims/sec, ~1.0 ms per draw) with peak memory of ~140 MB.
+* **Production benchmark**: the freeze audit records an isolated cold-subprocess run separately from an in-process warm run. Use the generated benchmark artifact for measured values; performance is environment-dependent.
 * **Profiler / Tracing Benchmark**:
   * Unchunked tracing and full Python instrumentation measures 100k in ~1,025 seconds.
   * The historical discrepancy (975s vs 91s) was due to tracing memory allocation and unvectorized loop instrumentation during early development vs the optimized vectorized production pipeline.
@@ -118,3 +123,9 @@ make simulate-audit
 # Run simulator test suite
 make test-simulator
 ```
+
+## 9. Evidence and Evaluation Labels
+
+SeatHindcast results are labelled **“Retrospective historical evaluation (not independent holdout validation)”**. Coverage and horizon patterns are descriptive, and the baseline and simulator joint Energy Scores are computed per stored election-by-horizon case before aggregation.
+
+The Valmyndigheten Example 5 fixture archived under `tests/fixtures/` is an official three-constituency municipal worked example. It is not executable by the 29-constituency, 349-seat Riksdag allocator without changing its semantics; the freeze report labels this external-fixture limitation and keeps synthetic Riksdag stress tests separately named.

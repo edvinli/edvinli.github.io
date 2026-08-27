@@ -15,8 +15,10 @@ Covers:
 """
 
 from fractions import Fraction
+import json
 from pathlib import Path
 import unittest
+import numpy as np
 import pandas as pd
 
 from scripts.mandates.allocator import SeatAllocation, allocate_riksdag_seats
@@ -31,6 +33,7 @@ from scripts.mandates.config import (
     TOTAL_RIKSDAG_SEATS,
 )
 from scripts.mandates.tie_breaker import DeterministicLotteryTieBreaker, TieBreaker
+from scripts.simulator.fast_allocator import EXACT_TIE, dispatch_production_allocation
 
 
 class CustomMockTieBreaker:
@@ -387,8 +390,8 @@ class TestMandateAllocation(unittest.TestCase):
             self.assertIsInstance(ev.comparison_number, Fraction)
             self.assertIsInstance(ev.divisor, Fraction)
 
-    def test_valmyndigheten_official_return_oracle(self) -> None:
-        """Official Valmyndigheten return oracle: asserts exact phase ordering, retractions, recipients, and adjustment seats."""
+    def test_synthetic_return_reallocation_regression(self) -> None:
+        """Synthetic Riksdag stress case for returned-seat reallocation mechanics."""
         # Statutory worked scenario: Party OVER has high concentration in constituencies 01 and 02
         cv = {c: {"M": 25000, "S": 35000, "SD": 20000, "C": 10000, "V": 10000} for c in OFFICIAL_CONSTITUENCIES}
         # In constituency 01 (Stockholm kommun, 29 fixed seats), give OVER 140,000 votes
@@ -421,6 +424,48 @@ class TestMandateAllocation(unittest.TestCase):
         # 3. Assert adjustment seats sum to 39
         sum_adj = sum(res.national_adjustment_seats.values())
         self.assertEqual(sum_adj, TOTAL_ADJUSTMENT_SEATS)
+
+    def test_valmyndigheten_example5_fixture_is_untransformed(self) -> None:
+        """Validate the published three-constituency fixture without relabelling it Riksdag data."""
+        fixture_path = Path(__file__).resolve().parent / "fixtures" / "valmyndigheten_example_5_valkoping.json"
+        with fixture_path.open(encoding="utf-8") as f:
+            fixture = json.load(f)
+
+        self.assertEqual(fixture["fixture_type"], "official_worked_example")
+        self.assertIn("Valmyndigheten", fixture["source"]["authority"])
+        self.assertEqual(len(fixture["constituencies"]), 3)
+        self.assertEqual(sum(fixture["fixed_seats_by_constituency"].values()), 67)
+        self.assertEqual(fixture["total_seats"], 75)
+        self.assertEqual(
+            fixture["expected_phase_order"],
+            ["fixed", "national_entitlement", "excess_retracted", "returned_reallocated", "adjustment"],
+        )
+        self.assertEqual(fixture["expected_events"][0]["party"], "KD")
+        self.assertEqual(fixture["expected_events"][0]["constituency"], "Valköping V")
+        self.assertEqual(fixture["expected_events"][1]["party"], "L")
+        self.assertEqual(fixture["expected_events"][1]["constituency"], "Valköping V")
+        self.assertEqual(fixture["fixed_seats_after_return"]["KD"]["Valköping V"], 0)
+        self.assertEqual(fixture["fixed_seats_after_return"]["L"]["Valköping V"], 2)
+        self.assertEqual(sum(sum(row.values()) for row in fixture["final_seats"].values()), 75)
+
+    def test_exact_cutoff_tie_dispatches_to_reference_with_lottery(self) -> None:
+        """Exact 200000/1.2 == 500000/3 boundary must never use the fast path."""
+        votes = np.array(
+            [[20_000, 4_000, 7_000, 6_000, 30_000, 7_000, 6_000, 20_000, 3_000] for _ in OFFICIAL_CONSTITUENCIES],
+            dtype=np.int64,
+        )
+        # In Stockholm kommun, M's first quotient and S's second quotient tie
+        # exactly: 200000/(6/5) = 500000/3 = 166666 2/3.
+        votes[0, :] = 100
+        votes[0, 0] = 200_000
+        votes[0, 4] = 500_000
+
+        fixed_arr = np.array([FIXED_SEATS_2026[c] for c in OFFICIAL_CONSTITUENCIES], dtype=np.int64)
+        dispatch = dispatch_production_allocation(votes, fixed_seats_arr=fixed_arr)
+        self.assertEqual(dispatch.path, "REFERENCE")
+        self.assertIn(EXACT_TIE, dispatch.fallback_reasons)
+        self.assertEqual(dispatch.fixed_seat_configuration, "2026")
+        self.assertEqual(sum(dispatch.seats_by_party.values()), TOTAL_RIKSDAG_SEATS)
 
     def test_2018_local_qualification_fixed_seat_map_regression(self) -> None:
         """Verify that historical 2018 seat allocation strictly uses 2018 fixed seats and rejects 2026 map."""

@@ -11,6 +11,12 @@ In historical forward evaluations ($2014 \to 2018$ and $2018 \to 2022$), determi
 * **National share reproduction error**: $< 10^{-6}$ (exact conservation)
 * **Total Riksdag Seat Error**: **0 seats** (exact certified seat reproduction for all parties in both Oracle and Production modes).
 
+These are retrospective historical forward-evaluation results for the stated
+2014→2018 and 2018→2022 fixtures. They do not certify every cell-level
+tie-break outcome in arbitrary forecast scenarios; the simulator's separate
+freeze audit reports national-seat agreement and cell-level diagnostics
+explicitly.
+
 ---
 
 ## 2. Mathematical Methodology (IPF / Raking)

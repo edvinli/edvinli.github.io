@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 import time
 import tracemalloc
-from typing import Sequence
+from typing import Any, Sequence
 import numpy as np
 
 from scripts.geography.audit_sensitivity import (
@@ -25,6 +25,59 @@ from .config import (
     PARLIAMENTARY_PARTIES_8,
 )
 from .engine import simulate_election
+from .reproducibility import compute_simulation_payload_sha256
+
+
+def build_canonical_summary_dict(sim_res: Any) -> dict[str, Any]:
+    """Serialize the canonical forecast summary from a ``SimulationResult``."""
+    tido = sim_res.summarize_group(["M", "SD", "KD", "L"])
+    rg = sim_res.summarize_group(["S", "V", "MP", "C"])
+    summary_dict: dict[str, Any] = {
+        "as_of": sim_res.summary.as_of,
+        "election_date": sim_res.summary.election_date,
+        "total_samples": sim_res.summary.total_samples,
+        "parties": {
+            p: {
+                "party": p_info.party,
+                "vote_share_mean": round(p_info.vote_share_mean * 100, 3),
+                "vote_share_median": round(p_info.vote_share_median * 100, 3),
+                "vote_share_p05": round(p_info.vote_share_p05 * 100, 3),
+                "vote_share_p95": round(p_info.vote_share_p95 * 100, 3),
+                "prob_above_4pct": round(p_info.prob_above_4pct, 4),
+                "prob_below_4pct": round(p_info.prob_below_4pct, 4),
+                "prob_largest_vote_party": round(p_info.prob_largest_vote_party, 4),
+                "seats_mean": round(p_info.seats_mean, 2),
+                "seats_median": p_info.seats_median,
+                "seats_p05": p_info.seats_p05,
+                "seats_p95": p_info.seats_p95,
+                "prob_largest_seat_party": round(p_info.prob_largest_seat_party, 4),
+                "prob_any_seats": round(p_info.prob_any_seats, 4),
+                "prob_local_12pct_exception_sub_4pct": round(p_info.prob_local_12pct_exception_sub_4pct, 6),
+            }
+            for p, p_info in sim_res.summary.parties.items()
+        },
+        "blocs": {
+            "tido": {
+                "parties": ["M", "SD", "KD", "L"],
+                "mean_seats": round(tido.mean_seats, 2),
+                "prob_majority": round(tido.prob_majority, 4),
+            },
+            "red_green_center": {
+                "parties": ["S", "V", "MP", "C"],
+                "mean_seats": round(rg.mean_seats, 2),
+                "prob_majority": round(rg.prob_majority, 4),
+            },
+        },
+        "manifest": sim_res.manifest,
+    }
+    if sim_res.quantization_audit is not None:
+        summary_dict["quantization_audit"] = sim_res.quantization_audit
+    summary_dict["deterministic_payload_sha256"] = compute_simulation_payload_sha256(
+        sim_res.vote_shares_matrix,
+        sim_res.seats_matrix,
+        summary_dict,
+    )
+    return summary_dict
 
 
 def run_benchmarks(
@@ -127,51 +180,24 @@ def run_full_pipeline(
 
     print(f"Simulation finished in {t1 - t0:.2f} s.")
 
-    # Export canonical summary JSON
-    summary_dict = {
-        "as_of": sim_res.summary.as_of,
-        "election_date": sim_res.summary.election_date,
-        "total_samples": sim_res.summary.total_samples,
-        "parties": {
-            p: {
-                "party": p_info.party,
-                "vote_share_mean": round(p_info.vote_share_mean * 100, 3),
-                "vote_share_median": round(p_info.vote_share_median * 100, 3),
-                "vote_share_p05": round(p_info.vote_share_p05 * 100, 3),
-                "vote_share_p95": round(p_info.vote_share_p95 * 100, 3),
-                "prob_above_4pct": round(p_info.prob_above_4pct, 4),
-                "prob_below_4pct": round(p_info.prob_below_4pct, 4),
-                "prob_largest_vote_party": round(p_info.prob_largest_vote_party, 4),
-                "seats_mean": round(p_info.seats_mean, 2),
-                "seats_median": p_info.seats_median,
-                "seats_p05": p_info.seats_p05,
-                "seats_p95": p_info.seats_p95,
-                "prob_largest_seat_party": round(p_info.prob_largest_seat_party, 4),
-                "prob_any_seats": round(p_info.prob_any_seats, 4),
-                "prob_local_12pct_exception_sub_4pct": round(p_info.prob_local_12pct_exception_sub_4pct, 6),
-            }
-            for p, p_info in sim_res.summary.parties.items()
-        },
-        "blocs": {
-            "tido": {
-                "parties": ["M", "SD", "KD", "L"],
-                "mean_seats": round(sim_res.summarize_group(["M", "SD", "KD", "L"]).mean_seats, 2),
-                "prob_majority": round(sim_res.summarize_group(["M", "SD", "KD", "L"]).prob_majority, 4),
-            },
-            "red_green_center": {
-                "parties": ["S", "V", "MP", "C"],
-                "mean_seats": round(sim_res.summarize_group(["S", "V", "MP", "C"]).mean_seats, 2),
-                "prob_majority": round(sim_res.summarize_group(["S", "V", "MP", "C"]).prob_majority, 4),
-            },
-        },
-        "manifest": sim_res.manifest,
-    }
+    # Export canonical summary JSON. The deterministic payload hash is derived
+    # from the simulation arrays plus this summary and excludes timestamps.
+    summary_dict = build_canonical_summary_dict(sim_res)
 
     out_file = out_dir / f"simulation_summary_N{samples}_seed{seed}.json"
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(summary_dict, f, indent=2)
+        f.write("\n")
+
+    # Keep a small sidecar for reviewers and downstream jobs that need the
+    # deterministic payload identity without parsing the full JSON artifact.
+    # The sidecar contains only the payload hash; timestamps/runtime are not
+    # part of that identity.
+    hash_file = out_dir / "deterministic_payload.sha256"
+    hash_file.write_text(f"{summary_dict['deterministic_payload_sha256']}\n", encoding="utf-8")
 
     print(f"Simulation summary exported to {out_file}")
+    print(f"Deterministic payload hash exported to {hash_file}")
     return 0
 
 

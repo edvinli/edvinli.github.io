@@ -89,6 +89,21 @@ class TestElectionSimulator(unittest.TestCase):
         self.assertTrue(np.all(seat_sums == TOTAL_RIKSDAG_SEATS))
         self.assertEqual(res.summary.parties["REST"].seats_mean, 0.0)
 
+    def test_quantization_audit_uses_production_integer_boundaries(self) -> None:
+        """Verify quantization diagnostics inspect every production party/constituency pair."""
+        samples = 25
+        res = simulate_election(samples=samples, seed=123, collect_quantization_audit=True)
+        self.assertIsNotNone(res.quantization_audit)
+        audit = res.quantization_audit
+        assert audit is not None
+        self.assertEqual(audit["total_samples"], samples)
+        self.assertEqual(audit["total_party_constituency_pairs_checked"], samples * 29 * 8)
+        self.assertGreaterEqual(audit["relevant_party_constituency_pairs"], 0)
+        self.assertLessEqual(audit["relevant_party_constituency_pairs"], samples * 29 * 8)
+        self.assertGreaterEqual(audit["post_integer_local_12_events"], 0)
+        self.assertGreaterEqual(audit["pre_post_local_12_mismatches"], 0)
+        self.assertIsNotNone(audit["minimum_national_4pct_continuous_distance_pp"])
+
     def test_threshold_complementarity(self) -> None:
         """Verify P(vote >= 4%) + P(vote < 4%) == 1.0 for all parties."""
         res = simulate_election(samples=1000, seed=123)

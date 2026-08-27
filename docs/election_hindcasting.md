@@ -1,4 +1,6 @@
-# Election Hindcast v1 — Methodology and Validation Report
+# Election Hindcast v1 — Methodology and Retrospective Evaluation Report
+
+> Interpretation: **Retrospective historical evaluation (not independent holdout validation)**. Model-family choices and polling calibration used evidence from the same 2018/2022 period evaluated below. Coverage and horizon patterns are descriptive and should not be read as formal calibration or guaranteed monotonic improvement.
 
 ## 1. Overview and Model Formulations
 
@@ -83,9 +85,9 @@ For each forecast origin $t = E - h$:
 ## 5. Diagnostic Findings
 
 1. **Marginal Value of OpinionState Uncertainty**:
-   - Adding OpinionState uncertainty improves CRPS in both elections (+0.0444 in 2018, +0.0210 in 2022).
+   - Adding OpinionState uncertainty was associated with lower CRPS in both elections (+0.0444 in 2018, +0.0210 in 2022).
    - It improves 90% interval coverage from 42.6% to 54.6% (and up to 70.4% in 2022) with only a modest width increase from 1.93 to 2.29 percentage points.
-   - Conclusion: **OpinionState uncertainty is strictly beneficial** and should be retained in the production architecture.
+   - Interpretation: this retrospective comparison supports retaining OpinionState uncertainty in the production architecture, but is not independent validation of a universally beneficial effect.
 
 2. **Persistent Directional Polling Biases**:
    - **V (Vänsterpartiet)** was systematically over-polled relative to election day returns in both cycles (+1.09% in 2018, +1.38% in 2022), resulting in actual percentiles $\le 1.3\%$.

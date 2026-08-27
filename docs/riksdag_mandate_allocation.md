@@ -135,7 +135,7 @@ The algorithm executes sequentially with exact rational arithmetic (`fractions.F
 
 ### 4.1 Official Phase-by-Phase Mandate Decomposition
 
-The allocator matches the official Valmyndigheten certified results across all phases (initial fixed seats, post-return fixed seats, adjustment seats, and final seats):
+The allocator matches the certified 2018 and 2022 Riksdag results across the tested phases (initial fixed seats, post-return fixed seats, adjustment seats, and final seats):
 
 #### 2018 Riksdag Election (Certified Official vs Allocator Output):
 | Parti | Fasta valkretsmandat | Återförda / Nyfördelade | Utjämningsmandat | Slutliga mandat |
@@ -184,6 +184,8 @@ The test suite in `tests/test_mandate_allocation.py` validates all statutory bra
 | **Sub-4% Return Recipient** | Sub-4% local party eligible for returned fixed seat in constituency | **PASS** |
 | **Exact Fraction Arithmetic** | Zero floating-point rounding or precision drift across all calculations | **PASS** |
 | **Injected TieBreaker** | Pluggable lottery interface invoked upon exact equality | **PASS** |
+
+The official Valmyndigheten Manual Example 5 is archived verbatim in `tests/fixtures/valmyndigheten_example_5_valkoping.json`. It is a three-constituency, 75-seat municipal example, not a 29-constituency Riksdag fixture; the production Riksdag allocator therefore records it as an external fixture limitation rather than transforming it into a synthetic oracle. Synthetic Riksdag return scenarios are labelled separately in the tests and freeze audit.
 
 ---
 

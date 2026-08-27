@@ -81,6 +81,9 @@ def run_seat_hindcast_single_seed(
 
             # 3. 8-Party Joint Energy Score
             es = calculate_multivariate_energy_score(seats_matrix, actual_seat_vec)
+            # A deterministic point forecast is a degenerate distribution, so
+            # its multivariate Energy Score is exactly the Euclidean seat error.
+            baseline_energy_score = float(np.linalg.norm(point_seat_vec - actual_seat_vec))
 
             # 4. Per-Party Seat Metrics
             party_metrics = {}
@@ -146,6 +149,14 @@ def run_seat_hindcast_single_seed(
 
             case_record = {
                 "seed": seed,
+                "model_version": sim_res.manifest.get("model_version"),
+                "source_git_commit": sim_res.manifest.get("source_git_commit"),
+                "source_worktree_clean": sim_res.manifest.get("source_worktree_clean"),
+                "input_hashes": {
+                    key: sim_res.manifest.get(key)
+                    for key in ("poll_data_hash", "election_data_hash", "mandate_data_hash", "geography_data_hash")
+                },
+                "model_config_hash": sim_res.manifest.get("model_config_hash"),
                 "election_year": int(year_str),
                 "election_date": elec_date.isoformat(),
                 "horizon_days": h,
@@ -157,6 +168,7 @@ def run_seat_hindcast_single_seed(
                 "simulator_median_mae": round(sim_median_mae, 3),
                 "simulator_mean_mae": round(sim_mean_mae, 3),
                 "simulator_mean_crps": round(sim_mean_crps, 4),
+                "baseline_energy_score": round(baseline_energy_score, 4),
                 "joint_energy_score": round(es, 4),
                 "party_metrics": party_metrics,
                 "bloc_majorities": {
@@ -220,6 +232,7 @@ def run_multi_seed_seat_hindcasts(
         seed_stability_table.append({
             "seed": s,
             "baseline_crps": round(float(sub["baseline_crps"].mean()), 4),
+            "baseline_energy_score": round(float(sub["baseline_energy_score"].mean()), 4),
             "simulator_crps": round(float(sub["simulator_mean_crps"].mean()), 4),
             "energy_score": round(float(sub["joint_energy_score"].mean()), 4),
             "simulator_median_mae": round(float(sub["simulator_median_mae"].mean()), 3),
@@ -235,9 +248,44 @@ def run_multi_seed_seat_hindcasts(
     primary_cases = [c for c in all_seed_results if c["seed"] == DEFAULT_SEED]
     df_prim = df_cases[df_cases["seed"] == DEFAULT_SEED]
 
+    provenance_rows = [
+        {
+            "model_version": row.get("model_version"),
+            "source_git_commit": row.get("source_git_commit"),
+            "source_worktree_clean": row.get("source_worktree_clean"),
+            "input_hashes": row.get("input_hashes"),
+            "model_config_hash": row.get("model_config_hash"),
+        }
+        for row in all_seed_results
+    ]
+    provenance = provenance_rows[0] if provenance_rows else {}
+    # The chronological hindcast deliberately uses 2014 geography for the
+    # 2018 target and 2018 geography for the 2022 target.  That changes the
+    # model-config hash by election, while source code, cleanliness, and raw
+    # input hashes must remain identical across all cases.
+    for row in provenance_rows[1:]:
+        if row.get("source_git_commit") != provenance.get("source_git_commit"):
+            raise RuntimeError("SeatHindcast cases were generated with inconsistent source commits")
+        if row.get("source_worktree_clean") != provenance.get("source_worktree_clean"):
+            raise RuntimeError("SeatHindcast cases were generated with inconsistent source cleanliness")
+        if row.get("input_hashes") != provenance.get("input_hashes"):
+            raise RuntimeError("SeatHindcast cases were generated with inconsistent input hashes")
+    config_hashes_by_election = {
+        str(year): sorted({row.get("model_config_hash") for row in all_seed_results if str(row.get("election_year")) == year})
+        for year in sorted({str(row.get("election_year")) for row in all_seed_results})
+    }
+    if any(len(values) != 1 for values in config_hashes_by_election.values()):
+        raise RuntimeError("SeatHindcast cases were generated with inconsistent config hashes within an election")
+
     summary_report = {
         "metadata": {
-            "model": "ElectionSimulator_v1",
+            "model": "ElectionSimulator_v1.0-rc1",
+            "artifact_schema_version": "1.0",
+            "interpretation": "Retrospective historical evaluation (not independent holdout validation)",
+            "validation_note": (
+                "The model-family choices and polling calibration used evidence from the same 2018/2022 period; "
+                "coverage and horizon patterns are descriptive, not formal calibration or monotonicity claims."
+            ),
             "samples_per_case": samples,
             "primary_seed": DEFAULT_SEED,
             "seeds_evaluated": list(seeds),
@@ -246,6 +294,12 @@ def run_multi_seed_seat_hindcasts(
             "geography_mode": "chronological",
             "total_evaluations": len(all_seed_results),
             "generated_at": date.today().isoformat(),
+            "source_git_commit": provenance.get("source_git_commit"),
+            "source_worktree_clean": provenance.get("source_worktree_clean"),
+            "input_hashes": provenance.get("input_hashes"),
+            "model_config_hashes_by_election": {
+                year: values[0] for year, values in config_hashes_by_election.items()
+            },
         },
         "multi_seed_stability": {
             "per_seed": seed_stability_table,
@@ -258,6 +312,7 @@ def run_multi_seed_seat_hindcasts(
                 "energy_score_std": round(float(df_seed_stab["energy_score"].std()), 4),
                 "energy_score_min": round(float(df_seed_stab["energy_score"].min()), 4),
                 "energy_score_max": round(float(df_seed_stab["energy_score"].max()), 4),
+                "baseline_energy_score_mean": round(float(df_seed_stab["baseline_energy_score"].mean()), 4),
                 "median_mae_mean": round(float(df_seed_stab["simulator_median_mae"].mean()), 3),
                 "mean_mae_mean": round(float(df_seed_stab["simulator_mean_mae"].mean()), 3),
                 "cov_50_mean": round(float(df_seed_stab["cov_50"].mean()), 3),
@@ -269,6 +324,7 @@ def run_multi_seed_seat_hindcasts(
             "overall": {
                 "baseline_point_mae": round(float(df_prim["point_baseline_mae"].mean()), 3),
                 "baseline_crps": round(float(df_prim["baseline_crps"].mean()), 4),
+                "baseline_energy_score": round(float(df_prim["baseline_energy_score"].mean()), 4),
                 "simulator_median_mae": round(float(df_prim["simulator_median_mae"].mean()), 3),
                 "simulator_mean_mae": round(float(df_prim["simulator_mean_mae"].mean()), 3),
                 "simulator_crps": round(float(df_prim["simulator_mean_crps"].mean()), 4),
@@ -281,6 +337,7 @@ def run_multi_seed_seat_hindcasts(
                 "2018": {
                     "baseline_point_mae": round(float(df_prim[df_prim["election_year"] == 2018]["point_baseline_mae"].mean()), 3),
                     "baseline_crps": round(float(df_prim[df_prim["election_year"] == 2018]["baseline_crps"].mean()), 4),
+                    "baseline_energy_score": round(float(df_prim[df_prim["election_year"] == 2018]["baseline_energy_score"].mean()), 4),
                     "simulator_median_mae": round(float(df_prim[df_prim["election_year"] == 2018]["simulator_median_mae"].mean()), 3),
                     "simulator_mean_mae": round(float(df_prim[df_prim["election_year"] == 2018]["simulator_mean_mae"].mean()), 3),
                     "simulator_crps": round(float(df_prim[df_prim["election_year"] == 2018]["simulator_mean_crps"].mean()), 4),
@@ -289,6 +346,7 @@ def run_multi_seed_seat_hindcasts(
                 "2022": {
                     "baseline_point_mae": round(float(df_prim[df_prim["election_year"] == 2022]["point_baseline_mae"].mean()), 3),
                     "baseline_crps": round(float(df_prim[df_prim["election_year"] == 2022]["baseline_crps"].mean()), 4),
+                    "baseline_energy_score": round(float(df_prim[df_prim["election_year"] == 2022]["baseline_energy_score"].mean()), 4),
                     "simulator_median_mae": round(float(df_prim[df_prim["election_year"] == 2022]["simulator_median_mae"].mean()), 3),
                     "simulator_mean_mae": round(float(df_prim[df_prim["election_year"] == 2022]["simulator_mean_mae"].mean()), 3),
                     "simulator_crps": round(float(df_prim[df_prim["election_year"] == 2022]["simulator_mean_crps"].mean()), 4),
@@ -298,6 +356,7 @@ def run_multi_seed_seat_hindcasts(
             "by_horizon": {
                 str(h): {
                     "baseline_crps": round(float(df_prim[df_prim["horizon_days"] == h]["baseline_crps"].mean()), 4),
+                    "baseline_energy_score": round(float(df_prim[df_prim["horizon_days"] == h]["baseline_energy_score"].mean()), 4),
                     "simulator_median_mae": round(float(df_prim[df_prim["horizon_days"] == h]["simulator_median_mae"].mean()), 3),
                     "simulator_mean_mae": round(float(df_prim[df_prim["horizon_days"] == h]["simulator_mean_mae"].mean()), 3),
                     "simulator_crps": round(float(df_prim[df_prim["horizon_days"] == h]["simulator_mean_crps"].mean()), 4),
@@ -308,8 +367,14 @@ def run_multi_seed_seat_hindcasts(
         "cases": primary_cases,
     }
 
-    # Deterministic payload hash
-    payload_str = json.dumps(summary_report["primary_seed_performance"], sort_keys=True)
+    # Hash the complete deterministic report payload, excluding only metadata
+    # fields that are intentionally run-specific or self-referential.  This
+    # prevents a derived headline table from drifting away from stored cases.
+    hash_payload = json.loads(json.dumps(summary_report))
+    hash_metadata = hash_payload.get("metadata", {})
+    hash_metadata.pop("generated_at", None)
+    hash_metadata.pop("payload_sha256", None)
+    payload_str = json.dumps(hash_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     summary_report["metadata"]["payload_sha256"] = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
 
     # Save to JSON
