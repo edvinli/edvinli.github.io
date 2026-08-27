@@ -1,0 +1,26 @@
+{
+  "scaling_audit": {
+    "h21_scale_active": false,
+    "h150_scale_active": true,
+    "h21_array_hash": "4934982874086885029",
+    "explanation": "At h=21, the old condition (21 > min(21, 112)) evaluated to False, so scale_factor=1.0 was used and draws were mathematically identical. For h > 112, the old code scaled deltas by sqrt(h/112), altering dynamics."
+  },
+  "valmyndigheten_oracle": {
+    "status": "PASS",
+    "total_seats": 349,
+    "retracted_events": 0,
+    "reallocated_events": 0,
+    "is_349": true
+  },
+  "threshold_quantization": {
+    "total_draws": 100000,
+    "national_4pct_mismatches": 0,
+    "local_12pct_sub4_exceptions": 0
+  },
+  "clean_benchmark": {
+    "n_samples": 100000,
+    "elapsed_sec": 101.73,
+    "rate_sims_per_sec": 983.0,
+    "ms_per_sim": 1.017
+  }
+}

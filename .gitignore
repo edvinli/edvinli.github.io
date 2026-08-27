@@ -1,6 +1,28 @@
 _site/
 
+# Local Jekyll/Ruby state
+.bundle/
+.jekyll-cache/
+.sass-cache/
+vendor/bundle/
+
+# Python data-pipeline state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+
+
+# OS/editor files and interrupted atomic downloads
+.DS_Store
+*.swp
+data/raw/pollofpolls/.staging/
+data/raw/pollofpolls/*.tmp
+
 # Raw race data may contain personal data (names, bibs). Only anonymized
 # JSON (gender/age/group/time, no identifiers) belongs in assets/data/.
 assets/data/*.csv
-
