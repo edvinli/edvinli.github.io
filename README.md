@@ -17,9 +17,10 @@ the [academicpages](https://github.com/academicpages/academicpages.github.io) fo
 
 ## Building locally
 
+With Jekyll installed locally:
+
 ```bash
-bundle install
-bundle exec jekyll serve --config _config.yml,_config.dev.yml
+jekyll serve --config _config.yml,_config.dev.yml
 ```
 
 The site is then served at <http://localhost:4000>.
