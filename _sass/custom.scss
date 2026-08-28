@@ -813,27 +813,10 @@ canvas {
   margin-top: 1.1rem;
 }
 
-.eg-pool {
-  margin-bottom: 1.5rem;
-}
-
-.eg-pool__head {
-  align-items: center;
-  border-bottom: 1px solid var(--el-rule);
+.eg-builder__head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.9rem;
-  justify-content: space-between;
-  margin-bottom: 0.55rem;
-  padding-bottom: 0.35rem;
-}
-
-.eg-pool__title {
-  color: var(--el-ink-soft);
-  font-family: var(--el-mono);
-  font-size: 0.82rem;
-  font-weight: 700;
-  margin: 0;
+  justify-content: flex-end;
+  margin-bottom: 0.9rem;
 }
 
 .eg-reset {
@@ -862,30 +845,18 @@ canvas {
   outline-offset: 2px;
 }
 
-.eg-pool__empty {
-  color: var(--el-muted);
-  font-size: 0.8rem;
-  margin: 0.5rem 0 0;
-}
-
 /* --- Drop zones ---------------------------------------------------------- */
 
 .eg-zone {
-  align-content: flex-start;
   border: 1px dashed var(--el-rule);
   border-radius: 4px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.4rem;
   min-height: 4.6rem;
   min-width: 0;
   padding: 0.45rem;
   transition: background-color 0.12s ease, border-color 0.12s ease;
-}
-
-.eg-zone--column {
-  flex-direction: column;
-  flex-wrap: nowrap;
 }
 
 .eg-zone__hint {
@@ -894,8 +865,9 @@ canvas {
   margin: 0.2rem 0.15rem;
 }
 
-/* Every legal destination announces itself for as long as a card is in
-   flight; the one under the pointer is filled in as well. */
+/* The one legal destination -- the side the card is not in -- announces
+   itself for as long as the card is in flight, and fills in under the
+   pointer. */
 .eg-zone.is-droppable {
   background: var(--el-fill-soft);
   border-color: var(--el-rule-strong);
@@ -925,13 +897,6 @@ canvas {
 
 .eg-party:active {
   cursor: grabbing;
-}
-
-/* The pool is a uniform grid so eight parties stay a compact block rather
-   than a ragged wrap. */
-.eg-zone--pool {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
 }
 
 .eg-party.is-dragging {
@@ -995,13 +960,13 @@ canvas {
   white-space: nowrap;
 }
 
-/* --- Move menu: the keyboard and touch fallback -------------------------- */
+/* --- The direct move control: the keyboard and touch fallback ------------ */
+/* With only two sides a card has exactly one other destination, so this is a
+   plain button that performs that move.  It is deliberately quiet -- a small
+   chevron pointing at the side the card would go to -- because dragging is
+   the interaction the panel wants read first. */
 
 .eg-party__move {
-  position: relative;
-}
-
-.eg-party__menu-btn {
   background: none;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -1016,72 +981,59 @@ canvas {
   width: 1.9rem;
 }
 
-.eg-party__menu-btn:hover {
+.eg-party__move:hover {
   background: var(--el-fill-soft);
   border-color: var(--el-rule);
   color: var(--el-ink-soft);
 }
 
-.eg-party__menu-btn:focus-visible {
+.eg-party__move:focus-visible {
   outline: 2px solid var(--el-ink);
   outline-offset: 1px;
 }
 
-.eg-party__menu-icon {
-  background-image: radial-gradient(currentColor 45%, transparent 47%);
-  background-size: 3px 4px;
+/* A chevron drawn from two borders, turned towards the destination:
+   left for Regering, right for Opposition. */
+.eg-party__move-icon {
+  border-right: 1.5px solid currentColor;
+  border-top: 1.5px solid currentColor;
   display: block;
-  height: 12px;
+  height: 7px;
   left: 50%;
   position: absolute;
   top: 50%;
-  transform: translate(-50%, -50%);
-  width: 3px;
+  width: 7px;
 }
 
-.eg-party__menu {
-  background: var(--el-panel);
-  border: 1px solid var(--el-rule-strong);
-  border-radius: 5px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-  flex-direction: column;
-  display: flex;
-  min-width: 8rem;
-  padding: 0.2rem;
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.3rem);
-  z-index: 40;
+.eg-party__move[data-action="government"] .eg-party__move-icon {
+  transform: translate(-30%, -50%) rotate(-135deg);
 }
 
-/* The theme reset has shadowed the user-agent [hidden] rule before; say it
-   here too so a closed menu can never be painted. */
-.eg-party__menu[hidden] {
-  display: none;
+.eg-party__move[data-action="opposition"] .eg-party__move-icon {
+  transform: translate(-70%, -50%) rotate(45deg);
 }
 
-.eg-party__menu-item {
-  background: none;
-  border: 0;
-  border-radius: 3px;
-  color: var(--el-ink);
-  cursor: pointer;
-  font-family: var(--el-mono);
-  font-size: 0.76rem;
-  min-height: 2.5rem;
-  padding: 0.35rem 0.6rem;
-  text-align: left;
-  touch-action: manipulation;
-  white-space: nowrap;
-}
+/* Touch: a finger needs a target the visible chrome has no room for at
+   360px.  Both controls get a 44x44 hit area -- height on the box, which
+   also opens the row up enough that neighbouring targets cannot overlap,
+   and width through a transparent overlay so the columns stay narrow.  The
+   grip dots and the chevron keep the size they have. */
+@media (pointer: coarse) {
+  .eg-party__grip,
+  .eg-party__move {
+    height: 44px;
+  }
 
-.eg-party__menu-item:hover {
-  background: var(--el-fill-soft);
-}
-
-.eg-party__menu-item:focus-visible {
-  outline: 2px solid var(--el-ink);
-  outline-offset: -2px;
+  .eg-party__grip::after,
+  .eg-party__move::after {
+    content: "";
+    height: 100%;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+  }
 }
 
 /* --- Two-column seat chart ----------------------------------------------- */
@@ -1755,17 +1707,14 @@ canvas {
     padding: 0.3rem;
   }
 
-  .eg-zone--pool {
-    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  }
-
   .eg-party {
     column-gap: 0.25rem;
     padding: 0.25rem 0.3rem;
   }
 
-  /* Two cards have to fit beside each other in a 360px column, so the unit
-     is dropped from the ink and kept for screen readers. */
+  /* A card has to fit a grip, a party, a seat count and a move control into
+     a 360px column split in two, so the unit is dropped from the ink and
+     kept for screen readers. */
   .eg-party__seats-unit {
     clip: rect(0 0 0 0);
     clip-path: inset(50%);
@@ -1780,16 +1729,8 @@ canvas {
     width: 1.05rem;
   }
 
-  .eg-party__menu-btn {
+  .eg-party__move {
     width: 1.8rem;
-  }
-
-  .eg-party__menu {
-    min-width: 7rem;
-  }
-
-  .eg-party__menu-item {
-    font-size: 0.72rem;
   }
 
   .eg-bar__segment-label {

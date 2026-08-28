@@ -59,16 +59,11 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   <section id="election-government-builder" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Bygg din egen regering</h2>
-      <p class="election-muted">Dra partier till Regering eller Opposition och se hur många mandat de brukar få i simuleringarna.</p>
+      <p class="election-muted">Alla partier börjar i Opposition. Dra dem mellan Regering och Opposition och se hur många mandat sidorna brukar få i simuleringarna.</p>
     </div>
     <div class="eg-builder">
-      <div class="eg-pool">
-        <div class="eg-pool__head">
-          <h3 class="eg-pool__title" id="election-pool-title">Tillgängliga partier</h3>
-          <button type="button" id="election-builder-reset" class="eg-reset">Återställ</button>
-        </div>
-        <div id="election-available-parties" class="eg-zone eg-zone--pool" role="group" aria-labelledby="election-pool-title" data-zone="pool"></div>
-        <p id="election-pool-empty" class="eg-pool__empty" hidden>Alla partier är placerade.</p>
+      <div class="eg-builder__head">
+        <button type="button" id="election-builder-reset" class="eg-reset">Återställ</button>
       </div>
       <div class="eg-chart">
         <div class="eg-chart__row eg-chart__row--heads">
@@ -94,10 +89,10 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <div class="eg-chart__row eg-chart__row--zones">
           <div class="eg-chart__gutter" aria-hidden="true"></div>
           <div class="eg-chart__zone-cell">
-            <div id="election-government-parties" class="eg-zone eg-zone--column" role="group" aria-labelledby="election-government-title" data-zone="government"></div>
+            <div id="election-government-parties" class="eg-zone" role="group" aria-labelledby="election-government-title" data-zone="government"></div>
           </div>
           <div class="eg-chart__zone-cell">
-            <div id="election-opposition-parties" class="eg-zone eg-zone--column" role="group" aria-labelledby="election-opposition-title" data-zone="opposition"></div>
+            <div id="election-opposition-parties" class="eg-zone" role="group" aria-labelledby="election-opposition-title" data-zone="opposition"></div>
           </div>
         </div>
       </div>

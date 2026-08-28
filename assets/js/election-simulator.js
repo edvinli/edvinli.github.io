@@ -731,12 +731,14 @@
   // Nothing here samples, recombines or assumes independence between
   // parties: a number the panel prints is a number the publication contains.
   // ---------------------------------------------------------------------
-  var ZONE_POOL = "pool";
+  // Two states, never three.  Every party is either in the government or in
+  // the opposition, so only the government mask is stored and the opposition
+  // is its exact complement.  A party that belongs to neither side, or to
+  // both, is not representable rather than merely guarded against.
   var ZONE_GOVERNMENT = "government";
   var ZONE_OPPOSITION = "opposition";
-  var ZONE_SEQUENCE = [ZONE_POOL, ZONE_GOVERNMENT, ZONE_OPPOSITION];
+  var ZONE_SEQUENCE = [ZONE_GOVERNMENT, ZONE_OPPOSITION];
   var ZONE_NAMES = {
-    pool: "Tillg\u00e4ngliga partier",
     government: "Regering",
     opposition: "Opposition"
   };
@@ -746,11 +748,7 @@
     government: "Dra partier hit f\u00f6r att bygga en regering.",
     opposition: "Dra partier hit f\u00f6r att l\u00e4gga dem i opposition."
   };
-  var ZONE_CLASS = {
-    pool: "eg-zone eg-zone--pool",
-    government: "eg-zone eg-zone--column",
-    opposition: "eg-zone eg-zone--column"
-  };
+  var ZONE_CLASS = "eg-zone";
   // Each side is drawn from its own mask.  Neither bar is cumulative and the
   // two are never added together: only the government mask is evaluated for
   // a majority.
@@ -899,7 +897,6 @@
 
     var builder = groups.coalition_builder;
     var zones = {
-      pool: byId("election-available-parties"),
       government: byId("election-government-parties"),
       opposition: byId("election-opposition-parties")
     };
@@ -915,16 +912,17 @@
       government: "election-government-total",
       opposition: "election-opposition-total"
     };
-    var poolEmpty = byId("election-pool-empty");
     var summary = byId("election-government-results");
     var resetButton = byId("election-builder-reset");
 
-    // The two side masks are disjoint by construction.  The government mask
-    // alone is the coalition every published number in the summary is looked
-    // up with; the opposition mask is only ever looked up on its own.
-    var masks = { government: 0, opposition: 0 };
+    // Every party in the published order, as a single bitmask.  The two sides
+    // partition it: government | opposition is always this, and
+    // government & opposition is always 0.
+    var FULL_MASK = (1 << builder.party_order.length) - 1;
+    // The one piece of state in the panel.  Everything else about the
+    // partition is derived from it, so the two sides cannot drift apart.
+    var governmentMask = 0;
     var drag = null;
-    var openMenu = null;
 
     // Cards under a bar are listed in the bar's own top-to-bottom order, so
     // the list and the stack can be read against each other.  The stack
@@ -933,6 +931,14 @@
       return builder.party_order.indexOf(party) !== -1;
     });
     var columnOrder = stackOrder.slice().reverse();
+
+    function oppositionMask() {
+      return FULL_MASK ^ governmentMask;
+    }
+
+    function maskOf(zone) {
+      return zone === ZONE_GOVERNMENT ? governmentMask : oppositionMask();
+    }
 
     function bitOf(party) {
       var index = builder.party_order.indexOf(party);
@@ -954,10 +960,11 @@
     }
 
     function zoneOf(party) {
-      var bit = bitOf(party);
-      if ((masks.government & bit) !== 0) return ZONE_GOVERNMENT;
-      if ((masks.opposition & bit) !== 0) return ZONE_OPPOSITION;
-      return ZONE_POOL;
+      return (governmentMask & bitOf(party)) !== 0 ? ZONE_GOVERNMENT : ZONE_OPPOSITION;
+    }
+
+    function otherZone(zone) {
+      return zone === ZONE_GOVERNMENT ? ZONE_OPPOSITION : ZONE_GOVERNMENT;
     }
 
     function partiesIn(zone, order) {
@@ -970,103 +977,41 @@
       return (partyNames[party] || party) + " (" + abbr(party) + ")";
     }
 
-    // The only mutation of the two masks.  Clearing both bits before setting
-    // one is what makes double membership unrepresentable rather than merely
-    // guarded against: a party is in exactly one of the three states.
+    // The only mutation of the state.  Setting or clearing the one bit is the
+    // whole move: the opposition follows because it is derived, so the two
+    // sides can never disagree about where a party is.
     function move(party, zone, focusAfter) {
       var bit = bitOf(party);
       if (bit === 0) return;
-      masks.government &= ~bit;
-      masks.opposition &= ~bit;
-      if (zone === ZONE_GOVERNMENT) masks.government |= bit;
-      if (zone === ZONE_OPPOSITION) masks.opposition |= bit;
+      if (zone === ZONE_GOVERNMENT) governmentMask |= bit;
+      else governmentMask &= ~bit;
       render(focusAfter === false ? null : party);
     }
 
-    // --- Keyboard and touch fallback: one small menu per card ------------
+    // --- Keyboard and touch fallback: one direct control per card --------
     // Drag and drop is the visible interaction, but it can never be the only
-    // one.  Every move stays reachable from a single control that opens a
-    // list of the two destinations the card is not already in.
-
-    function menuItemsOf(menu) {
-      return Array.prototype.slice.call(menu.querySelectorAll(".eg-party__menu-item"));
-    }
-
-    function closeMenu(restoreFocusToButton) {
-      if (!openMenu) return;
-      var button = openMenu.button;
-      openMenu.menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
-      openMenu = null;
-      if (restoreFocusToButton && typeof button.focus === "function") button.focus();
-    }
-
-    function stepMenuFocus(step) {
-      if (!openMenu) return;
-      var items = menuItemsOf(openMenu.menu);
-      if (!items.length) return;
-      var index = items.indexOf(document.activeElement);
-      var next = index === -1
-        ? (step > 0 ? 0 : items.length - 1)
-        : (index + step + items.length) % items.length;
-      if (typeof items[next].focus === "function") items[next].focus();
-    }
+    // one.  With exactly two sides a card has exactly one other destination,
+    // so the fallback is a plain button that performs that move -- no menu,
+    // no popup, and Enter or Space on it is the browser's own activation.
 
     function buildMove(party, zone) {
-      var label = "Flytta " + fullName(party);
-      var wrap = document.createElement("span");
-      wrap.className = "eg-party__move";
-
+      var target = otherZone(zone);
+      var label = "Flytta " + fullName(party) + " till " + ZONE_NAMES[target];
       var button = document.createElement("button");
       button.type = "button";
-      button.className = "eg-party__menu-btn";
-      button.setAttribute("aria-haspopup", "menu");
-      button.setAttribute("aria-expanded", "false");
+      button.className = "eg-party__move";
       button.setAttribute("aria-label", label);
       button.setAttribute("title", label);
       button.setAttribute("data-party", party);
-      button.innerHTML = "<span class=\"eg-party__menu-icon\" aria-hidden=\"true\"></span>";
-
-      var menu = document.createElement("div");
-      menu.className = "eg-party__menu";
-      menu.setAttribute("role", "menu");
-      menu.setAttribute("aria-label", label + " till");
-      menu.hidden = true;
-
-      ZONE_SEQUENCE.forEach(function (target) {
-        if (target === zone) return;
-        var item = document.createElement("button");
-        item.type = "button";
-        item.className = "eg-party__menu-item";
-        item.setAttribute("role", "menuitem");
-        item.setAttribute("data-party", party);
-        item.setAttribute("data-action", target);
-        item.textContent = ZONE_NAMES[target];
-        if (item.addEventListener) {
-          item.addEventListener("click", function () {
-            closeMenu(false);
-            move(party, target);
-          });
-        }
-        menu.appendChild(item);
-      });
-
+      button.setAttribute("data-action", target);
+      button.innerHTML = "<span class=\"eg-party__move-icon\" aria-hidden=\"true\"></span>";
       if (button.addEventListener) {
         button.addEventListener("click", function (event) {
           event.stopPropagation();
-          var wasOpen = openMenu !== null && openMenu.button === button;
-          closeMenu(false);
-          if (wasOpen) return;
-          menu.hidden = false;
-          button.setAttribute("aria-expanded", "true");
-          openMenu = { button: button, menu: menu };
-          stepMenuFocus(1);
+          move(party, target);
         });
       }
-
-      wrap.appendChild(button);
-      wrap.appendChild(menu);
-      return wrap;
+      return button;
     }
 
     // --- Pointer dragging ------------------------------------------------
@@ -1078,10 +1023,11 @@
       ZONE_SEQUENCE.forEach(function (zone) {
         var host = zones[zone];
         if (!host) return;
-        var cls = ZONE_CLASS[zone];
+        var cls = ZONE_CLASS;
         if (drag && drag.active) {
-          // Anything except the side the card already sits in is a legal
-          // target, and says so for as long as the drag is in flight.
+          // There is exactly one legal target -- the side the card is not
+          // already in -- and it says so for as long as the drag is in
+          // flight.
           if (zone !== drag.from) cls += " is-droppable";
           if (zone === drag.over) cls += " is-dragover";
         }
@@ -1139,11 +1085,9 @@
       if (!tile.addEventListener) return;
       tile.addEventListener("pointerdown", function (event) {
         if (event.button !== undefined && event.button !== 0) return;
-        // The move control and the menu it opens are interactive in their own
-        // right.  A press there is never the start of a drag, and closing the
-        // menu here would detach the item before its click could land.
+        // The move control is interactive in its own right.  A press there is
+        // never the start of a drag.
         if (containsNode(tile.querySelector(".eg-party__move"), event.target)) return;
-        if (openMenu) closeMenu(false);
         // On a touchscreen only the grip starts a drag; a swipe anywhere
         // else on the card still scrolls the page.
         if (event.pointerType === "touch" &&
@@ -1161,7 +1105,7 @@
         if (drag.pointerId !== null && tile.setPointerCapture) {
           try {
             tile.setPointerCapture(drag.pointerId);
-          } catch (error) { /* capture unsupported; the menu still works */ }
+          } catch (error) { /* capture unsupported; the button still works */ }
         }
       });
 
@@ -1274,14 +1218,15 @@
     }
 
     function renderSummary() {
-      var entry = coalitionLookup(builder, masks.government);
-      var chosen = masks.government !== 0;
+      var opposition = oppositionMask();
+      var entry = coalitionLookup(builder, governmentMask);
+      var chosen = governmentMask !== 0;
       if (!summary) return;
       summary.hidden = !chosen;
-      summary.setAttribute("data-government-mask", chosen ? String(masks.government) : "");
-      summary.setAttribute("data-opposition-mask", chosen ? String(masks.opposition) : "");
+      summary.setAttribute("data-government-mask", chosen ? String(governmentMask) : "");
+      summary.setAttribute("data-opposition-mask", chosen ? String(opposition) : "");
       // The evaluated coalition is the government and nothing else.
-      summary.setAttribute("data-coalition-mask", chosen ? String(masks.government) : "");
+      summary.setAttribute("data-coalition-mask", chosen ? String(governmentMask) : "");
       if (!chosen || !entry) {
         summary.innerHTML = "";
         setText("election-government-announcement", ZONE_HINTS.government);
@@ -1289,7 +1234,7 @@
       }
 
       var governmentSeats = format(entry.median_seats, 0) + " mandat";
-      var oppositionSeats = format(medianOf(masks.opposition), 0) + " mandat";
+      var oppositionSeats = format(medianOf(opposition), 0) + " mandat";
       var range = rangeText(entry.p05_seats, entry.p95_seats, 0) + " mandat";
       var chance = probability(entry.prob_majority);
       // The opposition row is its own coalition's median, looked up on its
@@ -1301,9 +1246,9 @@
         summaryRow("interval", "90\u00a0% prognosintervall", range) +
         summaryRow("probability", "Sannolikhet f\u00f6r minst " + MAJORITY + " mandat", chance);
 
-      var oppositionParties = coalitionParties(builder, masks.opposition);
+      var oppositionParties = coalitionParties(builder, opposition);
       setText("election-government-announcement",
-        "Regering " + coalitionParties(builder, masks.government).join(" + ") + ", " +
+        "Regering " + coalitionParties(builder, governmentMask).join(" + ") + ", " +
         governmentSeats + "; 90-procentigt prognosintervall " + range +
         "; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " + chance + ". " +
         (oppositionParties.length
@@ -1315,18 +1260,17 @@
       var host = zones[zoneOf(party)];
       if (!host || typeof host.querySelector !== "function") return;
       var button = host.querySelector(
-        ".eg-party[data-party=\"" + party + "\"] .eg-party__menu-btn");
+        ".eg-party[data-party=\"" + party + "\"] .eg-party__move");
       if (button && typeof button.focus === "function") button.focus();
     }
 
     function render(focusParty) {
-      closeMenu(false);
-      var available = renderZone(ZONE_POOL, builder.party_order);
-      renderZone(ZONE_GOVERNMENT, columnOrder);
-      renderZone(ZONE_OPPOSITION, columnOrder);
-      if (poolEmpty) poolEmpty.hidden = available.length !== 0;
-      renderBar(ZONE_GOVERNMENT, masks.government);
-      renderBar(ZONE_OPPOSITION, masks.opposition);
+      ZONE_SEQUENCE.forEach(function (zone) {
+        renderZone(zone, columnOrder);
+      });
+      ZONE_SEQUENCE.forEach(function (zone) {
+        renderBar(zone, maskOf(zone));
+      });
       renderSummary();
       paintZones();
       if (focusParty) restoreFocus(focusParty);
@@ -1334,41 +1278,13 @@
 
     if (resetButton && resetButton.addEventListener) {
       resetButton.addEventListener("click", function () {
-        masks.government = 0;
-        masks.opposition = 0;
+        governmentMask = 0;
         render();
         // After render, so the reset message is not immediately overwritten
         // by the empty-government prompt.
         setText("election-government-announcement",
-          "Alla \u00e5tta partier \u00e4r tillbaka bland tillg\u00e4ngliga partier.");
+          "Alla \u00e5tta partier ligger i Opposition igen.");
         if (typeof resetButton.focus === "function") resetButton.focus();
-      });
-    }
-
-    if (document.addEventListener) {
-      document.addEventListener("keydown", function (event) {
-        if (!openMenu) return;
-        if (event.key === "Escape") {
-          event.preventDefault();
-          closeMenu(true);
-        } else if (event.key === "ArrowDown") {
-          event.preventDefault();
-          stepMenuFocus(1);
-        } else if (event.key === "ArrowUp") {
-          event.preventDefault();
-          stepMenuFocus(-1);
-        } else if (event.key === "Tab") {
-          // Tab leaves the menu rather than cycling inside it.
-          closeMenu(false);
-        }
-      });
-      document.addEventListener("pointerdown", function (event) {
-        if (!openMenu) return;
-        if (containsNode(openMenu.menu, event.target) ||
-            containsNode(openMenu.button, event.target)) {
-          return;
-        }
-        closeMenu(false);
       });
     }
 

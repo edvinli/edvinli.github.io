@@ -9,6 +9,12 @@
 // visible-but-empty, a bar drawn off its scale, or a 360px column overflowing
 // the page passes those tests and fails this one.
 //
+// The panel has exactly two states per party: Regering and Opposition. The
+// invariant the whole file is organised around is that they partition the
+// eight parties -- government & opposition === 0 and government | opposition
+// === 255 -- at every point in a session, including the initial state
+// (government 0, opposition 255) and after Återställ.
+//
 // The panel is a direct-manipulation builder, so the drags are driven as real
 // input: CDP mouse and touch events through the browser's own pointer
 // pipeline, not synthetic DragEvent objects dispatched at the handlers. A drag
@@ -17,11 +23,12 @@
 // Layout of the run:
 //
 //   schema12()            one long session per viewport: copy, layout, drags,
-//                         reset, click/touch fallback, overflow, lookup;
-//   dragCases()           one short session per drag, each asserting the whole
-//                         resulting state (zone, masks, published numbers);
+//                         reset, direct-control moves, overflow, lookup;
+//   dragCases()           one short session per drag direction, each asserting
+//                         the whole resulting state (zone, masks, numbers);
 //   keyboardCases()       one short session per keyboard case, each spending
-//                         at most three real key presses -- see KEY BUDGET;
+//                         at most two real key presses -- see KEY BUDGET;
+//   touchTargets()        hit areas under an emulated coarse pointer;
 //   schema11FailsClosed() the fail-closed contract for the older publication.
 //
 // KEY BUDGET. Headless Chrome stops answering CDP after roughly five
@@ -30,7 +37,7 @@
 // page with none of this project's code, for Tab, Escape, ArrowDown and Enter
 // equally, so it is a limitation of the test harness rather than anything the
 // panel does -- see browser-tests/README.md. The keyboard cases are therefore
-// split across short-lived browsers, spend two or three presses each, and read
+// split across short-lived browsers, spend one or two presses each, and read
 // back only the few DOM facts they need instead of the whole panel.
 //
 // Usage:
@@ -59,37 +66,49 @@ const GENERATION_1_1 = '20260827T205828Z-e6c6ee97';
 const PARTY_ORDER = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
 const BIT = {};
 PARTY_ORDER.forEach((party, index) => { BIT[party] = 1 << index; });
+// Every party, as one mask. The two sides always partition exactly this.
+const FULL_MASK = (1 << PARTY_ORDER.length) - 1;               // 255
+// Conventional left-to-right Riksdag seating: the order the bars stack in,
+// and (reversed) the order the cards are listed in below them.
+const SEATING = ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD'];
 const CHAMBER = 349;
 const MAJORITY = 175;
 // Swedish typography puts a non-breaking space before a percent sign, and the
 // page emits one. Spelling it out keeps the expected strings readable.
-const NBSP = ' ';
+const NBSP = '\u00a0';
 
 // C + S + MP govern. Chosen because its majority probability is genuinely
 // nontrivial (10,78 %): a panel that silently printed 0 %, 100 % or the wrong
 // mask's value would pass against a coalition that is hopeless or certain.
 const GOVERNMENT = ['C', 'S', 'MP'];
 const GOVERNMENT_MASK = BIT.C | BIT.S | BIT.MP;      // 84
-// M + KD + SD sit opposite them, evaluated only on their own mask.
-const OPPOSITION = ['M', 'KD', 'SD'];
-const OPPOSITION_MASK = BIT.M | BIT.KD | BIT.SD;     // 137
+// Everyone else is the opposition, by construction rather than by choice.
+const OPPOSITION_MASK = FULL_MASK ^ GOVERNMENT_MASK; // 171
 // Adding V to the same government crosses the rule: median 190 of 349.
 const MAJORITY_MASK = GOVERNMENT_MASK | BIT.V;       // 116
 
-// The move menu is the tap target of the accessible fallback, so it is held to
-// the WCAG 2.5.8 (AA) minimum target size of 24 CSS px on its short side. The
-// grip is a drag surface rather than a tap target: what matters there is that
-// it is a full-height strip wide enough to grab.
-const MIN_MENU_TARGET = 24;
+// The move control is the tap target of the accessible fallback, so with a
+// fine pointer it is held to the WCAG 2.5.8 (AA) minimum target size of 24
+// CSS px on its short side. The grip is a drag surface rather than a tap
+// target: what matters there is that it is a full-height strip wide enough to
+// grab. Both are widened to ~44px under a coarse pointer -- see touchTargets.
+const MIN_MOVE_TARGET = 24;
 const MIN_GRIP_HEIGHT = 30;
 const MIN_GRIP_WIDTH = 14;
+// The coarse-pointer hit area, probed rather than measured: a transparent
+// overlay does not show up in getBoundingClientRect.
+const TOUCH_TARGET = 44;
+const TOUCH_PROBE = 20;   // half-extent probed, comfortably inside 44/2
+// ... while what is actually painted -- the grip dots and the chevron --
+// stays small, and the column stays narrow.
+const MAX_VISIBLE_ICON = 12;
+const MAX_CONTROL_WIDTH = 34;
 
-const POOL = 'election-available-parties';
 const GOVERNMENT_ZONE = 'election-government-parties';
 const OPPOSITION_ZONE = 'election-opposition-parties';
-const ZONE_IDS = [POOL, GOVERNMENT_ZONE, OPPOSITION_ZONE];
+const ZONE_IDS = [GOVERNMENT_ZONE, OPPOSITION_ZONE];
 const ZONE_OF_ACTION = {
-  pool: POOL, government: GOVERNMENT_ZONE, opposition: OPPOSITION_ZONE,
+  government: GOVERNMENT_ZONE, opposition: OPPOSITION_ZONE,
 };
 
 const VIEWPORTS = [
@@ -112,6 +131,19 @@ const near = (name, actual, expected, tolerance) =>
   check(name, Math.abs(actual - expected) <= tolerance,
     `expected ${expected} +/- ${tolerance}, got ${actual}`);
 
+/**
+ * The two-state invariant, asserted from whatever masks a reader just took off
+ * the page. Every path through the panel goes through this.
+ */
+function partitions(label, government, opposition) {
+  const g = Number(government);
+  const o = Number(opposition);
+  check(`${label}: the two sides are disjoint`, Number.isInteger(g) && Number.isInteger(o) && (g & o) === 0,
+    `government ${government} & opposition ${opposition} = ${g & o}`);
+  check(`${label}: the two sides cover all eight parties`, (g | o) === FULL_MASK,
+    `government ${government} | opposition ${opposition} = ${g | o}, want ${FULL_MASK}`);
+}
+
 /** Ignore asset noise that comes from serving a dev build, not from the app. */
 const appErrors = (browser) => browser.consoleErrors.filter(
   (e) => !/favicon|images\/manifest\.json/.test(e.text));
@@ -133,17 +165,25 @@ const settle = () => new Promise((r) => setTimeout(r, 140));
 // ---------------------------------------------------------------------------
 
 /** Serve the built site, open the page and wait for the forecast to render. */
-async function open(viewport, pointer) {
+async function open(viewport, pointer, { coarse = false } = {}) {
   const server = await serve(SITE, { port: 4000, pointer });
   const browser = await launch({ width: viewport.width, height: viewport.height });
+  // Touch emulation, not setEmulatedMedia: `pointer` and `hover` are not
+  // overridable media features in CDP, and Blink derives them from the
+  // device's touch capability instead. Turning that on is what makes
+  // `(pointer: coarse)` match, which is the whole point of the case.
+  if (coarse) {
+    await browser.S('Emulation.setTouchEmulationEnabled',
+      { enabled: true, maxTouchPoints: 5 });
+  }
   await browser.goto(`http://127.0.0.1:${server.port}${PAGE}`);
   await waitForApp(browser);
   return { server, browser };
 }
 
 /** Run `body` against a fresh browser, then always tear it down. */
-async function session(viewport, pointer, body) {
-  const { server, browser } = await open(viewport, pointer);
+async function session(viewport, pointer, body, options) {
+  const { server, browser } = await open(viewport, pointer, options);
   try {
     await body(browser);
     eq('no uncaught exceptions', browser.exceptions, []);
@@ -180,16 +220,23 @@ const readPanel = (browser) => browser.evaluate(() => {
   };
   const cards = (hostId) => Array.from(
     document.querySelectorAll(`#${hostId} .eg-party`)
-  ).map((el) => Object.assign({
-    party: el.getAttribute('data-party'),
-    zone: el.getAttribute('data-zone'),
-    // Native HTML5 dragging must stay off: the pointer handlers own the drag.
-    nativeDraggable: el.getAttribute('draggable'),
-    grip: Boolean(el.querySelector('.eg-party__grip')),
-    destinations: Array.from(el.querySelectorAll('.eg-party__menu-item'))
-      .map((b) => b.getAttribute('data-action')),
-    text: flat(el.textContent),
-  }, box(el)));
+  ).map((el) => {
+    const move = el.querySelector('.eg-party__move');
+    return Object.assign({
+      party: el.getAttribute('data-party'),
+      zone: el.getAttribute('data-zone'),
+      // Native HTML5 dragging must stay off: the pointer handlers own the drag.
+      nativeDraggable: el.getAttribute('draggable'),
+      grip: Boolean(el.querySelector('.eg-party__grip')),
+      // The one alternative destination, and the label a screen reader reads.
+      moveAction: move ? move.getAttribute('data-action') : null,
+      moveLabel: move ? move.getAttribute('aria-label') : null,
+      moveTag: move ? move.tagName : null,
+      moveType: move ? move.getAttribute('type') : null,
+      movePopup: move ? move.getAttribute('aria-haspopup') : null,
+      text: flat(el.textContent),
+    }, box(el));
+  });
   const segments = (barId) => Array.from(
     document.querySelectorAll(`#${barId} .eg-bar__segment`)
   ).map((el) => ({
@@ -231,10 +278,8 @@ const readPanel = (browser) => browser.evaluate(() => {
   return {
     section: byId('election-government-builder'),
     summaryBox: byId('election-government-results'),
-    poolEmpty: byId('election-pool-empty'),
     reset: byId('election-builder-reset'),
     resetLabel: text('election-builder-reset'),
-    pool: cards('election-available-parties'),
     government: cards('election-government-parties'),
     opposition: cards('election-opposition-parties'),
     governmentBar: byId('election-government-bar'),
@@ -247,11 +292,13 @@ const readPanel = (browser) => browser.evaluate(() => {
     oppositionTotal: text('election-opposition-total'),
     governmentStack: stackHeight('election-government-bar'),
     oppositionStack: stackHeight('election-opposition-bar'),
-    poolTitle: text('election-pool-title'),
     governmentTitle: text('election-government-title'),
     oppositionTitle: text('election-opposition-title'),
-    menuButtons: sizes('.eg-party__menu-btn'),
+    moveControls: sizes('.eg-party__move'),
     grips: sizes('.eg-party__grip'),
+    // Nothing in the panel may open a popup any more.
+    popups: document.querySelectorAll(
+      '#election-government-builder [aria-haspopup], #election-government-builder [role="menu"]').length,
     intro: flat(document.querySelector('#election-government-builder .election-panel__head p').textContent),
     disclaimer: flat(document.querySelector('.eg-builder__disclaimer').textContent),
     hints: Array.from(document.querySelectorAll('.eg-zone__hint')).map((el) => el.textContent.trim()),
@@ -302,10 +349,8 @@ const readState = (browser, party) => browser.evaluate((name) => {
     opposition: document.getElementById('election-opposition-column').getAttribute('data-coalition-mask'),
     activeParty: activeCard ? activeCard.getAttribute('data-party') : null,
     activeZone: activeZone ? activeZone.id : null,
-    activeIsMenuButton: Boolean(active) && active.classList.contains('eg-party__menu-btn'),
+    activeIsMoveControl: Boolean(active) && active.classList.contains('eg-party__move'),
     activeAction: active ? active.getAttribute('data-action') : null,
-    activeRole: active ? active.getAttribute('role') : null,
-    openMenus: document.querySelectorAll('.eg-party__menu:not([hidden])').length,
     medianText: dd('government'),
     probabilityText: dd('probability'),
   };
@@ -450,41 +495,42 @@ async function key(browser, name, code, keyCode, text) {
 
 const pressEnter = (browser) => key(browser, 'Enter', 'Enter', 13, '\r');
 const pressSpace = (browser) => key(browser, ' ', 'Space', 32, ' ');
-const pressArrowDown = (browser) => key(browser, 'ArrowDown', 'ArrowDown', 40);
 const pressTab = (browser) => key(browser, 'Tab', 'Tab', 9);
 
-/** Click a destination in a card's menu, in script. Costs no key budget. */
-const menuMove = (browser, party, zone) => browser.evaluate((arg) => {
-  const [name, target] = arg;
+/** Activate a card's direct move control in script. Costs no key budget. */
+const moveViaControl = (browser, party) => browser.evaluate((name) => {
   const card = document.querySelector(
     `#election-government-builder .eg-party[data-party="${name}"]`);
   if (!card) return false;
-  card.querySelector('.eg-party__menu-btn').click();
-  const item = card.querySelector(`.eg-party__menu-item[data-action="${target}"]`);
-  if (!item) return false;
-  item.click();
+  card.querySelector('.eg-party__move').click();
   return true;
-}, [party, zone]);
+}, party);
 
-async function place(browser, placements) {
-  for (const [party, zone] of placements) await menuMove(browser, party, zone);
+/** Put `parties` into `zone`, moving only the ones not already there. */
+async function place(browser, zone, parties) {
+  for (const party of parties) {
+    const here = await browser.evaluate((arg) => {
+      const [name, target] = arg;
+      const card = document.querySelector(
+        `#election-government-builder .eg-party[data-party="${name}"]`);
+      return card ? card.getAttribute('data-zone') === target : false;
+    }, [party, zone]);
+    if (!here) await moveViaControl(browser, party);
+  }
   await settle();
 }
 
-const buildSelection = (browser, government, opposition) => place(browser,
-  government.map((p) => [p, 'government']).concat(opposition.map((p) => [p, 'opposition'])));
-
 /** Put keyboard focus on one card's move control, in script. */
-const focusMenuButton = (browser, party) => browser.evaluate((name) => {
+const focusMoveControl = (browser, party) => browser.evaluate((name) => {
   const button = document.querySelector(
-    `#election-government-builder .eg-party[data-party="${name}"] .eg-party__menu-btn`);
+    `#election-government-builder .eg-party[data-party="${name}"] .eg-party__move`);
   if (!button) return false;
   button.focus();
   return document.activeElement === button;
 }, party);
 
 // ---------------------------------------------------------------------------
-// schema 1.2: the drag-and-drop builder, end to end
+// schema 1.2: the two-state builder, end to end
 // ---------------------------------------------------------------------------
 
 async function schema12(viewport, pointer, expected) {
@@ -494,48 +540,59 @@ async function schema12(viewport, pointer, expected) {
     const initial = await readPanel(browser);
     check('panel is visible', initial.section.visible, JSON.stringify(initial.section));
     eq('intro copy', initial.intro,
-      'Dra partier till Regering eller Opposition och se hur många mandat de brukar få i simuleringarna.');
-    eq('pool label', initial.poolTitle, 'Tillgängliga partier');
+      'Alla partier börjar i Opposition. Dra dem mellan Regering och Opposition och se hur många mandat sidorna brukar få i simuleringarna.');
     eq('government side label', initial.governmentTitle, 'Regering');
     eq('opposition side label', initial.oppositionTitle, 'Opposition');
     eq('reset control', initial.resetLabel, 'Återställ');
     eq('disclaimer is government-only', initial.disclaimer,
       'Det här visar sannolikheten att de valda regeringspartierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.');
 
-    // --- Initial empty state ---------------------------------------------
-    eq('all eight parties start in the pool', initial.pool.map((c) => c.party), PARTY_ORDER);
-    eq('government side starts empty', initial.government.length, 0);
-    eq('opposition side starts empty', initial.opposition.length, 0);
-    eq('both empty sides invite a drop', initial.hints,
-      ['Dra partier hit för att bygga en regering.',
-        'Dra partier hit för att lägga dem i opposition.']);
-    check('every pool card has a real box',
-      initial.pool.every((c) => c.visible && c.width > 0 && c.height > 0),
-      JSON.stringify(initial.pool.filter((c) => !(c.visible && c.width > 0))));
-    check('cards carry a drag grip', initial.pool.every((c) => c.grip),
-      JSON.stringify(initial.pool.map((c) => [c.party, c.grip])));
-    eq('native HTML5 dragging is off',
-      initial.pool.map((c) => c.nativeDraggable), PARTY_ORDER.map(() => 'false'));
-    eq('a pool card offers the two other states',
-      initial.pool.map((c) => c.destinations.join('+')),
-      PARTY_ORDER.map(() => 'government+opposition'));
-    check('a card reads as abbreviation and median seats',
-      /^S110mandat/.test(initial.pool.find((c) => c.party === 'S').text.replace(/\s/g, '')),
-      initial.pool.find((c) => c.party === 'S').text);
-    eq('both totals start at zero',
-      [initial.governmentTotal, initial.oppositionTotal], ['0', '0']);
-    eq('no segments are drawn yet',
-      initial.governmentSegments.length + initial.oppositionSegments.length, 0);
-    eq('both side masks start empty',
-      [initial.masks.government, initial.masks.opposition], ['0', '0']);
+    // --- The initial state is a partition, not an empty pool -------------
+    eq('government starts empty', initial.government.length, 0);
+    eq('every party starts in Opposition',
+      initial.opposition.map((c) => c.party), SEATING.slice().reverse());
+    eq('the initial masks are 0 and 255',
+      [initial.masks.government, initial.masks.opposition], ['0', String(FULL_MASK)]);
+    partitions('initial state', initial.masks.government, initial.masks.opposition);
+    eq('only the empty government invites a drop', initial.hints,
+      ['Dra partier hit för att bygga en regering.']);
+    eq('the opposition already carries the whole chamber',
+      [initial.governmentTotal, initial.oppositionTotal], ['0', String(CHAMBER)]);
+    eq('only the opposition bar is drawn',
+      [initial.governmentSegments.length, initial.oppositionSegments.length],
+      [0, PARTY_ORDER.length]);
     check('summary is hidden until a government exists',
       !initial.summaryBox.visible && initial.summaryBox.display === 'none',
       JSON.stringify(initial.summaryBox));
     eq('screen-reader status invites a government',
       initial.announcement, 'Dra partier hit för att bygga en regering.');
-    check(`every move control is at least ${MIN_MENU_TARGET}px on its short side`,
-      initial.menuButtons.every((b) => Math.min(b.width, b.height) >= MIN_MENU_TARGET),
-      JSON.stringify(initial.menuButtons[0]));
+
+    // --- Card anatomy: one destination, no popup -------------------------
+    check('every card has a real box',
+      initial.opposition.every((c) => c.visible && c.width > 0 && c.height > 0),
+      JSON.stringify(initial.opposition.filter((c) => !(c.visible && c.width > 0))));
+    check('cards carry a drag grip', initial.opposition.every((c) => c.grip),
+      JSON.stringify(initial.opposition.map((c) => [c.party, c.grip])));
+    eq('native HTML5 dragging is off',
+      initial.opposition.map((c) => c.nativeDraggable),
+      PARTY_ORDER.map(() => 'false'));
+    eq('an opposition card offers exactly one destination',
+      initial.opposition.map((c) => c.moveAction),
+      PARTY_ORDER.map(() => 'government'));
+    eq('the fallback is a normal button, not a menu trigger',
+      [initial.opposition[0].moveTag, initial.opposition[0].moveType,
+        initial.opposition[0].movePopup],
+      ['BUTTON', 'button', null]);
+    eq('no popup survives anywhere in the panel', initial.popups, 0);
+    eq('the control names the party and where it would go',
+      initial.opposition.find((c) => c.party === 'C').moveLabel,
+      'Flytta Centerpartiet (C) till Regering');
+    check('a card reads as abbreviation and median seats',
+      /^S110mandat/.test(initial.opposition.find((c) => c.party === 'S').text.replace(/\s/g, '')),
+      initial.opposition.find((c) => c.party === 'S').text);
+    check(`every move control is at least ${MIN_MOVE_TARGET}px on its short side`,
+      initial.moveControls.every((b) => Math.min(b.width, b.height) >= MIN_MOVE_TARGET),
+      JSON.stringify(initial.moveControls[0]));
     check('every grip is a full-height graspable strip',
       initial.grips.every((g) => g.height >= MIN_GRIP_HEIGHT && g.width >= MIN_GRIP_WIDTH),
       JSON.stringify(initial.grips[0]));
@@ -552,93 +609,90 @@ async function schema12(viewport, pointer, expected) {
     near('majority rule sits at 175 of 349',
       initial.majority.fromBottom,
       initial.majority.plotHeight * (MAJORITY / CHAMBER), 1.5);
+    near('an all-opposition chamber fills its bar to 349',
+      initial.oppositionStack, initial.majority.plotHeight, 1.5);
 
-    // --- Dragging: the primary interaction -------------------------------
-    check('drag C from the pool into Regering',
+    // --- Dragging: the primary interaction, in both directions -----------
+    check('drag C from Opposition into Regering',
       await mouseDrag(browser, 'C', GOVERNMENT_ZONE));
     let where = await membership(browser);
+    let state = await readState(browser, 'C');
     eq('C is now only in Regering', where.found.C, GOVERNMENT_ZONE);
     eq('nothing is in two zones at once', where.duplicates, []);
+    eq('the masks moved the one bit', [state.government, state.opposition],
+      [String(BIT.C), String(FULL_MASK ^ BIT.C)]);
+    partitions('after Opposition -> Regering', state.government, state.opposition);
 
-    check('drag M from the pool into Opposition',
-      await mouseDrag(browser, 'M', OPPOSITION_ZONE));
-    where = await membership(browser);
-    eq('M is now only in Opposition', where.found.M, OPPOSITION_ZONE);
-    eq('still no duplicates', where.duplicates, []);
-
-    check('drag C straight across from Regering to Opposition',
+    check('drag C back from Regering into Opposition',
       await mouseDrag(browser, 'C', OPPOSITION_ZONE));
     where = await membership(browser);
-    eq('C is now only in Opposition', where.found.C, OPPOSITION_ZONE);
+    state = await readState(browser, 'C');
+    eq('C is back in Opposition', where.found.C, OPPOSITION_ZONE);
     eq('a cross-side move leaves no copy behind', where.duplicates, []);
-
-    check('drag C back to the pool', await mouseDrag(browser, 'C', POOL));
-    where = await membership(browser);
-    eq('C is back in the pool', where.found.C, POOL);
-    eq('every party is placed exactly once',
-      Object.keys(where.found).length, PARTY_ORDER.length);
+    eq('the masks are back to the initial partition',
+      [state.government, state.opposition], ['0', String(FULL_MASK)]);
+    partitions('after Regering -> Opposition', state.government, state.opposition);
 
     // Dropping a card back where it already is must be a no-op.
-    const before = await membership(browser);
     await mouseDrag(browser, 'M', OPPOSITION_ZONE);
     const after = await membership(browser);
     eq('dropping a card back on its own side changes nothing',
-      [before.found.M, after.found.M, after.duplicates],
-      [OPPOSITION_ZONE, OPPOSITION_ZONE, []]);
+      [after.found.M, after.duplicates], [OPPOSITION_ZONE, []]);
 
-    check('touch-drag S onto Regering using the grip',
+    check('touch-drag S into Regering using the grip',
       await touchDrag(browser, 'S', GOVERNMENT_ZONE));
     where = await membership(browser);
+    state = await readState(browser, 'S');
     eq('a touch drag places the party like a mouse drag', where.found.S, GOVERNMENT_ZONE);
     eq('a touch drag creates no duplicate', where.duplicates, []);
+    partitions('after a touch drag', state.government, state.opposition);
 
-    // --- The move menu under real pointer input --------------------------
+    // --- The direct control under real pointer input ---------------------
     // A scripted .click() skips the pointerdown a real tap fires, and
-    // pointerdown on the card is what used to close the menu before the
-    // item's click could land. Drive it as real input instead.
-    check('a real click opens the move menu',
-      await mouseClick(browser, `#${POOL} .eg-party[data-party="KD"] .eg-party__menu-btn`));
-    let state = await readState(browser, 'KD');
-    eq('the menu is open after a real click', state.openMenus, 1);
-    check('a real click on a menu item moves the party',
+    // pointerdown on the card is what starts a drag. Drive it as real input
+    // instead, so the control and the drag cannot fight over the press.
+    check('a real click on the direct control moves the party',
       await mouseClick(browser,
-        `#${POOL} .eg-party[data-party="KD"] .eg-party__menu-item[data-action="opposition"]`));
+        `#${OPPOSITION_ZONE} .eg-party[data-party="KD"] .eg-party__move`));
     state = await readState(browser, 'KD');
-    eq('the tapped destination is the one it moved to', state.zone, 'opposition');
-    eq('a menu move leaves one card', state.copies, 1);
-    eq('the menu closes behind the move', state.openMenus, 0);
+    eq('the party moved to its one destination', state.zone, 'government');
+    eq('a direct move leaves one card', state.copies, 1);
+    partitions('after a direct move', state.government, state.opposition);
 
     // --- Reset -----------------------------------------------------------
     await browser.evaluate(() => document.getElementById('election-builder-reset').click());
     await settle();
     where = await membership(browser);
-    eq('reset returns every party to the pool',
-      PARTY_ORDER.map((p) => where.found[p]), PARTY_ORDER.map(() => POOL));
+    eq('reset returns every party to Opposition',
+      PARTY_ORDER.map((p) => where.found[p]), PARTY_ORDER.map(() => OPPOSITION_ZONE));
     let panel = await readPanel(browser);
-    eq('reset clears both masks', [panel.masks.government, panel.masks.opposition], ['0', '0']);
+    eq('reset restores government 0 / opposition 255',
+      [panel.masks.government, panel.masks.opposition], ['0', String(FULL_MASK)]);
+    partitions('after reset', panel.masks.government, panel.masks.opposition);
     check('reset hides the summary again', !panel.summaryBox.visible, JSON.stringify(panel.summaryBox));
-    check('reset is announced', /tillbaka/.test(panel.announcement), panel.announcement);
+    check('reset is announced', /Opposition/.test(panel.announcement), panel.announcement);
 
     // --- Masks and the published lookup ----------------------------------
-    await buildSelection(browser, GOVERNMENT, OPPOSITION);
+    await place(browser, 'government', GOVERNMENT);
     where = await membership(browser);
     eq('final membership',
       Object.keys(where.found).sort().map((p) => [p, where.found[p]]),
       Object.entries({
-        C: GOVERNMENT_ZONE, KD: OPPOSITION_ZONE, L: POOL, M: OPPOSITION_ZONE,
-        MP: GOVERNMENT_ZONE, S: GOVERNMENT_ZONE, SD: OPPOSITION_ZONE, V: POOL,
+        C: GOVERNMENT_ZONE, KD: OPPOSITION_ZONE, L: OPPOSITION_ZONE, M: OPPOSITION_ZONE,
+        MP: GOVERNMENT_ZONE, S: GOVERNMENT_ZONE, SD: OPPOSITION_ZONE, V: OPPOSITION_ZONE,
       }).sort());
     eq('no party is in two zones', where.duplicates, []);
 
     panel = await readPanel(browser);
     eq('government mask', panel.masks.government, String(GOVERNMENT_MASK));
-    eq('opposition mask is looked up on its own', panel.masks.opposition, String(OPPOSITION_MASK));
+    eq('the opposition mask is the exact complement',
+      panel.masks.opposition, String(OPPOSITION_MASK));
+    partitions('the worked case', panel.masks.government, panel.masks.opposition);
     eq('the evaluated coalition is the government',
       panel.masks.summaryCoalition, String(GOVERNMENT_MASK));
     eq('summary carries both side masks',
       [panel.masks.summaryGovernment, panel.masks.summaryOpposition],
       [String(GOVERNMENT_MASK), String(OPPOSITION_MASK)]);
-    eq('the two side masks are disjoint', GOVERNMENT_MASK & OPPOSITION_MASK, 0);
 
     check('summary is revealed', panel.summaryBox.visible, JSON.stringify(panel.summaryBox));
     eq('government median', panel.metrics.government,
@@ -661,39 +715,46 @@ async function schema12(viewport, pointer, expected) {
 
     // --- Each bar draws the number it prints -----------------------------
     // The track is column-reverse, so DOM order runs bottom to top.
-    eq('government bar stacks its own three parties',
-      panel.governmentSegments.map((s) => s.party), ['S', 'MP', 'C']);
-    eq('opposition bar stacks its own three parties',
-      panel.oppositionSegments.map((s) => s.party), ['KD', 'M', 'SD']);
+    eq('government bar stacks its own parties',
+      panel.governmentSegments.map((s) => s.party), expected.stack(GOVERNMENT_MASK));
+    eq('opposition bar stacks its own parties',
+      panel.oppositionSegments.map((s) => s.party), expected.stack(OPPOSITION_MASK));
     eq('cards are listed in the bar\'s own top-to-bottom order',
-      panel.government.map((c) => c.party), ['C', 'MP', 'S']);
+      panel.government.map((c) => c.party), expected.stack(GOVERNMENT_MASK).slice().reverse());
+    eq('a governing card now points back to Opposition',
+      panel.government.map((c) => c.moveAction),
+      panel.government.map(() => 'opposition'));
+    eq('and says so', panel.government.find((c) => c.party === 'C').moveLabel,
+      'Flytta Centerpartiet (C) till Opposition');
     near('the government stack is its median on the 0-349 scale',
       panel.governmentStack,
       panel.majority.plotHeight * (expected.government.median / CHAMBER), 1.5);
     near('the opposition stack is its median on the 0-349 scale',
       panel.oppositionStack,
       panel.majority.plotHeight * (expected.opposition.median / CHAMBER), 1.5);
-    check('neither side reaches the rule in this selection',
+    // In a true partition the complement of a losing government is usually a
+    // winning opposition, and the panel has to draw that honestly.
+    check('this government stays below the rule while its complement clears it',
       panel.governmentStack < panel.majority.fromBottom &&
-      panel.oppositionStack < panel.majority.fromBottom,
+      panel.oppositionStack > panel.majority.fromBottom,
       `government ${panel.governmentStack}px, opposition ${panel.oppositionStack}px, rule ${panel.majority.fromBottom}px`);
     eq('the government bar describes itself for screen readers',
-      panel.governmentBarLabel,
-      `Regering: C 25, MP 27, S 110. Median tillsammans ${expected.government.median} av ${CHAMBER} mandat.`);
+      panel.governmentBarLabel, expected.barLabel('Regering', GOVERNMENT_MASK));
     eq('the opposition bar describes itself too',
-      panel.oppositionBarLabel,
-      `Opposition: SD 69, M 68, KD 24. Median tillsammans ${expected.opposition.median} av ${CHAMBER} mandat.`);
+      panel.oppositionBarLabel, expected.barLabel('Opposition', OPPOSITION_MASK));
     check('the live region announces both sides and the probability',
       panel.announcement.includes(`Regering C + S + MP, ${expected.government.median} mandat`) &&
       panel.announcement.includes(expected.government.probability) &&
-      panel.announcement.includes('Opposition M + KD + SD'),
+      panel.announcement.includes('Opposition M + L + KD + V + SD'),
       panel.announcement);
 
     // --- A government that does cross the rule ---------------------------
     check('drag V into Regering', await mouseDrag(browser, 'V', GOVERNMENT_ZONE));
     const crossing = await readPanel(browser);
     eq('the enlarged government mask', crossing.masks.government, String(MAJORITY_MASK));
-    eq('the opposition mask is untouched', crossing.masks.opposition, String(OPPOSITION_MASK));
+    eq('the opposition shrinks to match',
+      crossing.masks.opposition, String(FULL_MASK ^ MAJORITY_MASK));
+    partitions('the crossing case', crossing.masks.government, crossing.masks.opposition);
     eq('the enlarged government median',
       crossing.metrics.government.value, `${expected.majority.median} mandat`);
     eq('its probability is the published one',
@@ -704,7 +765,7 @@ async function schema12(viewport, pointer, expected) {
     check('the government bar now rises above the majority rule',
       crossing.governmentStack > crossing.majority.fromBottom,
       `stack ${crossing.governmentStack}px vs rule ${crossing.majority.fromBottom}px`);
-    check('the opposition bar stays below it',
+    check('and its complement drops below it',
       crossing.oppositionStack < crossing.majority.fromBottom,
       `stack ${crossing.oppositionStack}px vs rule ${crossing.majority.fromBottom}px`);
     near('the crossing stack is still drawn on the same 0-349 scale',
@@ -721,18 +782,19 @@ async function schema12(viewport, pointer, expected) {
     check('nothing in the panel reaches past the viewport',
       overflow.worst.right <= overflow.clientWidth + 0.5, JSON.stringify(overflow.worst));
 
-    // An open menu is absolutely positioned and is the one thing that can
-    // hang off the right edge of a narrow column.
-    await browser.evaluate(() => {
-      const cards = document.querySelectorAll('#election-opposition-parties .eg-party__menu-btn');
-      if (cards.length) cards[cards.length - 1].click();
-    });
-    await settle();
-    const openOverflow = await readOverflow(browser);
-    check('an open menu stays inside the viewport',
-      openOverflow.documentScrollWidth <= openOverflow.clientWidth &&
-      openOverflow.worst.right <= openOverflow.clientWidth + 0.5,
-      JSON.stringify(openOverflow));
+    // The all-in-one-column extreme: eight cards on one side is the tallest
+    // and widest the zone ever gets.
+    await place(browser, 'government', PARTY_ORDER);
+    const loaded = await readOverflow(browser);
+    check('an all-government chamber still does not overflow',
+      loaded.documentScrollWidth <= loaded.clientWidth &&
+      loaded.worst.right <= loaded.clientWidth + 0.5, JSON.stringify(loaded));
+    const full = await readPanel(browser);
+    eq('an all-government chamber is mask 255 against an empty opposition',
+      [full.masks.government, full.masks.opposition], [String(FULL_MASK), '0']);
+    partitions('all-government', full.masks.government, full.masks.opposition);
+    eq('the emptied opposition invites a drop', full.hints,
+      ['Dra partier hit för att lägga dem i opposition.']);
   });
 }
 
@@ -743,7 +805,7 @@ async function schema12(viewport, pointer, expected) {
 async function dragCase(pointer, expected, spec) {
   console.log(`\n[drag: ${spec.name}]`);
   await session(CASE_VIEWPORT, pointer, async (browser) => {
-    if (spec.setup && spec.setup.length) await place(browser, spec.setup);
+    if (spec.setup && spec.setup.length) await place(browser, 'government', spec.setup);
     check(`drag ${spec.party} into ${spec.to}`,
       await mouseDrag(browser, spec.party, ZONE_OF_ACTION[spec.to]));
 
@@ -754,9 +816,10 @@ async function dragCase(pointer, expected, spec) {
     eq('no card is duplicated anywhere', where.duplicates, []);
     eq('every party is still placed exactly once',
       Object.keys(where.found).length, PARTY_ORDER.length);
-    eq('both side masks are correct',
-      [state.government, state.opposition],
-      [String(spec.government), String(spec.opposition)]);
+    eq('the government mask is correct', state.government, String(spec.government));
+    eq('the opposition mask is its complement',
+      state.opposition, String(FULL_MASK ^ spec.government));
+    partitions(spec.name, state.government, state.opposition);
 
     if (spec.government === 0) {
       eq('an empty government prints no result', state.probabilityText, null);
@@ -771,37 +834,38 @@ async function dragCase(pointer, expected, spec) {
 }
 
 // ---------------------------------------------------------------------------
-// One keyboard case per browser, two or three real presses each
+// One keyboard case per browser, one or two real presses each
 // ---------------------------------------------------------------------------
 
 /**
- * `presses` is applied after focus is placed on `party`'s move control.
- * A pool card's menu offers Regering then Opposition; a placed card's menu
- * offers Tillgängliga partier then the other side. So one Enter activates the
- * first entry, and ArrowDown then Enter activates the second.
+ * The fallback is a plain button, so a single Enter or Space on it performs
+ * the move. `presses` is applied after focus is placed on `party`'s control.
  */
 async function keyboardCase(pointer, spec) {
   console.log(`\n[keyboard: ${spec.name}]`);
   await session(CASE_VIEWPORT, pointer, async (browser) => {
-    if (spec.setup && spec.setup.length) await place(browser, spec.setup);
+    if (spec.setup && spec.setup.length) await place(browser, 'government', spec.setup);
     await focusPanel(browser);
     check(`focus reaches ${spec.party}'s move control`,
-      await focusMenuButton(browser, spec.party));
+      await focusMoveControl(browser, spec.party));
 
     await spec.presses(browser);
 
     const state = await readState(browser, spec.party);
     eq(`${spec.party} moved to ${spec.to}`, state.zone, spec.to);
     eq(`${spec.party} exists exactly once`, state.copies, 1);
-    eq('no menu is left open', state.openMenus, 0);
-    eq('both side masks are correct',
-      [state.government, state.opposition],
-      [String(spec.government), String(spec.opposition)]);
+    eq('the government mask is correct', state.government, String(spec.government));
+    eq('the opposition mask is its complement',
+      state.opposition, String(FULL_MASK ^ spec.government));
+    partitions(spec.name, state.government, state.opposition);
     // Focus restoration: a keyboard user must not be dumped at the top of the
     // document after every move.
-    check('focus follows the card into its new home',
-      state.activeIsMenuButton && state.activeParty === spec.party &&
+    check('focus follows the party into its new side',
+      state.activeIsMoveControl && state.activeParty === spec.party &&
       state.activeZone === ZONE_OF_ACTION[spec.to], JSON.stringify(state));
+    // And the control it landed on now offers the way back.
+    eq('the control now points the other way', state.activeAction,
+      spec.to === 'government' ? 'opposition' : 'government');
   });
 }
 
@@ -820,7 +884,7 @@ async function keyboardFocusRing(pointer) {
       const style = getComputedStyle(active);
       const card = active.closest ? active.closest('.eg-party') : null;
       return {
-        isMenuButton: active.classList.contains('eg-party__menu-btn'),
+        isMoveControl: active.classList.contains('eg-party__move'),
         party: card ? card.getAttribute('data-party') : null,
         matchesFocusVisible: active.matches(':focus-visible'),
         outlineStyle: style.outlineStyle,
@@ -828,40 +892,112 @@ async function keyboardFocusRing(pointer) {
       };
     });
     check("Tab from the reset control reaches a card's move control",
-      ring.isMenuButton && Boolean(ring.party), JSON.stringify(ring));
+      ring.isMoveControl && Boolean(ring.party), JSON.stringify(ring));
     check('keyboard focus is visibly outlined',
       ring.matchesFocusVisible && ring.outlineStyle !== 'none' &&
       parseFloat(ring.outlineWidth) > 0, JSON.stringify(ring));
   });
 }
 
-/** Escape closes the menu and hands focus back. Handled in the panel's own
- *  keydown listener, so an in-page event is the real code path and costs no
- *  key budget. */
-async function keyboardEscape(pointer) {
-  console.log('\n[keyboard: Escape closes the menu]');
-  await session(CASE_VIEWPORT, pointer, async (browser) => {
-    await place(browser, [['C', 'government']]);
-    const escape = await browser.evaluate(() => {
-      const button = document.querySelector(
-        '#election-government-parties .eg-party[data-party="C"] .eg-party__menu-btn');
-      button.click();
-      const opened = document.querySelectorAll('.eg-party__menu:not([hidden])').length;
-      document.dispatchEvent(new KeyboardEvent('keydown',
-        { key: 'Escape', bubbles: true, cancelable: true }));
-      const active = document.activeElement;
+// ---------------------------------------------------------------------------
+// Touch: hit areas on a coarse pointer
+// ---------------------------------------------------------------------------
+
+/**
+ * Both the grip and the direct control have to be comfortable under a finger
+ * while their icons stay small, so the hit area is widened with a transparent
+ * overlay. An overlay does not show up in getBoundingClientRect, so the area
+ * is *probed* -- elementFromPoint around each control's centre -- which is
+ * what a finger actually does.
+ */
+async function touchTargets(pointer) {
+  console.log('\n[touch: 44px hit areas under a coarse pointer]');
+  await session(VIEWPORTS[1], pointer, async (browser) => {
+    await focusPanel(browser);
+    const probed = await browser.evaluate((arg) => {
+      const [half, controls] = arg;
+      const out = {};
+      controls.forEach(([selector, icon]) => {
+        const el = document.querySelector(
+          `#election-opposition-parties .eg-party[data-party="C"] ${selector}`);
+        if (!el) { out[selector] = null; return; }
+        const rect = el.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const points = [
+          ['centre', 0, 0], ['left', -half, 0], ['right', half, 0],
+          ['top', 0, -half], ['bottom', 0, half],
+          ['top-left', -half, -half], ['top-right', half, -half],
+          ['bottom-left', -half, half], ['bottom-right', half, half],
+        ];
+        // The visible mark is a pseudo-element on the grip and a child span
+        // on the button, so each is measured where it actually lives.
+        const painted = icon === '::before'
+          ? getComputedStyle(el, '::before')
+          : el.querySelector(icon) && getComputedStyle(el.querySelector(icon));
+        out[selector] = {
+          width: Math.round(rect.width * 100) / 100,
+          height: Math.round(rect.height * 100) / 100,
+          iconWidth: painted ? parseFloat(painted.width) : null,
+          iconHeight: painted ? parseFloat(painted.height) : null,
+          missed: points.filter(([, dx, dy]) => {
+            const hit = document.elementFromPoint(cx + dx, cy + dy);
+            return !(hit === el || el.contains(hit));
+          }).map(([name]) => name),
+        };
+      });
+      return out;
+    }, [TOUCH_PROBE, [['.eg-party__grip', '::before'],
+      ['.eg-party__move', '.eg-party__move-icon']]]);
+
+    for (const [selector, box] of Object.entries(probed)) {
+      check(`${selector} exists on a card`, Boolean(box), JSON.stringify(probed));
+      if (!box) continue;
+      check(`${selector} is pressable across a ~${TOUCH_TARGET}px square`,
+        box.missed.length === 0, `missed ${JSON.stringify(box.missed)}`);
+      check(`${selector} is at least ${TOUCH_TARGET}px tall`,
+        box.height >= TOUCH_TARGET, JSON.stringify(box));
+      check(`${selector} keeps its painted icon small`,
+        box.iconWidth > 0 && box.iconWidth <= MAX_VISIBLE_ICON &&
+        box.iconHeight > 0 && box.iconHeight <= MAX_VISIBLE_ICON,
+        JSON.stringify(box));
+      check(`${selector} does not widen the column to match`,
+        box.width <= MAX_CONTROL_WIDTH, JSON.stringify(box));
+    }
+
+    // A swipe that does not start on the grip must still scroll the page, so
+    // nothing but the grip may claim the touch.
+    const actions = await browser.evaluate(() => {
+      const card = document.querySelector(
+        '#election-opposition-parties .eg-party[data-party="C"]');
+      const of = (selector) => {
+        const el = selector ? card.querySelector(selector) : card;
+        return el ? getComputedStyle(el).touchAction : null;
+      };
       return {
-        opened,
-        closed: document.querySelectorAll('.eg-party__menu:not([hidden])').length,
-        expanded: document.querySelectorAll('.eg-party__menu-btn[aria-expanded="true"]').length,
-        focusReturned: active.classList.contains('eg-party__menu-btn') &&
-          active.closest('.eg-party').getAttribute('data-party') === 'C',
+        card: of(null), abbr: of('.eg-party__abbr'), seats: of('.eg-party__seats'),
+        grip: of('.eg-party__grip'), move: of('.eg-party__move'),
       };
     });
-    eq('Escape closes an open menu', [escape.opened, escape.closed, escape.expanded], [1, 0, 0]);
-    check('Escape returns focus to the control it came from', escape.focusReturned,
-      JSON.stringify(escape));
-  });
+    eq('only the grip opts out of native scrolling',
+      [actions.card, actions.abbr, actions.seats], ['auto', 'auto', 'auto']);
+    eq('the grip owns the drag gesture', actions.grip, 'none');
+    eq('the direct control is a tap target, not a scroll surface',
+      actions.move, 'manipulation');
+
+    // And the drag itself still works with a finger at this size.
+    check('a coarse-pointer touch drag still moves a party',
+      await touchDrag(browser, 'C', GOVERNMENT_ZONE));
+    const state = await readState(browser, 'C');
+    eq('C reached Regering', state.zone, 'government');
+    partitions('coarse-pointer drag', state.government, state.opposition);
+
+    const overflow = await readOverflow(browser);
+    check('the wider hit areas do not widen the layout',
+      overflow.documentScrollWidth <= overflow.clientWidth &&
+      overflow.panelScrollWidth <= overflow.panelClientWidth,
+      JSON.stringify(overflow));
+  }, { coarse: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -887,7 +1023,11 @@ async function schema11FailsClosed(pointer) {
         height: section.getBoundingClientRect().height,
         cards: document.querySelectorAll('#election-government-builder .eg-party').length,
         segments: document.querySelectorAll('#election-government-builder .eg-bar__segment').length,
-        menus: document.querySelectorAll('#election-government-builder .eg-party__menu').length,
+        controls: document.querySelectorAll('#election-government-builder .eg-party__move').length,
+        masks: [
+          document.getElementById('election-government-column').getAttribute('data-coalition-mask'),
+          document.getElementById('election-opposition-column').getAttribute('data-coalition-mask'),
+        ],
         summary: document.getElementById('election-government-results').textContent.trim(),
       };
     });
@@ -896,7 +1036,10 @@ async function schema11FailsClosed(pointer) {
       panel.display === 'none' && panel.height === 0, JSON.stringify(panel));
     eq('no party cards leak', panel.cards, 0);
     eq('no bar segments leak', panel.segments, 0);
-    eq('no move menus leak', panel.menus, 0);
+    eq('no move controls leak', panel.controls, 0);
+    // Not even the opposition side is populated: an unusable publication must
+    // not look like a chamber with everybody in opposition.
+    eq('the markup masks are left untouched', panel.masks, ['0', '0']);
     eq('no summary text leaks', panel.summary, '');
     eq('no uncaught exceptions', browser.exceptions, []);
     eq('no console errors', appErrors(browser), []);
@@ -931,8 +1074,16 @@ async function expectations() {
     prob: table[String(mask)].prob_majority,
     probability: swedish(table[String(mask)].prob_majority),
   });
+  // A bar stacks its members in seating order, bottom first.
+  const stack = (mask) => SEATING.filter((party) => (mask & BIT[party]) !== 0);
+  // ...and describes itself top-down, each party at its own published median.
+  const barLabel = (side, mask) => `${side}: ${stack(mask).slice().reverse()
+    .map((party) => `${party} ${of(BIT[party]).median}`).join(', ')}` +
+    `. Median tillsammans ${of(mask).median} av ${CHAMBER} mandat.`;
   return {
     of,
+    stack,
+    barLabel,
     government: of(GOVERNMENT_MASK),
     opposition: of(OPPOSITION_MASK),
     majority: of(MAJORITY_MASK),
@@ -950,85 +1101,62 @@ for (const viewport of VIEWPORTS) {
   await schema12(viewport, pointer12, expected);
 }
 
-// Every direction a card can travel, one browser each.
+// Both directions a card can travel, one browser each. There is no third.
 const DRAG_CASES = [
   {
-    name: 'pool -> Regering completes C+S+MP',
-    setup: [['C', 'government'], ['S', 'government']],
+    name: 'Opposition -> Regering completes C+S+MP',
+    setup: ['C', 'S'],
     party: 'MP', to: 'government',
-    government: GOVERNMENT_MASK, opposition: 0,
+    government: GOVERNMENT_MASK,
   },
   {
-    name: 'pool -> Opposition completes M+KD+SD',
-    setup: [['M', 'opposition'], ['KD', 'opposition']],
-    party: 'SD', to: 'opposition',
-    government: 0, opposition: OPPOSITION_MASK,
-  },
-  {
-    name: 'Regering -> Opposition',
-    setup: [['C', 'government'], ['S', 'government']],
+    name: 'Regering -> Opposition breaks it up again',
+    setup: ['C', 'S', 'MP'],
     party: 'C', to: 'opposition',
-    government: BIT.S, opposition: BIT.C,
+    government: GOVERNMENT_MASK & ~BIT.C,
   },
   {
-    name: 'Opposition -> Regering',
-    setup: [['M', 'opposition'], ['S', 'government']],
-    party: 'M', to: 'government',
-    government: BIT.S | BIT.M, opposition: 0,
-  },
-  {
-    name: 'assigned -> Tillgängliga partier',
-    setup: [['C', 'government'], ['S', 'government'], ['MP', 'government']],
-    party: 'S', to: 'pool',
-    government: GOVERNMENT_MASK & ~BIT.S, opposition: 0,
+    name: 'Regering -> Opposition empties the government',
+    setup: ['C'],
+    party: 'C', to: 'opposition',
+    government: 0,
   },
 ];
 for (const spec of DRAG_CASES) await dragCase(pointer12, expected, spec);
 
 await keyboardFocusRing(pointer12);
-await keyboardEscape(pointer12);
 
-// Two or three presses each. Enter activates the first menu entry; ArrowDown
-// then Enter activates the second. Space is proved once, as the other key that
-// activates a button.
+// One press each: the fallback is a plain button, so Enter and Space are the
+// browser's own activation of it.
 const KEYBOARD_CASES = [
   {
-    name: 'Enter moves a pool party to Regering',
+    name: 'Enter moves a party from Opposition to Regering',
     setup: [], party: 'C', to: 'government',
-    government: BIT.C, opposition: 0,
-    presses: async (browser) => { await pressEnter(browser); await pressEnter(browser); },
+    government: BIT.C,
+    presses: (browser) => pressEnter(browser),
   },
   {
-    name: 'Space moves a pool party to Regering',
+    name: 'Space moves a party from Opposition to Regering',
     setup: [], party: 'C', to: 'government',
-    government: BIT.C, opposition: 0,
-    presses: async (browser) => { await pressSpace(browser); await pressSpace(browser); },
+    government: BIT.C,
+    presses: (browser) => pressSpace(browser),
   },
   {
-    name: 'ArrowDown then Enter moves a pool party to Opposition',
-    setup: [], party: 'C', to: 'opposition',
-    government: 0, opposition: BIT.C,
-    presses: async (browser) => {
-      await pressEnter(browser); await pressArrowDown(browser); await pressEnter(browser);
-    },
+    name: 'Enter moves a governing party back to Opposition',
+    setup: ['C', 'S'], party: 'C', to: 'opposition',
+    government: BIT.S,
+    presses: (browser) => pressEnter(browser),
   },
   {
-    name: 'Enter returns an assigned party to Tillgängliga partier',
-    setup: [['C', 'government'], ['S', 'government']], party: 'C', to: 'pool',
-    government: BIT.S, opposition: 0,
-    presses: async (browser) => { await pressEnter(browser); await pressEnter(browser); },
-  },
-  {
-    name: 'ArrowDown then Enter moves a governing party to Opposition',
-    setup: [['C', 'government'], ['S', 'government']], party: 'C', to: 'opposition',
-    government: BIT.S, opposition: BIT.C,
-    presses: async (browser) => {
-      await pressEnter(browser); await pressArrowDown(browser); await pressEnter(browser);
-    },
+    name: 'Space moves a governing party back to Opposition',
+    setup: ['C', 'S'], party: 'C', to: 'opposition',
+    government: BIT.S,
+    presses: (browser) => pressSpace(browser),
   },
 ];
 for (const spec of KEYBOARD_CASES) await keyboardCase(pointer12, spec);
 
+await touchTargets(pointer12);
 await schema11FailsClosed(pointer11);
 
 console.log(failures === 0 ? '\nPASS' : `\nFAIL (${failures})`);
