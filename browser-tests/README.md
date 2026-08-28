@@ -49,16 +49,40 @@ assertion.
 
 The publication pointer is overridden **in the test server**, so the repository's
 `files/election-simulator/current.json` is never touched and no local pointer
-edit can leak into a commit.
+edit can leak into a commit. The expected seat numbers are read from the pinned
+fixture's `groups.json`, not hard-coded, so the test compares the page against
+the published lookup rather than against a copy of it.
 
 - **schema 1.2** (`20260828T064703Z-1da59168`), at 1280px and 360px:
-  8 government chips and 8 support chips labelled `M,L,C,KD,S,V,MP,SD`, each
-  with a non-zero box; the empty state visible; the result container and both
-  result cards genuinely `display: none`; selecting `M + KD + SD` producing the
-  mask-137 card and locking those parties out of the support row; adding `L` as
-  support producing the mask-139 union card; no console errors and no uncaught
-  exceptions.
+  - *Copy*: the Swedish intro sentence and the `Tillgängliga partier` /
+    `Regering` / `Stödpartier` / `Tillsammans` /
+    `Sannolikhet för minst 175 mandat` labels, and the "not a probability of
+    forming a government" disclaimer.
+  - *Initial empty state*: all eight parties in the pool with a real box each,
+    both columns empty and saying so, both totals `0`, no bar segments, both
+    column masks `0`, the prompt visible, and the summary and the medians note
+    genuinely `display: none`.
+  - *Shared scale*: both bars the same height and the same top edge; the
+    majority rule dashed, spanning both columns, positioned at 175/349 of the
+    plot to within 1.5px, and labelled `Majoritetsgräns: 175 mandat` — asserted
+    **not** to say "50 %".
+  - *Movement and membership*: a party moved pool → Regering → Stödpartier →
+    pool, with focus following it each time; no party ever present in two
+    zones; an empty Regering still suppressing the summary. Then `M + KD + SD`
+    as government and `L` added as support **through the drag handlers**.
+  - *Masks and results*: government mask 137, support mask 2, union mask 139 on
+    the summary; the five published numbers (both column medians, the combined
+    median, the union 90 % interval and the union probability) matching the
+    fixture; the stacked bar's measured pixel height equal to the coalition
+    median on the 0–349 scale, so the drawing and the printed number cannot
+    diverge; the bar's `aria-label` and the live region.
+  - *Keyboard*: a real `Tab` keypress landing on a builder control that matches
+    `:focus-visible` and computes a non-zero outline.
+  - *Layout*: no sideways scroll on the document or the panel, and no element
+    inside the panel reaching past the viewport.
+  - No console errors and no uncaught exceptions.
 - **schema 1.1** (`20260827T205828Z-e6c6ee97`), which has no `coalition_builder`:
-  the panel must keep its `hidden` attribute *and* compute to `display: none`.
-  This is the fail-closed assertion — the renderer declining to build the panel
-  must leave no trace of it on the page.
+  the panel must keep its `hidden` attribute *and* compute to `display: none`,
+  with no tiles, no bar segments and no summary text. This is the fail-closed
+  assertion — the renderer declining to build the panel must leave no trace of
+  it on the page.

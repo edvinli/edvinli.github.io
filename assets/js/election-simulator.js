@@ -729,8 +729,36 @@
   // contains summaries calculated from the simulator's joint seats_matrix;
   // the browser only resolves a selected bitmask and formats those values.
   // ---------------------------------------------------------------------
-  var ROLE_GOVERNMENT = "Regeringsparti";
-  var ROLE_SUPPORT = "St\u00f6dparti";
+  var ZONE_POOL = "pool";
+  var ZONE_GOVERNMENT = "government";
+  var ZONE_SUPPORT = "support";
+  var ZONE_NAMES = {
+    pool: "Tillg\u00e4ngliga partier",
+    government: "Regering",
+    support: "St\u00f6dpartier"
+  };
+  var ZONE_CLASS = {
+    pool: "eg-zone eg-zone--pool",
+    government: "eg-zone eg-zone--column",
+    support: "eg-zone eg-zone--column"
+  };
+  // A segment shorter than this share of the 349-seat scale cannot hold its
+  // own label legibly at 360px, so the label is dropped there and the party
+  // is read from the tile below the bar instead.
+  var SEGMENT_LABEL_MIN_SHARE = 7;
+
+  // Party colour is chosen for identity, not for contrast, so label ink
+  // inside a segment is picked per party from WCAG relative luminance.
+  function readableInk(hex) {
+    var value = String(hex === null || hex === undefined ? "" : hex).replace("#", "");
+    if (!/^[0-9a-fA-F]{6}$/.test(value)) return "#ffffff";
+    function channel(offset) {
+      var srgb = parseInt(value.substr(offset, 2), 16) / 255;
+      return srgb <= 0.03928 ? srgb / 12.92 : Math.pow((srgb + 0.055) / 1.055, 2.4);
+    }
+    var luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+    return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? "#111111" : "#ffffff";
+  }
 
   function validCoalitionBuilder(builder) {
     var builderFields = ["party_order", "encoding", "majority_threshold", "coalitions"];
@@ -821,15 +849,11 @@
     });
   }
 
-  function governmentResultMarkup(entry, title, combinationLabel, combination) {
-    return "<h3 class=\"eg-builder__result-title\">" + escapeHtml(title) + "</h3>" +
-      (combinationLabel ? "<p class=\"eg-builder__combination-label\">" + escapeHtml(combinationLabel) + "</p>" : "") +
-      "<p class=\"eg-builder__combination\">" + escapeHtml(combination) + "</p>" +
-      "<dl class=\"eg-builder__result-grid\">" +
-        "<div><dt>Median</dt><dd>" + format(entry.median_seats, 0) + " mandat</dd></div>" +
-        "<div><dt>90\u00a0% prognosintervall</dt><dd>" + rangeText(entry.p05_seats, entry.p95_seats, 0) + " mandat</dd></div>" +
-        "<div><dt>Sannolikhet f\u00f6r minst " + MAJORITY + " mandat</dt><dd>" + escapeHtml(probability(entry.prob_majority)) + "</dd></div>" +
-      "</dl>";
+  function summaryRow(metric, term, value) {
+    return "<div data-metric=\"" + metric + "\">" +
+      "<dt>" + escapeHtml(term) + "</dt>" +
+      "<dd>" + escapeHtml(value) + "</dd>" +
+      "</div>";
   }
 
   function renderGovernmentBuilder(groups) {
@@ -838,136 +862,300 @@
         !validCoalitionBuilder(groups.coalition_builder)) return;
 
     var builder = groups.coalition_builder;
-    var governmentHost = byId("election-government-parties");
-    var supportHost = byId("election-support-parties");
+    var zones = {
+      pool: byId("election-available-parties"),
+      government: byId("election-government-parties"),
+      support: byId("election-support-parties")
+    };
+    var bars = {
+      government: byId("election-government-bar"),
+      support: byId("election-support-bar")
+    };
+    var heads = {
+      government: byId("election-government-column"),
+      support: byId("election-support-column")
+    };
+    var totalIds = {
+      government: "election-government-total",
+      support: "election-support-total"
+    };
+    var poolEmpty = byId("election-pool-empty");
     var empty = byId("election-government-empty");
-    var results = byId("election-government-results");
-    var aloneResult = byId("election-government-alone-result");
-    var supportResult = byId("election-government-support-result");
-    var governmentMask = 0;
-    var supportMask = 0;
-    var governmentButtons = {};
-    var supportButtons = {};
+    var summary = byId("election-government-results");
+    var note = byId("election-government-note");
 
-    function buttonLabel(role, party, disabled) {
-      var label = role + ": " + (partyNames[party] || party) + " (" + abbr(party) + ")";
-      return disabled ? label + "; kan inte v\u00e4ljas eftersom partiet redan sitter i regeringen" : label;
+    // The two column masks are disjoint by construction; the union mask is
+    // what every published number in the summary is looked up with.
+    var masks = { government: 0, support: 0 };
+    var dragging = null;
+
+    // Tiles under a bar are listed in the bar's own top-to-bottom order, so
+    // the list and the stack can be read against each other.  The stack
+    // itself follows the chamber's left-to-right seating order.
+    var stackOrder = seatingOrder.filter(function (party) {
+      return builder.party_order.indexOf(party) !== -1;
+    });
+    var columnOrder = stackOrder.slice().reverse();
+
+    function bitOf(party) {
+      var index = builder.party_order.indexOf(party);
+      return index === -1 ? 0 : 1 << index;
     }
 
-    function renderButtons(host, role, selectedMask, buttons, onClick) {
-      if (!host) return;
-      host.innerHTML = "";
-      builder.party_order.forEach(function (party, index) {
-        var bit = 1 << index;
-        var selected = (selectedMask & bit) !== 0;
-        var disabled = role === ROLE_SUPPORT && (governmentMask & bit) !== 0;
-        var button = document.createElement("button");
-        button.type = "button";
-        button.className = "eg-builder__chip" + (selected ? " is-active" : "");
-        button.setAttribute("aria-pressed", selected ? "true" : "false");
-        button.setAttribute("aria-label", buttonLabel(role, party, disabled));
-        button.setAttribute("data-party", party);
-        button.setAttribute("data-mask", String(bit));
-        if (disabled) {
-          button.disabled = true;
-          button.setAttribute("aria-disabled", "true");
-        }
-        button.innerHTML =
-          "<span class=\"eg-builder__chip-swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>" +
-          "<span>" + escapeHtml(abbr(party)) + "</span>";
-        button.addEventListener("click", function () { onClick(bit); });
-        buttons[party] = button;
-        host.appendChild(button);
+    // A single party's median is the lookup for its own one-bit mask: still
+    // the published table, never a browser-side recomputation.
+    function partyMedian(party) {
+      var entry = coalitionLookup(builder, bitOf(party));
+      var value = entry ? num(entry.median_seats) : null;
+      return value === null ? 0 : Math.max(0, value);
+    }
+
+    function medianOf(mask) {
+      var entry = coalitionLookup(builder, mask);
+      var value = entry ? num(entry.median_seats) : null;
+      return value === null ? 0 : Math.max(0, value);
+    }
+
+    function zoneOf(party) {
+      var bit = bitOf(party);
+      if ((masks.government & bit) !== 0) return ZONE_GOVERNMENT;
+      if ((masks.support & bit) !== 0) return ZONE_SUPPORT;
+      return ZONE_POOL;
+    }
+
+    function partiesIn(zone, order) {
+      return order.filter(function (party) {
+        return zoneOf(party) === zone;
       });
     }
 
-    function renderResults() {
-      if (!governmentMask) {
-        if (empty) empty.hidden = false;
-        if (results) results.hidden = true;
-        if (aloneResult) {
-          aloneResult.hidden = true;
-          aloneResult.innerHTML = "";
-          if (typeof aloneResult.removeAttribute === "function") {
-            aloneResult.removeAttribute("data-coalition-mask");
-          } else {
-            aloneResult.setAttribute("data-coalition-mask", "");
+    // The only mutation of the two masks.  Clearing both bits before setting
+    // one is what makes double membership unrepresentable rather than merely
+    // guarded against.
+    function move(party, zone, focusAfter) {
+      var bit = bitOf(party);
+      if (bit === 0) return;
+      masks.government &= ~bit;
+      masks.support &= ~bit;
+      if (zone === ZONE_GOVERNMENT) masks.government |= bit;
+      if (zone === ZONE_SUPPORT) masks.support |= bit;
+      render(focusAfter === false ? null : party);
+    }
+
+    function actionButton(party, zone, label, description, modifier) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "eg-party__btn" + (modifier ? " " + modifier : "");
+      button.setAttribute("data-party", party);
+      button.setAttribute("data-action", zone);
+      button.setAttribute("aria-label", description);
+      button.setAttribute("title", description);
+      button.textContent = label;
+      if (button.addEventListener) {
+        button.addEventListener("click", function () { move(party, zone); });
+      }
+      return button;
+    }
+
+    function tileActions(party, zone) {
+      var full = (partyNames[party] || party) + " (" + abbr(party) + ")";
+      var actions = document.createElement("span");
+      actions.className = "eg-party__actions";
+      if (zone !== ZONE_GOVERNMENT) {
+        actions.appendChild(actionButton(party, ZONE_GOVERNMENT,
+          "Regering", "Flytta " + full + " till Regering"));
+      }
+      if (zone !== ZONE_SUPPORT) {
+        actions.appendChild(actionButton(party, ZONE_SUPPORT,
+          "St\u00f6d", "Flytta " + full + " till St\u00f6dpartier"));
+      }
+      if (zone !== ZONE_POOL) {
+        actions.appendChild(actionButton(party, ZONE_POOL,
+          "\u2715", "Ta bort " + full + " fr\u00e5n " + ZONE_NAMES[zone],
+          "eg-party__btn--remove"));
+      }
+      return actions;
+    }
+
+    function buildTile(party, zone) {
+      var tile = document.createElement("div");
+      tile.className = "eg-party";
+      tile.setAttribute("data-party", party);
+      tile.setAttribute("data-zone", zone);
+      tile.setAttribute("draggable", "true");
+      tile.innerHTML =
+        "<span class=\"eg-party__swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>" +
+        "<span class=\"eg-party__abbr\">" + escapeHtml(abbr(party)) + "</span>" +
+        "<span class=\"eg-party__seats\">" + format(partyMedian(party), 0) +
+        "<span class=\"visually-hidden\"> mandat i median</span></span>";
+      tile.appendChild(tileActions(party, zone));
+      if (tile.addEventListener) {
+        // Drag and drop is an addition on top of the buttons, never a
+        // replacement: every move stays reachable by keyboard and by tap.
+        tile.addEventListener("dragstart", function (event) {
+          dragging = party;
+          tile.className = "eg-party is-dragging";
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = "move";
+            try { event.dataTransfer.setData("text/plain", party); } catch (error) { /* IE-style stores */ }
           }
+        });
+        tile.addEventListener("dragend", function () {
+          dragging = null;
+          tile.className = "eg-party";
+        });
+      }
+      return tile;
+    }
+
+    function renderZone(zone, order) {
+      var host = zones[zone];
+      if (!host) return [];
+      var parties = partiesIn(zone, order);
+      host.innerHTML = "";
+      parties.forEach(function (party) {
+        host.appendChild(buildTile(party, zone));
+      });
+      if (!parties.length && zone !== ZONE_POOL) {
+        var hint = document.createElement("p");
+        hint.className = "eg-zone__hint";
+        hint.textContent = "Inga partier valda.";
+        host.appendChild(hint);
+      }
+      return parties;
+    }
+
+    function renderBar(zone) {
+      var host = bars[zone];
+      var mask = masks[zone];
+      var total = medianOf(mask);
+      var members = stackOrder.filter(function (party) {
+        return (mask & bitOf(party)) !== 0;
+      });
+      setText(totalIds[zone], format(total, 0));
+      if (heads[zone]) heads[zone].setAttribute("data-coalition-mask", String(mask));
+      if (!host) return;
+      host.innerHTML = "";
+
+      var sum = members.reduce(function (carry, party) {
+        return carry + partyMedian(party);
+      }, 0);
+      // Published medians are per combination, so a coalition's median is not
+      // the sum of its parties' medians (they differ by a few seats).  The
+      // segments keep the party mix but are scaled to the combination median
+      // the panel prints, so the bar top and the printed number cannot
+      // disagree on screen.
+      var scale = sum > 0 ? total / sum : 0;
+      var described = [];
+      members.forEach(function (party) {
+        var seats = partyMedian(party);
+        var share = pct(seats * scale, CHAMBER);
+        var segment = document.createElement("span");
+        segment.className = "eg-bar__segment";
+        segment.style.height = share.toFixed(3) + "%";
+        segment.style.backgroundColor = partyColors[party] || "#777";
+        segment.style.color = readableInk(partyColors[party]);
+        segment.setAttribute("data-party", party);
+        segment.setAttribute("aria-hidden", "true");
+        if (share >= SEGMENT_LABEL_MIN_SHARE) {
+          segment.innerHTML = "<span class=\"eg-bar__segment-label\">" + escapeHtml(abbr(party)) + "</span>";
         }
-        if (supportResult) {
-          supportResult.hidden = true;
-          supportResult.innerHTML = "";
-          if (typeof supportResult.removeAttribute === "function") {
-            supportResult.removeAttribute("data-coalition-mask");
-          } else {
-            supportResult.setAttribute("data-coalition-mask", "");
-          }
-        }
-        setText("election-government-announcement", "V\u00e4lj minst ett regeringsparti.");
+        host.appendChild(segment);
+        described.push(abbr(party) + " " + format(seats, 0));
+      });
+      // Segments are appended bottom-first (the track is column-reverse), but
+      // the description is read top-down so it matches the tile list below.
+      host.setAttribute("aria-label", members.length
+        ? ZONE_NAMES[zone] + ": " + described.reverse().join(", ") + ". Median tillsammans " +
+          format(total, 0) + " av " + CHAMBER + " mandat."
+        : ZONE_NAMES[zone] + ": inga partier valda.");
+    }
+
+    function renderSummary() {
+      var unionMask = masks.government | masks.support;
+      var unionEntry = coalitionLookup(builder, unionMask);
+      var chosen = masks.government !== 0;
+      if (empty) empty.hidden = chosen;
+      if (note) note.hidden = !chosen;
+      if (!summary) return;
+      summary.hidden = !chosen;
+      summary.setAttribute("data-government-mask", chosen ? String(masks.government) : "");
+      summary.setAttribute("data-support-mask", chosen ? String(masks.support) : "");
+      summary.setAttribute("data-coalition-mask", chosen ? String(unionMask) : "");
+      if (!chosen || !unionEntry) {
+        summary.innerHTML = "";
+        setText("election-government-announcement",
+          "V\u00e4lj minst ett regeringsparti.");
         return;
       }
 
-      if (empty) empty.hidden = true;
-      if (results) results.hidden = false;
-      var governmentEntry = coalitionLookup(builder, governmentMask);
-      var governmentParties = coalitionParties(builder, governmentMask).join(" + ");
-      var announcements = [];
-      if (aloneResult && governmentEntry) {
-        aloneResult.hidden = false;
-        aloneResult.setAttribute("data-coalition-mask", String(governmentMask));
-        aloneResult.innerHTML = governmentResultMarkup(governmentEntry, "Regeringspartier", "", governmentParties);
-        announcements.push("Regeringspartier " + governmentParties + ". Median " +
-          format(governmentEntry.median_seats, 0) + " mandat; 90-procentigt prognosintervall " +
-          rangeText(governmentEntry.p05_seats, governmentEntry.p95_seats, 0) +
-          " mandat; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " +
-          probability(governmentEntry.prob_majority) + ".");
-      }
+      var governmentSeats = format(medianOf(masks.government), 0) + " mandat";
+      var supportSeats = format(medianOf(masks.support), 0) + " mandat";
+      var unionSeats = format(unionEntry.median_seats, 0) + " mandat";
+      var unionRange = rangeText(unionEntry.p05_seats, unionEntry.p95_seats, 0) + " mandat";
+      var unionProbability = probability(unionEntry.prob_majority);
+      summary.innerHTML =
+        summaryRow("government", ZONE_NAMES.government, governmentSeats) +
+        summaryRow("support", ZONE_NAMES.support, supportSeats) +
+        summaryRow("union", "Tillsammans", unionSeats) +
+        summaryRow("interval", "90\u00a0% prognosintervall", unionRange) +
+        summaryRow("probability", "Sannolikhet f\u00f6r minst " + MAJORITY + " mandat", unionProbability);
 
-      if (supportMask) {
-        var unionMask = governmentMask | supportMask;
-        var unionEntry = coalitionLookup(builder, unionMask);
-        var supportParties = coalitionParties(builder, supportMask).join(" + ");
-        if (supportResult && unionEntry) {
-          supportResult.hidden = false;
-          supportResult.setAttribute("data-coalition-mask", String(unionMask));
-          supportResult.innerHTML = governmentResultMarkup(
-            unionEntry,
-            "Med st\u00f6d av " + supportParties,
-            "Regering + st\u00f6d",
-            coalitionParties(builder, unionMask).join(" + ")
-          );
-          announcements.push("Med st\u00f6d av " + supportParties + ". Regering plus st\u00f6d " +
-            coalitionParties(builder, unionMask).join(" + ") + ". Median " +
-            format(unionEntry.median_seats, 0) + " mandat; 90-procentigt prognosintervall " +
-            rangeText(unionEntry.p05_seats, unionEntry.p95_seats, 0) +
-            " mandat; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " +
-            probability(unionEntry.prob_majority) + ".");
-        }
-      } else if (supportResult) {
-        supportResult.hidden = true;
-        if (typeof supportResult.removeAttribute === "function") {
-          supportResult.removeAttribute("data-coalition-mask");
-        } else {
-          supportResult.setAttribute("data-coalition-mask", "");
-        }
-        supportResult.innerHTML = "";
-      }
-      setText("election-government-announcement", announcements.join(" "));
+      var supportParties = coalitionParties(builder, masks.support);
+      setText("election-government-announcement",
+        "Regering " + coalitionParties(builder, masks.government).join(" + ") + ", " +
+        governmentSeats + ". " +
+        (supportParties.length
+          ? "St\u00f6dpartier " + supportParties.join(" + ") + ", " + supportSeats + ". "
+          : "Inga st\u00f6dpartier. ") +
+        "Tillsammans " + unionSeats + "; 90-procentigt prognosintervall " + unionRange +
+        "; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " + unionProbability + ".");
     }
 
-    function render() {
-      renderButtons(governmentHost, ROLE_GOVERNMENT, governmentMask, governmentButtons, function (bit) {
-        governmentMask = (governmentMask & bit) !== 0 ? governmentMask ^ bit : governmentMask | bit;
-        supportMask &= ~governmentMask;
-        render();
-      });
-      renderButtons(supportHost, ROLE_SUPPORT, supportMask, supportButtons, function (bit) {
-        if ((governmentMask & bit) !== 0) return;
-        supportMask = (supportMask & bit) !== 0 ? supportMask ^ bit : supportMask | bit;
-        render();
-      });
-      renderResults();
+    function restoreFocus(party) {
+      var host = zones[zoneOf(party)];
+      if (!host || typeof host.querySelector !== "function") return;
+      var button = host.querySelector(".eg-party[data-party=\"" + party + "\"] .eg-party__btn");
+      if (button && typeof button.focus === "function") button.focus();
     }
+
+    function render(focusParty) {
+      var available = renderZone(ZONE_POOL, builder.party_order);
+      renderZone(ZONE_GOVERNMENT, columnOrder);
+      renderZone(ZONE_SUPPORT, columnOrder);
+      if (poolEmpty) poolEmpty.hidden = available.length !== 0;
+      renderBar(ZONE_GOVERNMENT);
+      renderBar(ZONE_SUPPORT);
+      renderSummary();
+      if (focusParty) restoreFocus(focusParty);
+    }
+
+    Object.keys(zones).forEach(function (zone) {
+      var host = zones[zone];
+      if (!host || !host.addEventListener) return;
+      function reset() { host.className = ZONE_CLASS[zone]; }
+      host.addEventListener("dragover", function (event) {
+        if (!dragging) return;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+        host.className = ZONE_CLASS[zone] + " is-dragover";
+      });
+      host.addEventListener("dragleave", function (event) {
+        var next = event.relatedTarget;
+        if (next && typeof host.contains === "function" && host.contains(next)) return;
+        reset();
+      });
+      host.addEventListener("drop", function (event) {
+        event.preventDefault();
+        reset();
+        var party = dragging;
+        if (!party && event.dataTransfer) {
+          try { party = event.dataTransfer.getData("text/plain"); } catch (error) { party = null; }
+        }
+        dragging = null;
+        if (party) move(party, zone, false);
+      });
+    });
 
     // Render before revealing: if a future render throws, the section stays
     // hidden instead of exposing an empty shell.
