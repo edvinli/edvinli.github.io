@@ -237,7 +237,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   </section>
 </div>
 
-<script src="{{ site.baseurl }}/assets/js/election-simulator.js"></script>
+<script src="{{ site.baseurl }}/assets/js/election-simulator.js?v={{ site.time | date: '%s' }}"></script>
 
 <!-- Equation typesetting for "Så fungerar modellen". MathJax 3.2.2 is pinned
      and loaded on this page only; the LaTeX sits in the markup as plain text,
