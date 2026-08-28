@@ -1,5 +1,6 @@
 # Jekyll build output
 _site/
+_shots/
 
 # Local Jekyll/Ruby state
 .bundle/
