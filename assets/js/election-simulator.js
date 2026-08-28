@@ -54,6 +54,8 @@
     "p75_seats", "p90_seats", "p95_seats", "prob_majority"
   ];
   var COALITION_ENTRY_FIELDS = ["mask", "parties"].concat(COALITION_FIELDS);
+  var COALITION_HISTOGRAM_FIELDS = ["min_seats", "counts"];
+  var COALITION_ENTRY_FIELDS_WITH_HISTOGRAM = COALITION_ENTRY_FIELDS.concat(["seat_histogram"]);
 
   // =====================================================================
   // FROZEN PUBLICATION SUBSYSTEM
@@ -765,7 +767,91 @@
     return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? "#111111" : "#ffffff";
   }
 
-  function validCoalitionBuilder(builder) {
+  function histogramValueAtOrderIndex(minSeats, counts, index) {
+    var remaining = index;
+    for (var offset = 0; offset < counts.length; offset += 1) {
+      if (remaining < counts[offset]) return minSeats + offset;
+      remaining -= counts[offset];
+    }
+    return null;
+  }
+
+  function histogramQuantile(minSeats, counts, quantile, total) {
+    var position = (total - 1) * quantile;
+    var lowerIndex = Math.floor(position);
+    var upperIndex = Math.ceil(position);
+    var lower = histogramValueAtOrderIndex(minSeats, counts, lowerIndex);
+    var upper = histogramValueAtOrderIndex(minSeats, counts, upperIndex);
+    if (lower === null || upper === null) return null;
+    // Existing group summaries use NumPy's default linear percentile and then
+    // truncate to integer seats. Match NumPy's _lerp branch at the halfway
+    // point before truncating; the two algebraically equivalent forms can land
+    // on opposite sides of an integer in floating-point arithmetic.
+    var gamma = position - lowerIndex;
+    var difference = upper - lower;
+    var interpolated = gamma < 0.5
+      ? lower + difference * gamma
+      : upper - difference * (1 - gamma);
+    return Math.floor(interpolated);
+  }
+
+  function validCoalitionHistogram(histogram, expectedTotal, entry, mask) {
+    if (!histogram || typeof histogram !== "object" || Array.isArray(histogram)) return false;
+    var histogramKeys = Object.keys(histogram);
+    if (histogramKeys.length !== COALITION_HISTOGRAM_FIELDS.length ||
+        !COALITION_HISTOGRAM_FIELDS.every(function (field, index) {
+          return histogramKeys[index] === field;
+        })) return false;
+
+    var minSeats = histogram.min_seats;
+    var counts = histogram.counts;
+    if (!Number.isInteger(minSeats) || minSeats < 0 || minSeats > CHAMBER ||
+        !Array.isArray(counts) || counts.length < 1 ||
+        minSeats + counts.length - 1 > CHAMBER) return false;
+
+    var total = 0;
+    for (var index = 0; index < counts.length; index += 1) {
+      var count = counts[index];
+      if (!Number.isInteger(count) || count < 0) return false;
+      total += count;
+    }
+    if (!Number.isSafeInteger(total) || total <= 0 ||
+        (expectedTotal !== null && total !== expectedTotal)) return false;
+
+    // The histogram is a contiguous support encoding.  A zero-count edge is
+    // not wrong mathematically, but accepting one would let a malformed
+    // min_seats silently disagree with the first observed seat value.  The
+    // empty/full invariants below additionally make their support explicit.
+    if (counts.length > 1 && (counts[0] === 0 || counts[counts.length - 1] === 0)) return false;
+    if (mask === 0 && (minSeats !== 0 || counts.length !== 1 || counts[0] !== total)) return false;
+    if (mask === 255 && (minSeats !== CHAMBER || counts.length !== 1 || counts[0] !== total)) return false;
+
+    var weightedSeats = counts.reduce(function (sum, count, index) {
+      return sum + (minSeats + index) * count;
+    }, 0);
+    var meanValue = num(entry && entry.mean_seats);
+    if (meanValue === null || Math.abs((weightedSeats / total) - meanValue) > 1e-12) return false;
+    var quantileFields = [
+      ["p05_seats", 0.05], ["p10_seats", 0.10], ["p25_seats", 0.25],
+      ["median_seats", 0.50], ["p75_seats", 0.75], ["p90_seats", 0.90],
+      ["p95_seats", 0.95]
+    ];
+    for (var quantileIndex = 0; quantileIndex < quantileFields.length; quantileIndex += 1) {
+      var quantileField = quantileFields[quantileIndex];
+      var expectedQuantile = histogramQuantile(minSeats, counts, quantileField[1], total);
+      if (expectedQuantile === null || entry[quantileField[0]] !== expectedQuantile) return false;
+    }
+
+    var majorityCount = 0;
+    for (var seatIndex = Math.max(0, MAJORITY - minSeats); seatIndex < counts.length; seatIndex += 1) {
+      majorityCount += counts[seatIndex];
+    }
+    var probabilityValue = num(entry && entry.prob_majority);
+    if (probabilityValue === null || Math.abs((majorityCount / total) - probabilityValue) > 1e-12) return false;
+    return total;
+  }
+
+  function validCoalitionBuilder(builder, histogramRequired, expectedTotal) {
     var builderFields = ["party_order", "encoding", "majority_threshold", "coalitions"];
     if (!builder || typeof builder !== "object" ||
         Object.keys(builder).length !== builderFields.length ||
@@ -790,12 +876,22 @@
       return false;
     }
 
+    var entryFields = histogramRequired
+      ? COALITION_ENTRY_FIELDS_WITH_HISTOGRAM
+      : COALITION_ENTRY_FIELDS;
+    var commonTotal = expectedTotal === undefined || expectedTotal === null ? null : num(expectedTotal);
+    if (commonTotal !== null && (!Number.isInteger(commonTotal) || commonTotal <= 0)) return false;
+    if (histogramRequired && (typeof expectedTotal !== "number" ||
+        !Number.isInteger(expectedTotal) || expectedTotal <= 0)) return false;
+    var histogramTotal = commonTotal;
+    var validatedHistograms = {};
+
     for (var mask = 0; mask < 256; mask += 1) {
       var entry = coalitions[String(mask)];
       if (!entry || typeof entry !== "object" || entry.mask !== mask ||
           !Array.isArray(entry.parties) ||
-          Object.keys(entry).length !== COALITION_ENTRY_FIELDS.length ||
-          !COALITION_ENTRY_FIELDS.every(function (field, index) {
+          Object.keys(entry).length !== entryFields.length ||
+          !entryFields.every(function (field, index) {
             return Object.keys(entry)[index] === field;
           })) {
         return false;
@@ -840,6 +936,30 @@
           entry.prob_majority !== 1)) {
         return false;
       }
+      if (histogramRequired) {
+        var validatedTotal = validCoalitionHistogram(entry.seat_histogram, commonTotal, entry, mask);
+        if (!validatedTotal || (histogramTotal !== null && validatedTotal !== histogramTotal)) return false;
+        histogramTotal = validatedTotal;
+        validatedHistograms[mask] = entry.seat_histogram;
+      }
+    }
+    if (histogramRequired) {
+      var fullMask = 255;
+      for (var coalitionMask = 0; coalitionMask <= fullMask; coalitionMask += 1) {
+        var complementMask = fullMask ^ coalitionMask;
+        if (coalitionMask > complementMask) continue;
+        var histogram = validatedHistograms[coalitionMask];
+        var complementHistogram = validatedHistograms[complementMask];
+        for (var seats = 0; seats <= CHAMBER; seats += 1) {
+          var offset = seats - histogram.min_seats;
+          var complementSeats = CHAMBER - seats;
+          var complementOffset = complementSeats - complementHistogram.min_seats;
+          var count = offset >= 0 && offset < histogram.counts.length ? histogram.counts[offset] : 0;
+          var complementCount = complementOffset >= 0 && complementOffset < complementHistogram.counts.length
+            ? complementHistogram.counts[complementOffset] : 0;
+          if (count !== complementCount) return false;
+        }
+      }
     }
     return true;
   }
@@ -861,10 +981,270 @@
       "</div>";
   }
 
-  function renderGovernmentBuilder(groups) {
+  function svgNode(name, attributes, text) {
+    var node = typeof document.createElementNS === "function"
+      ? document.createElementNS("http://www.w3.org/2000/svg", name)
+      : document.createElement(name);
+    Object.keys(attributes || {}).forEach(function (attribute) {
+      node.setAttribute(attribute, attributes[attribute]);
+    });
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function histogramBinLabel(seat, count, total, reachesMajority) {
+    var share = total > 0 ? (count / total) * 100 : 0;
+    return seat + " mandat \u00b7 " + grouped(count) + " simuleringar \u00b7 " + percent(share, 2) +
+      (reachesMajority ? " \u00b7 175 mandat eller fler" : " \u00b7 under 175 mandat");
+  }
+
+  function renderCoalitionHistogram(host, entry, builder, mask, totalSamples) {
+    if (!host) return;
+    var svg = byId("election-government-histogram-svg");
+    var context = byId("election-government-histogram-context");
+    var textAlternative = byId("election-government-histogram-text");
+    var status = byId("election-government-histogram-status");
+
+    function clear() {
+      host.hidden = true;
+      host.setAttribute("data-coalition-mask", "");
+      host.setAttribute("data-total-count", "0");
+      host.setAttribute("data-sample-count", "0");
+      host.setAttribute("data-min-seats", "");
+      host.setAttribute("data-max-seats", "");
+      if (context) context.textContent = "";
+      if (textAlternative) textAlternative.textContent = "";
+      if (status) {
+        status.textContent = "";
+        status.hidden = true;
+      }
+      if (svg) svg.innerHTML = "";
+    }
+
+    if (!entry || !entry.seat_histogram || !builder || !Array.isArray(builder.party_order)) {
+      clear();
+      return;
+    }
+
+    var histogram = entry.seat_histogram;
+    var minSeats = histogram.min_seats;
+    var counts = histogram.counts;
+    if (!Number.isInteger(minSeats) || !Array.isArray(counts) || !counts.length) {
+      clear();
+      return;
+    }
+    var total = counts.reduce(function (sum, count) { return sum + count; }, 0);
+    var expectedTotal = totalSamples === undefined || totalSamples === null ? null : num(totalSamples);
+    if (!Number.isSafeInteger(total) || total <= 0 ||
+        (expectedTotal !== null && total !== expectedTotal) || !svg) {
+      clear();
+      return;
+    }
+
+    var maxSeats = minSeats + counts.length - 1;
+    var parties = coalitionParties(builder, mask);
+    var partyLabel = parties.length ? parties.join(" + ") : "Inga partier";
+    var majorityCount = counts.reduce(function (sum, count, index) {
+      return sum + (minSeats + index >= MAJORITY ? count : 0);
+    }, 0);
+    var majorityShare = total > 0 ? majorityCount / total : 0;
+    var patternId = "egh-majority-hatch-" + String(mask);
+    // A compact coordinate system keeps axis labels legible when the SVG is
+    // squeezed to a 360px viewport; CSS caps its width so preserveAspectRatio
+    // can keep the typography and bars undistorted on wide screens.
+    var plot = { left: 66, top: 30, width: 338, height: 224 };
+    plot.right = plot.left + plot.width;
+    plot.bottom = plot.top + plot.height;
+    var domainStart = Math.min(minSeats, MAJORITY);
+    var domainEnd = Math.max(maxSeats, MAJORITY);
+    var domainSpan = Math.max(1, domainEnd - domainStart + 1);
+    var binWidth = plot.width / domainSpan;
+    var thresholdX = plot.left + (MAJORITY - domainStart) * binWidth;
+    var peak = counts.reduce(function (highest, count) {
+      return Math.max(highest, count);
+    }, 0);
+
+    host.hidden = false;
+    host.setAttribute("data-coalition-mask", String(mask));
+    host.setAttribute("data-total-count", String(total));
+    host.setAttribute("data-sample-count", String(total));
+    host.setAttribute("data-min-seats", String(minSeats));
+    host.setAttribute("data-max-seats", String(maxSeats));
+    if (context) {
+      context.textContent = partyLabel + ". Fördelningen visar mandat för regering och stödpartier tillsammans i " +
+        grouped(total) + " simulerade utfall.";
+    }
+    if (status) {
+      status.textContent = "";
+      status.hidden = true;
+    }
+
+    svg.innerHTML = "";
+    // Keep the SVG as a named group so focusable bins remain visible to
+    // assistive technology; a root role=img would flatten those descendants
+    // in several browser accessibility trees.
+    svg.setAttribute("role", "group");
+    svg.setAttribute("aria-labelledby", "election-government-histogram-title election-government-histogram-description");
+    svg.setAttribute("aria-label", "Mandatfördelning för " + partyLabel + " med majoritetsgränsen vid " + MAJORITY + " mandat");
+    svg.setAttribute("data-coalition-mask", String(mask));
+    svg.appendChild(svgNode("title", { id: "election-government-histogram-title" },
+      "Mandatfördelning för " + partyLabel));
+    var description = "Mandatfördelning för " + partyLabel + " från " + minSeats + " till " + maxSeats +
+      " mandat. " + grouped(majorityCount) + " av " + grouped(total) +
+      " simuleringar, " + percent(majorityShare * 100, 2) + ", når minst " + MAJORITY + " mandat.";
+    svg.appendChild(svgNode("desc", { id: "election-government-histogram-description" }, description));
+
+    var defs = svgNode("defs", {});
+    var pattern = svgNode("pattern", {
+      id: patternId,
+      patternUnits: "userSpaceOnUse",
+      width: "8",
+      height: "8"
+    });
+    pattern.appendChild(svgNode("path", {
+      d: "M-2,2 L2,-2 M0,8 L8,0 M6,10 L10,6",
+      class: "egh-hatch"
+    }));
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+
+    var grid = svgNode("g", { class: "egh-grid", "aria-hidden": "true" });
+    var yTicks = [0, 0.5, 1];
+    yTicks.forEach(function (fraction) {
+      var y = plot.bottom - plot.height * fraction;
+      var label = format((peak > 0 ? (peak * fraction / total) * 100 : 0), 1) + NBSP + "%";
+      grid.appendChild(svgNode("line", {
+        x1: plot.left, y1: y, x2: plot.right, y2: y, class: "egh-grid__line"
+      }));
+      grid.appendChild(svgNode("text", {
+        x: plot.left - 8, y: y + 4, class: "egh-axis__tick", "text-anchor": "end"
+      }, label));
+    });
+    svg.appendChild(grid);
+
+    var majorityWidth = Math.max(0, plot.right - thresholdX);
+    if (majorityWidth > 0) {
+      svg.appendChild(svgNode("rect", {
+        x: thresholdX, y: plot.top, width: majorityWidth, height: plot.height,
+        class: "egh-majority-region", fill: "url(#" + patternId + ")", "aria-hidden": "true"
+      }));
+    }
+    if (thresholdX > plot.left) {
+      svg.appendChild(svgNode("rect", {
+        x: plot.left, y: plot.top, width: thresholdX - plot.left, height: plot.height,
+        class: "egh-below-region", "aria-hidden": "true"
+      }));
+    }
+
+    var bins = svgNode("g", { class: "egh-bins" });
+    counts.forEach(function (count, index) {
+      var seat = minSeats + index;
+      var reachesMajority = seat >= MAJORITY;
+      var height = peak > 0 ? (count / peak) * plot.height : 0;
+      var x = plot.left + (seat - domainStart) * binWidth;
+      var gap = Math.min(0.35, binWidth * 0.12);
+      var bin = svgNode("g", {
+        class: "egh-bin " + (reachesMajority ? "egh-bin--majority" : "egh-bin--below"),
+        tabindex: "0",
+        role: "img",
+        "data-seat": String(seat),
+        "data-count": String(count),
+        "data-share": (count / total).toFixed(8),
+        "data-majority": reachesMajority ? "majority" : "below",
+        "data-coalition-mask": String(mask),
+        "aria-label": histogramBinLabel(seat, count, total, reachesMajority)
+      });
+      bin.appendChild(svgNode("rect", {
+        x: x + gap,
+        y: plot.bottom - height,
+        width: Math.max(0.2, binWidth - gap * 2),
+        height: height,
+        class: "egh-bin__bar",
+        fill: reachesMajority ? "url(#" + patternId + ")" : "currentColor",
+        "aria-hidden": "true"
+      }));
+      // A zero-frequency bin still needs a visible focus/tap target.  The
+      // transparent hit area fills the bin's lane without changing the bar's
+      // exact height or its frequency meaning.
+      bin.appendChild(svgNode("rect", {
+        x: x + gap,
+        y: plot.top,
+        width: Math.max(0.2, binWidth - gap * 2),
+        height: plot.height,
+        class: "egh-bin__hit",
+        fill: "transparent",
+        "aria-hidden": "true"
+      }));
+      function showBin() {
+        if (!status) return;
+        status.textContent = histogramBinLabel(seat, count, total, reachesMajority);
+        status.hidden = false;
+      }
+      if (bin.addEventListener) {
+        bin.addEventListener("mouseenter", showBin);
+        bin.addEventListener("focus", showBin);
+        bin.addEventListener("click", showBin);
+        bin.addEventListener("keydown", function (event) {
+          if (event && (event.key === "Enter" || event.key === " ")) {
+            if (event.preventDefault) event.preventDefault();
+            showBin();
+          }
+        });
+      }
+      bins.appendChild(bin);
+    });
+    svg.appendChild(bins);
+
+    svg.appendChild(svgNode("line", {
+      x1: plot.left, y1: plot.bottom, x2: plot.right, y2: plot.bottom,
+      class: "egh-axis__line", "aria-hidden": "true"
+    }));
+    [domainStart, MAJORITY, domainEnd].filter(function (value, index, values) {
+      return values.indexOf(value) === index;
+    }).forEach(function (value) {
+      var x = plot.left + (value - domainStart) * binWidth;
+      svg.appendChild(svgNode("line", {
+        x1: x, y1: plot.bottom, x2: x, y2: plot.bottom + 6,
+        class: "egh-axis__mark", "aria-hidden": "true"
+      }));
+      svg.appendChild(svgNode("text", {
+        x: x, y: plot.bottom + 21, class: "egh-axis__label",
+        "text-anchor": value === domainStart ? "start" : (value === domainEnd ? "end" : "middle")
+      }, String(value)));
+    });
+    svg.appendChild(svgNode("text", {
+      x: plot.left + plot.width / 2, y: 309, class: "egh-x-axis-label", "text-anchor": "middle"
+    }, "Mandat tillsammans"));
+    svg.appendChild(svgNode("text", {
+      x: plot.left, y: plot.top - 10, class: "egh-y-axis-label", "text-anchor": "start"
+    }, "Andel simuleringar"));
+
+    svg.appendChild(svgNode("line", {
+      x1: thresholdX, y1: plot.top, x2: thresholdX, y2: plot.bottom,
+      class: "egh-threshold", "stroke-dasharray": "6 5", "data-seat": String(MAJORITY),
+      "aria-label": "Majoritetsgräns: 175 mandat"
+    }));
+    svg.appendChild(svgNode("text", {
+      // Centering the label over the plot keeps the full Swedish annotation
+      // inside the SVG for both narrow and wide coalition seat ranges.
+      x: plot.left + plot.width / 2,
+      y: plot.top + 13,
+      class: "egh-threshold__label",
+      "text-anchor": "middle"
+    }, "Majoritetsgräns: 175 mandat"));
+
+    if (textAlternative) {
+      textAlternative.textContent = description + " Staplar med " + MAJORITY + " mandat eller fler är skrafferade; övriga staplar ligger under gränsen. Fokusera på en stapel för detaljer.";
+    }
+  }
+
+  function renderGovernmentBuilder(groups, totalSamples) {
     var section = byId("election-government-builder");
-    if (!section || !groups || groups.schema_version !== "1.2" ||
-        !validCoalitionBuilder(groups.coalition_builder)) return;
+    var histogramRequired = groups && groups.schema_version === "1.3";
+    if (!section || !groups || (groups.schema_version !== "1.2" && groups.schema_version !== "1.3") ||
+        !validCoalitionBuilder(groups.coalition_builder, histogramRequired, totalSamples)) {
+      return;
+    }
 
     var builder = groups.coalition_builder;
     var zones = {
@@ -888,6 +1268,7 @@
     var empty = byId("election-government-empty");
     var summary = byId("election-government-results");
     var note = byId("election-government-note");
+    var histogram = byId("election-government-histogram");
 
     // The two column masks are disjoint by construction; the union mask is
     // what every published number in the summary is looked up with.
@@ -1085,13 +1466,17 @@
       var chosen = masks.government !== 0;
       if (empty) empty.hidden = chosen;
       if (note) note.hidden = !chosen;
-      if (!summary) return;
+      if (!summary) {
+        renderCoalitionHistogram(histogram, chosen ? unionEntry : null, builder, unionMask, totalSamples);
+        return;
+      }
       summary.hidden = !chosen;
       summary.setAttribute("data-government-mask", chosen ? String(masks.government) : "");
       summary.setAttribute("data-support-mask", chosen ? String(masks.support) : "");
       summary.setAttribute("data-coalition-mask", chosen ? String(unionMask) : "");
       if (!chosen || !unionEntry) {
         summary.innerHTML = "";
+        renderCoalitionHistogram(histogram, null, builder, unionMask, totalSamples);
         setText("election-government-announcement",
           "V\u00e4lj minst ett regeringsparti.");
         return;
@@ -1108,6 +1493,7 @@
         summaryRow("union", "Tillsammans", unionSeats) +
         summaryRow("interval", "90\u00a0% prognosintervall", unionRange) +
         summaryRow("probability", "Sannolikhet f\u00f6r minst " + MAJORITY + " mandat", unionProbability);
+      renderCoalitionHistogram(histogram, unionEntry, builder, unionMask, totalSamples);
 
       var supportParties = coalitionParties(builder, masks.support);
       setText("election-government-announcement",
@@ -1424,7 +1810,7 @@
       renderHeader(data[0], data[5], data[6], publication.pointer);
       renderVotes(data[0], data[1]);
       renderSeats(data[2], Boolean(publication.pointer));
-      renderGovernmentBuilder(data[3]);
+      renderGovernmentBuilder(data[3], data[0] && data[0].total_samples);
       renderGroups(data[3]);
       renderChanges(data[0], data[1]);
       renderValidation(data[4]);

@@ -1191,6 +1191,187 @@ canvas {
   max-width: 68ch;
 }
 
+/* --- Exact coalition seat histogram ------------------------------------ */
+
+.egh-histogram {
+  margin-top: 1.4rem;
+  max-width: 68rem;
+  min-width: 0;
+}
+
+.egh-histogram__title {
+  font-family: var(--el-mono);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.egh-histogram__context,
+.egh-histogram__text {
+  color: var(--el-muted);
+  font-size: 0.78rem;
+  margin: 0.35rem 0 0;
+  max-width: 68ch;
+}
+
+.egh-histogram__key {
+  align-items: center;
+  color: var(--el-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--el-mono);
+  font-size: 0.72rem;
+  gap: 0.45rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.egh-histogram__key-item {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.egh-histogram__key-mark {
+  border: 1px solid var(--el-rule-strong);
+  display: inline-block;
+  height: 0.75rem;
+  width: 1.1rem;
+}
+
+.egh-histogram__key-mark--below {
+  background: var(--el-rule-strong);
+}
+
+.egh-histogram__key-mark--majority {
+  background-color: var(--el-fill-soft);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--el-rule-strong) 0,
+    var(--el-rule-strong) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+}
+
+.egh-histogram__frame {
+  margin-top: 0.45rem;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.egh-histogram__svg {
+  color: var(--el-rule-strong);
+  display: block;
+  height: auto;
+  max-width: 560px;
+  width: 100%;
+}
+
+.egh-grid__line {
+  stroke: var(--el-rule);
+  stroke-width: 1;
+}
+
+.egh-axis__line,
+.egh-axis__mark {
+  stroke: var(--el-rule-strong);
+  stroke-width: 1;
+}
+
+.egh-axis__tick,
+.egh-axis__label,
+.egh-x-axis-label,
+.egh-y-axis-label {
+  fill: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.egh-x-axis-label,
+.egh-y-axis-label {
+  font-size: 15px;
+}
+
+.egh-below-region {
+  fill: transparent;
+}
+
+.egh-majority-region {
+  fill: var(--el-fill-soft);
+  opacity: 0.75;
+}
+
+.egh-hatch {
+  fill: none;
+  stroke: var(--el-rule-strong);
+  stroke-width: 1.25;
+}
+
+.egh-bin {
+  cursor: pointer;
+  outline: none;
+  shape-rendering: crispEdges;
+}
+
+.egh-bin__bar {
+  pointer-events: none;
+}
+
+.egh-bin__hit {
+  pointer-events: all;
+  stroke: transparent;
+}
+
+.egh-bin--below .egh-bin__bar {
+  fill: var(--el-rule-strong);
+  opacity: 0.78;
+}
+
+.egh-bin--majority .egh-bin__bar {
+  fill: var(--el-ink);
+  opacity: 0.9;
+}
+
+.egh-bin:hover,
+.egh-bin:focus {
+  opacity: 1;
+}
+
+.egh-bin:hover .egh-bin__hit,
+.egh-bin:focus .egh-bin__hit {
+  stroke: var(--el-ink);
+  stroke-width: 2;
+}
+
+.egh-threshold {
+  fill: none;
+  stroke: var(--el-ink);
+  stroke-width: 2;
+}
+
+.egh-threshold__label {
+  fill: var(--el-ink);
+  font-family: var(--el-mono);
+  font-size: 14px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--el-panel);
+  stroke-linejoin: round;
+  stroke-width: 4px;
+}
+
+.egh-histogram__status {
+  background: var(--el-panel);
+  border-left: 2px solid var(--el-rule-strong);
+  color: var(--el-ink-soft);
+  font-family: var(--el-mono);
+  font-size: 0.76rem;
+  margin: 0.35rem 0 0;
+  padding: 0.25rem 0.45rem;
+}
+
 /* --- Party-group probabilities ------------------------------------------ */
 
 .eg-pills {
