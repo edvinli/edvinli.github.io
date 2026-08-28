@@ -1024,9 +1024,21 @@ canvas {
   bottom: auto;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
   cursor: grabbing;
+  /* Anchored at the viewport origin and moved only by transform, so tracking
+     the pointer is a compositor commit rather than a layout.
+     The theme puts `transition: all 0.2s ease-in-out` on every <span>
+     (_sass/_base.scss), and a mandate block is a <span>.  That eased every
+     movement of the ghost -- which is what read as lag and acceleration -- and
+     the ghost lives on <body>, outside the `.election-app *` reduced-motion
+     override, so it has to say no here itself.  The ghost must sit exactly
+     where the pointer is on every frame, never ease towards it. */
+  left: 0;
+  transition: none;
   pointer-events: none;
   position: fixed;
   right: auto;
+  top: 0;
+  will-change: transform;
   z-index: 60;
 }
 

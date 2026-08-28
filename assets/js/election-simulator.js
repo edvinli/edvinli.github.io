@@ -1559,10 +1559,54 @@
       });
     }
 
+    // The ghost is anchored at the viewport origin by the stylesheet and moved
+    // with a transform, so a pointer move costs a compositor commit rather
+    // than a layout of a fixed-position element on the main thread.  The grab
+    // offset is carried through unchanged: the pixel the reader grabbed stays
+    // under the pointer for the whole drag.
     function positionGhost(x, y) {
       if (!drag || !drag.ghost) return;
-      drag.ghost.style.left = (x - drag.offsetX) + "px";
-      drag.ghost.style.top = (y - drag.offsetY) + "px";
+      drag.ghost.style.transform =
+        "translate3d(" + (x - drag.offsetX) + "px, " + (y - drag.offsetY) + "px, 0)";
+    }
+
+    // Pointer events arrive faster than the screen refreshes.  Each one only
+    // records where the pointer now is; the work -- moving the ghost, hit
+    // testing for the bar underneath, repainting the zones -- happens once per
+    // frame, against the newest position.  Nothing is interpolated: the ghost
+    // jumps straight to the latest pointer position every frame.
+    function trackPointer() {
+      if (!drag || !drag.active) return;
+      positionGhost(drag.lastX, drag.lastY);
+      var host = document.elementFromPoint
+        ? zoneHostOf(document.elementFromPoint(drag.lastX, drag.lastY))
+        : null;
+      var over = host ? host.getAttribute("data-zone") : null;
+      // Rewriting the bar classes restyles both bars, so it only happens when
+      // the destination actually changed.
+      if (over !== drag.over) {
+        drag.over = over;
+        paintZones();
+      }
+    }
+
+    function scheduleTrack() {
+      if (!drag || !drag.active || drag.frame !== null) return;
+      if (typeof requestAnimationFrame !== "function") {
+        trackPointer();
+        return;
+      }
+      drag.frame = requestAnimationFrame(function () {
+        if (!drag) return;
+        drag.frame = null;
+        trackPointer();
+      });
+    }
+
+    function cancelTrack() {
+      if (!drag || drag.frame === null) return;
+      if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(drag.frame);
+      drag.frame = null;
     }
 
     function cancelHold() {
@@ -1597,6 +1641,7 @@
     function endDrag(commit) {
       if (!drag) return;
       cancelHold();
+      cancelTrack();
       var party = drag.party;
       var target = commit && drag.active ? drag.over : null;
       if (drag.ghost && drag.ghost.parentNode) {
@@ -1630,7 +1675,7 @@
           startX: event.clientX, startY: event.clientY,
           lastX: event.clientX, lastY: event.clientY,
           offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top,
-          ghost: null, holdTimer: null,
+          ghost: null, holdTimer: null, frame: null,
           pointerId: event.pointerId === undefined ? null : event.pointerId
         };
         if (drag.pointerId !== null && tile.setPointerCapture) {
@@ -1671,14 +1716,10 @@
             return;
           }
           activateDrag(event.clientX, event.clientY);
+          paintZones();
         }
         if (event.cancelable) event.preventDefault();
-        positionGhost(event.clientX, event.clientY);
-        var host = document.elementFromPoint
-          ? zoneHostOf(document.elementFromPoint(event.clientX, event.clientY))
-          : null;
-        drag.over = host ? host.getAttribute("data-zone") : null;
-        paintZones();
+        scheduleTrack();
       });
 
       tile.addEventListener("pointerup", function () { endDrag(true); });
