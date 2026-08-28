@@ -969,8 +969,10 @@
       renderResults();
     }
 
-    section.hidden = false;
+    // Render before revealing: if a future render throws, the section stays
+    // hidden instead of exposing an empty shell.
     render();
+    section.hidden = false;
   }
 
   // ---------------------------------------------------------------------

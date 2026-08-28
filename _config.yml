@@ -142,6 +142,8 @@ exclude:
   - README
   - README.md
   - Rakefile
+  # Real-browser tests. Tracked in the repository, never part of the site.
+  - browser-tests
   # Theme source that is bundled into assets/js/main.min.js
   - assets/js/_main.js
   - assets/js/plugins

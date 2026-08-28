@@ -50,6 +50,16 @@ section {
   display: block;
 }
 
+/* The shim above gives bare `section`, `article` etc. an author-level
+   `display`, which outranks the user-agent `[hidden] { display: none }`.
+   Without this, `element.hidden = true` no longer hides anything: the
+   election forecast keeps whole panels hidden until their data validates,
+   and a leaked panel renders as an empty shell. */
+
+[hidden] {
+  display: none !important;
+}
+
 /* Display block in IE6-9 and FF3 */
 
 audio,
