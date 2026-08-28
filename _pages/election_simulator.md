@@ -1,88 +1,88 @@
 ---
-title: "Swedish Riksdag election forecast"
+title: "Prognos för riksdagsvalet 2026"
 permalink: /election-simulator/
 layout: single
 author_profile: false
 classes: wide
-excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat distributions, and validation evidence."
+excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandatfördelning och utvärdering."
 ---
 
 <div id="election-simulator-app" class="election-app" data-publication-base="{{ site.baseurl }}/files/election-simulator">
   <noscript>
-    <p class="notice--warning">This forecast needs JavaScript to load its static data. The downloadable JSON files remain available in the publication directory.</p>
+    <p class="notice--warning">Prognosen behöver JavaScript för att läsa in sina data. JSON-filerna finns kvar för nedladdning i publiceringskatalogen.</p>
   </noscript>
   <header class="election-hero" id="election-hero">
-    <p class="election-hero__kicker">Sweden · Riksdag · 2026 election forecast</p>
+    <p class="election-hero__kicker">Sverige · Riksdagen · valprognos 2026</p>
     <dl class="election-hero__facts">
       <div class="election-hero__fact">
-        <dt>Forecast as of</dt>
+        <dt>Opinionsläge</dt>
         <dd id="election-hero-asof">—</dd>
       </div>
       <div class="election-hero__fact">
-        <dt>Election day</dt>
+        <dt>Valdag</dt>
         <dd id="election-hero-election">—</dd>
       </div>
       <div class="election-hero__fact">
-        <dt>Time remaining</dt>
+        <dt>Dagar kvar</dt>
         <dd id="election-hero-countdown">—</dd>
       </div>
     </dl>
-    <p class="election-hero__lede" id="election-hero-lede">Loading the published simulation…</p>
-    <p class="election-status" id="election-app-status" role="status" aria-live="polite">Loading the latest forecast…</p>
-    <p class="election-hero__links"><a href="#election-methodology">Methodology &amp; validation</a><span aria-hidden="true"> · </span><a href="#election-technical">Technical metadata</a></p>
+    <p class="election-hero__lede" id="election-hero-lede">Läser in den publicerade simuleringen…</p>
+    <p class="election-status" id="election-app-status" role="status" aria-live="polite">Läser in den senaste prognosen…</p>
+    <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
   <section id="election-headline" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>National vote forecast</h2>
-      <p class="election-muted">Median vote share with the central 90% predictive interval (light) and 50% predictive interval (solid). These are predictive intervals, not confidence intervals. Select a party to see every interval and to highlight it across the page.</p>
+      <h2>Röstandelar</h2>
+      <p class="election-muted">Median röstandel med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Klicka på ett parti för mer information.</p>
     </div>
     <div id="election-party-cards" class="election-vote-rows"></div>
     <div id="election-vote-axis" class="ev-axis"></div>
-    <p class="election-legend-note election-muted"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50% interval</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90% interval</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>4% national threshold</span></p>
+    <p class="election-legend-note election-muted"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>4 %-spärr</span></p>
   </section>
   <section id="election-seats" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Seats</h2>
-      <p class="election-muted">The Riksdag has 349 seats; 175 are needed for a majority. Each bar shows a party’s median seat count across the simulations, and the darker line shows its central 90% predictive interval. Party medians are calculated separately and therefore do not necessarily add up to 349.</p>
+      <h2>Mandat</h2>
+      <p class="election-muted">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349.</p>
     </div>
     <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
     <div id="election-seat-axis" class="es-axis"></div>
-    <h3 class="election-subhead">A representative chamber</h3>
+    <h3 class="election-subhead">Ett simulerat riksdagsutfall</h3>
     <p class="election-muted" id="election-parliament-caption"></p>
     <div class="election-parliament-frame">
-      <div id="election-parliament" class="election-parliament" role="img" aria-label="349-seat parliament visualization"></div>
-      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175th seat</span></span>
+      <div id="election-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
+      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
     </div>
     <ul id="election-parliament-legend" class="ep-legend"></ul>
   </section>
   <section id="election-government-builder" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Build your own government</h2>
-      <p class="election-muted">Select parties to see how many seats they hold together across the simulated election outcomes.</p>
+      <h2>Bygg din egen regering</h2>
+      <p class="election-muted">Välj regeringspartier och se hur många mandat de får tillsammans i simuleringarna.</p>
     </div>
     <div class="eg-builder__roles">
       <fieldset class="eg-builder__fieldset">
-        <legend>Government parties</legend>
-        <div id="election-government-parties" class="eg-builder__chips" aria-label="Government parties"></div>
+        <legend>Regeringspartier</legend>
+        <div id="election-government-parties" class="eg-builder__chips" aria-label="Regeringspartier"></div>
       </fieldset>
       <fieldset class="eg-builder__fieldset">
-        <legend>Parliamentary support <span class="eg-builder__optional">optional</span></legend>
-        <div id="election-support-parties" class="eg-builder__chips" aria-label="Parliamentary support"></div>
+        <legend>Stödpartier <span class="eg-builder__optional">valfritt</span></legend>
+        <div id="election-support-parties" class="eg-builder__chips" aria-label="Stödpartier"></div>
       </fieldset>
     </div>
-    <p id="election-government-empty" class="eg-builder__empty" hidden>Select at least one government party to see the joint seat distribution.</p>
+    <p id="election-government-empty" class="eg-builder__empty" hidden>Välj minst ett regeringsparti.</p>
     <div id="election-government-results" class="eg-builder__results" hidden>
       <article id="election-government-alone-result" class="eg-builder__result-card" hidden></article>
       <article id="election-government-support-result" class="eg-builder__result-card" hidden></article>
     </div>
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
-    <p class="eg-builder__disclaimer">This is the probability that the selected parties jointly win at least 175 seats — not the probability that they form a government.</p>
+    <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda partierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>
   </section>
   <section id="election-groups" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Majority scenarios</h2>
-      <p class="election-muted">Select a party combination to see its combined seat distribution and chance of reaching 175 seats.</p>
+      <h2>Majoritetsscenarier</h2>
+      <p class="election-muted">Välj en kombination för att se mandatfördelningen och sannolikheten att nå minst 175 mandat.</p>
     </div>
     <div id="election-group-pills" class="eg-pills"></div>
     <div id="election-group-result" class="eg-result"></div>
@@ -90,20 +90,97 @@ excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat
   </section>
   <section id="election-changes" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Change since the prior forecast</h2>
+      <h2>Förändring sedan föregående prognos</h2>
       <p class="election-muted" id="election-changes-status"></p>
     </div>
     <div id="election-changes-content" class="election-changes-table"></div>
   </section>
+  <section id="election-how-it-works" class="election-panel election-disclosure">
+    <details id="election-model">
+      <summary><h2 class="election-disclosure__title">Så fungerar modellen<span class="election-disclosure__hint" aria-hidden="true">opinionsläge, osäkerhet, mandat och sannolikheter</span></h2></summary>
+      <div class="election-disclosure__body">
+        <p>Prognosen simulerar valdagen, inte bara en felmarginal runt dagens opinionsmätningar. Modellen skapar 100&#160;000 möjliga valresultat. Intervall och sannolikheter på sidan beräknas direkt från dessa simuleringar.</p>
+        <h3 class="election-subhead">1. Opinionsläget i dag</h3>
+        <p>Utgångspunkten är den senaste skattningen från Poll of Polls. För att uppskatta osäkerheten runt dagens läge jämför modellen historiska enskilda mätningar med Poll of Polls.</p>
+        <p>Röstandelar kan inte behandlas som vanliga oberoende tal eftersom de tillsammans måste summera till 100&#160;%. Därför arbetar modellen med log-kvoter. För parti <var>j</var>:</p>
+        <div class="election-equation"><code>z_j = log(p_j / p_övr)</code></div>
+        <p>där <var>p_j</var> är partiets röstandel och <var>p_övr</var> är den samlade andelen för övriga partier.</p>
+        <p>Historiska avvikelser används för att skatta en gemensam kovariansmatris, <var>Σ_res</var>. Osäkerheten i dagens läge minskar när det finns fler färska mätningar:</p>
+        <div class="election-equation"><code>Σ_dag = Σ_res / n_eff</code></div>
+        <p>Färska mätningar väger mer än äldre. Urvalsstorleken påverkar också vikten:</p>
+        <div class="election-equation"><code>w_i = 2^(-ålder_i / 21)
+      × clip(√(N_i / 1000), 0,7, 1,5)
+
+n_eff = (Σ_i w_i)² / Σ_i w_i²</code></div>
+        <p>Det effektiva antalet mätningar begränsas till högst 8. Ett simulerat opinionsläge i dag dras sedan runt Poll of Polls med denna gemensamma osäkerhet.</p>
+        <h3 class="election-subhead">2. Vad kan hända fram till valdagen?</h3>
+        <p>Osäkerheten beror på hur många dagar som återstår. Om det är <var>h</var> dagar kvar tittar modellen på hur hela opinionsläget historiskt har förändrats över <var>h</var> dagar.</p>
+        <p>För den delen används en symmetrisk log-kvotstransformation, CLR. En historisk förändring definieras som:</p>
+        <div class="election-equation"><code>Δ_s,h = CLR(PoP_s+h) − CLR(PoP_s)</code></div>
+        <p>Hela vektorn med partiernas förändringar sparas tillsammans. Modellen drar sedan en sådan historisk förändring och använder den med slumpmässigt tecken:</p>
+        <div class="election-equation"><code>CLR(p_val) = CLR(p_idag) + S × Δ_s,h
+
+S ∈ {−1, +1},   P(S = +1) = P(S = −1) = 0,5</code></div>
+        <p>Det betyder två saker. Partiernas rörelser simuleras gemensamt, inte oberoende. Och modellen antar inte att en historisk trend fortsätter i samma riktning 2026.</p>
+        <p>Om M historiskt har tappat samtidigt som vissa andra partier har ökat, finns den samvariationen med i den dragna förändringen. Däremot finns ingen separat modell som säger att en väljare går från exempelvis M till SD eller S.</p>
+        <h3 class="election-subhead">3. Fel som kan finnas kvar på valdagen</h3>
+        <p>Även nära valdagen kan opinionsmätningarna missa det faktiska resultatet. Modellen använder därför historiska skillnader mellan det sista samlade mätläget och valresultatet:</p>
+        <div class="election-equation"><code>r_e = valresultat_e − slutligt_mätläge_e
+
+r̃_e = r_e − medel(r)</code></div>
+        <p>Ett historiskt, centrerat fel dras gemensamt för alla partier och läggs på den simulerade röstandelen.</p>
+        <p>För att ingen röstandel ska bli negativ skalas felet vid behov:</p>
+        <div class="election-equation"><code>p' = p + λr̃,     0 ≤ λ ≤ 1</code></div>
+        <p>I praktiken är <var>λ</var> nästan alltid nära 1. Centreringen innebär att modellen använder den historiska storleken och samvariationen i mätfelen utan att anta att tidigare fel i en viss riktning upprepas.</p>
+        <p>Den här osäkerheten försvinner därför inte helt bara för att valdagen närmar sig.</p>
+        <h3 class="election-subhead">4. Från nationella röster till 29 valkretsar</h3>
+        <p>Varje simulerat nationellt resultat måste därefter fördelas geografiskt. Modellen utgår från partiernas geografiska mönster i föregående val och använder deterministisk biproportionell raking, även kallad IPF.</p>
+        <p>Om <var>B_c,p</var> är tidigare röster för parti <var>p</var> i valkrets <var>c</var>, söker modellen faktorer <var>a_c</var> och <var>b_p</var> så att:</p>
+        <div class="election-equation"><code>X_c,p = a_c × B_c,p × b_p</code></div>
+        <p>samtidigt som:</p>
+        <div class="election-equation"><code>Σ_p X_c,p = röster i valkrets c
+Σ_c X_c,p = partiets nationella röster</code></div>
+        <p>Resultatet behåller alltså tidigare geografiska skillnader så långt det går, men måste exakt stämma med det simulerade nationella valresultatet och valkretsarnas röstvolymer.</p>
+        <p>Det läggs ingen extra slumpmässig geografisk variation ovanpå detta i dagens modell.</p>
+        <h3 class="election-subhead">5. Från röster till mandat</h3>
+        <p>De simulerade rösterna i de 29 valkretsarna skickas sedan genom en implementation av de svenska mandatreglerna.</p>
+        <p>Den hanterar bland annat:</p>
+        <ul class="election-list">
+          <li>4-procentsspärren nationellt;</li>
+          <li>12-procentsregeln i en enskild valkrets;</li>
+          <li>310 fasta valkretsmandat;</li>
+          <li>39 utjämningsmandat;</li>
+          <li>den jämkade uddatalsmetoden;</li>
+          <li>återföring av mandat.</li>
+        </ul>
+        <p>Varje simulering slutar med exakt 349 mandat.</p>
+        <h3 class="election-subhead">6. Vad betyder sannolikheterna?</h3>
+        <p>Det finns ingen separat formel som uppskattar sannolikheten för exempelvis en majoritet. Den räknas helt enkelt som andelen simuleringar där utfallet inträffar.</p>
+        <div class="election-equation"><code>P(minst 175 mandat)
+  = antal simuleringar med minst 175 mandat
+    / 100&#160;000</code></div>
+        <p>Samma princip används för prognosintervallen. Ett 90-procentigt prognosintervall går från den 5:e till den 95:e percentilen bland de simulerade utfallen.</p>
+        <h3 class="election-subhead">Viktigaste antagandena</h3>
+        <p>Modellen bygger framför allt på fyra antaganden:</p>
+        <ol class="election-list">
+          <li>Poll of Polls är ett rimligt ankare för opinionsläget i dag.</li>
+          <li>Historiska svenska opinionsrörelser är informativa om hur mycket opinionen kan röra sig fram till valet 2026.</li>
+          <li>Historiska skillnader mellan slutmätningar och valresultat är informativa om den osäkerhet som finns kvar på valdagen.</li>
+          <li>Partiernas relativa geografiska styrka är tillräckligt stabil för att tidigare val ska vara användbara när nationella röster fördelas över valkretsarna.</li>
+        </ol>
+        <p>Modellen har ingen separat modell för ekonomin, valkampanjshändelser, individuella väljarflöden, taktisk röstning eller vilka partier som faktiskt bildar regering. Sådana saker kan påverka prognosen indirekt genom de historiska opinionsrörelser som modellen använder, men de läggs inte in som egna politiska antaganden.</p>
+      </div>
+    </details>
+  </section>
   <section id="election-validation" class="election-panel election-disclosure" hidden>
     <details id="election-methodology">
-      <summary><h2 class="election-disclosure__title">Methodology &amp; validation<span class="election-disclosure__hint" aria-hidden="true">retrospective evidence, coverage and limitations</span></h2></summary>
+      <summary><h2 class="election-disclosure__title">Metod och utvärdering<span class="election-disclosure__hint" aria-hidden="true">efterhandsutvärdering, träffsäkerhet och begränsningar</span></h2></summary>
       <div id="election-validation-content" class="election-disclosure__body"></div>
     </details>
   </section>
   <section id="election-meta" class="election-panel election-disclosure election-meta" hidden>
     <details id="election-technical">
-      <summary><h2 class="election-disclosure__title">Technical metadata<span class="election-disclosure__hint" aria-hidden="true">provenance, hashes and model version</span></h2></summary>
+      <summary><h2 class="election-disclosure__title">Teknisk information<span class="election-disclosure__hint" aria-hidden="true">ursprung, hashar och modellversion</span></h2></summary>
       <dl id="election-meta-list" class="election-disclosure__body"></dl>
     </details>
   </section>

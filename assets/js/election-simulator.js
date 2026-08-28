@@ -26,8 +26,15 @@
     V: "V\u00e4nsterpartiet",
     MP: "Milj\u00f6partiet",
     SD: "Sverigedemokraterna",
-    REST: "Other parties (aggregate)"
+    REST: "\u00d6vriga partier"
   };
+  // Display-only short label.  The payload key REST stays the internal
+  // identity; the reader sees a Swedish abbreviation.
+  var partyAbbr = { REST: "\u00d6vr." };
+
+  function abbr(name) {
+    return partyAbbr[name] || name;
+  }
   // Conventional left-to-right Riksdag seating used only to lay out the
   // chamber graphic.  It carries no bloc claim and no published semantics.
   var seatingOrder = ["V", "S", "MP", "C", "L", "KD", "M", "SD"];
@@ -35,6 +42,12 @@
   var MAJORITY = 175;
   var CHAMBER = 349;
   var EN_DASH = "\u2013";
+  var NBSP = "\u00a0";
+  // Abbreviating "procentenheter" has no settled Swedish form, so the unit is
+  // written out; a breaking space lets a narrow cell wrap after the number.
+  var PP = " procentenheter";
+  var MONTHS = ["jan", "feb", "mars", "apr", "maj", "juni",
+    "juli", "aug", "sep", "okt", "nov", "dec"];
   var COALITION_PARTY_ORDER = ["M", "L", "C", "KD", "S", "V", "MP", "SD"];
   var COALITION_FIELDS = [
     "mean_seats", "median_seats", "p05_seats", "p10_seats", "p25_seats",
@@ -252,9 +265,16 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  // Every number the page prints goes through here, so the Swedish decimal
+  // comma is applied in exactly one place.
   function format(value, digits) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return "\u2014";
-    return Number(value).toFixed(digits === undefined ? 1 : digits);
+    return Number(value).toFixed(digits === undefined ? 1 : digits).replace(".", ",");
+  }
+
+  // Swedish typography separates a number from its percent sign.
+  function percent(value, digits) {
+    return format(value, digits) + NBSP + "%";
   }
 
   function num(value) {
@@ -268,7 +288,7 @@
     var text = String(Math.round(Math.abs(parsed)));
     var out = "";
     for (var i = 0; i < text.length; i += 1) {
-      if (i > 0 && (text.length - i) % 3 === 0) out += ",";
+      if (i > 0 && (text.length - i) % 3 === 0) out += NBSP;
       out += text.charAt(i);
     }
     return (parsed < 0 ? "-" : "") + out;
@@ -282,19 +302,34 @@
     return format(low, digits) + EN_DASH + format(high, digits);
   }
 
+  function percentRange(low, high, digits) {
+    return rangeText(low, high, digits) + NBSP + "%";
+  }
+
+  // Hero dates read as Swedish prose; the technical section keeps ISO dates,
+  // which are machine-facing.
+  function swedishDate(iso) {
+    if (typeof iso !== "string") return null;
+    var parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    if (!parts) return null;
+    var month = MONTHS[Number(parts[2]) - 1];
+    if (!month) return null;
+    return String(Number(parts[3])) + " " + month + " " + parts[1];
+  }
+
   // Probabilities are empirical frequencies over the published draws.  Show
   // the published value, but never round a strictly interior probability to
   // a flat 0% or 100%.
   function probability(value) {
     var parsed = num(value);
     if (parsed === null) return "\u2014";
-    if (parsed === 0) return "0.0%";
-    if (parsed === 1) return "100.0%";
+    if (parsed === 0) return "0,0" + NBSP + "%";
+    if (parsed === 1) return "100,0" + NBSP + "%";
     var pct = parsed * 100;
-    if (pct < 0.005) return "<0.01%";
-    if (pct > 99.995) return ">99.99%";
-    if (pct < 1 || pct > 99) return format(pct, 2) + "%";
-    return format(pct, 1) + "%";
+    if (pct < 0.005) return "<0,01" + NBSP + "%";
+    if (pct > 99.995) return ">99,99" + NBSP + "%";
+    if (pct < 1 || pct > 99) return percent(pct, 2);
+    return percent(pct, 1);
   }
 
   function niceMax(value, step) {
@@ -352,7 +387,7 @@
     });
     app.className = selectedParty ? "election-app is-focused" : "election-app";
     setText("election-selection-note", selectedParty
-      ? partyNames[selectedParty] + " (" + selectedParty + ") is highlighted across the vote, seat and chamber views."
+      ? partyNames[selectedParty] + " (" + abbr(selectedParty) + ") \u00e4r markerat i diagrammen f\u00f6r r\u00f6standelar, mandat och riksdagen."
       : "");
   }
 
@@ -377,8 +412,8 @@
     reveal("election-hero");
     var asOf = forecast.as_of || metadata.as_of || null;
     var electionDate = forecast.election_date || metadata.election_date || null;
-    setText("election-hero-asof", asOf || "\u2014");
-    setText("election-hero-election", electionDate || "\u2014");
+    setText("election-hero-asof", swedishDate(asOf) || asOf || "\u2014");
+    setText("election-hero-election", swedishDate(electionDate) || electionDate || "\u2014");
 
     var remaining = daysBetween(asOf, electionDate);
     var countdown = byId("election-hero-countdown");
@@ -386,11 +421,11 @@
       if (remaining === null) {
         countdown.textContent = "\u2014";
       } else if (remaining > 0) {
-        countdown.textContent = remaining + (remaining === 1 ? " day" : " days");
+        countdown.textContent = grouped(remaining) + (remaining === 1 ? " dag" : " dagar");
       } else if (remaining === 0) {
-        countdown.textContent = "Election day";
+        countdown.textContent = "Valdagen \u00e4r i dag";
       } else {
-        countdown.textContent = "Election held";
+        countdown.textContent = "Valet \u00e4r genomf\u00f6rt";
       }
     }
 
@@ -398,10 +433,10 @@
     var lede = byId("election-hero-lede");
     if (lede) {
       var draws = samples === null
-        ? "a published set of"
+        ? "ett publicerat antal"
         : grouped(samples);
-      lede.textContent = "Based on " + draws + " simulated election outcomes. " +
-        "The ranges show uncertainty in possible election results.";
+      lede.textContent = "Baserad p\u00e5 " + draws + " simulerade valresultat. " +
+        "Intervallen visar os\u00e4kerheten i m\u00f6jliga valutfall.";
     }
 
     return isCertified(metadata, manifest);
@@ -433,7 +468,7 @@
       var color = partyColors[name] || "#777";
       var thresholdValue = forecast.threshold_probabilities_4pct && forecast.threshold_probabilities_4pct[name];
       var thresholdKnown = name !== "REST" && thresholdValue !== undefined;
-      var thresholdLabel = thresholdKnown ? probability(thresholdValue) : "n/a";
+      var thresholdLabel = thresholdKnown ? probability(thresholdValue) : "g\u00e4ller inte";
 
       var p05 = pct(party.vote_share_p05, scale);
       var p95 = pct(party.vote_share_p95, scale);
@@ -444,17 +479,17 @@
 
       var row = document.createElement("div");
       var fullName = partyNames[name] || name;
-      var label = fullName + " (" + name + "): median " + format(party.vote_share_median, 1) +
-        " percent, 90 percent predictive interval " + format(party.vote_share_p05, 1) + " to " +
-        format(party.vote_share_p95, 1) + " percent" +
-        (thresholdKnown ? ", probability of reaching the four percent threshold " + thresholdLabel : "") +
-        ". Activate for the full interval breakdown.";
+      var label = fullName + " (" + abbr(name) + "): median " + format(party.vote_share_median, 1) +
+        " procent, 90-procentigt prognosintervall " + format(party.vote_share_p05, 1) + " till " +
+        format(party.vote_share_p95, 1) + " procent" +
+        (thresholdKnown ? ", sannolikhet att n\u00e5 fyraprocentssp\u00e4rren " + thresholdLabel : "") +
+        ". \u00d6ppna f\u00f6r samtliga intervall.";
 
       row.innerHTML =
         "<button type=\"button\" class=\"ev-head\" aria-expanded=\"false\"" +
         " aria-controls=\"" + detailId + "\" aria-label=\"" + escapeHtml(label) + "\">" +
-          "<span class=\"ev-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(name) + "</span>" +
-          "<span class=\"ev-median\"><span class=\"ev-median__value\">" + format(party.vote_share_median, 1) + "</span><span class=\"ev-unit\">%</span></span>" +
+          "<span class=\"ev-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
+          "<span class=\"ev-median\"><span class=\"ev-median__value\">" + format(party.vote_share_median, 1) + "</span><span class=\"ev-unit\">" + NBSP + "%</span></span>" +
           "<span class=\"ev-chart\" aria-hidden=\"true\">" +
             "<span class=\"ev-track\">" +
               "<span class=\"ev-threshold\" style=\"left:" + thresholdLeft.toFixed(3) + "%\"></span>" +
@@ -468,15 +503,15 @@
         "<div class=\"ev-detail\" id=\"" + detailId + "\" hidden>" +
           "<p class=\"ev-detail__name\">" + escapeHtml(fullName) + "</p>" +
           "<dl class=\"ev-detail__grid\">" +
-            "<div><dt>Median vote share</dt><dd>" + format(party.vote_share_median, 1) + "%</dd></div>" +
-            "<div><dt>50% predictive interval</dt><dd>" + rangeText(party.vote_share_p25, party.vote_share_p75, 1) + "%</dd></div>" +
-            "<div><dt>80% predictive interval</dt><dd>" + rangeText(party.vote_share_p10, party.vote_share_p90, 1) + "%</dd></div>" +
-            "<div><dt>90% predictive interval</dt><dd>" + rangeText(party.vote_share_p05, party.vote_share_p95, 1) + "%</dd></div>" +
-            "<div><dt>P(\u2265 4% nationally)</dt><dd>" + escapeHtml(thresholdKnown ? thresholdLabel : "n/a (aggregate)") + "</dd></div>" +
-            "<div><dt>Median seats</dt><dd>" + format(party.seats_median, 0) + " (" + rangeText(party.seats_p05, party.seats_p95, 0) + ")</dd></div>" +
+            "<div><dt>Median r\u00f6standel</dt><dd>" + percent(party.vote_share_median, 1) + "</dd></div>" +
+            "<div><dt>50\u00a0% prognosintervall</dt><dd>" + percentRange(party.vote_share_p25, party.vote_share_p75, 1) + "</dd></div>" +
+            "<div><dt>80\u00a0% prognosintervall</dt><dd>" + percentRange(party.vote_share_p10, party.vote_share_p90, 1) + "</dd></div>" +
+            "<div><dt>90\u00a0% prognosintervall</dt><dd>" + percentRange(party.vote_share_p05, party.vote_share_p95, 1) + "</dd></div>" +
+            "<div><dt>Sannolikhet att n\u00e5 4\u00a0%</dt><dd>" + escapeHtml(thresholdKnown ? thresholdLabel : "g\u00e4ller inte") + "</dd></div>" +
+            "<div><dt>Medianmandat</dt><dd>" + format(party.seats_median, 0) + " (" + rangeText(party.seats_p05, party.seats_p95, 0) + ")</dd></div>" +
           "</dl>" +
           (name === "REST"
-            ? "<p class=\"ev-detail__note\">REST is aggregate vote mass for parties modelled as ineligible. It cannot independently clear the threshold or take seats.</p>"
+            ? "<p class=\"ev-detail__note\">\u201d\u00d6vriga\u201d \u00e4r en samlad kategori f\u00f6r sm\u00e5 partier. Den kan inte n\u00e5 sp\u00e4rren eller f\u00e5 mandat p\u00e5 egen hand.</p>"
             : "") +
         "</div>";
 
@@ -490,7 +525,7 @@
       host.appendChild(row);
     });
 
-    renderAxis("election-vote-axis", scale, scale > 20 ? 10 : 5, "% of votes", { value: 4, label: "4% threshold" });
+    renderAxis("election-vote-axis", scale, scale > 20 ? 10 : 5, "% av r\u00f6sterna", { value: 4, label: "4\u00a0%-sp\u00e4rr" });
   }
 
   function axisTick(left, label, emphasised) {
@@ -541,7 +576,7 @@
         var high = pct(summary.p95, scale);
         var row = document.createElement("div");
         row.innerHTML =
-          "<span class=\"es-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(name) + "</span>" +
+          "<span class=\"es-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
           "<span class=\"es-median\">" + format(summary.median, 0) + "</span>" +
           "<span class=\"es-chart\" aria-hidden=\"true\">" +
             "<span class=\"es-track\">" +
@@ -552,15 +587,15 @@
           "</span>" +
           "<span class=\"es-range-text\">" + rangeText(summary.p05, summary.p95, 0) + "</span>";
         row.setAttribute("role", "listitem");
-        row.setAttribute("aria-label", (partyNames[name] || name) + " (" + name + "): median " +
-          format(summary.median, 0) + " seats, 90 percent predictive range " +
-          format(summary.p05, 0) + " to " + format(summary.p95, 0) + " seats.");
+        row.setAttribute("aria-label", (partyNames[name] || name) + " (" + abbr(name) + "): median " +
+          format(summary.median, 0) + " mandat, 90-procentigt prognosintervall " +
+          format(summary.p05, 0) + " till " + format(summary.p95, 0) + " mandat.");
         track(name, row, "es-row");
         bars.appendChild(row);
       });
     }
 
-    renderAxis("election-seat-axis", scale, 50, "seats", { value: MAJORITY, label: MAJORITY + " = majority" });
+    renderAxis("election-seat-axis", scale, 50, "mandat", { value: MAJORITY, label: MAJORITY + " = majoritet" });
 
     renderParliament(seats, order, requireRepresentative);
   }
@@ -663,13 +698,13 @@
     var breakdown = counts.map(function (entry) {
       return entry.party + " " + entry.seats;
     }).join(", ");
-    parliament.setAttribute("aria-label", "349-seat parliament; " + display.source.replace(/_/g, " ") +
-      " with " + seatIndex + " seat positions" + (breakdown ? ". Seats: " + breakdown + "." : ""));
+    parliament.setAttribute("aria-label", "Riksdagen med 349 mandat; " + display.source.replace(/_/g, " ") +
+      " med " + seatIndex + " mandatpositioner" + (breakdown ? ". Mandat: " + breakdown + "." : ""));
 
     var representative = display.source === "representative_joint_simulation_draw";
     setText("election-parliament-caption", representative
-      ? "One simulated 349-seat parliament, shown as an example of how the party results can fit together. It is not created by adding the separate party medians above."
-      : "This legacy publication exposes only marginal medians. The chamber below is those medians normalised to a legal 349-seat allocation \u2014 a compatibility rendering, not a joint simulation draw.");
+      ? "Ett av de simulerade utfallen med 349 mandat. Det \u00e4r inte skapat genom att summera partiernas medianer."
+      : "Den h\u00e4r \u00e4ldre publiceringen inneh\u00e5ller bara medianer f\u00f6r ett parti i taget. Riksdagsbilden nedan \u00e4r de medianerna omr\u00e4knade till en giltig f\u00f6rdelning av 349 mandat \u2013 en kompatibilitetsvisning, inte ett simulerat utfall.");
 
     var legend = byId("election-parliament-legend");
     if (legend) {
@@ -678,9 +713,9 @@
         var item = document.createElement("li");
         item.innerHTML =
           "<span class=\"ep-legend__swatch\" style=\"background:" + (partyColors[entry.party] || "#777") + "\" aria-hidden=\"true\"></span>" +
-          "<span class=\"ep-legend__abbr\">" + escapeHtml(entry.party) + "</span>" +
+          "<span class=\"ep-legend__abbr\">" + escapeHtml(abbr(entry.party)) + "</span>" +
           "<span class=\"ep-legend__seats\">" + entry.seats + "</span>";
-        item.setAttribute("aria-label", (partyNames[entry.party] || entry.party) + ": " + entry.seats + " seats in this chamber");
+        item.setAttribute("aria-label", (partyNames[entry.party] || entry.party) + ": " + entry.seats + " mandat i det h\u00e4r utfallet");
         track(entry.party, item, "ep-legend__item");
         legend.appendChild(item);
       });
@@ -694,6 +729,9 @@
   // contains summaries calculated from the simulator's joint seats_matrix;
   // the browser only resolves a selected bitmask and formats those values.
   // ---------------------------------------------------------------------
+  var ROLE_GOVERNMENT = "Regeringsparti";
+  var ROLE_SUPPORT = "St\u00f6dparti";
+
   function validCoalitionBuilder(builder) {
     var builderFields = ["party_order", "encoding", "majority_threshold", "coalitions"];
     if (!builder || typeof builder !== "object" ||
@@ -788,9 +826,9 @@
       (combinationLabel ? "<p class=\"eg-builder__combination-label\">" + escapeHtml(combinationLabel) + "</p>" : "") +
       "<p class=\"eg-builder__combination\">" + escapeHtml(combination) + "</p>" +
       "<dl class=\"eg-builder__result-grid\">" +
-        "<div><dt>Median</dt><dd>" + format(entry.median_seats, 0) + " seats</dd></div>" +
-        "<div><dt>90% predictive interval</dt><dd>" + rangeText(entry.p05_seats, entry.p95_seats, 0) + " seats</dd></div>" +
-        "<div><dt>Chance of " + MAJORITY + "+ seats</dt><dd>" + escapeHtml(probability(entry.prob_majority)) + "</dd></div>" +
+        "<div><dt>Median</dt><dd>" + format(entry.median_seats, 0) + " mandat</dd></div>" +
+        "<div><dt>90\u00a0% prognosintervall</dt><dd>" + rangeText(entry.p05_seats, entry.p95_seats, 0) + " mandat</dd></div>" +
+        "<div><dt>Sannolikhet f\u00f6r minst " + MAJORITY + " mandat</dt><dd>" + escapeHtml(probability(entry.prob_majority)) + "</dd></div>" +
       "</dl>";
   }
 
@@ -812,8 +850,8 @@
     var supportButtons = {};
 
     function buttonLabel(role, party, disabled) {
-      var label = role + ": " + (partyNames[party] || party) + " (" + party + ")";
-      return disabled ? label + "; unavailable because this party is already in government" : label;
+      var label = role + ": " + (partyNames[party] || party) + " (" + abbr(party) + ")";
+      return disabled ? label + "; kan inte v\u00e4ljas eftersom partiet redan sitter i regeringen" : label;
     }
 
     function renderButtons(host, role, selectedMask, buttons, onClick) {
@@ -822,7 +860,7 @@
       builder.party_order.forEach(function (party, index) {
         var bit = 1 << index;
         var selected = (selectedMask & bit) !== 0;
-        var disabled = role === "Parliamentary support" && (governmentMask & bit) !== 0;
+        var disabled = role === ROLE_SUPPORT && (governmentMask & bit) !== 0;
         var button = document.createElement("button");
         button.type = "button";
         button.className = "eg-builder__chip" + (selected ? " is-active" : "");
@@ -836,7 +874,7 @@
         }
         button.innerHTML =
           "<span class=\"eg-builder__chip-swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>" +
-          "<span>" + escapeHtml(party) + "</span>";
+          "<span>" + escapeHtml(abbr(party)) + "</span>";
         button.addEventListener("click", function () { onClick(bit); });
         buttons[party] = button;
         host.appendChild(button);
@@ -865,7 +903,7 @@
             supportResult.setAttribute("data-coalition-mask", "");
           }
         }
-        setText("election-government-announcement", "Select at least one government party to see the joint seat distribution.");
+        setText("election-government-announcement", "V\u00e4lj minst ett regeringsparti.");
         return;
       }
 
@@ -877,11 +915,11 @@
       if (aloneResult && governmentEntry) {
         aloneResult.hidden = false;
         aloneResult.setAttribute("data-coalition-mask", String(governmentMask));
-        aloneResult.innerHTML = governmentResultMarkup(governmentEntry, "Government parties", "", governmentParties);
-        announcements.push("Government parties " + governmentParties + ". Median " +
-          format(governmentEntry.median_seats, 0) + " seats; 90% predictive interval " +
+        aloneResult.innerHTML = governmentResultMarkup(governmentEntry, "Regeringspartier", "", governmentParties);
+        announcements.push("Regeringspartier " + governmentParties + ". Median " +
+          format(governmentEntry.median_seats, 0) + " mandat; 90-procentigt prognosintervall " +
           rangeText(governmentEntry.p05_seats, governmentEntry.p95_seats, 0) +
-          " seats; chance of " + MAJORITY + " or more seats " +
+          " mandat; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " +
           probability(governmentEntry.prob_majority) + ".");
       }
 
@@ -894,15 +932,15 @@
           supportResult.setAttribute("data-coalition-mask", String(unionMask));
           supportResult.innerHTML = governmentResultMarkup(
             unionEntry,
-            "With support from " + supportParties,
-            "Government + support",
+            "Med st\u00f6d av " + supportParties,
+            "Regering + st\u00f6d",
             coalitionParties(builder, unionMask).join(" + ")
           );
-          announcements.push("With support from " + supportParties + ". Government plus support " +
+          announcements.push("Med st\u00f6d av " + supportParties + ". Regering plus st\u00f6d " +
             coalitionParties(builder, unionMask).join(" + ") + ". Median " +
-            format(unionEntry.median_seats, 0) + " seats; 90% predictive interval " +
+            format(unionEntry.median_seats, 0) + " mandat; 90-procentigt prognosintervall " +
             rangeText(unionEntry.p05_seats, unionEntry.p95_seats, 0) +
-            " seats; chance of " + MAJORITY + " or more seats " +
+            " mandat; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " +
             probability(unionEntry.prob_majority) + ".");
         }
       } else if (supportResult) {
@@ -918,12 +956,12 @@
     }
 
     function render() {
-      renderButtons(governmentHost, "Government parties", governmentMask, governmentButtons, function (bit) {
+      renderButtons(governmentHost, ROLE_GOVERNMENT, governmentMask, governmentButtons, function (bit) {
         governmentMask = (governmentMask & bit) !== 0 ? governmentMask ^ bit : governmentMask | bit;
         supportMask &= ~governmentMask;
         render();
       });
-      renderButtons(supportHost, "Parliamentary support", supportMask, supportButtons, function (bit) {
+      renderButtons(supportHost, ROLE_SUPPORT, supportMask, supportButtons, function (bit) {
         if ((governmentMask & bit) !== 0) return;
         supportMask = (supportMask & bit) !== 0 ? supportMask ^ bit : supportMask | bit;
         render();
@@ -944,7 +982,7 @@
     var pills = byId("election-group-pills");
     var result = byId("election-group-result");
     if (!names.length) {
-      if (result) result.textContent = "No party groups are published in this release.";
+      if (result) result.textContent = "Inga partikombinationer \u00e4r publicerade i den h\u00e4r versionen.";
       return;
     }
 
@@ -964,13 +1002,13 @@
       if (result) {
         result.innerHTML =
           "<p class=\"eg-result__lead\"><span class=\"eg-result__value\">" + escapeHtml(probability(group.prob_majority)) + "</span>" +
-          "<span class=\"eg-result__text\">probability that " + escapeHtml((group.parties || []).join(" + ")) +
-          " together reach " + threshold + " of 349 seats</span></p>" +
+          "<span class=\"eg-result__text\">sannolikhet att " + escapeHtml((group.parties || []).join(" + ")) +
+          " tillsammans f\u00e5r minst " + threshold + " mandat</span></p>" +
           "<dl class=\"eg-result__grid\">" +
-            "<div><dt>Median seats</dt><dd>" + format(group.median_seats, 0) + "</dd></div>" +
-            "<div><dt>50% predictive interval</dt><dd>" + rangeText(group.p25_seats, group.p75_seats, 0) + "</dd></div>" +
-            "<div><dt>80% predictive interval</dt><dd>" + rangeText(group.p10_seats, group.p90_seats, 0) + "</dd></div>" +
-            "<div><dt>90% predictive interval</dt><dd>" + rangeText(group.p05_seats, group.p95_seats, 0) + "</dd></div>" +
+            "<div><dt>Medianmandat</dt><dd>" + format(group.median_seats, 0) + "</dd></div>" +
+            "<div><dt>50\u00a0% prognosintervall</dt><dd>" + rangeText(group.p25_seats, group.p75_seats, 0) + "</dd></div>" +
+            "<div><dt>80\u00a0% prognosintervall</dt><dd>" + rangeText(group.p10_seats, group.p90_seats, 0) + "</dd></div>" +
+            "<div><dt>90\u00a0% prognosintervall</dt><dd>" + rangeText(group.p05_seats, group.p95_seats, 0) + "</dd></div>" +
           "</dl>";
       }
       renderGroupHistogram(group, threshold);
@@ -990,10 +1028,10 @@
         button.innerHTML =
           "<span class=\"eg-pill__parties\">" + swatches + "<span>" + escapeHtml((group.parties || []).join(" + ")) + "</span></span>" +
           "<span class=\"eg-pill__prob\">" + escapeHtml(probability(group.prob_majority)) + "</span>" +
-          "<span class=\"eg-pill__seats\">median " + format(group.median_seats, 0) + " seats</span>";
+          "<span class=\"eg-pill__seats\">median " + format(group.median_seats, 0) + " mandat</span>";
         button.setAttribute("aria-label", (group.parties || []).join(" plus ") +
-          ": majority probability " + probability(group.prob_majority) +
-          ", median " + format(group.median_seats, 0) + " seats.");
+          ": sannolikhet f\u00f6r majoritet " + probability(group.prob_majority) +
+          ", median " + format(group.median_seats, 0) + " mandat.");
         if (button.addEventListener) {
           button.addEventListener("click", function () { active = name; update(); });
         }
@@ -1044,9 +1082,9 @@
       ? "<span class=\"eh-marker\" style=\"left:" + markerLeft.toFixed(3) + "%\"><span class=\"eh-marker__label\">" + threshold + "</span></span>"
       : "";
     host.innerHTML =
-      "<div class=\"eh-plot\" role=\"img\" aria-label=\"Distribution of combined seats across the published simulation draws, from " +
-      low + " to " + high + " seats, with the " + threshold + "-seat majority line marked.\">" + bars + marker + "</div>" +
-      "<div class=\"eh-scale\" aria-hidden=\"true\"><span>" + low + "</span><span>combined seats</span><span>" + high + "</span></div>";
+      "<div class=\"eh-plot\" role=\"img\" aria-label=\"F\u00f6rdelning av antalet mandat tillsammans i de simulerade utfallen, fr\u00e5n " +
+      low + " till " + high + " mandat, med majoritetsgr\u00e4nsen vid " + threshold + " mandat markerad.\">" + bars + marker + "</div>" +
+      "<div class=\"eh-scale\" aria-hidden=\"true\"><span>" + low + "</span><span>mandat tillsammans</span><span>" + high + "</span></div>";
   }
 
   // ---------------------------------------------------------------------
@@ -1056,12 +1094,12 @@
     reveal("election-changes");
     var change = forecast.change_since_prior || {};
     if (change.status !== "AVAILABLE") {
-      setText("election-changes-status", "No earlier immutable snapshot is available for comparison.");
+      setText("election-changes-status", "Det finns ingen tidigare prognos att j\u00e4mf\u00f6ra med.");
       setHtml("election-changes-content", "");
       return;
     }
-    setText("election-changes-status", "Median-to-median difference against the snapshot dated " +
-      (change.prior_as_of || "unknown") + ". Small differences are not evidence of movement.");
+    setText("election-changes-status", "Skillnad mellan medianerna j\u00e4mf\u00f6rt med f\u00f6reg\u00e5ende prognos. " +
+      "Sm\u00e5 skillnader beh\u00f6ver inte betyda en verklig f\u00f6r\u00e4ndring.");
 
     var vote = change.vote_share_median_change_pp || {};
     var seats = change.seat_median_change || {};
@@ -1073,17 +1111,17 @@
       var voteValue = vote[name];
       var seatValue = seats[name];
       return "<tr>" +
-        "<th scope=\"row\"><span class=\"ev-swatch\" style=\"background:" + (partyColors[name] || "#777") + "\" aria-hidden=\"true\"></span>" + escapeHtml(name) + "</th>" +
-        "<td>" + deltaCell(voteValue, 2, " pp", 0.05) + "</td>" +
+        "<th scope=\"row\"><span class=\"ev-swatch\" style=\"background:" + (partyColors[name] || "#777") + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</th>" +
+        "<td>" + deltaCell(voteValue, 2, PP, 0.05) + "</td>" +
         (hasSeats ? "<td>" + deltaCell(seatValue, 0, "", 0.5) + "</td>" : "") +
         "</tr>";
     }).join("");
 
     setHtml("election-changes-content",
-      "<table class=\"ec-table\"><caption class=\"visually-hidden\">Change in median vote share" +
-      (hasSeats ? " and median seats" : "") + " since the prior published forecast</caption>" +
-      "<thead><tr><th scope=\"col\">Party</th><th scope=\"col\">Vote median</th>" +
-      (hasSeats ? "<th scope=\"col\">Seat median</th>" : "") + "</tr></thead><tbody>" + rows + "</tbody></table>");
+      "<table class=\"ec-table\"><caption class=\"visually-hidden\">F\u00f6r\u00e4ndring i median r\u00f6standel" +
+      (hasSeats ? " och medianmandat" : "") + " sedan f\u00f6reg\u00e5ende publicerade prognos</caption>" +
+      "<thead><tr><th scope=\"col\">Parti</th><th scope=\"col\">R\u00f6standel</th>" +
+      (hasSeats ? "<th scope=\"col\">Mandat</th>" : "") + "</tr></thead><tbody>" + rows + "</tbody></table>");
   }
 
   function deltaCell(value, digits, suffix, noiseFloor) {
@@ -1091,7 +1129,7 @@
     if (parsed === null) return "<span class=\"ec-delta ec-delta--none\">\u2014</span>";
     var direction = Math.abs(parsed) < noiseFloor ? "flat" : (parsed > 0 ? "up" : "down");
     var glyph = direction === "up" ? "\u2191" : direction === "down" ? "\u2193" : "\u00b7";
-    var word = direction === "up" ? "up" : direction === "down" ? "down" : "no material change";
+    var word = direction === "up" ? "upp" : direction === "down" ? "ner" : "ingen tydlig f\u00f6r\u00e4ndring";
     var sign = parsed > 0 ? "+" : "";
     return "<span class=\"ec-delta ec-delta--" + direction + "\">" +
       "<span class=\"ec-delta__glyph\" aria-hidden=\"true\">" + glyph + "</span>" +
@@ -1102,40 +1140,37 @@
   // ---------------------------------------------------------------------
   // 6. Validation and model information
   // ---------------------------------------------------------------------
-  function renderValidation(calibration, metadata) {
+  function renderValidation(calibration) {
     reveal("election-validation");
     var sources = calibration.source_files || {};
 
     var blocks = [];
-    blocks.push("<p>Historical scores are retrospective evidence, not independent holdout validation.</p>");
-    blocks.push("<p>Uncertainty is represented by joint Python simulations; intervals are predictive intervals. " +
-      "REST is aggregate modeled-ineligible vote mass and cannot independently qualify.</p>");
+    blocks.push("<p>Modellen utg\u00e5r fr\u00e5n det aktuella opinionsl\u00e4get och simulerar tre typer av " +
+      "os\u00e4kerhet: os\u00e4kerhet i l\u00e4get i dag, f\u00f6r\u00e4ndringar fram till valdagen och historiska " +
+      "skillnader mellan slutm\u00e4tningar och valresultat. Partierna simuleras gemensamt. Varje utfall " +
+      "f\u00f6rdelas \u00f6ver de 29 valkretsarna och r\u00e4knas om till mandat enligt svenska valregler.</p>");
+    blocks.push("<p>De historiska testerna \u00e4r gjorda i efterhand och \u00e4r inte ett oberoende test " +
+      "p\u00e5 nya data.</p>");
 
     var coverage = coverageRow(sources.vote_share_hindcast);
     if (coverage) {
-      blocks.push("<h3 class=\"election-subhead\">Retrospective interval coverage</h3>" +
-        "<p>Observed coverage of the model's own predictive intervals in the retrospective 2018/2022 hindcast. " +
-        "Coverage below the nominal level means the published intervals were too narrow in that exercise. " +
-        "This is descriptive retrospective evidence, not a calibration guarantee for the current forecast.</p>" +
+      blocks.push("<h3 class=\"election-subhead\">Historisk tr\u00e4ffs\u00e4kerhet f\u00f6r prognosintervall</h3>" +
+        "<p>Tabellen visar hur ofta valresultatet l\u00e5g inom modellens intervall i " +
+        "efterhandsutv\u00e4rderingen av valen 2018 och 2022. Det \u00e4r ingen garanti f\u00f6r 2026.</p>" +
         "<table class=\"ev-validation-table\"><thead><tr>" +
-        "<th scope=\"col\">Nominal interval</th><th scope=\"col\">Observed coverage</th><th scope=\"col\">Mean width</th>" +
+        "<th scope=\"col\">Intervall</th><th scope=\"col\">Utfall inom intervallet</th><th scope=\"col\">Genomsnittlig bredd</th>" +
         "</tr></thead><tbody>" +
         coverage.map(function (row) {
-          return "<tr><th scope=\"row\">" + row.nominal + "%</th><td>" + format(row.coverage * 100, 1) + "%</td><td>" +
-            (row.width === null ? "\u2014" : format(row.width, 2) + " pp") + "</td></tr>";
+          return "<tr><th scope=\"row\">" + row.nominal + NBSP + "%</th><td>" + percent(row.coverage * 100, 1) + "</td><td>" +
+            (row.width === null ? "\u2014" : format(row.width, 2) + PP) + "</td></tr>";
         }).join("") +
         "</tbody></table>");
     }
 
-    var semantics = [
-      metadata.interval_semantics,
-      metadata.rest_semantics,
-      metadata.validation_note
-    ].filter(function (value) { return typeof value === "string" && value; });
-    if (semantics.length) {
-      blocks.push("<h3 class=\"election-subhead\">Published semantics</h3><ul class=\"election-list\">" +
-        semantics.map(function (value) { return "<li>" + escapeHtml(value) + "</li>"; }).join("") + "</ul>");
-    }
+    // The published metadata prose is English and technical; the page states
+    // the same two semantics in its own words instead of echoing it.
+    blocks.push("<p>Intervallen \u00e4r prognosintervall, inte konfidensintervall. " +
+      "\u201d\u00d6vriga\u201d \u00e4r en samlad kategori och kan inte f\u00e5 mandat.</p>");
 
     setHtml("election-validation-content", blocks.join(""));
   }
@@ -1164,15 +1199,15 @@
     reveal("election-meta");
     var certified = isCertified(metadata, manifest);
     var rows = [
-      ["Last update", metadata.generated_at_utc || "\u2014"],
-      ["As of", metadata.as_of || "\u2014"],
-      ["Election date", metadata.election_date || "\u2014"],
-      ["Model", (metadata.model && metadata.model.version) || "\u2014"],
-      ["Source commit", metadata.source_git_commit || "\u2014"],
-      ["Payload hash", metadata.deterministic_payload_sha256 || (manifest && manifest.deterministic_payload_sha256) || "\u2014"],
-      ["Source state", metadata.source_worktree_clean === true
-        ? "committed revision, no uncommitted changes"
-        : "uncommitted or unrecorded changes in the source revision"]
+      ["Senast genererad", metadata.generated_at_utc || "\u2014"],
+      ["Opinionsl\u00e4ge", metadata.as_of || "\u2014"],
+      ["Valdag", metadata.election_date || "\u2014"],
+      ["Modell", (metadata.model && metadata.model.version) || "\u2014"],
+      ["K\u00e4llkodsversion", metadata.source_git_commit || "\u2014"],
+      ["Prognos-hash", metadata.deterministic_payload_sha256 || (manifest && manifest.deterministic_payload_sha256) || "\u2014"],
+      ["K\u00e4llkodsl\u00e4ge", metadata.source_worktree_clean === true
+        ? "committad version, inga lokala \u00e4ndringar"
+        : "lokala eller oregistrerade \u00e4ndringar i k\u00e4llkoden"]
     ];
     var hashes = metadata.input_hashes || {};
     Object.keys(hashes).forEach(function (key) {
@@ -1194,7 +1229,7 @@
       renderGovernmentBuilder(data[3]);
       renderGroups(data[3]);
       renderChanges(data[0], data[1]);
-      renderValidation(data[4], data[5]);
+      renderValidation(data[4]);
       var certified = renderMetadata(data[5], data[6]);
       // The status strings stay in the DOM as the published load contract,
       // but a successful load has no news for the reader, so it is hidden.
