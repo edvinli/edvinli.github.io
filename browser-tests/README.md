@@ -32,6 +32,7 @@ real browser.
 jekyll build --config _config.yml,_config.dev.yml
 node browser-tests/government-builder.smoke.mjs            # defaults to ./_site
 node browser-tests/government-builder.smoke.mjs path/to/_site
+node browser-tests/equations.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -98,3 +99,24 @@ the published lookup rather than against a copy of it.
   with no tiles, no bar segments and no summary text. This is the fail-closed
   assertion — the renderer declining to build the panel must leave no trace of
   it on the page.
+
+## What `equations.smoke.mjs` covers
+
+The equations in "Så fungerar modellen" are authored as LaTeX text inside
+`.election-equation` blocks and typeset by a pinned MathJax 3 build
+(`mathjax@3.2.2/es5/tex-chtml.js`, loaded from jsDelivr with an SRI hash on
+this page only). Three properties of that arrangement need a real browser:
+
+- the blocks sit inside a **collapsed `<details>`**, and CHTML cannot measure a
+  `display: none` subtree, so typesetting is deferred to the first `toggle`;
+- a wide equation must **scroll inside its own panel** instead of widening the
+  page, and must not be clipped by it;
+- if MathJax never loads, the **LaTeX source has to stay on the page** rather
+  than the equations disappearing.
+
+At 1280px and 360px, after opening the section: all 10 blocks typeset as
+display math with a non-zero box, no block wider than its column, nothing
+clipped vertically, every equation's full width reachable by scrolling, no
+page-level horizontal overflow, `MathJax.version === '3.2.2'`, and no console
+errors or uncaught exceptions. A final pass blocks `*cdn.jsdelivr.net*` and
+asserts all 10 blocks still show their `\[ … \]` source.

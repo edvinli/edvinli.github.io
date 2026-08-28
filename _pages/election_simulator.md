@@ -131,43 +131,48 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <h3 class="election-subhead">1. Opinionsläget i dag</h3>
         <p>Utgångspunkten är den senaste skattningen från Poll of Polls. För att uppskatta osäkerheten runt dagens läge jämför modellen historiska enskilda mätningar med Poll of Polls.</p>
         <p>Röstandelar kan inte behandlas som vanliga oberoende tal eftersom de tillsammans måste summera till 100&#160;%. Därför arbetar modellen med log-kvoter. För parti <var>j</var>:</p>
-        <div class="election-equation"><code>z_j = log(p_j / p_övr)</code></div>
+        <div class="election-equation">\[ z_j = \log\!\left(\frac{p_j}{p_{\mathrm{övr}}}\right) \]</div>
         <p>där <var>p_j</var> är partiets röstandel och <var>p_övr</var> är den samlade andelen för övriga partier.</p>
         <p>Historiska avvikelser används för att skatta en gemensam kovariansmatris, <var>Σ_res</var>. Osäkerheten i dagens läge minskar när det finns fler färska mätningar:</p>
-        <div class="election-equation"><code>Σ_dag = Σ_res / n_eff</code></div>
+        <div class="election-equation">\[ \Sigma_{\mathrm{dag}} = \frac{\Sigma_{\mathrm{res}}}{n_{\mathrm{eff}}} \]</div>
         <p>Färska mätningar väger mer än äldre. Urvalsstorleken påverkar också vikten:</p>
-        <div class="election-equation"><code>w_i = 2^(-ålder_i / 21)
-      × clip(√(N_i / 1000), 0,7, 1,5)
-
-n_eff = (Σ_i w_i)² / Σ_i w_i²</code></div>
+        <div class="election-equation">\[\begin{aligned}
+          w_i &amp;= 2^{-\mathrm{ålder}_i / 21}
+                 \times \operatorname{clip}\!\left(\sqrt{\tfrac{N_i}{1000}},\; 0{,}7,\; 1{,}5\right) \\[6pt]
+          n_{\mathrm{eff}} &amp;= \frac{\left(\sum_i w_i\right)^{2}}{\sum_i w_i^{2}}
+        \end{aligned}\]</div>
         <p>Det effektiva antalet mätningar begränsas till högst 8. Ett simulerat opinionsläge i dag dras sedan runt Poll of Polls med denna gemensamma osäkerhet.</p>
         <h3 class="election-subhead">2. Vad kan hända fram till valdagen?</h3>
         <p>Osäkerheten beror på hur många dagar som återstår. Om det är <var>h</var> dagar kvar tittar modellen på hur hela opinionsläget historiskt har förändrats över <var>h</var> dagar.</p>
         <p>För den delen används en symmetrisk log-kvotstransformation, CLR. En historisk förändring definieras som:</p>
-        <div class="election-equation"><code>Δ_s,h = CLR(PoP_s+h) − CLR(PoP_s)</code></div>
+        <div class="election-equation">\[ \Delta_{s,h} = \operatorname{CLR}\!\left(\mathrm{PoP}_{s+h}\right) - \operatorname{CLR}\!\left(\mathrm{PoP}_{s}\right) \]</div>
         <p>Hela vektorn med partiernas förändringar sparas tillsammans. Modellen drar sedan en sådan historisk förändring och använder den med slumpmässigt tecken:</p>
-        <div class="election-equation"><code>CLR(p_val) = CLR(p_idag) + S × Δ_s,h
-
-S ∈ {−1, +1},   P(S = +1) = P(S = −1) = 0,5</code></div>
+        <div class="election-equation">\[\begin{aligned}
+          \operatorname{CLR}(p_{\mathrm{val}}) &amp;= \operatorname{CLR}(p_{\mathrm{idag}}) + S \times \Delta_{s,h} \\[6pt]
+          S &amp;\in \{-1,\, +1\}, \qquad P(S = +1) = P(S = -1) = 0{,}5
+        \end{aligned}\]</div>
         <p>Det betyder två saker. Partiernas rörelser simuleras gemensamt, inte oberoende. Och modellen antar inte att en historisk trend fortsätter i samma riktning 2026.</p>
         <p>Om M historiskt har tappat samtidigt som vissa andra partier har ökat, finns den samvariationen med i den dragna förändringen. Däremot finns ingen separat modell som säger att en väljare går från exempelvis M till SD eller S.</p>
         <h3 class="election-subhead">3. Fel som kan finnas kvar på valdagen</h3>
         <p>Även nära valdagen kan opinionsmätningarna missa det faktiska resultatet. Modellen använder därför historiska skillnader mellan det sista samlade mätläget och valresultatet:</p>
-        <div class="election-equation"><code>r_e = valresultat_e − slutligt_mätläge_e
-
-r̃_e = r_e − medel(r)</code></div>
+        <div class="election-equation">\[\begin{aligned}
+          r_e &amp;= \text{valresultat}_e - \text{slutligt mätläge}_e \\[6pt]
+          \tilde{r}_e &amp;= r_e - \operatorname{medel}(r)
+        \end{aligned}\]</div>
         <p>Ett historiskt, centrerat fel dras gemensamt för alla partier och läggs på den simulerade röstandelen.</p>
         <p>För att ingen röstandel ska bli negativ skalas felet vid behov:</p>
-        <div class="election-equation"><code>p' = p + λr̃,     0 ≤ λ ≤ 1</code></div>
+        <div class="election-equation">\[ p' = p + \lambda\,\tilde{r}, \qquad 0 \le \lambda \le 1 \]</div>
         <p>I praktiken är <var>λ</var> nästan alltid nära 1. Centreringen innebär att modellen använder den historiska storleken och samvariationen i mätfelen utan att anta att tidigare fel i en viss riktning upprepas.</p>
         <p>Den här osäkerheten försvinner därför inte helt bara för att valdagen närmar sig.</p>
         <h3 class="election-subhead">4. Från nationella röster till 29 valkretsar</h3>
         <p>Varje simulerat nationellt resultat måste därefter fördelas geografiskt. Modellen utgår från partiernas geografiska mönster i föregående val och använder deterministisk biproportionell raking, även kallad IPF.</p>
         <p>Om <var>B_c,p</var> är tidigare röster för parti <var>p</var> i valkrets <var>c</var>, söker modellen faktorer <var>a_c</var> och <var>b_p</var> så att:</p>
-        <div class="election-equation"><code>X_c,p = a_c × B_c,p × b_p</code></div>
+        <div class="election-equation">\[ X_{c,p} = a_c \times B_{c,p} \times b_p \]</div>
         <p>samtidigt som:</p>
-        <div class="election-equation"><code>Σ_p X_c,p = röster i valkrets c
-Σ_c X_c,p = partiets nationella röster</code></div>
+        <div class="election-equation">\[\begin{aligned}
+          \sum_p X_{c,p} &amp;= \text{röster i valkrets } c \\[6pt]
+          \sum_c X_{c,p} &amp;= \text{partiets nationella röster}
+        \end{aligned}\]</div>
         <p>Resultatet behåller alltså tidigare geografiska skillnader så långt det går, men måste exakt stämma med det simulerade nationella valresultatet och valkretsarnas röstvolymer.</p>
         <p>Det läggs ingen extra slumpmässig geografisk variation ovanpå detta i dagens modell.</p>
         <h3 class="election-subhead">5. Från röster till mandat</h3>
@@ -184,9 +189,10 @@ r̃_e = r_e − medel(r)</code></div>
         <p>Varje simulering slutar med exakt 349 mandat.</p>
         <h3 class="election-subhead">6. Vad betyder sannolikheterna?</h3>
         <p>Det finns ingen separat formel som uppskattar sannolikheten för exempelvis en majoritet. Den räknas helt enkelt som andelen simuleringar där utfallet inträffar.</p>
-        <div class="election-equation"><code>P(minst 175 mandat)
-  = antal simuleringar med minst 175 mandat
-    / 100&#160;000</code></div>
+        <div class="election-equation">\[\begin{aligned}
+          &amp;P(\text{minst 175 mandat}) \\[6pt]
+          &amp;\qquad = \frac{\begin{gathered}\text{antal simuleringar} \\ \text{med minst 175 mandat}\end{gathered}}{100\,000}
+        \end{aligned}\]</div>
         <p>Samma princip används för prognosintervallen. Ett 90-procentigt prognosintervall går från den 5:e till den 95:e percentilen bland de simulerade utfallen.</p>
         <h3 class="election-subhead">Viktigaste antagandena</h3>
         <p>Modellen bygger framför allt på fyra antaganden:</p>
@@ -215,3 +221,60 @@ r̃_e = r_e − medel(r)</code></div>
 </div>
 
 <script src="{{ site.baseurl }}/assets/js/election-simulator.js"></script>
+
+<!-- Equation typesetting for "Så fungerar modellen". MathJax 3.2.2 is pinned
+     and loaded on this page only; the LaTeX sits in the markup as plain text,
+     so if the CDN is unreachable the source stays visible instead of the
+     equations vanishing. -->
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)']],
+      displayMath: [['\\[', '\\]']]
+    },
+    chtml: {
+      displayAlign: 'left',
+      displayIndent: '0'
+    },
+    options: {
+      // Confine MathJax to the equation blocks. Nothing else on the page is
+      // math, and the forecast app rewrites large parts of the DOM.
+      ignoreHtmlClass: '.*',
+      processHtmlClass: 'election-equation'
+    },
+    startup: {
+      // The equations live inside a collapsed <details>. CHTML cannot measure
+      // a display:none subtree, so typesetting is deferred until the section
+      // is first opened.
+      typeset: false,
+      pageReady: function () {
+        return window.MathJax.startup.defaultPageReady().then(function () {
+          window.electionTypesetEquations();
+        });
+      }
+    }
+  };
+
+  (function () {
+    var details = document.getElementById('election-model');
+    var done = false;
+
+    function typeset() {
+      if (done) return;
+      if (!window.MathJax || !window.MathJax.typesetPromise) return;
+      if (details && !details.open) return;
+      done = true;
+      window.MathJax.typesetPromise().catch(function (error) {
+        done = false;
+        console.warn('MathJax kunde inte typsätta ekvationerna.', error);
+      });
+    }
+
+    window.electionTypesetEquations = typeset;
+    if (details) details.addEventListener('toggle', typeset);
+  })();
+</script>
+<script id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"
+        integrity="sha384-AHAnt9ZhGeHIrydA1Kp1L7FN+2UosbF7RQg6C+9Is/a7kDpQ1684C2iH2VWil6r4"
+        crossorigin="anonymous"></script>

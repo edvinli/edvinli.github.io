@@ -1487,29 +1487,55 @@ canvas {
   max-width: 68ch;
 }
 
-/* Equation blocks in "Så fungerar modellen".  The site has no math renderer,
-   so equations are plain monospace text.  `pre` keeps the authored alignment,
-   and the block scrolls on its own rather than widening the page; the global
-   `overflow-wrap: anywhere` on code must not break symbols mid-token. */
+/* Equation blocks in "Så fungerar modellen".  MathJax 3 typesets the LaTeX in
+   place once the section is opened; until then — and if the CDN never answers
+   — the raw `\[ … \]` source is what sits here, so the block has to stay
+   legible either way.  A wide equation scrolls inside its own panel rather
+   than widening the page. */
 .election-equation {
   background: var(--el-fill-soft);
   border-left: 2px solid var(--el-rule-strong);
-  margin: 0.7rem 0 0.9rem;
-  overflow-x: auto;
-  padding: 0.6rem 0.8rem;
-}
-
-.election-equation code {
   color: var(--el-ink);
-  display: block;
-  font-size: 0.82rem;
-  line-height: 1.7;
-  overflow-wrap: normal;
-  white-space: pre;
+  /* Until MathJax replaces it, the content is LaTeX source: mono, and allowed
+     to wrap so a long `\begin{aligned}` cannot push the page sideways. */
+  font-family: var(--el-mono);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0.7rem 0 0.9rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  padding: 0.7rem 0.8rem;
 }
 
-/* Inline symbols in the surrounding prose, so `z_j` reads the same in a
-   sentence as it does in the equation above it. */
+/* Typeset output.  MathJax brings its own fonts and metrics, centres display
+   math and adds a 1em margin; the panel already owns the spacing, and the
+   equations should hang off the same left edge as the prose. */
+.election-equation mjx-container {
+  margin: 0 !important;
+  max-width: none;
+  overflow-wrap: normal;
+  text-align: left !important;
+}
+
+/* The vertical padding keeps tall rows clear of the horizontal scrollbar on
+   the equations that are wide enough to need one. */
+.election-equation mjx-container[display="true"] {
+  display: block;
+  padding: 0.15rem 0;
+}
+
+/* Characters the MathJax TeX fonts do not carry are emitted as <mjx-utext>
+   rendered in the generic serif fallback, at an inline font-size CHTML derives
+   from that font's metrics.  It lands around 81%, which leaves the å/ä/ö in
+   words like "mätläge" visibly smaller than the letters beside them; at full
+   size the word reads as one word again. */
+.election-equation mjx-utext {
+  font-size: 100% !important;
+}
+
+/* Inline symbols in the surrounding prose.  These are not typeset by MathJax
+   (it only processes `.election-equation`), so they stay monospace. */
 .election-app var {
   font-family: var(--el-mono);
   font-size: 0.92em;
@@ -1694,12 +1720,9 @@ canvas {
     font-size: 0.65rem;
   }
 
-  .election-equation code {
-    font-size: 0.72rem;
-  }
-
   .election-equation {
-    padding: 0.5rem 0.6rem;
+    font-size: 0.82rem;
+    padding: 0.6rem 0.55rem;
   }
 }
 
