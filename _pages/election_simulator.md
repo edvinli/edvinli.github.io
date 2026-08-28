@@ -102,7 +102,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       </div>
       <p id="election-government-empty" class="eg-builder__empty" hidden>Välj minst ett regeringsparti.</p>
       <dl id="election-government-results" class="eg-summary" hidden data-coalition-mask="" data-government-mask="" data-support-mask=""></dl>
-      <p id="election-government-note" class="eg-builder__note" hidden>Den högra stapeln visar regeringen och stödpartierna tillsammans; stödpartiernas mandat är rutmönstrade. Medianerna beräknas var för sig och summerar därför inte exakt, så staplarnas höjd följer kombinationens egen median.</p>
+      <p id="election-government-note" class="eg-builder__note" hidden>Den högra stapeln visar regeringen och stödpartierna tillsammans; stödpartiernas delar är skrafferade. Medianerna beräknas var för sig och summerar därför inte exakt, så staplarnas höjd följer kombinationens egen median.</p>
     </div>
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda partierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>
