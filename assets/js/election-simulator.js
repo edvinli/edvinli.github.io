@@ -1004,6 +1004,7 @@
     var context = byId("election-government-histogram-context");
     var textAlternative = byId("election-government-histogram-text");
     var status = byId("election-government-histogram-status");
+    var coalitionKey = byId("election-government-histogram-coalition-key");
 
     function clear() {
       host.hidden = true;
@@ -1013,6 +1014,10 @@
       host.setAttribute("data-min-seats", "");
       host.setAttribute("data-max-seats", "");
       if (context) context.textContent = "";
+      if (coalitionKey) {
+        coalitionKey.style.background = "";
+        coalitionKey.removeAttribute("title");
+      }
       if (textAlternative) textAlternative.textContent = "";
       if (status) {
         status.textContent = "";
@@ -1044,6 +1049,13 @@
     var maxSeats = minSeats + counts.length - 1;
     var parties = coalitionParties(builder, mask);
     var partyLabel = parties.length ? parties.join(" + ") : "Inga partier";
+    var coalitionColors = parties.map(function (party) {
+      return partyColors[party] || "#777777";
+    });
+    if (coalitionKey && coalitionColors.length) {
+      coalitionKey.style.background = "linear-gradient(90deg, " + coalitionColors.join(", ") + ")";
+      coalitionKey.setAttribute("title", "Färger för " + partyLabel);
+    }
     var majorityCount = counts.reduce(function (sum, count, index) {
       return sum + (minSeats + index >= MAJORITY ? count : 0);
     }, 0);
@@ -1095,12 +1107,34 @@
     svg.appendChild(svgNode("desc", { id: "election-government-histogram-description" }, description));
 
     var defs = svgNode("defs", {});
+    var gradientId = "egh-coalition-gradient-" + String(mask);
+    var gradient = svgNode("linearGradient", {
+      id: gradientId,
+      x1: "0%",
+      y1: "0%",
+      x2: "100%",
+      y2: "0%"
+    });
+    coalitionColors.forEach(function (color, index) {
+      var offset = coalitionColors.length === 1 ? 0 : (index / (coalitionColors.length - 1)) * 100;
+      gradient.appendChild(svgNode("stop", {
+        offset: offset + "%",
+        "stop-color": color
+      }));
+    });
+    defs.appendChild(gradient);
     var pattern = svgNode("pattern", {
       id: patternId,
       patternUnits: "userSpaceOnUse",
       width: "8",
       height: "8"
     });
+    pattern.appendChild(svgNode("rect", {
+      width: "8",
+      height: "8",
+      fill: "url(#" + gradientId + ")",
+      opacity: "0.88"
+    }));
     pattern.appendChild(svgNode("path", {
       d: "M-2,2 L2,-2 M0,8 L8,0 M6,10 L10,6",
       class: "egh-hatch"
@@ -1160,7 +1194,7 @@
         width: Math.max(0.2, binWidth - gap * 2),
         height: height,
         class: "egh-bin__bar",
-        fill: reachesMajority ? "url(#" + patternId + ")" : "currentColor",
+        fill: reachesMajority ? "url(#" + patternId + ")" : "url(#" + gradientId + ")",
         "aria-hidden": "true"
       }));
       // A zero-frequency bin still needs a visible focus/tap target.  The

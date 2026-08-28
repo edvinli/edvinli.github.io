@@ -1252,6 +1252,10 @@ canvas {
   );
 }
 
+.egh-histogram__key-mark--coalition {
+  background: linear-gradient(90deg, var(--el-rule-strong), var(--el-ink));
+}
+
 .egh-histogram__frame {
   margin-top: 0.45rem;
   max-width: 100%;
@@ -1325,12 +1329,10 @@ canvas {
 }
 
 .egh-bin--below .egh-bin__bar {
-  fill: var(--el-rule-strong);
   opacity: 0.78;
 }
 
 .egh-bin--majority .egh-bin__bar {
-  fill: var(--el-ink);
   opacity: 0.9;
 }
 

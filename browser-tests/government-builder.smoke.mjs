@@ -722,7 +722,9 @@ const readHistogram = (browser) => browser.evaluate(() => {
       majority: bin.getAttribute('data-majority'),
       mask: bin.getAttribute('data-coalition-mask'),
       label: bin.getAttribute('aria-label'),
+      fill: bin.querySelector('.egh-bin__bar')?.getAttribute('fill') || null,
     })),
+    coalitionKeyStyle: host ? host.querySelector('.egh-histogram__key-mark--coalition')?.getAttribute('style') || '' : '',
     threshold: threshold ? {
       seat: Number(threshold.getAttribute('data-seat')),
       dash: threshold.getAttribute('stroke-dasharray'),
@@ -792,6 +794,12 @@ async function schema13Histogram(viewport, synthetic) {
     check('each bin has an accessible exact-frequency label',
       rendered.bins.every((bin) => bin.label.includes(`${bin.seat} mandat`) && bin.label.includes('simuleringar')),
       JSON.stringify(rendered.bins.slice(0, 2)));
+    check('selected coalition palette colors the histogram bars',
+      rendered.bins.filter((bin) => bin.count > 0).every((bin) =>
+        bin.fill && (bin.fill.includes('egh-coalition-gradient') || bin.fill.includes('egh-majority-hatch'))),
+      JSON.stringify(rendered.bins));
+    check('coalition palette is explained in the legend',
+      rendered.coalitionKeyStyle.includes('linear-gradient'), rendered.coalitionKeyStyle);
     check('histogram has a useful text alternative',
       rendered.description.includes('simuleringar') && rendered.textAlternative.includes('skrafferade'),
       JSON.stringify(rendered));
