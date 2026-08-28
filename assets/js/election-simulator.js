@@ -965,13 +965,79 @@
   }
 
   function coalitionLookup(builder, mask) {
-    return builder.coalitions[String(mask)];
+    return builder && builder.coalitions ? builder.coalitions[String(mask)] : undefined;
   }
 
   function coalitionParties(builder, mask) {
+    if (!builder || !Array.isArray(builder.party_order)) return [];
     return builder.party_order.filter(function (party, index) {
       return (mask & (1 << index)) !== 0;
     });
+  }
+
+  function coalitionAccentParty(builder, mask) {
+    if (!builder || !Array.isArray(builder.party_order)) return null;
+    var parties = coalitionParties(builder, mask);
+    if (!parties.length) return null;
+    var bestParty = parties[0];
+    var bestMedian = -Infinity;
+    parties.forEach(function (party) {
+      var index = builder.party_order.indexOf(party);
+      if (index === -1) return;
+      var bit = 1 << index;
+      var entry = coalitionLookup(builder, bit);
+      var median = entry && typeof entry.median_seats === "number" ? entry.median_seats : 0;
+      if (median > bestMedian) {
+        bestMedian = median;
+        bestParty = party;
+      }
+    });
+    return bestParty;
+  }
+
+  function hexToRgb(hex) {
+    var value = String(hex === null || hex === undefined ? "" : hex).replace("#", "");
+    if (!/^[0-9a-fA-F]{6}$/.test(value)) return [120, 120, 120];
+    return [
+      parseInt(value.substr(0, 2), 16),
+      parseInt(value.substr(2, 2), 16),
+      parseInt(value.substr(4, 2), 16)
+    ];
+  }
+
+  function rgbToHex(r, g, b) {
+    function clamp(val) {
+      return Math.max(0, Math.min(255, Math.round(val)));
+    }
+    var hex = [clamp(r), clamp(g), clamp(b)].map(function (val) {
+      var s = val.toString(16);
+      return s.length === 1 ? "0" + s : s;
+    }).join("");
+    return "#" + hex;
+  }
+
+  function mixColors(color1, color2, weight1) {
+    var rgb1 = hexToRgb(color1);
+    var rgb2 = hexToRgb(color2);
+    var w1 = typeof weight1 === "number" ? weight1 : 0.5;
+    var w2 = 1 - w1;
+    return rgbToHex(
+      rgb1[0] * w1 + rgb2[0] * w2,
+      rgb1[1] * w1 + rgb2[1] * w2,
+      rgb1[2] * w1 + rgb2[2] * w2
+    );
+  }
+
+  function deriveCoalitionTheme(accentHex) {
+    var hex = accentHex || "#355f8b";
+    return {
+      accent: hex,
+      belowFill: mixColors(hex, "#f4f5f7", 0.18),
+      belowStroke: mixColors(hex, "#768390", 0.45),
+      majorityFill: mixColors(hex, "#ffffff", 0.58),
+      majorityHatch: mixColors(hex, "#000000", 0.72),
+      majorityRegion: mixColors(hex, "#ffffff", 0.08)
+    };
   }
 
   function summaryRow(metric, term, value) {
@@ -1008,10 +1074,18 @@
     function clear() {
       host.hidden = true;
       host.setAttribute("data-coalition-mask", "");
+      host.removeAttribute("data-coalition-accent");
+      host.removeAttribute("data-coalition-accent-color");
       host.setAttribute("data-total-count", "0");
       host.setAttribute("data-sample-count", "0");
       host.setAttribute("data-min-seats", "");
       host.setAttribute("data-max-seats", "");
+      host.style.removeProperty("--egh-accent");
+      host.style.removeProperty("--egh-below-fill");
+      host.style.removeProperty("--egh-below-stroke");
+      host.style.removeProperty("--egh-majority-fill");
+      host.style.removeProperty("--egh-majority-hatch");
+      host.style.removeProperty("--egh-majority-region");
       if (context) context.textContent = "";
       if (textAlternative) textAlternative.textContent = "";
       if (status) {
@@ -1044,6 +1118,10 @@
     var maxSeats = minSeats + counts.length - 1;
     var parties = coalitionParties(builder, mask);
     var partyLabel = parties.length ? parties.join(" + ") : "Inga partier";
+    var accentParty = coalitionAccentParty(builder, mask);
+    var accentColor = (accentParty && partyColors[accentParty]) || "#355f8b";
+    var theme = deriveCoalitionTheme(accentColor);
+
     var majorityCount = counts.reduce(function (sum, count, index) {
       return sum + (minSeats + index >= MAJORITY ? count : 0);
     }, 0);
@@ -1068,12 +1146,33 @@
 
     host.hidden = false;
     host.setAttribute("data-coalition-mask", String(mask));
+    if (accentParty) {
+      host.setAttribute("data-coalition-accent", accentParty);
+      host.setAttribute("data-coalition-accent-color", accentColor);
+    } else {
+      host.removeAttribute("data-coalition-accent");
+      host.removeAttribute("data-coalition-accent-color");
+    }
     host.setAttribute("data-total-count", String(total));
     host.setAttribute("data-sample-count", String(total));
     host.setAttribute("data-min-seats", String(minSeats));
     host.setAttribute("data-max-seats", String(maxSeats));
+    host.style.setProperty("--egh-accent", theme.accent);
+    host.style.setProperty("--egh-below-fill", theme.belowFill);
+    host.style.setProperty("--egh-below-stroke", theme.belowStroke);
+    host.style.setProperty("--egh-majority-fill", theme.majorityFill);
+    host.style.setProperty("--egh-majority-hatch", theme.majorityHatch);
+    host.style.setProperty("--egh-majority-region", theme.majorityRegion);
+
     if (context) {
-      context.textContent = partyLabel + ". Fördelningen visar hur ofta kombinationen hamnar på olika mandatnivåer i simuleringarna.";
+      var chipsHtml = parties.map(function (party) {
+        return "<span class=\"egh-histogram__party-chip\" style=\"background:" +
+          (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>";
+      }).join("");
+      context.innerHTML =
+        "<span class=\"egh-histogram__party-chips\" aria-hidden=\"true\">" + chipsHtml + "</span>" +
+        "<span class=\"egh-histogram__party-label\">" + escapeHtml(partyLabel) + "</span>" +
+        ". Fördelningen visar hur ofta kombinationen hamnar på olika mandatnivåer i simuleringarna.";
     }
     if (status) {
       status.textContent = "";
@@ -1096,9 +1195,6 @@
     svg.appendChild(svgNode("desc", { id: "election-government-histogram-description" }, description));
 
     var defs = svgNode("defs", {});
-    var majorityFill = "#6f8eaf";
-    var majorityHatch = "#385977";
-    var belowFill = "#c5d0d9";
     var pattern = svgNode("pattern", {
       id: patternId,
       patternUnits: "userSpaceOnUse",
@@ -1108,13 +1204,13 @@
     pattern.appendChild(svgNode("rect", {
       width: "8",
       height: "8",
-      fill: majorityFill,
+      fill: theme.majorityFill,
       opacity: "0.82"
     }));
     pattern.appendChild(svgNode("path", {
       d: "M-2,2 L2,-2 M0,8 L8,0 M6,10 L10,6",
       class: "egh-hatch",
-      stroke: majorityHatch
+      stroke: theme.majorityHatch
     }));
     defs.appendChild(pattern);
     svg.appendChild(defs);
@@ -1137,7 +1233,7 @@
     if (majorityWidth > 0) {
       svg.appendChild(svgNode("rect", {
         x: thresholdX, y: plot.top, width: majorityWidth, height: plot.height,
-        class: "egh-majority-region", "aria-hidden": "true"
+        class: "egh-majority-region", fill: theme.majorityRegion, "aria-hidden": "true"
       }));
     }
     if (thresholdX > plot.left) {
@@ -1171,8 +1267,8 @@
         width: Math.max(0.2, binWidth - gap * 2),
         height: height,
         class: "egh-bin__bar",
-        fill: reachesMajority ? "url(#" + patternId + ")" : belowFill,
-        stroke: reachesMajority ? majorityHatch : "#718494",
+        fill: reachesMajority ? "url(#" + patternId + ")" : theme.belowFill,
+        stroke: reachesMajority ? theme.majorityHatch : theme.belowStroke,
         "stroke-width": "0.7",
         "aria-hidden": "true"
       }));

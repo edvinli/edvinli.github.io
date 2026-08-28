@@ -690,6 +690,44 @@ async function syntheticSchema13Site() {
   return { root, pointer: await pointerFor(root, SYNTHETIC_1_3) };
 }
 
+const PARTY_COLORS = {
+  M: '#213A8F', L: '#006AB3', C: '#2B8569', KD: '#01263E',
+  S: '#ED1B34', V: '#A81420', MP: '#4C983E', SD: '#A87F00', REST: '#8A8A8A'
+};
+
+function hexToRgb(hex) {
+  const v = String(hex || '').replace('#', '');
+  return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
+}
+
+function rgbToHex(r, g, b) {
+  const clamp = (x) => Math.max(0, Math.min(255, Math.round(x)));
+  return '#' + [clamp(r), clamp(g), clamp(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+function mixColors(c1, c2, w1 = 0.5) {
+  const rgb1 = hexToRgb(c1);
+  const rgb2 = hexToRgb(c2);
+  const w2 = 1 - w1;
+  return rgbToHex(
+    rgb1[0] * w1 + rgb2[0] * w2,
+    rgb1[1] * w1 + rgb2[1] * w2,
+    rgb1[2] * w1 + rgb2[2] * w2
+  );
+}
+
+function expectedCoalitionTheme(accentHex) {
+  const hex = accentHex || '#355f8b';
+  return {
+    accent: hex,
+    belowFill: mixColors(hex, '#f4f5f7', 0.18),
+    belowStroke: mixColors(hex, '#768390', 0.45),
+    majorityFill: mixColors(hex, '#ffffff', 0.58),
+    majorityHatch: mixColors(hex, '#000000', 0.72),
+    majorityRegion: mixColors(hex, '#ffffff', 0.08)
+  };
+}
+
 const readHistogram = (browser) => browser.evaluate(() => {
   const flat = (value) => value.replace(/[\t\n\r ]+/g, ' ').trim();
   const host = document.getElementById('election-government-histogram');
@@ -698,6 +736,12 @@ const readHistogram = (browser) => browser.evaluate(() => {
   const threshold = document.querySelector('#election-government-histogram-svg .egh-threshold');
   const thresholdLabel = document.querySelector('#election-government-histogram-svg .egh-threshold__label');
   const axisTick = document.querySelector('#election-government-histogram-svg .egh-axis__tick');
+  const keyBelow = document.querySelector('#election-government-histogram .egh-histogram__key-mark--below');
+  const keyMajority = document.querySelector('#election-government-histogram .egh-histogram__key-mark--majority');
+  const chips = Array.from(document.querySelectorAll('#election-government-histogram .egh-histogram__party-chip'));
+  const pattern = svg ? svg.querySelector('defs pattern') : null;
+  const patternRect = pattern ? pattern.querySelector('rect') : null;
+  const patternPath = pattern ? pattern.querySelector('path') : null;
   const svgRect = svg ? svg.getBoundingClientRect() : null;
   const labelRect = thresholdLabel ? thresholdLabel.getBoundingClientRect() : null;
   const scaleOf = (element) => {
@@ -708,6 +752,28 @@ const readHistogram = (browser) => browser.evaluate(() => {
     appStatus: document.getElementById('election-app-status') ? document.getElementById('election-app-status').textContent : null,
     hidden: !host || host.hidden,
     mask: host ? host.getAttribute('data-coalition-mask') : null,
+    accentParty: host ? host.getAttribute('data-coalition-accent') : null,
+    accentColor: host ? host.getAttribute('data-coalition-accent-color') : null,
+    accentVar: host ? host.style.getPropertyValue('--egh-accent') : null,
+    belowFillVar: host ? host.style.getPropertyValue('--egh-below-fill') : null,
+    belowStrokeVar: host ? host.style.getPropertyValue('--egh-below-stroke') : null,
+    majorityFillVar: host ? host.style.getPropertyValue('--egh-majority-fill') : null,
+    majorityHatchVar: host ? host.style.getPropertyValue('--egh-majority-hatch') : null,
+    majorityRegionVar: host ? host.style.getPropertyValue('--egh-majority-region') : null,
+    patternId: pattern ? pattern.id : null,
+    patternFill: patternRect ? patternRect.getAttribute('fill') : null,
+    patternStroke: patternPath ? patternPath.getAttribute('stroke') : null,
+    keyBelowStyle: keyBelow ? {
+      bg: getComputedStyle(keyBelow).backgroundColor,
+      border: getComputedStyle(keyBelow).borderColor,
+    } : null,
+    keyMajorityStyle: keyMajority ? {
+      bg: getComputedStyle(keyMajority).backgroundColor,
+      border: getComputedStyle(keyMajority).borderColor,
+    } : null,
+    chips: chips.map((c) => ({
+      bg: c.style.backgroundColor || c.style.background,
+    })),
     total: host ? Number(host.getAttribute('data-total-count')) : null,
     minSeats: host ? Number(host.getAttribute('data-min-seats')) : null,
     maxSeats: host ? Number(host.getAttribute('data-max-seats')) : null,
@@ -725,11 +791,13 @@ const readHistogram = (browser) => browser.evaluate(() => {
       mask: bin.getAttribute('data-coalition-mask'),
       label: bin.getAttribute('aria-label'),
       fill: bin.querySelector('.egh-bin__bar')?.getAttribute('fill') || null,
+      stroke: bin.querySelector('.egh-bin__bar')?.getAttribute('stroke') || null,
     })),
     threshold: threshold ? {
       seat: Number(threshold.getAttribute('data-seat')),
       dash: threshold.getAttribute('stroke-dasharray'),
       label: threshold.getAttribute('aria-label'),
+      stroke: getComputedStyle(threshold).stroke,
     } : null,
     thresholdLabelVisible: Boolean(labelRect && svgRect &&
       labelRect.left >= svgRect.left - 1 && labelRect.right <= svgRect.right + 1),
@@ -773,12 +841,23 @@ async function schema13Histogram(viewport, synthetic) {
     const expectedBins = expected.seat_histogram.counts.map((count, index) => ({
       seat: expected.seat_histogram.min_seats + index, count,
     }));
+    const sdTheme = expectedCoalitionTheme(PARTY_COLORS.SD);
+
     eq('histogram heading is exact Swedish copy', rendered.heading, 'Mandatfördelning i 100 000 simuleringar');
     check('histogram context stays concise and coalition-specific',
       rendered.context === 'M + L + KD + SD. Fördelningen visar hur ofta kombinationen hamnar på olika mandatnivåer i simuleringarna.',
       rendered.context);
     check('histogram is visible after selecting a government', !rendered.hidden, JSON.stringify(rendered));
     eq('histogram resolves the government/support union mask', rendered.mask, String(UNION_MASK));
+    eq('mask 139 resolves to SD accent party', rendered.accentParty, 'SD');
+    eq('mask 139 resolves to SD party color', rendered.accentColor, PARTY_COLORS.SD);
+    eq('mask 139 accent CSS property set', rendered.accentVar, PARTY_COLORS.SD);
+    eq('mask 139 belowFill CSS property matches derived SD theme', rendered.belowFillVar, sdTheme.belowFill);
+    eq('mask 139 majorityFill CSS property matches derived SD theme', rendered.majorityFillVar, sdTheme.majorityFill);
+    eq('mask 139 majorityHatch CSS property matches derived SD theme', rendered.majorityHatchVar, sdTheme.majorityHatch);
+    eq('mask 139 has 4 party chips in context', rendered.chips.length, 4);
+    eq('mask 139 pattern fill uses derived SD majorityFill', rendered.patternFill, sdTheme.majorityFill);
+    eq('mask 139 pattern stroke uses derived SD majorityHatch', rendered.patternStroke, sdTheme.majorityHatch);
     eq('histogram total is the published sample count', rendered.total, SYNTHETIC_ROWS.length);
     eq('rendered bin count matches contiguous published support', rendered.bins.length, expectedBins.length);
     eq('rendered seats and counts match the published bins',
@@ -790,19 +869,23 @@ async function schema13Histogram(viewport, synthetic) {
     check('bins below and above majority are classified correctly',
       rendered.bins.every((bin) => bin.majority === (bin.seat >= MAJORITY ? 'majority' : 'below')),
       JSON.stringify(rendered.bins));
-    eq('threshold is a dashed line at 175', rendered.threshold,
+    eq('threshold is a dashed line at 175',
+      { seat: rendered.threshold.seat, dash: rendered.threshold.dash, label: rendered.threshold.label },
       { seat: MAJORITY, dash: '6 5', label: 'Majoritetsgräns: 175 mandat' });
+    check('threshold line stroke is neutral and not coalition colored',
+      rendered.threshold.stroke !== PARTY_COLORS.SD && rendered.threshold.stroke !== PARTY_COLORS.S,
+      rendered.threshold.stroke);
     eq('displayed majority probability comes from the histogram',
       rendered.bins.filter((bin) => bin.seat >= MAJORITY).reduce((sum, bin) => sum + bin.count, 0) / rendered.total,
       expected.prob_majority);
     check('each bin has an accessible exact-frequency label',
       rendered.bins.every((bin) => bin.label.includes(`${bin.seat} mandat`) && bin.label.includes('simuleringar')),
       JSON.stringify(rendered.bins.slice(0, 2)));
-    check('histogram uses restrained below/majority visual encodings',
+    check('histogram uses restrained derived below/majority visual encodings',
       rendered.bins.filter((bin) => bin.count > 0).every((bin) =>
         bin.majority === 'majority'
-          ? bin.fill.includes('egh-majority-hatch')
-          : bin.fill === '#c5d0d9'),
+          ? bin.fill.includes('egh-majority-hatch') && bin.stroke === sdTheme.majorityHatch
+          : bin.fill === sdTheme.belowFill && bin.stroke === sdTheme.belowStroke),
       JSON.stringify(rendered.bins));
     check('histogram has no party rainbow legend',
       !rendered.hasCoalitionKey, 'unexpected coalition colour key');
@@ -842,12 +925,66 @@ async function schema13Histogram(viewport, synthetic) {
     const replaced = await readHistogram(browser);
     const replacedExpected = table[String(GOVERNMENT_MASK)];
     eq('selecting another coalition replaces the histogram mask', replaced.mask, String(GOVERNMENT_MASK));
+    eq('mask 137 resolves to SD accent party', replaced.accentParty, 'SD');
+    eq('mask 137 has 3 party chips in context', replaced.chips.length, 3);
     eq('selecting another coalition replaces every bin',
       replaced.bins.map(({ seat, count }) => ({ seat, count })),
       replacedExpected.seat_histogram.counts.map((count, index) => ({
         seat: replacedExpected.seat_histogram.min_seats + index, count,
       })));
     eq('replacement total remains the published sample count', replaced.total, SYNTHETIC_ROWS.length);
+
+    // Test S + V + MP (mask 112)
+    for (const party of ['M', 'KD', 'SD']) {
+      check(`move ${party} back to pool`, (await moveParty(browser, party, 'pool')).moved);
+    }
+    for (const party of ['S', 'V']) {
+      check(`move ${party} into Regering for mask 112`, (await moveParty(browser, party, 'government')).moved);
+    }
+    check('move MP into Stödpartier for mask 112', (await moveParty(browser, 'MP', 'support')).moved);
+
+    const sCoalition = await readHistogram(browser);
+    const expected112 = table['112'];
+    const sTheme = expectedCoalitionTheme(PARTY_COLORS.S);
+    eq('mask 112 resolves to S accent party', sCoalition.accentParty, 'S');
+    eq('mask 112 resolves to S party color', sCoalition.accentColor, PARTY_COLORS.S);
+    eq('mask 112 accent CSS property set', sCoalition.accentVar, PARTY_COLORS.S);
+    eq('mask 112 belowFill CSS property matches derived S theme', sCoalition.belowFillVar, sTheme.belowFill);
+    eq('mask 112 majorityFill CSS property matches derived S theme', sCoalition.majorityFillVar, sTheme.majorityFill);
+    eq('mask 112 majorityHatch CSS property matches derived S theme', sCoalition.majorityHatchVar, sTheme.majorityHatch);
+    eq('mask 112 has 3 party chips in context', sCoalition.chips.length, 3);
+    eq('mask 112 pattern fill uses derived S majorityFill', sCoalition.patternFill, sTheme.majorityFill);
+    eq('mask 112 pattern stroke uses derived S majorityHatch', sCoalition.patternStroke, sTheme.majorityHatch);
+    check('mask 112 bins use S derived theme',
+      sCoalition.bins.filter((bin) => bin.count > 0).every((bin) =>
+        bin.majority === 'majority'
+          ? bin.fill.includes('egh-majority-hatch') && bin.stroke === sTheme.majorityHatch
+          : bin.fill === sTheme.belowFill && bin.stroke === sTheme.belowStroke),
+      JSON.stringify(sCoalition.bins));
+    eq('mask 112 total samples match published count', sCoalition.total, SYNTHETIC_ROWS.length);
+    eq('mask 112 majority probability matches histogram',
+      sCoalition.bins.filter((bin) => bin.seat >= MAJORITY).reduce((sum, bin) => sum + bin.count, 0) / sCoalition.total,
+      expected112.prob_majority);
+
+    // Test single-party coalition S (mask 16)
+    check('move V back to pool for single S', (await moveParty(browser, 'V', 'pool')).moved);
+    check('move MP back to pool for single S', (await moveParty(browser, 'MP', 'pool')).moved);
+    const singleS = await readHistogram(browser);
+    eq('single party S resolves to S accent', singleS.accentParty, 'S');
+    eq('single party S accent color is S color', singleS.accentColor, PARTY_COLORS.S);
+    eq('single party S has 1 chip in context', singleS.chips.length, 1);
+
+    // Test C + S + MP (mask 84)
+    check('move C into Regering for mask 84', (await moveParty(browser, 'C', 'government')).moved);
+    check('move MP into Stödpartier for mask 84', (await moveParty(browser, 'MP', 'support')).moved);
+    const csmCoalition = await readHistogram(browser);
+    const expected84 = table['84'];
+    eq('mask 84 resolves to S accent party', csmCoalition.accentParty, 'S');
+    eq('mask 84 resolves to S party color', csmCoalition.accentColor, PARTY_COLORS.S);
+    eq('mask 84 has 3 chips in context', csmCoalition.chips.length, 3);
+    eq('mask 84 majority probability matches histogram',
+      csmCoalition.bins.filter((bin) => bin.seat >= MAJORITY).reduce((sum, bin) => sum + bin.count, 0) / csmCoalition.total,
+      expected84.prob_majority);
 
     const overflow = await readOverflow(browser);
     eq('histogram page does not scroll sideways', overflow.documentScrollWidth <= overflow.clientWidth, true);

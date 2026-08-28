@@ -1240,6 +1240,22 @@ canvas {
   max-width: 68ch;
 }
 
+.egh-histogram__party-chips {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.22rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.05rem;
+}
+
+.egh-histogram__party-chip {
+  border-radius: 2px;
+  display: inline-block;
+  flex: none;
+  height: 0.62rem;
+  width: 0.62rem;
+}
+
 .egh-histogram__key {
   align-items: center;
   color: var(--el-muted);
@@ -1265,17 +1281,17 @@ canvas {
 }
 
 .egh-histogram__key-mark--below {
-  background: #c5d0d9;
-  border-color: #718494;
+  background-color: var(--egh-below-fill, #c5d0d9);
+  border-color: var(--egh-below-stroke, #718494);
 }
 
 .egh-histogram__key-mark--majority {
-  background-color: #6f8eaf;
-  border-color: #385977;
+  background-color: var(--egh-majority-fill, #6f8eaf);
+  border-color: var(--egh-majority-hatch, #385977);
   background-image: repeating-linear-gradient(
     45deg,
-    #385977 0,
-    #385977 1px,
+    var(--egh-majority-hatch, #385977) 0,
+    var(--egh-majority-hatch, #385977) 1px,
     transparent 1px,
     transparent 5px
   );
@@ -1329,7 +1345,7 @@ canvas {
 }
 
 .egh-majority-region {
-  fill: #e8eff5;
+  fill: var(--egh-majority-region, #e8eff5);
   opacity: 0.62;
 }
 
@@ -1374,7 +1390,7 @@ canvas {
 
 .egh-threshold {
   fill: none;
-  stroke: #355f8b;
+  stroke: var(--el-ink-soft, #4f4a43);
   stroke-width: 1.6;
 }
 
@@ -2018,6 +2034,8 @@ canvas {
   .ep-legend__swatch,
   .eg-pill__swatch,
   .eg-party__swatch,
+  .egh-histogram__party-chip,
+  .egh-histogram__key-mark,
   .eg-bar__segment,
   .eg-bar__segment--support::after {
     forced-color-adjust: none;
