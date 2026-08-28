@@ -14,7 +14,7 @@
   // is never the sole encoding: every mark is accompanied by a party label.
   // ---------------------------------------------------------------------
   var partyColors = {
-    M: "#213A8F", L: "#006AB3", C: "#114838", KD: "#01263E",
+    M: "#213A8F", L: "#006AB3", C: "#2B8569", KD: "#01263E",
     S: "#ED1B34", V: "#A81420", MP: "#4C983E", SD: "#A87F00", REST: "#8A8A8A"
   };
   var partyNames = {
