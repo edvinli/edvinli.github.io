@@ -1,3 +1,4 @@
+# Jekyll build output
 _site/
 
 # Local Jekyll/Ruby state
@@ -6,22 +7,23 @@ _site/
 .sass-cache/
 vendor/bundle/
 
-# Python data-pipeline state
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.coverage
-htmlcov/
-.venv/
-venv/
-*.egg-info/
-
-
-# OS/editor files and interrupted atomic downloads
+# OS/editor files
 .DS_Store
 *.swp
-data/raw/pollofpolls/.staging/
-data/raw/pollofpolls/*.tmp
+
+# Stray copies of the election-simulator development tree. The model, its
+# datasets and its documentation live in
+# https://github.com/edvinli/election-simulator and must not be committed here.
+/scripts/
+/data/
+/docs/
+/tests/
+/Makefile
+/pyproject.toml
+/uv.lock
+__pycache__/
+*.py[cod]
+.venv/
 
 # Raw race data may contain personal data (names, bibs). Only anonymized
 # JSON (gender/age/group/time, no identifiers) belongs in assets/data/.

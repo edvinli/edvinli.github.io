@@ -122,19 +122,27 @@ include:
   - _pages
   - files
 exclude:
+  # Editor / build caches
   - "*.sublime-project"
   - "*.sublime-workspace"
   - .asset-cache
   - .bundle
   - .jekyll-assets-cache
+  - .jekyll-cache
   - .sass-cache
+  # Repository meta files (not part of the published site)
   - CHANGELOG
+  - CHANGELOG.md
+  - CONTRIBUTING.md
   - Capfile
   - Gemfile
+  - Gemfile.lock
   - Gruntfile.js
   - LICENSE
   - README
+  - README.md
   - Rakefile
+  # Theme source that is bundled into assets/js/main.min.js
   - assets/js/_main.js
   - assets/js/plugins
   - assets/js/vendor
@@ -145,6 +153,24 @@ exclude:
   - package.json
   - tmp
   - vendor
+  # Election-simulator development tree. The model, its datasets and its
+  # documentation live in https://github.com/edvinli/election-simulator.
+  # These entries stay here so that a stray local copy is never published.
+  - scripts
+  - data
+  - docs
+  - tests
+  - Makefile
+  - pyproject.toml
+  - uv.lock
+  - poetry.lock
+  - requirements.txt
+  - "*.egg-info"
+  - .venv
+  - venv
+  - __pycache__
+  - .pytest_cache
+  - .ruff_cache
 keep_files:
   - .git
   - .svn
