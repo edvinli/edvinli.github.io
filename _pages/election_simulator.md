@@ -76,6 +76,7 @@ excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat
       <article id="election-government-alone-result" class="eg-builder__result-card" hidden></article>
       <article id="election-government-support-result" class="eg-builder__result-card" hidden></article>
     </div>
+    <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="eg-builder__disclaimer">This is the probability that the selected parties jointly win at least 175 seats — not the probability that they form a government.</p>
   </section>
   <section id="election-groups" class="election-panel" hidden>

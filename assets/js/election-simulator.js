@@ -865,6 +865,7 @@
             supportResult.setAttribute("data-coalition-mask", "");
           }
         }
+        setText("election-government-announcement", "Select at least one government party to see the joint seat distribution.");
         return;
       }
 
@@ -872,10 +873,16 @@
       if (results) results.hidden = false;
       var governmentEntry = coalitionLookup(builder, governmentMask);
       var governmentParties = coalitionParties(builder, governmentMask).join(" + ");
+      var announcements = [];
       if (aloneResult && governmentEntry) {
         aloneResult.hidden = false;
         aloneResult.setAttribute("data-coalition-mask", String(governmentMask));
         aloneResult.innerHTML = governmentResultMarkup(governmentEntry, "Government parties", "", governmentParties);
+        announcements.push("Government parties " + governmentParties + ". Median " +
+          format(governmentEntry.median_seats, 0) + " seats; 90% predictive interval " +
+          rangeText(governmentEntry.p05_seats, governmentEntry.p95_seats, 0) +
+          " seats; chance of " + MAJORITY + " or more seats " +
+          probability(governmentEntry.prob_majority) + ".");
       }
 
       if (supportMask) {
@@ -891,6 +898,12 @@
             "Government + support",
             coalitionParties(builder, unionMask).join(" + ")
           );
+          announcements.push("With support from " + supportParties + ". Government plus support " +
+            coalitionParties(builder, unionMask).join(" + ") + ". Median " +
+            format(unionEntry.median_seats, 0) + " seats; 90% predictive interval " +
+            rangeText(unionEntry.p05_seats, unionEntry.p95_seats, 0) +
+            " seats; chance of " + MAJORITY + " or more seats " +
+            probability(unionEntry.prob_majority) + ".");
         }
       } else if (supportResult) {
         supportResult.hidden = true;
@@ -901,6 +914,7 @@
         }
         supportResult.innerHTML = "";
       }
+      setText("election-government-announcement", announcements.join(" "));
     }
 
     function render() {
