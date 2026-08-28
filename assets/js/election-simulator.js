@@ -1218,12 +1218,12 @@
     for (var tick = tickStart; tick <= tickEnd; tick += 5) axisValues.push(tick);
     axisValues.push(MAJORITY);
     // The padded domain gives the bars breathing room.  Only add an edge
-    // label when it is not within three seats of a regular five-seat tick;
+    // label when it is not within five seats of a regular five-seat tick;
     // this prevents 162/165-style collisions on a phone-width SVG.
-    if (!axisValues.some(function (value) { return Math.abs(value - domainStart) <= 3; })) {
+    if (!axisValues.some(function (value) { return Math.abs(value - domainStart) <= 5; })) {
       axisValues.push(domainStart);
     }
-    if (!axisValues.some(function (value) { return Math.abs(value - domainEnd) <= 3; })) {
+    if (!axisValues.some(function (value) { return Math.abs(value - domainEnd) <= 5; })) {
       axisValues.push(domainEnd);
     }
     axisValues.sort(function (a, b) { return a - b; });
@@ -1263,6 +1263,8 @@
       y: plot.top - 17,
       class: "egh-threshold__label",
       "text-anchor": "middle",
+      textLength: "220",
+      lengthAdjust: "spacingAndGlyphs",
       "data-seat": String(MAJORITY)
     }, "Majoritetsgräns: 175 mandat"));
 
