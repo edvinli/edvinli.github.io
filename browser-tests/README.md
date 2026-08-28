@@ -29,7 +29,7 @@ real browser.
 ## Running
 
 ```sh
-bundle exec jekyll build --config _config.yml,_config.dev.yml
+jekyll build --config _config.yml,_config.dev.yml
 node browser-tests/government-builder.smoke.mjs            # defaults to ./_site
 node browser-tests/government-builder.smoke.mjs path/to/_site
 ```
