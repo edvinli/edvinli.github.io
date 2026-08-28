@@ -56,6 +56,28 @@ excerpt: "A transparent Swedish Riksdag forecast with predictive intervals, seat
     </div>
     <ul id="election-parliament-legend" class="ep-legend"></ul>
   </section>
+  <section id="election-government-builder" class="election-panel" hidden>
+    <div class="election-panel__head">
+      <h2>Build your own government</h2>
+      <p class="election-muted">Select parties to see how many seats they hold together across the simulated election outcomes.</p>
+    </div>
+    <div class="eg-builder__roles">
+      <fieldset class="eg-builder__fieldset">
+        <legend>Government parties</legend>
+        <div id="election-government-parties" class="eg-builder__chips" aria-label="Government parties"></div>
+      </fieldset>
+      <fieldset class="eg-builder__fieldset">
+        <legend>Parliamentary support <span class="eg-builder__optional">optional</span></legend>
+        <div id="election-support-parties" class="eg-builder__chips" aria-label="Parliamentary support"></div>
+      </fieldset>
+    </div>
+    <p id="election-government-empty" class="eg-builder__empty" hidden>Select at least one government party to see the joint seat distribution.</p>
+    <div id="election-government-results" class="eg-builder__results" hidden>
+      <article id="election-government-alone-result" class="eg-builder__result-card" hidden></article>
+      <article id="election-government-support-result" class="eg-builder__result-card" hidden></article>
+    </div>
+    <p class="eg-builder__disclaimer">This is the probability that the selected parties jointly win at least 175 seats — not the probability that they form a government.</p>
+  </section>
   <section id="election-groups" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Majority scenarios</h2>

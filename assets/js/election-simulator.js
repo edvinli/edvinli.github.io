@@ -35,6 +35,12 @@
   var MAJORITY = 175;
   var CHAMBER = 349;
   var EN_DASH = "\u2013";
+  var COALITION_PARTY_ORDER = ["M", "L", "C", "KD", "S", "V", "MP", "SD"];
+  var COALITION_FIELDS = [
+    "mean_seats", "median_seats", "p05_seats", "p10_seats", "p25_seats",
+    "p75_seats", "p90_seats", "p95_seats", "prob_majority"
+  ];
+  var COALITION_ENTRY_FIELDS = ["mask", "parties"].concat(COALITION_FIELDS);
 
   // =====================================================================
   // FROZEN PUBLICATION SUBSYSTEM
@@ -682,7 +688,241 @@
   }
 
   // ---------------------------------------------------------------------
-  // 4. Government / bloc probabilities
+  // 4. Build your own government
+  //
+  // This view is deliberately lookup-only.  The published coalition_builder
+  // contains summaries calculated from the simulator's joint seats_matrix;
+  // the browser only resolves a selected bitmask and formats those values.
+  // ---------------------------------------------------------------------
+  function validCoalitionBuilder(builder) {
+    var builderFields = ["party_order", "encoding", "majority_threshold", "coalitions"];
+    if (!builder || typeof builder !== "object" ||
+        Object.keys(builder).length !== builderFields.length ||
+        !builderFields.every(function (field, index) {
+          return Object.keys(builder)[index] === field;
+        }) ||
+        builder.encoding !== "bitmask" ||
+        builder.majority_threshold !== MAJORITY || !Array.isArray(builder.party_order) ||
+        builder.party_order.length !== COALITION_PARTY_ORDER.length ||
+        !builder.party_order.every(function (party, index) {
+          return party === COALITION_PARTY_ORDER[index];
+        })) {
+      return false;
+    }
+
+    var coalitions = builder.coalitions;
+    if (!coalitions || typeof coalitions !== "object" || Array.isArray(coalitions) ||
+        Object.keys(coalitions).length !== 256 ||
+        !Object.keys(coalitions).every(function (key, index) {
+          return key === String(index);
+        })) {
+      return false;
+    }
+
+    for (var mask = 0; mask < 256; mask += 1) {
+      var entry = coalitions[String(mask)];
+      if (!entry || typeof entry !== "object" || entry.mask !== mask ||
+          !Array.isArray(entry.parties) ||
+          Object.keys(entry).length !== COALITION_ENTRY_FIELDS.length ||
+          !COALITION_ENTRY_FIELDS.every(function (field, index) {
+            return Object.keys(entry)[index] === field;
+          })) {
+        return false;
+      }
+      var expectedParties = builder.party_order.filter(function (party, index) {
+        return (mask & (1 << index)) !== 0;
+      });
+      if (entry.parties.length !== expectedParties.length ||
+          !entry.parties.every(function (party, index) {
+            return party === expectedParties[index];
+          })) {
+        return false;
+      }
+      for (var fieldIndex = 0; fieldIndex < COALITION_FIELDS.length; fieldIndex += 1) {
+        var field = COALITION_FIELDS[fieldIndex];
+        var value = num(entry[field]);
+        var validNumber = field === "prob_majority" || field === "mean_seats"
+          ? typeof entry[field] === "number" && Number.isFinite(entry[field])
+          : Number.isInteger(entry[field]);
+        if (!validNumber || value === null || (field === "prob_majority"
+          ? value < 0 || value > 1
+          : value < 0 || value > CHAMBER)) {
+          return false;
+        }
+      }
+      var quantiles = [entry.p05_seats, entry.p10_seats, entry.p25_seats,
+        entry.median_seats, entry.p75_seats, entry.p90_seats, entry.p95_seats];
+      if (!quantiles.every(function (value, index) {
+        return index === 0 || value >= quantiles[index - 1];
+      })) {
+        return false;
+      }
+      if (mask === 0 && (entry.mean_seats !== 0 || entry.median_seats !== 0 ||
+          entry.p05_seats !== 0 || entry.p10_seats !== 0 || entry.p25_seats !== 0 ||
+          entry.p75_seats !== 0 || entry.p90_seats !== 0 || entry.p95_seats !== 0 ||
+          entry.prob_majority !== 0)) {
+        return false;
+      }
+      if (mask === 255 && (entry.mean_seats !== CHAMBER || entry.median_seats !== CHAMBER ||
+          entry.p05_seats !== CHAMBER || entry.p10_seats !== CHAMBER || entry.p25_seats !== CHAMBER ||
+          entry.p75_seats !== CHAMBER || entry.p90_seats !== CHAMBER || entry.p95_seats !== CHAMBER ||
+          entry.prob_majority !== 1)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function coalitionLookup(builder, mask) {
+    return builder.coalitions[String(mask)];
+  }
+
+  function coalitionParties(builder, mask) {
+    return builder.party_order.filter(function (party, index) {
+      return (mask & (1 << index)) !== 0;
+    });
+  }
+
+  function governmentResultMarkup(entry, title, combinationLabel, combination) {
+    return "<h3 class=\"eg-builder__result-title\">" + escapeHtml(title) + "</h3>" +
+      (combinationLabel ? "<p class=\"eg-builder__combination-label\">" + escapeHtml(combinationLabel) + "</p>" : "") +
+      "<p class=\"eg-builder__combination\">" + escapeHtml(combination) + "</p>" +
+      "<dl class=\"eg-builder__result-grid\">" +
+        "<div><dt>Median</dt><dd>" + format(entry.median_seats, 0) + " seats</dd></div>" +
+        "<div><dt>90% predictive interval</dt><dd>" + rangeText(entry.p05_seats, entry.p95_seats, 0) + " seats</dd></div>" +
+        "<div><dt>Chance of " + MAJORITY + "+ seats</dt><dd>" + escapeHtml(probability(entry.prob_majority)) + "</dd></div>" +
+      "</dl>";
+  }
+
+  function renderGovernmentBuilder(groups) {
+    var section = byId("election-government-builder");
+    if (!section || !groups || groups.schema_version !== "1.2" ||
+        !validCoalitionBuilder(groups.coalition_builder)) return;
+
+    var builder = groups.coalition_builder;
+    var governmentHost = byId("election-government-parties");
+    var supportHost = byId("election-support-parties");
+    var empty = byId("election-government-empty");
+    var results = byId("election-government-results");
+    var aloneResult = byId("election-government-alone-result");
+    var supportResult = byId("election-government-support-result");
+    var governmentMask = 0;
+    var supportMask = 0;
+    var governmentButtons = {};
+    var supportButtons = {};
+
+    function buttonLabel(role, party, disabled) {
+      var label = role + ": " + (partyNames[party] || party) + " (" + party + ")";
+      return disabled ? label + "; unavailable because this party is already in government" : label;
+    }
+
+    function renderButtons(host, role, selectedMask, buttons, onClick) {
+      if (!host) return;
+      host.innerHTML = "";
+      builder.party_order.forEach(function (party, index) {
+        var bit = 1 << index;
+        var selected = (selectedMask & bit) !== 0;
+        var disabled = role === "Parliamentary support" && (governmentMask & bit) !== 0;
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "eg-builder__chip" + (selected ? " is-active" : "");
+        button.setAttribute("aria-pressed", selected ? "true" : "false");
+        button.setAttribute("aria-label", buttonLabel(role, party, disabled));
+        button.setAttribute("data-party", party);
+        button.setAttribute("data-mask", String(bit));
+        if (disabled) {
+          button.disabled = true;
+          button.setAttribute("aria-disabled", "true");
+        }
+        button.innerHTML =
+          "<span class=\"eg-builder__chip-swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>" +
+          "<span>" + escapeHtml(party) + "</span>";
+        button.addEventListener("click", function () { onClick(bit); });
+        buttons[party] = button;
+        host.appendChild(button);
+      });
+    }
+
+    function renderResults() {
+      if (!governmentMask) {
+        if (empty) empty.hidden = false;
+        if (results) results.hidden = true;
+        if (aloneResult) {
+          aloneResult.hidden = true;
+          aloneResult.innerHTML = "";
+          if (typeof aloneResult.removeAttribute === "function") {
+            aloneResult.removeAttribute("data-coalition-mask");
+          } else {
+            aloneResult.setAttribute("data-coalition-mask", "");
+          }
+        }
+        if (supportResult) {
+          supportResult.hidden = true;
+          supportResult.innerHTML = "";
+          if (typeof supportResult.removeAttribute === "function") {
+            supportResult.removeAttribute("data-coalition-mask");
+          } else {
+            supportResult.setAttribute("data-coalition-mask", "");
+          }
+        }
+        return;
+      }
+
+      if (empty) empty.hidden = true;
+      if (results) results.hidden = false;
+      var governmentEntry = coalitionLookup(builder, governmentMask);
+      var governmentParties = coalitionParties(builder, governmentMask).join(" + ");
+      if (aloneResult && governmentEntry) {
+        aloneResult.hidden = false;
+        aloneResult.setAttribute("data-coalition-mask", String(governmentMask));
+        aloneResult.innerHTML = governmentResultMarkup(governmentEntry, "Government parties", "", governmentParties);
+      }
+
+      if (supportMask) {
+        var unionMask = governmentMask | supportMask;
+        var unionEntry = coalitionLookup(builder, unionMask);
+        var supportParties = coalitionParties(builder, supportMask).join(" + ");
+        if (supportResult && unionEntry) {
+          supportResult.hidden = false;
+          supportResult.setAttribute("data-coalition-mask", String(unionMask));
+          supportResult.innerHTML = governmentResultMarkup(
+            unionEntry,
+            "With support from " + supportParties,
+            "Government + support",
+            coalitionParties(builder, unionMask).join(" + ")
+          );
+        }
+      } else if (supportResult) {
+        supportResult.hidden = true;
+        if (typeof supportResult.removeAttribute === "function") {
+          supportResult.removeAttribute("data-coalition-mask");
+        } else {
+          supportResult.setAttribute("data-coalition-mask", "");
+        }
+        supportResult.innerHTML = "";
+      }
+    }
+
+    function render() {
+      renderButtons(governmentHost, "Government parties", governmentMask, governmentButtons, function (bit) {
+        governmentMask = (governmentMask & bit) !== 0 ? governmentMask ^ bit : governmentMask | bit;
+        supportMask &= ~governmentMask;
+        render();
+      });
+      renderButtons(supportHost, "Parliamentary support", supportMask, supportButtons, function (bit) {
+        if ((governmentMask & bit) !== 0) return;
+        supportMask = (supportMask & bit) !== 0 ? supportMask ^ bit : supportMask | bit;
+        render();
+      });
+      renderResults();
+    }
+
+    section.hidden = false;
+    render();
+  }
+
+  // ---------------------------------------------------------------------
+  // 5. Government / bloc probabilities
   // ---------------------------------------------------------------------
   function renderGroups(groups) {
     reveal("election-groups");
@@ -937,6 +1177,7 @@
       renderHeader(data[0], data[5], data[6], publication.pointer);
       renderVotes(data[0], data[1]);
       renderSeats(data[2], Boolean(publication.pointer));
+      renderGovernmentBuilder(data[3]);
       renderGroups(data[3]);
       renderChanges(data[0], data[1]);
       renderValidation(data[4], data[5]);
