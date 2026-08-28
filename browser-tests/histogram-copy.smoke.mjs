@@ -64,6 +64,8 @@ const readCopy = (browser) => browser.evaluate(() => {
   };
   const link = document.querySelector('.eg-summary__histogram-link');
   const histogram = document.getElementById('election-government-histogram');
+  const thresholdText = document.querySelector('.egh-threshold__label');
+  const thresholdBg = document.querySelector('.egh-threshold__label-bg');
   return {
     summaryHidden: document.getElementById('election-government-results').hidden,
     summaryLine: text('.eg-summary__discoverability'),
@@ -76,6 +78,13 @@ const readCopy = (browser) => browser.evaluate(() => {
     statusHidden: document.getElementById('election-government-histogram-status').hidden,
     histogramHidden: histogram.hidden,
     overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    threshold: thresholdText && thresholdBg ? {
+      textLength: thresholdText.getAttribute('textLength'),
+      lengthAdjust: thresholdText.getAttribute('lengthAdjust'),
+      textAnchor: thresholdText.getAttribute('text-anchor'),
+      computedLength: thresholdText.getComputedTextLength ? thresholdText.getComputedTextLength() : 0,
+      bgWidth: Number(thresholdBg.getAttribute('width')),
+    } : null,
   };
 });
 
@@ -182,6 +191,12 @@ async function desktop() {
       reached.targetVisible && reached.scrollY > 0 && reached.targetTop > -80 && reached.targetTop < 140,
       reached);
 
+    check('the threshold label has no forced textLength', copy.threshold?.textLength === null, copy.threshold);
+    check('the threshold label has no forced lengthAdjust', copy.threshold?.lengthAdjust === null, copy.threshold);
+    equal('the threshold label is middle anchored', copy.threshold?.textAnchor, 'middle');
+    check('the threshold background wraps natural text width with padding',
+      (copy.threshold?.bgWidth || 0) > (copy.threshold?.computedLength || 0), copy.threshold);
+
     equal('schema 1.3 has no horizontal overflow', copy.overflow, 0);
     equal('schema 1.3 has no console errors', appErrors(browser), []);
     equal('schema 1.3 has no uncaught exceptions', browser.exceptions, []);
@@ -198,6 +213,10 @@ async function mobile() {
     for (const party of ['S', 'V', 'MP']) check(`${party} selects on mobile`, await dragParty(browser, party));
     const copy = await readCopy(browser);
     check('the mobile summary link is visible', copy.linkHref === HISTOGRAM_LINK, copy);
+    check('the mobile threshold label has no forced textLength', copy.threshold?.textLength === null, copy.threshold);
+    check('the mobile threshold label has no forced lengthAdjust', copy.threshold?.lengthAdjust === null, copy.threshold);
+    check('the mobile threshold background wraps natural text width with padding',
+      (copy.threshold?.bgWidth || 0) > (copy.threshold?.computedLength || 0), copy.threshold);
     check('the mobile page has no horizontal overflow', copy.overflow <= 0, copy.overflow);
     const reached = await clickReachesHistogram(browser);
     check('the mobile link reaches the histogram', reached.targetVisible, reached);

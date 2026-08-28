@@ -1439,21 +1439,42 @@
       class: "egh-threshold", "stroke-dasharray": "6 5", "data-seat": String(MAJORITY),
       "aria-label": "Majoritetsgr\u00e4ns: 175 mandat"
     }));
-    var thresholdLabelX = Math.min(plot.right - 118, Math.max(plot.left + 118, thresholdX + 108));
-    svg.appendChild(svgNode("rect", {
-      x: thresholdLabelX - 116, y: plot.top - 34, width: 232, height: 27, rx: 4,
-      class: "egh-threshold__label-bg", "aria-hidden": "true"
-    }));
-    svg.appendChild(svgNode("text", {
-      // Keep the annotation close to the threshold without obscuring bars.
-      x: thresholdLabelX,
+    var thresholdText = svgNode("text", {
+      x: thresholdX,
       y: plot.top - 17,
       class: "egh-threshold__label",
       "text-anchor": "middle",
-      textLength: "220",
-      lengthAdjust: "spacingAndGlyphs",
       "data-seat": String(MAJORITY)
-    }, "Majoritetsgr\u00e4ns: 175 mandat"));
+    }, "Majoritetsgr\u00e4ns: 175 mandat");
+    svg.appendChild(thresholdText);
+
+    var textWidth = 0;
+    try {
+      if (thresholdText.getComputedTextLength) {
+        textWidth = thresholdText.getComputedTextLength();
+      }
+    } catch (_) {}
+
+    var padX = 14;
+    var isLargeFont = textWidth > 320;
+    var boxWidth = Math.round(textWidth > 30 ? textWidth + padX * 2 : 216);
+    var boxHeight = isLargeFont ? 38 : 27;
+    var boxY = isLargeFont ? plot.top - 44 : plot.top - 34;
+    var halfBox = boxWidth / 2;
+    var thresholdLabelX = Math.round(Math.min(plot.right - halfBox, Math.max(plot.left + halfBox, thresholdX + 108)));
+
+    thresholdText.setAttribute("x", String(thresholdLabelX));
+
+    var thresholdBg = svgNode("rect", {
+      x: thresholdLabelX - halfBox,
+      y: boxY,
+      width: boxWidth,
+      height: boxHeight,
+      rx: 4,
+      class: "egh-threshold__label-bg",
+      "aria-hidden": "true"
+    });
+    svg.insertBefore(thresholdBg, thresholdText);
 
     if (textAlternative) {
       textAlternative.textContent = partyLabel + " fick majoritet i " +
