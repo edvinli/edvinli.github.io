@@ -713,6 +713,8 @@ const readHistogram = (browser) => browser.evaluate(() => {
     maxSeats: host ? Number(host.getAttribute('data-max-seats')) : null,
     heading: host ? flat(host.querySelector('.egh-histogram__title').textContent) : null,
     context: host ? flat(host.querySelector('.egh-histogram__context').textContent) : null,
+    hasCoalitionKey: Boolean(host && host.querySelector('.egh-histogram__key-mark--coalition')),
+    axisLabels: svg ? Array.from(svg.querySelectorAll('.egh-axis__label')).map((label) => Number(label.textContent)) : [],
     description: svg && svg.querySelector('desc') ? flat(svg.querySelector('desc').textContent) : '',
     textAlternative: host ? flat(host.querySelector('#election-government-histogram-text').textContent) : null,
     bins: bins.map((bin) => ({
@@ -724,7 +726,6 @@ const readHistogram = (browser) => browser.evaluate(() => {
       label: bin.getAttribute('aria-label'),
       fill: bin.querySelector('.egh-bin__bar')?.getAttribute('fill') || null,
     })),
-    coalitionKeyStyle: host ? host.querySelector('.egh-histogram__key-mark--coalition')?.getAttribute('style') || '' : '',
     threshold: threshold ? {
       seat: Number(threshold.getAttribute('data-seat')),
       dash: threshold.getAttribute('stroke-dasharray'),
@@ -773,6 +774,9 @@ async function schema13Histogram(viewport, synthetic) {
       seat: expected.seat_histogram.min_seats + index, count,
     }));
     eq('histogram heading is exact Swedish copy', rendered.heading, 'Mandatfördelning i 100 000 simuleringar');
+    check('histogram context stays concise and coalition-specific',
+      rendered.context === 'M + L + KD + SD. Fördelningen visar hur ofta kombinationen hamnar på olika mandatnivåer i simuleringarna.',
+      rendered.context);
     check('histogram is visible after selecting a government', !rendered.hidden, JSON.stringify(rendered));
     eq('histogram resolves the government/support union mask', rendered.mask, String(UNION_MASK));
     eq('histogram total is the published sample count', rendered.total, SYNTHETIC_ROWS.length);
@@ -794,12 +798,17 @@ async function schema13Histogram(viewport, synthetic) {
     check('each bin has an accessible exact-frequency label',
       rendered.bins.every((bin) => bin.label.includes(`${bin.seat} mandat`) && bin.label.includes('simuleringar')),
       JSON.stringify(rendered.bins.slice(0, 2)));
-    check('selected coalition palette colors the histogram bars',
+    check('histogram uses restrained below/majority visual encodings',
       rendered.bins.filter((bin) => bin.count > 0).every((bin) =>
-        bin.fill && (bin.fill.includes('egh-coalition-gradient') || bin.fill.includes('egh-majority-hatch'))),
+        bin.majority === 'majority'
+          ? bin.fill.includes('egh-majority-hatch')
+          : bin.fill === '#c5d0d9'),
       JSON.stringify(rendered.bins));
-    check('coalition palette is explained in the legend',
-      rendered.coalitionKeyStyle.includes('linear-gradient'), rendered.coalitionKeyStyle);
+    check('histogram has no party rainbow legend',
+      !rendered.hasCoalitionKey, 'unexpected coalition colour key');
+    check('histogram includes readable five-seat axis ticks',
+      rendered.axisLabels.some((value) => value % 5 === 0) && rendered.axisLabels.includes(MAJORITY),
+      JSON.stringify(rendered));
     check('histogram has a useful text alternative',
       rendered.description.includes('simuleringar') && rendered.textAlternative.includes('skrafferade'),
       JSON.stringify(rendered));
@@ -809,6 +818,9 @@ async function schema13Histogram(viewport, synthetic) {
         rendered.axisFontSize >= 13 && rendered.thresholdLabelFontSize >= 13 &&
         rendered.effectiveAxisFontSize >= 10 && rendered.effectiveThresholdLabelFontSize >= 10,
         JSON.stringify(rendered));
+    }
+    if (viewport.name === 'desktop') {
+      check('desktop histogram uses the available content width', rendered.svgWidth >= 620, String(rendered.svgWidth));
     }
     const binFocus = await browser.evaluate(() => {
       const bin = document.querySelector('#election-government-histogram-svg .egh-bin');

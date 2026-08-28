@@ -1004,7 +1004,6 @@
     var context = byId("election-government-histogram-context");
     var textAlternative = byId("election-government-histogram-text");
     var status = byId("election-government-histogram-status");
-    var coalitionKey = byId("election-government-histogram-coalition-key");
 
     function clear() {
       host.hidden = true;
@@ -1014,10 +1013,6 @@
       host.setAttribute("data-min-seats", "");
       host.setAttribute("data-max-seats", "");
       if (context) context.textContent = "";
-      if (coalitionKey) {
-        coalitionKey.style.background = "";
-        coalitionKey.removeAttribute("title");
-      }
       if (textAlternative) textAlternative.textContent = "";
       if (status) {
         status.textContent = "";
@@ -1049,27 +1044,22 @@
     var maxSeats = minSeats + counts.length - 1;
     var parties = coalitionParties(builder, mask);
     var partyLabel = parties.length ? parties.join(" + ") : "Inga partier";
-    var coalitionColors = parties.map(function (party) {
-      return partyColors[party] || "#777777";
-    });
-    if (coalitionKey && coalitionColors.length) {
-      coalitionKey.style.background = "linear-gradient(90deg, " + coalitionColors.join(", ") + ")";
-      coalitionKey.setAttribute("title", "Färger för " + partyLabel);
-    }
     var majorityCount = counts.reduce(function (sum, count, index) {
       return sum + (minSeats + index >= MAJORITY ? count : 0);
     }, 0);
     var majorityShare = total > 0 ? majorityCount / total : 0;
     var patternId = "egh-majority-hatch-" + String(mask);
-    // A compact coordinate system keeps axis labels legible when the SVG is
-    // squeezed to a 360px viewport; CSS caps its width so preserveAspectRatio
-    // can keep the typography and bars undistorted on wide screens.
-    var plot = { left: 66, top: 30, width: 338, height: 224 };
+    // The chart uses a broad publication-style coordinate system.  Text is
+    // deliberately sized in SVG units so it remains readable when the same
+    // figure scales down to a 360px viewport.
+    var plot = { left: 108, top: 60, width: 614, height: 230 };
     plot.right = plot.left + plot.width;
     plot.bottom = plot.top + plot.height;
-    var domainStart = Math.min(minSeats, MAJORITY);
-    var domainEnd = Math.max(maxSeats, MAJORITY);
-    var domainSpan = Math.max(1, domainEnd - domainStart + 1);
+    var supportSpan = Math.max(1, maxSeats - minSeats + 1);
+    var padding = Math.max(2, Math.ceil(supportSpan * 0.06));
+    var domainStart = Math.max(0, Math.min(minSeats, MAJORITY) - padding);
+    var domainEnd = Math.min(CHAMBER, Math.max(maxSeats, MAJORITY) + padding);
+    var domainSpan = Math.max(1, domainEnd - domainStart);
     var binWidth = plot.width / domainSpan;
     var thresholdX = plot.left + (MAJORITY - domainStart) * binWidth;
     var peak = counts.reduce(function (highest, count) {
@@ -1083,8 +1073,7 @@
     host.setAttribute("data-min-seats", String(minSeats));
     host.setAttribute("data-max-seats", String(maxSeats));
     if (context) {
-      context.textContent = partyLabel + ". Fördelningen visar mandat för regering och stödpartier tillsammans i " +
-        grouped(total) + " simulerade utfall.";
+      context.textContent = partyLabel + ". Fördelningen visar hur ofta kombinationen hamnar på olika mandatnivåer i simuleringarna.";
     }
     if (status) {
       status.textContent = "";
@@ -1107,22 +1096,9 @@
     svg.appendChild(svgNode("desc", { id: "election-government-histogram-description" }, description));
 
     var defs = svgNode("defs", {});
-    var gradientId = "egh-coalition-gradient-" + String(mask);
-    var gradient = svgNode("linearGradient", {
-      id: gradientId,
-      x1: "0%",
-      y1: "0%",
-      x2: "100%",
-      y2: "0%"
-    });
-    coalitionColors.forEach(function (color, index) {
-      var offset = coalitionColors.length === 1 ? 0 : (index / (coalitionColors.length - 1)) * 100;
-      gradient.appendChild(svgNode("stop", {
-        offset: offset + "%",
-        "stop-color": color
-      }));
-    });
-    defs.appendChild(gradient);
+    var majorityFill = "#6f8eaf";
+    var majorityHatch = "#385977";
+    var belowFill = "#c5d0d9";
     var pattern = svgNode("pattern", {
       id: patternId,
       patternUnits: "userSpaceOnUse",
@@ -1132,18 +1108,19 @@
     pattern.appendChild(svgNode("rect", {
       width: "8",
       height: "8",
-      fill: "url(#" + gradientId + ")",
-      opacity: "0.88"
+      fill: majorityFill,
+      opacity: "0.82"
     }));
     pattern.appendChild(svgNode("path", {
       d: "M-2,2 L2,-2 M0,8 L8,0 M6,10 L10,6",
-      class: "egh-hatch"
+      class: "egh-hatch",
+      stroke: majorityHatch
     }));
     defs.appendChild(pattern);
     svg.appendChild(defs);
 
     var grid = svgNode("g", { class: "egh-grid", "aria-hidden": "true" });
-    var yTicks = [0, 0.5, 1];
+    var yTicks = [0, 0.25, 0.5, 0.75, 1];
     yTicks.forEach(function (fraction) {
       var y = plot.bottom - plot.height * fraction;
       var label = format((peak > 0 ? (peak * fraction / total) * 100 : 0), 1) + NBSP + "%";
@@ -1160,7 +1137,7 @@
     if (majorityWidth > 0) {
       svg.appendChild(svgNode("rect", {
         x: thresholdX, y: plot.top, width: majorityWidth, height: plot.height,
-        class: "egh-majority-region", fill: "url(#" + patternId + ")", "aria-hidden": "true"
+        class: "egh-majority-region", "aria-hidden": "true"
       }));
     }
     if (thresholdX > plot.left) {
@@ -1194,7 +1171,9 @@
         width: Math.max(0.2, binWidth - gap * 2),
         height: height,
         class: "egh-bin__bar",
-        fill: reachesMajority ? "url(#" + patternId + ")" : "url(#" + gradientId + ")",
+        fill: reachesMajority ? "url(#" + patternId + ")" : belowFill,
+        stroke: reachesMajority ? majorityHatch : "#718494",
+        "stroke-width": "0.7",
         "aria-hidden": "true"
       }));
       // A zero-frequency bin still needs a visible focus/tap target.  The
@@ -1233,7 +1212,22 @@
       x1: plot.left, y1: plot.bottom, x2: plot.right, y2: plot.bottom,
       class: "egh-axis__line", "aria-hidden": "true"
     }));
-    [domainStart, MAJORITY, domainEnd].filter(function (value, index, values) {
+    var tickStart = Math.ceil(domainStart / 5) * 5;
+    var tickEnd = Math.floor(domainEnd / 5) * 5;
+    var axisValues = [];
+    for (var tick = tickStart; tick <= tickEnd; tick += 5) axisValues.push(tick);
+    axisValues.push(MAJORITY);
+    // The padded domain gives the bars breathing room.  Only add an edge
+    // label when it is not within three seats of a regular five-seat tick;
+    // this prevents 162/165-style collisions on a phone-width SVG.
+    if (!axisValues.some(function (value) { return Math.abs(value - domainStart) <= 3; })) {
+      axisValues.push(domainStart);
+    }
+    if (!axisValues.some(function (value) { return Math.abs(value - domainEnd) <= 3; })) {
+      axisValues.push(domainEnd);
+    }
+    axisValues.sort(function (a, b) { return a - b; });
+    axisValues.filter(function (value, index, values) {
       return values.indexOf(value) === index;
     }).forEach(function (value) {
       var x = plot.left + (value - domainStart) * binWidth;
@@ -1242,15 +1236,15 @@
         class: "egh-axis__mark", "aria-hidden": "true"
       }));
       svg.appendChild(svgNode("text", {
-        x: x, y: plot.bottom + 21, class: "egh-axis__label",
+        x: x, y: plot.bottom + 24, class: "egh-axis__label",
         "text-anchor": value === domainStart ? "start" : (value === domainEnd ? "end" : "middle")
       }, String(value)));
     });
     svg.appendChild(svgNode("text", {
-      x: plot.left + plot.width / 2, y: 309, class: "egh-x-axis-label", "text-anchor": "middle"
+      x: plot.left + plot.width / 2, y: 345, class: "egh-x-axis-label", "text-anchor": "middle"
     }, "Mandat tillsammans"));
     svg.appendChild(svgNode("text", {
-      x: plot.left, y: plot.top - 10, class: "egh-y-axis-label", "text-anchor": "start"
+      x: plot.left, y: plot.top - 38, class: "egh-y-axis-label", "text-anchor": "start"
     }, "Andel simuleringar"));
 
     svg.appendChild(svgNode("line", {
@@ -1258,13 +1252,18 @@
       class: "egh-threshold", "stroke-dasharray": "6 5", "data-seat": String(MAJORITY),
       "aria-label": "Majoritetsgräns: 175 mandat"
     }));
+    var thresholdLabelX = Math.min(plot.right - 118, Math.max(plot.left + 118, thresholdX + 108));
+    svg.appendChild(svgNode("rect", {
+      x: thresholdLabelX - 116, y: plot.top - 34, width: 232, height: 27, rx: 4,
+      class: "egh-threshold__label-bg", "aria-hidden": "true"
+    }));
     svg.appendChild(svgNode("text", {
-      // Centering the label over the plot keeps the full Swedish annotation
-      // inside the SVG for both narrow and wide coalition seat ranges.
-      x: plot.left + plot.width / 2,
-      y: plot.top + 13,
+      // Keep the annotation close to the threshold without obscuring bars.
+      x: thresholdLabelX,
+      y: plot.top - 17,
       class: "egh-threshold__label",
-      "text-anchor": "middle"
+      "text-anchor": "middle",
+      "data-seat": String(MAJORITY)
     }, "Majoritetsgräns: 175 mandat"));
 
     if (textAlternative) {

@@ -109,10 +109,9 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <div class="egh-histogram__key" aria-label="Diagramförklaring">
           <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--below" aria-hidden="true"></span>under 175 mandat</span>
           <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--majority" aria-hidden="true"></span>175 mandat eller fler</span>
-          <span class="egh-histogram__key-item"><span id="election-government-histogram-coalition-key" class="egh-histogram__key-mark egh-histogram__key-mark--coalition" aria-hidden="true"></span>valda partiers färgskala</span>
         </div>
         <div class="egh-histogram__frame">
-          <svg id="election-government-histogram-svg" class="egh-histogram__svg" role="group" aria-labelledby="election-government-histogram-title election-government-histogram-description" viewBox="0 0 420 320" preserveAspectRatio="xMidYMid meet">
+          <svg id="election-government-histogram-svg" class="egh-histogram__svg" role="group" aria-labelledby="election-government-histogram-title election-government-histogram-description" viewBox="0 0 760 360" preserveAspectRatio="xMidYMid meet">
             <title id="election-government-histogram-title">Mandatfördelning för den valda koalitionen</title>
             <desc id="election-government-histogram-description"></desc>
           </svg>
