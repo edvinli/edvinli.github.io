@@ -54,51 +54,133 @@ edit can leak into a commit. The expected seat numbers are read from the pinned
 fixture's `groups.json`, not hard-coded, so the test compares the page against
 the published lookup rather than against a copy of it.
 
-- **schema 1.2** (`20260828T064703Z-1da59168`), at 1280px and 360px:
-  - *Copy*: the Swedish intro sentence and the `Tillgängliga partier` /
-    `Regering` / `Stödpartier` / `Tillsammans` /
-    `Sannolikhet för minst 175 mandat` labels, and the "not a probability of
-    forming a government" disclaimer.
-  - *Initial empty state*: all eight parties in the pool with a real box each,
-    both columns empty and saying so, both totals `0`, no bar segments, both
-    column masks `0`, the prompt visible, and the summary and the medians note
-    genuinely `display: none`.
-  - *Shared scale*: both bars the same height and the same top edge; the
-    majority rule dashed, spanning both columns, positioned at 175/349 of the
-    plot to within 1.5px, and labelled `Majoritetsgräns: 175 mandat` — asserted
-    **not** to say "50 %".
-  - *The crossing case*: `S + V` govern with 138 seats, short of 175, but with
-    `MP + C` supporting them the union median is 190. The left bar's measured
-    stack must stay **below** the rule and the right one **above** it, the
-    right total must equal the union lookup median, and the summary's
-    `Tillsammans` row must print that same value. This is the regression the
-    cumulative right-hand bar exists for: drawn as two independent masks, both
-    bars sit under the rule and the panel answers the majority question
-    wrongly. The test also asserts the fixture still *contains* a crossing
-    case, so a data refresh that removes one fails loudly instead of quietly
-    weakening the check.
-  - *Movement and membership*: a party moved pool → Regering → Stödpartier →
-    pool, with focus following it each time; no party ever present in two
-    zones; an empty Regering still suppressing the summary. Then `M + KD + SD`
-    as government and `L` added as support **through the drag handlers**.
-  - *Masks and results*: government mask 137, support mask 2, union mask 139 on
-    the summary; the five published numbers (both column medians, the combined
-    median, the union 90 % interval and the union probability) matching the
-    fixture; each bar's measured pixel height equal to its own coalition median
-    on the 0–349 scale, so the drawing and the printed number cannot diverge;
-    the support parties hatched in the cumulative bar; the bars'
-    `aria-label`s and the live region.
-  - *Keyboard and targets*: a real `Tab` keypress landing on a builder control
-    that matches `:focus-visible` and computes a non-zero outline; every party
-    action at least 40px on its short side.
-  - *Layout*: no sideways scroll on the document or the panel, and no element
-    inside the panel reaching past the viewport.
-  - No console errors and no uncaught exceptions.
-- **schema 1.1** (`20260827T205828Z-e6c6ee97`), which has no `coalition_builder`:
-  the panel must keep its `hidden` attribute *and* compute to `display: none`,
-  with no tiles, no bar segments and no summary text. This is the fail-closed
-  assertion — the renderer declining to build the panel must leave no trace of
-  it on the page.
+The panel is a direct-manipulation builder with three states per party —
+*Tillgängliga partier*, *Regering*, *Opposition* — so the drags are driven as
+**real input**: CDP mouse and touch events through the browser's own pointer
+pipeline, not synthetic `DragEvent` objects dispatched at the handlers. A drag
+that only works because the test constructed the event is not a drag.
+
+The run is deliberately split into one long session plus a series of short ones:
+
+### `schema12()` — one session per viewport, 1280px and 360px
+
+- *Copy*: the Swedish intro sentence and the `Tillgängliga partier` /
+  `Regering` / `Opposition` / `Återställ` /
+  `90 % prognosintervall` / `Sannolikhet för minst 175 mandat` labels, and the
+  government-only disclaimer.
+- *Initial empty state*: all eight parties in the pool with a real box each,
+  both sides empty and inviting a drop, both totals `0`, no bar segments, both
+  side masks `0`, and the summary genuinely `display: none`.
+- *Card anatomy*: every card carries a grip; `draggable` is `"false"`, because
+  the pointer handlers own the drag and native HTML5 dragging cannot reach a
+  touchscreen; each card's menu offers exactly the two states it is not in.
+- *Target sizes*: every move control at least 24px on its short side (WCAG
+  2.5.8 AA), and every grip a full-height strip at least 14px wide.
+- *Shared scale*: both bars the same height and the same top edge; the majority
+  rule dashed, spanning both columns, positioned at 175/349 of the plot to
+  within 1.5px, and labelled `Majoritetsgräns: 175 mandat`.
+- *Dragging*: pool → Regering, pool → Opposition, Regering → Opposition and
+  back to the pool, each asserted to leave the party in exactly one zone with
+  no duplicate anywhere; a drop back onto a card's own side asserted to be a
+  no-op; and a **touch** drag from the grip placing a party the same way a
+  mouse drag does.
+- *The move menu under real pointer input*: a real click opens the menu and a
+  real click on an entry performs the move. This is not the same path as a
+  scripted `.click()`, which skips the `pointerdown` a real tap fires —
+  `pointerdown` on the card is exactly where an earlier revision tore the menu
+  down before the entry's click could land.
+- *Reset*: `Återställ` returns all eight parties to the pool, clears both
+  masks, hides the summary and announces itself.
+- *Masks and results*: government mask 84 (`C + S + MP`) and opposition mask
+  137 (`M + KD + SD`) on the two column heads and on the summary, asserted
+  disjoint; the summary's `data-coalition-mask` equal to the **government**
+  mask, because that is the coalition being evaluated; the published median,
+  90 % interval and majority probability for that mask; the opposition's own
+  median looked up on its own mask, with **no** probability printed for it.
+  `C + S + MP` is used because its majority probability is genuinely nontrivial
+  (10,78 %) — a panel that silently printed 0 %, 100 % or another mask's value
+  would pass against a coalition that is hopeless or certain, and the test
+  asserts the fixture's value is still strictly between 2 % and 98 %.
+- *Each bar draws the number it prints*: each side's measured pixel stack
+  equals its own coalition median on the 0–349 scale, so the drawing and the
+  printed number cannot diverge; plus both bars' `aria-label`s and the live
+  region.
+- *Crossing the rule*: adding `V` to that government (mask 116, median 190)
+  must lift the government bar **above** the dashed rule while the opposition
+  bar stays below it. The test also asserts the fixture still contains such a
+  case, so a data refresh that removes one fails loudly rather than quietly
+  weakening the check.
+- *Layout*: no sideways scroll on the document or the panel, nothing inside the
+  panel reaching past the viewport, and the same again with a menu open — an
+  absolutely positioned menu is the one thing that can hang off the right edge
+  of a 360px column.
+- No console errors and no uncaught exceptions.
+
+### `dragCase()` — one browser per drag
+
+Every direction a card can travel, each in a fresh session asserting the whole
+resulting state: pool → Regering, pool → Opposition, Regering → Opposition,
+Opposition → Regering, and an assigned party back to Tillgängliga partier.
+Each case checks the party exists exactly once, sits in the expected zone, that
+no card is duplicated anywhere, that all eight parties are still placed exactly
+once, that **both** side masks are right, and that the displayed median and
+probability are the published values for the resulting government mask (or that
+an empty government prints no result at all).
+
+### `keyboardCase()` and friends — one browser per case
+
+Accessibility is not weakened here, only isolated. See **the key budget** below
+for why each case gets its own browser.
+
+- `Tab` from the reset control reaching a card's move control, with a computed
+  outline and a real `:focus-visible` match. `:focus-visible` deliberately does
+  not match a programmatic `focus()` after pointer input, so the ring is only
+  meaningful once a real key has moved focus.
+- `Escape` closing an open menu, clearing `aria-expanded` and handing focus
+  back to the control it came from. This is the panel's own `keydown` listener
+  rather than a browser default action, so an in-page `KeyboardEvent` is the
+  real code path and costs no key budget.
+- `Enter` moving a pool party to Regering, and `Space` doing the same — the two
+  keys that activate a button, each proved once against real input.
+- `ArrowDown` then `Enter` moving a pool party to Opposition, i.e. the second
+  entry in the menu.
+- `Enter` returning an assigned party to Tillgängliga partier, and `ArrowDown`
+  then `Enter` moving a governing party across to Opposition.
+
+Every keyboard case asserts the resulting zone, that the party exists exactly
+once, that no menu is left open, that both side masks are correct, and that
+**focus follows the card into its new home** — a keyboard user must not be
+dumped at the top of the document after every move.
+
+### The key budget (a harness limitation, not a page defect)
+
+Headless Chrome stops answering CDP after roughly **five**
+`Input.dispatchKeyEvent` presses in a browser session. Renderer *and*
+browser-level commands stop returning — `Runtime.evaluate` and
+`Browser.getVersion` alike — with the browser idle at 0% CPU and the WebSocket
+still open. It reproduces on a fifteen-line data-URL page containing none of
+this project's code, for `Tab`, `Escape`, `ArrowDown` and `Enter` equally, so
+it is a property of the harness rather than anything the builder does.
+
+The consequences for this file, all of them test-side:
+
+- keyboard checks are split across short-lived browsers, **two or three presses
+  each**, well inside the limit;
+- after real key input a case reads back only the few DOM facts it needs
+  (`readState`) rather than the whole panel — a large `evaluate` is the first
+  thing a nearly exhausted session swallows;
+- anything that does not need a *browser default action* is driven by script
+  instead, which costs nothing.
+
+No sleeps or retries were added to paper over this, and no product behaviour
+was changed to accommodate it: the panel's keyboard support, focus management
+and menu semantics are exactly what a user gets.
+
+`cdp.mjs` also drains Chrome's stdout/stderr and fails any pending command when
+the connection drops. The pipes were previously opened and never read, which
+deadlocks Chrome once the OS pipe buffer fills; and a dead connection used to
+leave every pending promise unsettled, so a crashed browser looked like a
+hanging page.
 
 ## What `equations.smoke.mjs` covers
 
@@ -114,9 +196,9 @@ this page only). Three properties of that arrangement need a real browser:
 - if MathJax never loads, the **LaTeX source has to stay on the page** rather
   than the equations disappearing.
 
-At 1280px and 360px, after opening the section: all 10 blocks typeset as
+At 1280px and 360px, after opening the section: all 11 blocks typeset as
 display math with a non-zero box, no block wider than its column, nothing
 clipped vertically, every equation's full width reachable by scrolling, no
 page-level horizontal overflow, `MathJax.version === '3.2.2'`, and no console
 errors or uncaught exceptions. A final pass blocks `*cdn.jsdelivr.net*` and
-asserts all 10 blocks still show their `\[ … \]` source.
+asserts all 11 blocks still show their `\[ … \]` source.

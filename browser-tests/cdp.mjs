@@ -21,6 +21,21 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     'about:blank',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
+  // Chrome writes to stdout/stderr freely. Nothing here needs that output, but
+  // the pipes must still be drained: once the OS pipe buffer fills, Chrome
+  // blocks on write and the entire browser freezes. Every CDP command then
+  // hangs forever at 0% CPU -- browser-level ones too, which makes it look
+  // like the page under test is at fault. Keep a bounded tail for diagnostics.
+  const browserLog = [];
+  for (const stream of [proc.stdout, proc.stderr]) {
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => {
+      browserLog.push(chunk);
+      if (browserLog.length > 100) browserLog.shift();
+    });
+    stream.on('error', () => {});
+  }
+
   let wsUrl = null;
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline && !wsUrl) {
@@ -48,7 +63,22 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     }
   };
 
+  // A dead connection must fail the commands waiting on it. Without this a
+  // crashed or killed Chrome leaves every pending promise unsettled, and the
+  // run hangs with no error to explain it.
+  let dead = null;
+  const killPending = (reason) => {
+    dead = dead || reason;
+    pending.forEach(({ reject }) => reject(new Error(reason)));
+    pending.clear();
+  };
+  ws.onclose = () => killPending('the CDP connection closed');
+  ws.onerror = () => killPending('the CDP connection failed');
+  proc.on('exit', (code, signal) =>
+    killPending(`Chrome exited early (code ${code}, signal ${signal})`));
+
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+    if (dead) { reject(new Error(`${dead}; cannot send ${method}`)); return; }
     const n = ++id;
     pending.set(n, { resolve, reject });
     ws.send(JSON.stringify({ id: n, method, params, sessionId }));
@@ -154,5 +184,6 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   };
 
   return { evaluate, goto, waitFor, click, close, screenshot, setViewport,
-           consoleErrors, consoleAll, exceptions, failedRequests, S };
+           consoleErrors, consoleAll, exceptions, failedRequests, S,
+           browserLog: () => browserLog.join('') };
 }

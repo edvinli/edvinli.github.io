@@ -804,7 +804,7 @@ canvas {
 
 .eg-builder {
   /* 175 of 349 seats.  The dashed majority rule and both bars read off this
-     one number, so the two columns can never end up on different scales. */
+     one number, so the two sides can never end up on different scales. */
   --eg-majority: 50.1433%;
   --eg-axis: 2.7rem;
   --eg-gap: 1.1rem;
@@ -817,14 +817,49 @@ canvas {
   margin-bottom: 1.5rem;
 }
 
-.eg-pool__title {
+.eg-pool__head {
+  align-items: center;
   border-bottom: 1px solid var(--el-rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.35rem;
+}
+
+.eg-pool__title {
   color: var(--el-ink-soft);
   font-family: var(--el-mono);
   font-size: 0.82rem;
   font-weight: 700;
-  margin: 0 0 0.55rem;
-  padding-bottom: 0.35rem;
+  margin: 0;
+}
+
+.eg-reset {
+  background: none;
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  color: var(--el-ink-soft);
+  cursor: pointer;
+  font-family: var(--el-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  min-height: 2.5rem;
+  padding: 0.3rem 0.9rem;
+  touch-action: manipulation;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.eg-reset:hover {
+  background: var(--el-fill-soft);
+  border-color: var(--el-rule-strong);
+}
+
+.eg-reset:focus-visible {
+  outline: 2px solid var(--el-ink);
+  outline-offset: 2px;
 }
 
 .eg-pool__empty {
@@ -842,9 +877,10 @@ canvas {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  min-height: 3.4rem;
+  min-height: 4.6rem;
   min-width: 0;
   padding: 0.45rem;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .eg-zone--column {
@@ -858,52 +894,83 @@ canvas {
   margin: 0.2rem 0.15rem;
 }
 
-.eg-zone.is-dragover {
+/* Every legal destination announces itself for as long as a card is in
+   flight; the one under the pointer is filled in as well. */
+.eg-zone.is-droppable {
   background: var(--el-fill-soft);
+  border-color: var(--el-rule-strong);
+}
+
+.eg-zone.is-dragover {
+  background: var(--el-fill);
   border-color: var(--el-ink);
   border-style: solid;
 }
 
-/* --- Party tiles --------------------------------------------------------- */
+/* --- Party cards --------------------------------------------------------- */
 
 .eg-party {
   align-items: center;
   background: var(--el-panel);
   border: 1px solid var(--el-rule);
   border-radius: 4px;
-  column-gap: 0.4rem;
+  column-gap: 0.35rem;
   cursor: grab;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
   min-width: 0;
-  padding: 0.4rem 0.5rem;
-  row-gap: 0.35rem;
+  padding: 0.3rem 0.35rem;
+  user-select: none;
+}
+
+.eg-party:active {
+  cursor: grabbing;
 }
 
 /* The pool is a uniform grid so eight parties stay a compact block rather
-   than a ragged wrap; its tiles keep their two buttons on a second row. */
+   than a ragged wrap. */
 .eg-zone--pool {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-}
-
-.eg-zone--pool .eg-party {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-}
-
-.eg-zone--pool .eg-party__actions {
-  grid-column: 1 / -1;
-  justify-content: flex-start;
-}
-
-/* Actions share the row they already occupy rather than shrink-wrapping their
-   text, so a short label like "Stöd" still gets a full-size tap target. */
-.eg-zone--pool .eg-party__btn {
-  flex: 1 1 auto;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
 }
 
 .eg-party.is-dragging {
-  opacity: 0.5;
+  opacity: 0.35;
+}
+
+/* The card that follows the pointer.  It carries no controls and cannot be
+   hit-tested, so elementFromPoint still resolves the zone underneath. */
+.eg-party--ghost {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  cursor: grabbing;
+  pointer-events: none;
+  position: fixed;
+  z-index: 60;
+}
+
+/* Grip: the drag affordance, and on a touchscreen the only surface that
+   starts a drag, so a swipe across the rest of the card still scrolls. */
+.eg-party__grip {
+  cursor: grab;
+  display: block;
+  height: 2.1rem;
+  margin: -0.3rem 0 -0.3rem -0.2rem;
+  position: relative;
+  touch-action: none;
+  width: 1.5rem;
+}
+
+.eg-party__grip::before {
+  background-image: radial-gradient(currentColor 45%, transparent 47%);
+  background-size: 3px 3px;
+  color: var(--el-rule-strong);
+  content: "";
+  height: 9px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
 }
 
 .eg-party__swatch {
@@ -922,49 +989,99 @@ canvas {
 .eg-party__seats {
   color: var(--el-muted);
   font-family: var(--el-mono);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
 }
 
-.eg-party__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  justify-content: flex-end;
+/* --- Move menu: the keyboard and touch fallback -------------------------- */
+
+.eg-party__move {
+  position: relative;
 }
 
-.eg-party__btn {
+.eg-party__menu-btn {
   background: none;
-  border: 1px solid var(--el-rule);
-  border-radius: 999px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--el-muted);
+  cursor: pointer;
+  display: block;
+  height: 2.1rem;
+  margin: -0.3rem -0.2rem -0.3rem 0;
+  padding: 0;
+  position: relative;
+  touch-action: manipulation;
+  width: 1.9rem;
+}
+
+.eg-party__menu-btn:hover {
+  background: var(--el-fill-soft);
+  border-color: var(--el-rule);
   color: var(--el-ink-soft);
+}
+
+.eg-party__menu-btn:focus-visible {
+  outline: 2px solid var(--el-ink);
+  outline-offset: 1px;
+}
+
+.eg-party__menu-icon {
+  background-image: radial-gradient(currentColor 45%, transparent 47%);
+  background-size: 3px 4px;
+  display: block;
+  height: 12px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+}
+
+.eg-party__menu {
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule-strong);
+  border-radius: 5px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  flex-direction: column;
+  display: flex;
+  min-width: 8rem;
+  padding: 0.2rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  z-index: 40;
+}
+
+/* The theme reset has shadowed the user-agent [hidden] rule before; say it
+   here too so a closed menu can never be painted. */
+.eg-party__menu[hidden] {
+  display: none;
+}
+
+.eg-party__menu-item {
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  color: var(--el-ink);
   cursor: pointer;
   font-family: var(--el-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1;
-  /* 44px: the smallest comfortable tap target.  The 360px layout is built
-     around this height rather than the other way round. */
-  min-height: 2.75rem;
-  padding: 0.3rem 0.55rem;
+  font-size: 0.76rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.6rem;
+  text-align: left;
   touch-action: manipulation;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
 }
 
-.eg-party__btn:hover {
+.eg-party__menu-item:hover {
   background: var(--el-fill-soft);
-  border-color: var(--el-rule-strong);
 }
 
-.eg-party__btn:focus-visible {
+.eg-party__menu-item:focus-visible {
   outline: 2px solid var(--el-ink);
-  outline-offset: 2px;
-}
-
-.eg-party__btn--remove {
-  min-width: 2.75rem;
+  outline-offset: -2px;
 }
 
 /* --- Two-column seat chart ----------------------------------------------- */
@@ -1003,14 +1120,6 @@ canvas {
 
 .eg-chart__zone-cell {
   min-width: 0;
-}
-
-.eg-zone__title {
-  color: var(--el-ink-soft);
-  font-family: var(--el-mono);
-  font-size: 0.76rem;
-  font-weight: 700;
-  margin: 0 0 0.3rem;
 }
 
 .eg-chart__title {
@@ -1104,25 +1213,6 @@ canvas {
   width: 100%;
 }
 
-/* In the cumulative bar the support parties' seats are hatched, so the
-   reader can see which part of a majority the government does not hold on
-   its own.  Party colour still carries the identity underneath. */
-.eg-bar__segment--support::after {
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.34) 0,
-    rgba(255, 255, 255, 0.34) 3px,
-    rgba(255, 255, 255, 0) 3px,
-    rgba(255, 255, 255, 0) 7px
-  );
-  bottom: 0;
-  content: "";
-  left: 0;
-  position: absolute;
-  right: 0;
-  top: 0;
-}
-
 .eg-bar__segment-label {
   font-family: var(--el-mono);
   position: relative;
@@ -1134,13 +1224,6 @@ canvas {
 
 /* --- Result summary ------------------------------------------------------ */
 
-.eg-builder__empty {
-  border-left: 3px solid var(--el-rule-strong);
-  color: var(--el-muted);
-  margin: 1.25rem 0 0;
-  padding-left: 0.9rem;
-}
-
 .eg-summary {
   display: grid;
   gap: 0.25rem 1.4rem;
@@ -1151,6 +1234,7 @@ canvas {
 .eg-summary > div {
   border-top: 1px solid var(--el-rule);
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: space-between;
   min-width: 0;
@@ -1161,6 +1245,7 @@ canvas {
   color: var(--el-muted);
   font-size: 0.82rem;
   margin: 0;
+  min-width: 0;
 }
 
 .eg-summary dd {
@@ -1171,17 +1256,10 @@ canvas {
   white-space: nowrap;
 }
 
-.eg-summary > div[data-metric="union"] dd,
+.eg-summary > div[data-metric="government"] dd,
 .eg-summary > div[data-metric="probability"] dd {
   font-size: 1.05rem;
   font-weight: 700;
-}
-
-.eg-builder__note {
-  color: var(--el-muted);
-  font-size: 0.78rem;
-  margin: 0.9rem 0 0;
-  max-width: 68ch;
 }
 
 .eg-builder__disclaimer {
@@ -1674,35 +1752,48 @@ canvas {
   }
 
   .eg-zone {
-    padding: 0.35rem;
+    padding: 0.3rem;
+  }
+
+  .eg-zone--pool {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
   }
 
   .eg-party {
-    column-gap: 0.3rem;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    padding: 0.35rem 0.4rem;
+    column-gap: 0.25rem;
+    padding: 0.25rem 0.3rem;
   }
 
-  .eg-party__actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
+  /* Two cards have to fit beside each other in a 360px column, so the unit
+     is dropped from the ink and kept for screen readers. */
+  .eg-party__seats-unit {
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
   }
 
-  .eg-party__btn {
-    flex: 1 1 auto;
+  .eg-party__grip {
+    width: 1.05rem;
+  }
+
+  .eg-party__menu-btn {
+    width: 1.8rem;
+  }
+
+  .eg-party__menu {
+    min-width: 7rem;
+  }
+
+  .eg-party__menu-item {
+    font-size: 0.72rem;
   }
 
   .eg-bar__segment-label {
     font-size: 0.66rem;
-  }
-
-  .eg-party__btn {
-    font-size: 0.66rem;
-    padding: 0.3rem 0.36rem;
-  }
-
-  .eg-party__btn--remove {
-    min-width: 2.5rem;
   }
 
   .eg-summary {
@@ -1744,8 +1835,7 @@ canvas {
   .ep-legend__swatch,
   .eg-pill__swatch,
   .eg-party__swatch,
-  .eg-bar__segment,
-  .eg-bar__segment--support::after {
+  .eg-bar__segment {
     forced-color-adjust: none;
   }
 
