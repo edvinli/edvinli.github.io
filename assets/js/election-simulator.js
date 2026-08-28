@@ -737,6 +737,11 @@
     government: "Regering",
     support: "St\u00f6dpartier"
   };
+  // The left bar is the government alone; the right one is the government
+  // *plus* its selected support parties.  Two independent bars can both sit
+  // below 175 while their union clears it, which is the one question the
+  // dashed majority rule exists to answer.
+  var BAR_NAMES = { government: "Regering", union: "Med st\u00f6d" };
   var ZONE_CLASS = {
     pool: "eg-zone eg-zone--pool",
     government: "eg-zone eg-zone--column",
@@ -869,15 +874,15 @@
     };
     var bars = {
       government: byId("election-government-bar"),
-      support: byId("election-support-bar")
+      union: byId("election-union-bar")
     };
     var heads = {
       government: byId("election-government-column"),
-      support: byId("election-support-column")
+      union: byId("election-union-column")
     };
     var totalIds = {
       government: "election-government-total",
-      support: "election-support-total"
+      union: "election-union-total"
     };
     var poolEmpty = byId("election-pool-empty");
     var empty = byId("election-government-empty");
@@ -1025,15 +1030,17 @@
       return parties;
     }
 
-    function renderBar(zone) {
-      var host = bars[zone];
-      var mask = masks[zone];
+    // `key` names the bar, not a zone: "government" draws the government mask
+    // alone, "union" draws government | support so the majority rule can be
+    // read against the coalition that would actually be counted.
+    function renderBar(key, mask) {
+      var host = bars[key];
       var total = medianOf(mask);
       var members = stackOrder.filter(function (party) {
         return (mask & bitOf(party)) !== 0;
       });
-      setText(totalIds[zone], format(total, 0));
-      if (heads[zone]) heads[zone].setAttribute("data-coalition-mask", String(mask));
+      setText(totalIds[key], format(total, 0));
+      if (heads[key]) heads[key].setAttribute("data-coalition-mask", String(mask));
       if (!host) return;
       host.innerHTML = "";
 
@@ -1050,8 +1057,9 @@
       members.forEach(function (party) {
         var seats = partyMedian(party);
         var share = pct(seats * scale, CHAMBER);
+        var supporting = key === "union" && (masks.support & bitOf(party)) !== 0;
         var segment = document.createElement("span");
-        segment.className = "eg-bar__segment";
+        segment.className = "eg-bar__segment" + (supporting ? " eg-bar__segment--support" : "");
         segment.style.height = share.toFixed(3) + "%";
         segment.style.backgroundColor = partyColors[party] || "#777";
         segment.style.color = readableInk(partyColors[party]);
@@ -1061,14 +1069,14 @@
           segment.innerHTML = "<span class=\"eg-bar__segment-label\">" + escapeHtml(abbr(party)) + "</span>";
         }
         host.appendChild(segment);
-        described.push(abbr(party) + " " + format(seats, 0));
+        described.push(abbr(party) + " " + format(seats, 0) + (supporting ? " (st\u00f6d)" : ""));
       });
       // Segments are appended bottom-first (the track is column-reverse), but
       // the description is read top-down so it matches the tile list below.
       host.setAttribute("aria-label", members.length
-        ? ZONE_NAMES[zone] + ": " + described.reverse().join(", ") + ". Median tillsammans " +
+        ? BAR_NAMES[key] + ": " + described.reverse().join(", ") + ". Median tillsammans " +
           format(total, 0) + " av " + CHAMBER + " mandat."
-        : ZONE_NAMES[zone] + ": inga partier valda.");
+        : BAR_NAMES[key] + ": inga partier valda.");
     }
 
     function renderSummary() {
@@ -1124,8 +1132,8 @@
       renderZone(ZONE_GOVERNMENT, columnOrder);
       renderZone(ZONE_SUPPORT, columnOrder);
       if (poolEmpty) poolEmpty.hidden = available.length !== 0;
-      renderBar(ZONE_GOVERNMENT);
-      renderBar(ZONE_SUPPORT);
+      renderBar("government", masks.government);
+      renderBar("union", masks.government | masks.support);
       renderSummary();
       if (focusParty) restoreFocus(focusParty);
     }

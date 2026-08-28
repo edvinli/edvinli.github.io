@@ -39,6 +39,16 @@ const MAJORITY = 175;
 const GOVERNMENT_MASK = 1 | 8 | 128;
 const SUPPORT_MASK = 2;
 const UNION_MASK = GOVERNMENT_MASK | SUPPORT_MASK;
+// The regression case for the whole point of the cumulative bar: S + V govern
+// with 138 seats, well short of 175, but with MP + C supporting them the union
+// median is 190. Two independent bars would both sit below the rule.
+const CROSSING_GOVERNMENT = ['S', 'V'];
+const CROSSING_SUPPORT = ['MP', 'C'];
+const CROSSING_GOVERNMENT_MASK = 16 | 32;
+const CROSSING_SUPPORT_MASK = 64 | 4;
+const CROSSING_UNION_MASK = CROSSING_GOVERNMENT_MASK | CROSSING_SUPPORT_MASK;
+// Minimum interactive target for a party action, in CSS pixels.
+const MIN_TARGET = 40;
 
 const POOL = 'election-available-parties';
 const GOVERNMENT = 'election-government-parties';
@@ -113,6 +123,7 @@ const readPanel = (browser) => browser.evaluate(() => {
     party: el.getAttribute('data-party'),
     height: Math.round(el.getBoundingClientRect().height * 100) / 100,
     label: el.textContent.trim(),
+    support: el.classList.contains('eg-bar__segment--support'),
   }));
   const text = (id) => {
     const el = document.getElementById(id);
@@ -132,6 +143,10 @@ const readPanel = (browser) => browser.evaluate(() => {
   const majorityRect = majority.getBoundingClientRect();
   const plotRect = plot.getBoundingClientRect();
 
+  const stackHeight = (barId) => Math.round(Array.from(
+    document.querySelectorAll(`#${barId} .eg-bar__segment`)
+  ).reduce((sum, el) => sum + el.getBoundingClientRect().height, 0) * 100) / 100;
+
   return {
     section: byId('election-government-builder'),
     empty: byId('election-government-empty'),
@@ -143,22 +158,36 @@ const readPanel = (browser) => browser.evaluate(() => {
     support: tiles('election-support-parties'),
     poolHost: byId('election-available-parties'),
     governmentBar: byId('election-government-bar'),
-    supportBar: byId('election-support-bar'),
+    unionBar: byId('election-union-bar'),
     governmentSegments: segments('election-government-bar'),
-    supportSegments: segments('election-support-bar'),
+    unionSegments: segments('election-union-bar'),
     governmentBarLabel: document.getElementById('election-government-bar').getAttribute('aria-label'),
-    supportBarLabel: document.getElementById('election-support-bar').getAttribute('aria-label'),
+    unionBarLabel: document.getElementById('election-union-bar').getAttribute('aria-label'),
     governmentTotal: text('election-government-total'),
-    supportTotal: text('election-support-total'),
+    unionTotal: text('election-union-total'),
+    governmentStack: stackHeight('election-government-bar'),
+    unionStack: stackHeight('election-union-bar'),
     poolTitle: text('election-pool-title'),
     governmentTitle: text('election-government-title'),
-    supportTitle: text('election-support-title'),
+    unionTitle: text('election-union-title'),
+    governmentZoneTitle: text('election-government-zone-title'),
+    supportZoneTitle: text('election-support-zone-title'),
+    // Smallest interactive party control anywhere in the panel.
+    smallestAction: Math.min.apply(null, Array.from(
+      document.querySelectorAll('.eg-party__btn')
+    ).map((el) => {
+      const rect = el.getBoundingClientRect();
+      return Math.round(Math.min(rect.width, rect.height) * 100) / 100;
+    })),
+    shortestAction: Math.min.apply(null, Array.from(
+      document.querySelectorAll('.eg-party__btn')
+    ).map((el) => Math.round(el.getBoundingClientRect().height * 100) / 100)),
     intro: flat(document.querySelector('#election-government-builder .election-panel__head p').textContent),
     disclaimer: flat(document.querySelector('.eg-builder__disclaimer').textContent),
     hints: Array.from(document.querySelectorAll('.eg-zone__hint')).map((el) => el.textContent.trim()),
     masks: {
       government: document.getElementById('election-government-column').getAttribute('data-coalition-mask'),
-      support: document.getElementById('election-support-column').getAttribute('data-coalition-mask'),
+      union: document.getElementById('election-union-column').getAttribute('data-coalition-mask'),
       summaryGovernment: summary.getAttribute('data-government-mask'),
       summarySupport: summary.getAttribute('data-support-mask'),
       summaryUnion: summary.getAttribute('data-coalition-mask'),
@@ -272,7 +301,7 @@ async function tabFocusOutline(browser) {
 // schema 1.2: the redesigned builder
 // ---------------------------------------------------------------------------
 
-async function schema12(viewport, pointer, expected) {
+async function schema12(viewport, pointer, expected, expectedCrossing) {
   console.log(`\n[schema 1.2 @ ${viewport.name} ${viewport.width}x${viewport.height}]`);
   const server = await serve(SITE, { port: 4000, pointer });
   const browser = await launch({ width: viewport.width, height: viewport.height });
@@ -287,7 +316,9 @@ async function schema12(viewport, pointer, expected) {
       'Välj regeringspartier och eventuella stödpartier. Diagrammet visar hur många mandat de brukar få tillsammans i simuleringarna.');
     eq('pool label', initial.poolTitle, 'Tillgängliga partier');
     eq('government column label', initial.governmentTitle, 'Regering');
-    eq('support column label', initial.supportTitle, 'Stödpartier');
+    eq('cumulative column label', initial.unionTitle, 'Med stöd');
+    eq('government drop zone label', initial.governmentZoneTitle, 'Regeringspartier');
+    eq('support drop zone label', initial.supportZoneTitle, 'Stödpartier');
     check('disclaimer is preserved',
       initial.disclaimer.startsWith('Det här visar sannolikheten att de valda partierna tillsammans får minst 175 mandat'),
       initial.disclaimer);
@@ -304,10 +335,13 @@ async function schema12(viewport, pointer, expected) {
       initial.pool.map((t) => t.actions.join('+')),
       PARTY_ORDER.map(() => 'government+support'));
     eq('government total starts at zero', initial.governmentTotal, '0');
-    eq('support total starts at zero', initial.supportTotal, '0');
+    eq('cumulative total starts at zero', initial.unionTotal, '0');
     eq('no segments are drawn yet',
-      initial.governmentSegments.length + initial.supportSegments.length, 0);
-    eq('column masks start empty', [initial.masks.government, initial.masks.support], ['0', '0']);
+      initial.governmentSegments.length + initial.unionSegments.length, 0);
+    eq('column masks start empty', [initial.masks.government, initial.masks.union], ['0', '0']);
+    check(`every party action is at least ${MIN_TARGET}px on its short side`,
+      initial.smallestAction >= MIN_TARGET,
+      `smallest ${initial.smallestAction}px, shortest height ${initial.shortestAction}px`);
     check('empty-state prompt is visible', initial.empty.visible, JSON.stringify(initial.empty));
     check('summary is hidden initially',
       !initial.summaryBox.visible && initial.summaryBox.display === 'none',
@@ -318,8 +352,8 @@ async function schema12(viewport, pointer, expected) {
 
     // --- Shared scale and the majority rule ------------------------------
     near('both bars are the same height',
-      initial.governmentBar.height, initial.supportBar.height, 0.5);
-    near('both bars start at the same y', initial.governmentBar.top, initial.supportBar.top, 0.5);
+      initial.governmentBar.height, initial.unionBar.height, 0.5);
+    near('both bars start at the same y', initial.governmentBar.top, initial.unionBar.top, 0.5);
     check('majority rule is drawn', initial.majority.visible && initial.majority.borderStyle === 'dashed',
       JSON.stringify(initial.majority));
     eq('majority rule is labelled in seats, not per cent',
@@ -347,7 +381,7 @@ async function schema12(viewport, pointer, expected) {
     eq('a cross-column move leaves no duplicate', where.duplicates, []);
     let panel = await readPanel(browser);
     eq('the emptied government column reports mask 0', panel.masks.government, '0');
-    eq('the support column now carries only M', panel.masks.support, '1');
+    eq('the cumulative column now carries only M', panel.masks.union, '1');
     check('an empty government still blocks the summary',
       !panel.summaryBox.visible && panel.empty.visible,
       JSON.stringify([panel.summaryBox, panel.empty]));
@@ -374,7 +408,7 @@ async function schema12(viewport, pointer, expected) {
     // --- Masks and the published lookup ----------------------------------
     panel = await readPanel(browser);
     eq('government mask', panel.masks.government, String(GOVERNMENT_MASK));
-    eq('support mask', panel.masks.support, String(SUPPORT_MASK));
+    eq('cumulative column carries the union mask', panel.masks.union, String(UNION_MASK));
     eq('summary carries all three masks',
       [panel.masks.summaryGovernment, panel.masks.summarySupport, panel.masks.summaryUnion],
       [String(GOVERNMENT_MASK), String(SUPPORT_MASK), String(UNION_MASK)]);
@@ -394,8 +428,8 @@ async function schema12(viewport, pointer, expected) {
     eq('probability of at least 175 seats', panel.metrics.probability,
       { term: `Sannolikhet för minst ${MAJORITY} mandat`, value: expected.union.probability });
     eq('column totals match the lookup',
-      [panel.governmentTotal, panel.supportTotal],
-      [String(expected.government.median), String(expected.support.median)]);
+      [panel.governmentTotal, panel.unionTotal],
+      [String(expected.government.median), String(expected.union.median)]);
 
     // --- The bar draws the number it prints ------------------------------
     // The track is column-reverse, so DOM order runs bottom to top.
@@ -409,13 +443,80 @@ async function schema12(viewport, pointer, expected) {
     check('the bar describes itself for screen readers',
       panel.governmentBarLabel === `Regering: SD 69, M 68, KD 24. Median tillsammans ${expected.government.median} av ${CHAMBER} mandat.`,
       panel.governmentBarLabel);
-    check('the support bar reports L below the threshold',
-      panel.supportBarLabel === 'Stödpartier: L 0. Median tillsammans 0 av 349 mandat.',
-      panel.supportBarLabel);
+    eq('the cumulative bar stacks government and support together',
+      panel.unionSegments.map((s) => s.party).sort(), ['KD', 'L', 'M', 'SD']);
+    check('the cumulative bar marks L as a support party',
+      panel.unionBarLabel === `Med stöd: SD 69, M 68, KD 24, L 0 (stöd). Median tillsammans ${expected.union.median} av ${CHAMBER} mandat.`,
+      panel.unionBarLabel);
     check('the live region announces the union result',
       panel.announcement.includes('Tillsammans ' + expected.union.median + ' mandat') &&
       panel.announcement.includes(expected.union.probability),
       panel.announcement);
+
+    // --- The regression the cumulative bar exists for -----------------------
+    // A government below 175 whose union with its support parties is above it.
+    // Drawn as two independent masks, both bars would sit under the rule and
+    // the panel would answer the majority question wrongly.
+    for (const party of ['M', 'KD', 'SD', 'L']) {
+      await moveParty(browser, party, 'pool');
+    }
+    for (const party of CROSSING_GOVERNMENT) {
+      check(`move ${party} into Regering`, (await moveParty(browser, party, 'government')).moved);
+    }
+    for (const party of CROSSING_SUPPORT) {
+      check(`move ${party} into Stödpartier`, (await moveParty(browser, party, 'support')).moved);
+    }
+
+    const crossing = await readPanel(browser);
+    const rule = crossing.majority.fromBottom;
+    eq('crossing government mask', crossing.masks.government, String(CROSSING_GOVERNMENT_MASK));
+    eq('crossing cumulative mask', crossing.masks.union, String(CROSSING_UNION_MASK));
+    eq('crossing masks are disjoint',
+      CROSSING_GOVERNMENT_MASK & CROSSING_SUPPORT_MASK, 0);
+    eq('the fixture still holds a crossing case',
+      [expectedCrossing.government.median < MAJORITY, expectedCrossing.union.median >= MAJORITY],
+      [true, true]);
+
+    check('left bar remains below the majority rule',
+      crossing.governmentStack < rule,
+      `government stack ${crossing.governmentStack}px vs rule at ${rule}px from the plot floor`);
+    check('right cumulative bar rises above the majority rule',
+      crossing.unionStack > rule,
+      `union stack ${crossing.unionStack}px vs rule at ${rule}px from the plot floor`);
+    near('left bar draws the government median on the 0-349 scale',
+      crossing.governmentStack,
+      crossing.majority.plotHeight * (expectedCrossing.government.median / CHAMBER), 1.5);
+    near('right bar draws the union median on the 0-349 scale',
+      crossing.unionStack,
+      crossing.majority.plotHeight * (expectedCrossing.union.median / CHAMBER), 1.5);
+
+    eq('right bar total equals the union lookup median',
+      crossing.unionTotal, String(expectedCrossing.union.median));
+    eq('summary union median matches the same value',
+      crossing.metrics.union.value, `${expectedCrossing.union.median} mandat`);
+    eq('left column still reports the government alone',
+      crossing.governmentTotal, String(expectedCrossing.government.median));
+    eq('the support-only median is still reported',
+      crossing.metrics.support.value, `${expectedCrossing.support.median} mandat`);
+
+    eq('the cumulative bar stacks all four parties',
+      crossing.unionSegments.map((s) => s.party).sort(), ['C', 'MP', 'S', 'V']);
+    eq('the government bar stacks only the two governing parties',
+      crossing.governmentSegments.map((s) => s.party).sort(), ['S', 'V']);
+    eq('the support parties are the hatched ones',
+      crossing.unionSegments.filter((s) => s.support).map((s) => s.party).sort(),
+      CROSSING_SUPPORT.slice().sort());
+    eq('the right-hand drop zone holds only the support tiles',
+      crossing.support.map((t) => t.party).sort(), CROSSING_SUPPORT.slice().sort());
+    eq('the left-hand drop zone holds only the governing tiles',
+      crossing.government.map((t) => t.party).sort(), CROSSING_GOVERNMENT.slice().sort());
+    check('the probability reflects the union, not the government alone',
+      crossing.metrics.probability.value === expectedCrossing.union.probability,
+      `${crossing.metrics.probability.value} vs ${expectedCrossing.union.probability}`);
+
+    check(`party actions stay at least ${MIN_TARGET}px on their short side`,
+      crossing.smallestAction >= MIN_TARGET,
+      `smallest ${crossing.smallestAction}px, shortest height ${crossing.shortestAction}px`);
 
     // --- Keyboard --------------------------------------------------------
     const focus = await tabFocusOutline(browser);
@@ -500,7 +601,13 @@ async function expectations() {
     p95: table[String(mask)].p95_seats,
     probability: swedish(table[String(mask)].prob_majority),
   });
-  return { government: of(GOVERNMENT_MASK), support: of(SUPPORT_MASK), union: of(UNION_MASK) };
+  const set = (government, support) => ({
+    government: of(government), support: of(support), union: of(government | support),
+  });
+  return {
+    selection: set(GOVERNMENT_MASK, SUPPORT_MASK),
+    crossing: set(CROSSING_GOVERNMENT_MASK, CROSSING_SUPPORT_MASK),
+  };
 }
 
 const pointer12 = await pointerFor(SITE, GENERATION_1_2);
@@ -509,7 +616,9 @@ if (pointer12.schema_version !== '1.2') throw new Error('fixture is not schema 1
 if (pointer11.schema_version !== '1.1') throw new Error('fixture is not schema 1.1');
 
 const expected = await expectations();
-for (const viewport of VIEWPORTS) await schema12(viewport, pointer12, expected);
+for (const viewport of VIEWPORTS) {
+  await schema12(viewport, pointer12, expected.selection, expected.crossing);
+}
 await schema11FailsClosed(pointer11);
 
 console.log(failures === 0 ? '\nPASS' : `\nFAIL (${failures})`);

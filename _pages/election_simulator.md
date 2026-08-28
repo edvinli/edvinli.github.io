@@ -74,9 +74,9 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
             <h3 class="eg-chart__title" id="election-government-title">Regering</h3>
             <p class="eg-chart__total"><span class="eg-chart__total-value" id="election-government-total">0</span> mandat</p>
           </div>
-          <div class="eg-chart__head" id="election-support-column" data-coalition-mask="0">
-            <h3 class="eg-chart__title" id="election-support-title">Stödpartier</h3>
-            <p class="eg-chart__total"><span class="eg-chart__total-value" id="election-support-total">0</span> mandat</p>
+          <div class="eg-chart__head" id="election-union-column" data-coalition-mask="0">
+            <h3 class="eg-chart__title" id="election-union-title">Med stöd</h3>
+            <p class="eg-chart__total"><span class="eg-chart__total-value" id="election-union-total">0</span> mandat</p>
           </div>
         </div>
         <div class="eg-chart__plot">
@@ -85,18 +85,24 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
             <span class="eg-chart__tick eg-chart__tick--zero">0</span>
           </div>
           <div class="eg-bar" id="election-government-bar" role="img" aria-label="Regering: inga partier valda"></div>
-          <div class="eg-bar" id="election-support-bar" role="img" aria-label="Stödpartier: inga partier valda"></div>
+          <div class="eg-bar" id="election-union-bar" role="img" aria-label="Med stöd: inga partier valda"></div>
           <div class="eg-chart__majority" aria-hidden="true"><span class="eg-chart__majority-label">Majoritetsgräns: 175 mandat</span></div>
         </div>
         <div class="eg-chart__row eg-chart__row--zones">
           <div class="eg-chart__gutter" aria-hidden="true"></div>
-          <div id="election-government-parties" class="eg-zone eg-zone--column" role="group" aria-labelledby="election-government-title"></div>
-          <div id="election-support-parties" class="eg-zone eg-zone--column" role="group" aria-labelledby="election-support-title"></div>
+          <div class="eg-chart__zone-cell">
+            <h4 class="eg-zone__title" id="election-government-zone-title">Regeringspartier</h4>
+            <div id="election-government-parties" class="eg-zone eg-zone--column" role="group" aria-labelledby="election-government-zone-title"></div>
+          </div>
+          <div class="eg-chart__zone-cell">
+            <h4 class="eg-zone__title" id="election-support-zone-title">Stödpartier</h4>
+            <div id="election-support-parties" class="eg-zone eg-zone--column" role="group" aria-labelledby="election-support-zone-title"></div>
+          </div>
         </div>
       </div>
       <p id="election-government-empty" class="eg-builder__empty" hidden>Välj minst ett regeringsparti.</p>
       <dl id="election-government-results" class="eg-summary" hidden data-coalition-mask="" data-government-mask="" data-support-mask=""></dl>
-      <p id="election-government-note" class="eg-builder__note" hidden>Medianerna beräknas var för sig och summerar därför inte exakt. Staplarnas höjd följer kombinationens median.</p>
+      <p id="election-government-note" class="eg-builder__note" hidden>Den högra stapeln visar regeringen och stödpartierna tillsammans; stödpartiernas mandat är rutmönstrade. Medianerna beräknas var för sig och summerar därför inte exakt, så staplarnas höjd följer kombinationens egen median.</p>
     </div>
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda partierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>

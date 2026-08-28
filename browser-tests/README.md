@@ -66,6 +66,16 @@ the published lookup rather than against a copy of it.
     majority rule dashed, spanning both columns, positioned at 175/349 of the
     plot to within 1.5px, and labelled `Majoritetsgräns: 175 mandat` — asserted
     **not** to say "50 %".
+  - *The crossing case*: `S + V` govern with 138 seats, short of 175, but with
+    `MP + C` supporting them the union median is 190. The left bar's measured
+    stack must stay **below** the rule and the right one **above** it, the
+    right total must equal the union lookup median, and the summary's
+    `Tillsammans` row must print that same value. This is the regression the
+    cumulative right-hand bar exists for: drawn as two independent masks, both
+    bars sit under the rule and the panel answers the majority question
+    wrongly. The test also asserts the fixture still *contains* a crossing
+    case, so a data refresh that removes one fails loudly instead of quietly
+    weakening the check.
   - *Movement and membership*: a party moved pool → Regering → Stödpartier →
     pool, with focus following it each time; no party ever present in two
     zones; an empty Regering still suppressing the summary. Then `M + KD + SD`
@@ -73,11 +83,13 @@ the published lookup rather than against a copy of it.
   - *Masks and results*: government mask 137, support mask 2, union mask 139 on
     the summary; the five published numbers (both column medians, the combined
     median, the union 90 % interval and the union probability) matching the
-    fixture; the stacked bar's measured pixel height equal to the coalition
-    median on the 0–349 scale, so the drawing and the printed number cannot
-    diverge; the bar's `aria-label` and the live region.
-  - *Keyboard*: a real `Tab` keypress landing on a builder control that matches
-    `:focus-visible` and computes a non-zero outline.
+    fixture; each bar's measured pixel height equal to its own coalition median
+    on the 0–349 scale, so the drawing and the printed number cannot diverge;
+    the support parties hatched in the cumulative bar; the bars'
+    `aria-label`s and the live region.
+  - *Keyboard and targets*: a real `Tab` keypress landing on a builder control
+    that matches `:focus-visible` and computes a non-zero outline; every party
+    action at least 40px on its short side.
   - *Layout*: no sideways scroll on the document or the panel, and no element
     inside the panel reaching past the viewport.
   - No console errors and no uncaught exceptions.

@@ -896,6 +896,12 @@ canvas {
   justify-content: flex-start;
 }
 
+/* Actions share the row they already occupy rather than shrink-wrapping their
+   text, so a short label like "Stöd" still gets a full-size tap target. */
+.eg-zone--pool .eg-party__btn {
+  flex: 1 1 auto;
+}
+
 .eg-party.is-dragging {
   opacity: 0.5;
 }
@@ -939,7 +945,9 @@ canvas {
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
-  min-height: 2.1rem;
+  /* 44px: the smallest comfortable tap target.  The 360px layout is built
+     around this height rather than the other way round. */
+  min-height: 2.75rem;
   padding: 0.3rem 0.55rem;
   touch-action: manipulation;
   transition: background-color 0.15s ease, border-color 0.15s ease;
@@ -956,7 +964,7 @@ canvas {
 }
 
 .eg-party__btn--remove {
-  min-width: 2.1rem;
+  min-width: 2.75rem;
 }
 
 /* --- Two-column seat chart ----------------------------------------------- */
@@ -991,6 +999,18 @@ canvas {
 
 .eg-chart__head {
   min-width: 0;
+}
+
+.eg-chart__zone-cell {
+  min-width: 0;
+}
+
+.eg-zone__title {
+  color: var(--el-ink-soft);
+  font-family: var(--el-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
 }
 
 .eg-chart__title {
@@ -1080,11 +1100,33 @@ canvas {
   display: flex;
   justify-content: center;
   overflow: hidden;
+  position: relative;
   width: 100%;
+}
+
+/* In the cumulative bar the support parties' seats are hatched, so the
+   reader can see which part of a majority the government does not hold on
+   its own.  Party colour still carries the identity underneath. */
+.eg-bar__segment--support::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.34) 0,
+    rgba(255, 255, 255, 0.34) 3px,
+    rgba(255, 255, 255, 0) 3px,
+    rgba(255, 255, 255, 0) 7px
+  );
+  bottom: 0;
+  content: "";
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 .eg-bar__segment-label {
   font-family: var(--el-mono);
+  position: relative;
+  z-index: 1;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -1620,13 +1662,21 @@ canvas {
     justify-content: flex-start;
   }
 
+  .eg-party__btn {
+    flex: 1 1 auto;
+  }
+
   .eg-bar__segment-label {
     font-size: 0.66rem;
   }
 
   .eg-party__btn {
-    font-size: 0.68rem;
-    padding: 0.3rem 0.42rem;
+    font-size: 0.66rem;
+    padding: 0.3rem 0.36rem;
+  }
+
+  .eg-party__btn--remove {
+    min-width: 2.5rem;
   }
 
   .eg-summary {
@@ -1671,7 +1721,8 @@ canvas {
   .ep-legend__swatch,
   .eg-pill__swatch,
   .eg-party__swatch,
-  .eg-bar__segment {
+  .eg-bar__segment,
+  .eg-bar__segment--support::after {
     forced-color-adjust: none;
   }
 
