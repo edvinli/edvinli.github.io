@@ -89,8 +89,13 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       </div>
       <dl id="election-government-results" class="eg-summary" hidden data-coalition-mask="" data-government-mask="" data-opposition-mask=""></dl>
       <div id="election-government-histogram" class="egh-histogram" hidden data-coalition-mask="" data-total-count="0" data-min-seats="" data-max-seats="">
-        <h3 id="election-government-histogram-heading" class="egh-histogram__title">Mandatfördelning i simuleringarna</h3>
+        <h3 id="election-government-histogram-heading" class="egh-histogram__title">Mandatfördelning</h3>
         <p id="election-government-histogram-context" class="egh-histogram__context"></p>
+        <div id="election-government-histogram-majority" class="egh-majority-result" hidden>
+          <h4 class="egh-majority-result__label">Majoritet</h4>
+          <p id="election-government-histogram-majority-share" class="egh-majority-result__value"></p>
+          <p id="election-government-histogram-majority-detail" class="egh-majority-result__detail"></p>
+        </div>
         <div class="egh-histogram__key" aria-label="Diagramförklaring">
           <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--below" aria-hidden="true"></span>under 175 mandat</span>
           <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--majority" aria-hidden="true"></span>175 mandat eller fler</span>

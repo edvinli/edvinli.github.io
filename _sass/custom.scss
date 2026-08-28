@@ -1092,6 +1092,31 @@ canvas {
   font-weight: 700;
 }
 
+.eg-summary__discoverability {
+  align-items: baseline;
+  border-top: 1px solid var(--el-rule);
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.45rem;
+  grid-column: 1 / -1;
+  justify-content: flex-start !important;
+  padding: 0.55rem 0 0.1rem !important;
+}
+
+.eg-summary__discoverability > span {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.8rem;
+}
+
+.eg-summary__histogram-link {
+  color: var(--el-ink);
+  font-family: var(--el-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .eg-builder__disclaimer {
   color: var(--el-muted);
   font-size: 0.82rem;
@@ -1124,6 +1149,41 @@ canvas {
   font-size: 0.8rem;
   margin: 0.35rem 0 0;
   max-width: 68ch;
+}
+
+.egh-majority-result {
+  background: var(--el-fill-soft);
+  border: 1px solid var(--el-rule);
+  border-left: 3px solid var(--el-rule-strong);
+  border-radius: 0.45rem;
+  margin-top: 1rem;
+  max-width: 30rem;
+  padding: 0.65rem 0.8rem 0.7rem;
+}
+
+.egh-majority-result__label {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.egh-majority-result__value {
+  color: var(--el-ink);
+  font-family: var(--el-mono);
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0.12rem 0 0;
+}
+
+.egh-majority-result__detail {
+  color: var(--el-ink-soft);
+  font-size: 0.82rem;
+  margin: 0.2rem 0 0;
 }
 
 .egh-histogram__party-chips {

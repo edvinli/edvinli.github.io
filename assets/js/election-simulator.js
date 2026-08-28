@@ -338,6 +338,15 @@
     return percent(pct, 1);
   }
 
+  // Histogram framing keeps two decimal places so the reader can reconcile
+  // the displayed percentage with the exact published draw count (for
+  // example, 2.216% is shown as 2,22%).  The existing probability formatter
+  // remains unchanged everywhere else on the page.
+  function histogramProbability(value) {
+    var parsed = num(value);
+    return parsed === null ? "\u2014" : percent(parsed * 100, 2);
+  }
+
   function niceMax(value, step) {
     var parsed = num(value);
     if (parsed === null || parsed <= 0) return step;
@@ -1086,10 +1095,10 @@
     return node;
   }
 
-  function histogramBinLabel(seat, count, total, reachesMajority) {
+  function histogramBinLabel(seat, count, total) {
     var share = total > 0 ? (count / total) * 100 : 0;
-    return seat + " mandat \u00b7 " + grouped(count) + " simuleringar \u00b7 " + percent(share, 2) +
-      (reachesMajority ? " \u00b7 175 mandat eller fler" : " \u00b7 under 175 mandat");
+    return "Exakt " + seat + " mandat: " + grouped(count) +
+      " simuleringar (" + percent(share, 2) + ")";
   }
 
   function summaryRow(metric, term, value) {
@@ -1128,6 +1137,9 @@
     var heading = byId("election-government-histogram-heading");
     var svg = byId("election-government-histogram-svg");
     var context = byId("election-government-histogram-context");
+    var majorityResult = byId("election-government-histogram-majority");
+    var majorityShareText = byId("election-government-histogram-majority-share");
+    var majorityDetailText = byId("election-government-histogram-majority-detail");
     var textAlternative = byId("election-government-histogram-text");
     var status = byId("election-government-histogram-status");
 
@@ -1146,6 +1158,9 @@
       host.style.removeProperty("--egh-majority-hatch");
       host.style.removeProperty("--egh-majority-region");
       if (context) context.textContent = "";
+      if (majorityResult) majorityResult.hidden = true;
+      if (majorityShareText) majorityShareText.textContent = "";
+      if (majorityDetailText) majorityDetailText.textContent = "";
       if (textAlternative) textAlternative.textContent = "";
       if (status) {
         status.textContent = "";
@@ -1224,11 +1239,10 @@
     host.style.setProperty("--egh-majority-hatch", theme.majorityHatch);
     host.style.setProperty("--egh-majority-region", theme.majorityRegion);
 
-    // The sample count in the heading is the count that was validated, not a
-    // number typed into the markup, so it cannot outlive a publication that
-    // changes it.
+    // Keep the heading short; the validated sample count is explained once
+    // in the context sentence and reused in the result block below.
     if (heading) {
-      heading.textContent = "Mandatf\u00f6rdelning i " + grouped(total) + " simuleringar";
+      heading.textContent = "Mandatf\u00f6rdelning";
     }
     if (context) {
       var chipsHtml = parties.map(function (party) {
@@ -1238,7 +1252,16 @@
       context.innerHTML =
         "<span class=\"egh-histogram__party-chips\" aria-hidden=\"true\">" + chipsHtml + "</span>" +
         "<span class=\"egh-histogram__party-label\">" + escapeHtml(partyLabel) + "</span>" +
-        ". F\u00f6rdelningen visar hur ofta regeringen hamnar p\u00e5 olika mandatniv\u00e5er i simuleringarna.";
+        ". Varje stapel visar hur ofta regeringen fick ett visst antal mandat i modellens " +
+        grouped(total) + " simuleringar.";
+    }
+    if (majorityResult) {
+      majorityResult.hidden = false;
+      if (majorityShareText) majorityShareText.textContent = histogramProbability(entry.prob_majority);
+      if (majorityDetailText) {
+        majorityDetailText.textContent = grouped(majorityCount) + " av " + grouped(total) +
+          " simuleringar gav minst " + MAJORITY + " mandat.";
+      }
     }
     if (status) {
       status.textContent = "";
@@ -1324,7 +1347,7 @@
         "data-share": (count / total).toFixed(8),
         "data-majority": reachesMajority ? "majority" : "below",
         "data-coalition-mask": String(mask),
-        "aria-label": histogramBinLabel(seat, count, total, reachesMajority)
+        "aria-label": histogramBinLabel(seat, count, total)
       });
       bin.appendChild(svgNode("rect", {
         x: x + gap,
@@ -1351,7 +1374,7 @@
       }));
       function showBin() {
         if (!status) return;
-        status.textContent = histogramBinLabel(seat, count, total, reachesMajority);
+        status.textContent = histogramBinLabel(seat, count, total);
         status.hidden = false;
       }
       if (bin.addEventListener) {
@@ -1433,9 +1456,9 @@
     }, "Majoritetsgr\u00e4ns: 175 mandat"));
 
     if (textAlternative) {
-      textAlternative.textContent = description + " Staplar med " + MAJORITY +
-        " mandat eller fler \u00e4r skrafferade; \u00f6vriga staplar ligger under gr\u00e4nsen." +
-        " Fokusera p\u00e5 en stapel f\u00f6r detaljer.";
+      textAlternative.textContent = partyLabel + " fick majoritet i " +
+        histogramProbability(entry.prob_majority) + " av simuleringarna." +
+        " Utfallet varierade mellan " + minSeats + " och " + maxSeats + " mandat.";
     }
   }
 
@@ -1824,6 +1847,17 @@
       var oppositionSeats = format(medianOf(opposition), 0) + " mandat";
       var range = rangeText(entry.p05_seats, entry.p95_seats, 0) + " mandat";
       var chance = probability(entry.prob_majority);
+      // A schema-1.2 entry has no exact histogram to reveal.  Keep its
+      // compatibility summary intact, but do not leave a dead link behind.
+      var discoverability = entry.seat_histogram && histogram && !histogram.hidden
+        ? "<div class=\"eg-summary__discoverability\">" +
+            "<span>Median: " + escapeHtml(format(entry.median_seats, 0)) +
+            " mandat \u00b7 Majoritet: " + escapeHtml(histogramProbability(entry.prob_majority)) + " \u00b7 </span>" +
+            "<a class=\"eg-summary__histogram-link\" href=\"#election-government-histogram\">" +
+              "Visa mandatf\u00f6rdelningen \u2193" +
+            "</a>" +
+          "</div>"
+        : "";
       // The opposition row is its own coalition's median, looked up on its
       // own mask.  It is a contrast, not a second majority claim, so no
       // probability is printed for it.
@@ -1831,7 +1865,25 @@
         summaryRow("government", ZONE_NAMES.government, governmentSeats) +
         summaryRow("opposition", ZONE_NAMES.opposition, oppositionSeats) +
         summaryRow("interval", "90\u00a0% prognosintervall", range) +
-        summaryRow("probability", "Sannolikhet f\u00f6r minst " + MAJORITY + " mandat", chance);
+        summaryRow("probability", "Sannolikhet f\u00f6r minst " + MAJORITY + " mandat", chance) +
+        discoverability;
+
+      var histogramLink = discoverability
+        ? summary.querySelector(".eg-summary__histogram-link") : null;
+      if (histogramLink && histogram && histogram.addEventListener) {
+        histogramLink.addEventListener("click", function (event) {
+          // The href remains a normal anchor fallback for older browsers.  If
+          // smooth scrolling is available, use it only after an explicit
+          // click; rendering and dragging never move the page.
+          if (!histogram.scrollIntoView || typeof histogram.scrollIntoView !== "function") return;
+          if (event && event.preventDefault) event.preventDefault();
+          try {
+            histogram.scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch (error) {
+            histogram.scrollIntoView();
+          }
+        });
+      }
 
       var oppositionParties = coalitionParties(builder, opposition);
       return "Regering " + coalitionParties(builder, governmentMask).join(" + ") + ", " +
