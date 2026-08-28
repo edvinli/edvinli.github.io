@@ -808,7 +808,7 @@ canvas {
   --eg-majority: 50.1433%;
   --eg-axis: 2.7rem;
   --eg-gap: 1.1rem;
-  --eg-plot: clamp(190px, 26vw, 300px);
+  --eg-plot: clamp(230px, 30vw, 330px);
 
   margin-top: 1.1rem;
 }
@@ -845,126 +845,6 @@ canvas {
   outline-offset: 2px;
 }
 
-/* --- Drop zones ---------------------------------------------------------- */
-
-.eg-zone {
-  border: 1px dashed var(--el-rule);
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-height: 4.6rem;
-  min-width: 0;
-  padding: 0.45rem;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
-}
-
-.eg-zone__hint {
-  color: var(--el-muted);
-  font-size: 0.76rem;
-  margin: 0.2rem 0.15rem;
-}
-
-/* The one legal destination -- the side the card is not in -- announces
-   itself for as long as the card is in flight, and fills in under the
-   pointer. */
-.eg-zone.is-droppable {
-  background: var(--el-fill-soft);
-  border-color: var(--el-rule-strong);
-}
-
-.eg-zone.is-dragover {
-  background: var(--el-fill);
-  border-color: var(--el-ink);
-  border-style: solid;
-}
-
-/* --- Party cards --------------------------------------------------------- */
-
-.eg-party {
-  align-items: center;
-  background: var(--el-panel);
-  border: 1px solid var(--el-rule);
-  border-radius: 4px;
-  column-gap: 0.35rem;
-  cursor: grab;
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  /* The height the grip used to hold open, kept so the rows read the same
-     now that the block carries nothing but the party. */
-  min-height: 2.2rem;
-  min-width: 0;
-  padding: 0.3rem 0.35rem;
-  /* The whole block is the drag handle.  pan-y hands vertical panning back
-     to the browser -- a swipe down the page still scrolls over a card --
-     while a sideways drag, the direction a card actually travels, reaches
-     the pointer handlers instead. */
-  touch-action: pan-y;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
-  user-select: none;
-}
-
-/* The affordance is the block itself, so it says so on hover and while it is
-   held rather than by carrying a visible handle. */
-.eg-party:hover {
-  border-color: var(--el-rule-strong);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.eg-party:active {
-  cursor: grabbing;
-}
-
-.eg-party:focus-visible {
-  outline: 2px solid var(--el-ink);
-  outline-offset: 2px;
-}
-
-.eg-party.is-dragging {
-  opacity: 0.35;
-}
-
-/* The card that follows the pointer.  It carries no controls and cannot be
-   hit-tested, so elementFromPoint still resolves the zone underneath. */
-.eg-party--ghost {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
-  cursor: grabbing;
-  pointer-events: none;
-  position: fixed;
-  z-index: 60;
-}
-
-.eg-party__swatch {
-  border-radius: 50%;
-  display: inline-block;
-  height: 0.68rem;
-  width: 0.68rem;
-}
-
-.eg-party__abbr {
-  font-family: var(--el-mono);
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
-.eg-party__seats {
-  color: var(--el-muted);
-  font-family: var(--el-mono);
-  font-size: 0.76rem;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* Touch: the block is the target, so it takes the comfortable height the
-   grip used to carry.  Nothing else changes -- there is no second control
-   left to size. */
-@media (pointer: coarse) {
-  .eg-party {
-    min-height: 44px;
-  }
-}
-
 /* --- Two-column seat chart ----------------------------------------------- */
 
 .eg-chart__row,
@@ -977,10 +857,6 @@ canvas {
 .eg-chart__row--heads {
   align-items: end;
   margin-bottom: 0.6rem;
-}
-
-.eg-chart__row--zones {
-  margin-top: 0.75rem;
 }
 
 .eg-chart__gutter {
@@ -996,10 +872,6 @@ canvas {
 }
 
 .eg-chart__head {
-  min-width: 0;
-}
-
-.eg-chart__zone-cell {
   min-width: 0;
 }
 
@@ -1081,17 +953,81 @@ canvas {
   justify-self: center;
   max-width: 11rem;
   min-width: 0;
+  /* The zero-seat marker is pinned to the baseline out of the flow, so it
+     cannot push the stack off the 0-349 scale. */
+  position: relative;
+  transition: box-shadow 0.12s ease, outline-color 0.12s ease;
   width: 100%;
 }
 
+/* The bars are the drop targets.  There is exactly one legal destination --
+   the side the block is not in -- and it says so for as long as the block is
+   in flight, then fills in under the pointer. */
+.eg-bar.is-droppable {
+  outline: 1px dashed var(--el-rule-strong);
+  outline-offset: 2px;
+}
+
+.eg-bar.is-dragover {
+  background: var(--el-fill);
+  box-shadow: inset 0 -1px 0 var(--el-rule-strong), 0 0 0 2px var(--el-ink);
+}
+
+/* The coloured mandate block is the control: it is what a pointer grabs and
+   what a drop moves.  Nothing sits inside it to press, so the whole block is
+   the drag handle. */
 .eg-bar__segment {
   align-items: center;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  cursor: grab;
   display: flex;
   justify-content: center;
   overflow: hidden;
   position: relative;
+  /* pan-y hands vertical panning back to the browser -- a swipe down the page
+     still scrolls over a block -- while a sideways drag, the direction a
+     block actually travels between the two bars, reaches the pointer
+     handlers instead. */
+  touch-action: pan-y;
+  user-select: none;
   width: 100%;
+}
+
+.eg-bar__segment:active {
+  cursor: grabbing;
+}
+
+.eg-bar__segment.is-dragging {
+  opacity: 0.35;
+}
+
+/* A party whose median is zero has no height to give.  It sits on the
+   baseline as a small tab, out of the flow so it contributes nothing to the
+   0-349 scale, and is dragged exactly like any other block. */
+.eg-bar__segment--zero {
+  border-radius: 3px 3px 0 0;
+  bottom: 0;
+  height: 1.15rem;
+  left: 0;
+  padding: 0 0.4rem;
+  position: absolute;
+  width: auto;
+  z-index: 3;
+}
+
+/* The copy that follows the pointer.  It cannot be hit-tested, so
+   elementFromPoint still resolves the bar underneath.  It comes after the
+   zero-seat rule so a zero-seat block in flight follows the pointer instead
+   of staying pinned to the baseline it came from. */
+.eg-bar__segment--ghost {
+  border-radius: 3px;
+  bottom: auto;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+  cursor: grabbing;
+  pointer-events: none;
+  position: fixed;
+  right: auto;
+  z-index: 60;
 }
 
 .eg-bar__segment-label {
@@ -1101,6 +1037,7 @@ canvas {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 /* --- Result summary ------------------------------------------------------ */
@@ -1862,7 +1799,7 @@ canvas {
   .eg-builder {
     --eg-axis: 2.1rem;
     --eg-gap: 0.55rem;
-    --eg-plot: clamp(170px, 44vw, 230px);
+    --eg-plot: clamp(215px, 52vw, 285px);
   }
 
   .eg-chart__title {
@@ -1877,28 +1814,6 @@ canvas {
   .eg-chart__tick,
   .eg-chart__unit {
     font-size: 0.62rem;
-  }
-
-  .eg-zone {
-    padding: 0.3rem;
-  }
-
-  .eg-party {
-    column-gap: 0.25rem;
-    padding: 0.25rem 0.3rem;
-  }
-
-  /* A 360px column split in two leaves a card room for the party and its
-     seat count and little else, so the unit is dropped from the ink; the
-     card's accessible name still reads "110 mandat i median". */
-  .eg-party__seats-unit {
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    height: 1px;
-    overflow: hidden;
-    position: absolute;
-    white-space: nowrap;
-    width: 1px;
   }
 
   .eg-bar__segment-label {
@@ -1943,7 +1858,6 @@ canvas {
   .ev-swatch,
   .ep-legend__swatch,
   .eg-pill__swatch,
-  .eg-party__swatch,
   .egh-histogram__party-chip,
   .egh-histogram__key-mark,
   .eg-bar__segment {

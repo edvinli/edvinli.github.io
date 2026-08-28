@@ -14,7 +14,7 @@
   // is never the sole encoding: every mark is accompanied by a party label.
   // ---------------------------------------------------------------------
   var partyColors = {
-    M: "#213A8F", L: "#006AB3", C: "#2B8569", KD: "#01263E",
+    M: "#3657A7", L: "#4A9AD6", C: "#2B8569", KD: "#5B7C9B",
     S: "#ED1B34", V: "#A81420", MP: "#4C983E", SD: "#A87F00", REST: "#8A8A8A"
   };
   var partyNames = {
@@ -748,29 +748,30 @@
     government: "Regering",
     opposition: "Opposition"
   };
-  // Shown inside an empty side so a drop target explains what it is for
-  // instead of reading as a dead rectangle.
+  // Printed in place of the summary while the government is empty, so the
+  // panel says what to do instead of reading as a dead pair of bars.
   var ZONE_HINTS = {
-    government: "Dra partier hit f\u00f6r att bygga en regering.",
-    opposition: "Dra partier hit f\u00f6r att l\u00e4gga dem i opposition."
+    government: "Dra mandatblock till Regering f\u00f6r att bygga en regering."
   };
-  var ZONE_CLASS = "eg-zone";
+  var ZONE_CLASS = "eg-bar";
   // Each side is drawn from its own mask.  Neither bar is cumulative and the
   // two are never added together: only the government mask is evaluated for
   // a majority.
   var BAR_NAMES = { government: "Regering", opposition: "Opposition" };
   // Pointer travel, in CSS pixels, before a press is treated as a drag.
-  // Below it the gesture stays a press, so tapping a card never moves it.
+  // Below it the gesture stays a press, so tapping a block never moves it.
   var DRAG_THRESHOLD = 5;
   // Touch only.  A finger that has stayed inside HOLD_SLOP pixels for
-  // HOLD_MS is holding the card, not starting to scroll, so the drag begins
+  // HOLD_MS is holding the block, not starting to scroll, so the drag begins
   // where the finger already is.
   var HOLD_MS = 320;
   var HOLD_SLOP = 8;
   // A segment shorter than this share of the 349-seat scale cannot hold its
-  // own label legibly at 360px, so the label is dropped there and the party
-  // is read from the card below the bar instead.
-  var SEGMENT_LABEL_MIN_SHARE = 7;
+  // own label legibly at 360px, so the label is dropped there.  The blocks
+  // are now the only place a party is named -- there is no card list under
+  // the chart to fall back on -- so the bar is tall enough that every
+  // non-zero party clears this, and a zero-seat party carries its own tab.
+  var SEGMENT_LABEL_MIN_SHARE = 6;
 
   // Party colour is chosen for identity, not for contrast, so label ink
   // inside a segment is picked per party from WCAG relative luminance.
@@ -1098,11 +1099,14 @@
       "</div>";
   }
 
-  /** Walk up to the drop zone containing `node`, if any. */
+  /** Walk up to the bar containing `node`, if any.  The two bars are the
+      drop targets: the mandate blocks inside them are what a pointer grabs,
+      so a drop lands on whichever bar sits under the pointer. */
   function zoneHostOf(node) {
     while (node && node !== document.body) {
       if (node.getAttribute && node.getAttribute("data-zone") &&
-          String(node.className).indexOf("eg-zone") !== -1) {
+          String(node.className).indexOf("eg-bar") !== -1 &&
+          String(node.className).indexOf("eg-bar__") === -1) {
         return node;
       }
       node = node.parentNode;
@@ -1445,10 +1449,9 @@
         !validCoalitionBuilder(groups.coalition_builder, histogramRequired, totalSamples)) return;
 
     var builder = groups.coalition_builder;
-    var zones = {
-      government: byId("election-government-parties"),
-      opposition: byId("election-opposition-parties")
-    };
+    // The bars are both the picture and the interaction: the mandate blocks
+    // inside them are what a pointer grabs, and the bar a block is dropped
+    // on is the side it moves to.  There is no second set of controls.
     var bars = {
       government: byId("election-government-bar"),
       opposition: byId("election-opposition-bar")
@@ -1474,13 +1477,10 @@
     var governmentMask = 0;
     var drag = null;
 
-    // Cards under a bar are listed in the bar's own top-to-bottom order, so
-    // the list and the stack can be read against each other.  The stack
-    // itself follows the chamber's left-to-right seating order.
+    // The stack follows the chamber's left-to-right seating order.
     var stackOrder = seatingOrder.filter(function (party) {
       return builder.party_order.indexOf(party) !== -1;
     });
-    var columnOrder = stackOrder.slice().reverse();
 
     function oppositionMask() {
       return FULL_MASK ^ governmentMask;
@@ -1517,12 +1517,6 @@
       return zone === ZONE_GOVERNMENT ? ZONE_OPPOSITION : ZONE_GOVERNMENT;
     }
 
-    function partiesIn(zone, order) {
-      return order.filter(function (party) {
-        return zoneOf(party) === zone;
-      });
-    }
-
     function fullName(party) {
       return (partyNames[party] || party) + " (" + abbr(party) + ")";
     }
@@ -1530,30 +1524,17 @@
     // The only mutation of the state.  Setting or clearing the one bit is the
     // whole move: the opposition follows because it is derived, so the two
     // sides can never disagree about where a party is.
-    // A move rebuilds both columns, so the card is a new element afterwards
-    // and focus has to be put back deliberately -- otherwise it falls to the
-    // document and the next Tab starts from the top of the page.  `viaPointer`
-    // marks a move that came from a drag: focus still follows, but without
-    // scrolling, because the reader is already looking at the card.
-    function move(party, zone, viaPointer) {
+    function move(party, zone) {
       var bit = bitOf(party);
       if (bit === 0) return;
       if (zone === ZONE_GOVERNMENT) governmentMask |= bit;
       else governmentMask &= ~bit;
-      render(party, fullName(party) + " flyttades till " + ZONE_NAMES[zone] + ".",
-        viaPointer === true);
+      render(fullName(party) + " flyttades till " + ZONE_NAMES[zone] + ".");
     }
 
-    // --- Keyboard: the card is the control -------------------------------
-    // Dragging is the visible interaction, but it can never be the only one.
-    // With exactly two sides there is nothing to choose between, so the block
-    // carries the move itself instead of holding a second control: it takes
-    // focus, it names its party, its median and the side it is on, and Enter
-    // or Space sends it across.
-
-    function cardLabel(party, zone) {
+    function blockLabel(party, zone) {
       return fullName(party) + ", " + format(partyMedian(party), 0) +
-        " mandat i median, i " + ZONE_NAMES[zone] + ". Tryck Enter f\u00f6r att flytta till " +
+        " mandat i median, i " + ZONE_NAMES[zone] + ". Dra till " +
         ZONE_NAMES[otherZone(zone)] + ".";
     }
 
@@ -1564,12 +1545,12 @@
 
     function paintZones() {
       ZONE_SEQUENCE.forEach(function (zone) {
-        var host = zones[zone];
+        var host = bars[zone];
         if (!host) return;
         var cls = ZONE_CLASS;
         if (drag && drag.active) {
-          // There is exactly one legal target -- the side the card is not
-          // already in -- and it says so for as long as the drag is in
+          // There is exactly one legal target -- the side the block is not
+          // already in -- and it says so for as long as the block is in
           // flight.
           if (zone !== drag.from) cls += " is-droppable";
           if (zone === drag.over) cls += " is-dragover";
@@ -1595,19 +1576,21 @@
       cancelHold();
       var rect = drag.tile.getBoundingClientRect();
       // The ghost is decoration: it is invisible to hit testing, so
-      // elementFromPoint still finds the zone underneath, and it is out of
-      // the accessibility tree and the tab order so nothing can reach a copy.
+      // elementFromPoint still finds the bar underneath, and it is out of the
+      // accessibility tree so nothing can reach a copy.  The block's own
+      // height is a share of its bar, so the copy is pinned to the pixels the
+      // original occupies rather than inheriting a percentage of the body.
       var ghost = drag.tile.cloneNode(true);
-      ghost.className = "eg-party eg-party--ghost";
+      ghost.className = drag.baseClass + " eg-bar__segment--ghost";
       ghost.removeAttribute("data-zone");
-      ghost.removeAttribute("tabindex");
-      ghost.removeAttribute("role");
       ghost.setAttribute("aria-hidden", "true");
+      ghost.removeAttribute("aria-label");
       ghost.style.width = rect.width + "px";
+      ghost.style.height = rect.height + "px";
       document.body.appendChild(ghost);
       drag.ghost = ghost;
       drag.active = true;
-      drag.tile.className = "eg-party is-dragging";
+      drag.tile.className = drag.baseClass + " is-dragging";
       positionGhost(x, y);
     }
 
@@ -1620,7 +1603,7 @@
         drag.ghost.parentNode.removeChild(drag.ghost);
       }
       if (drag.tile) {
-        drag.tile.className = "eg-party";
+        drag.tile.className = drag.baseClass;
         if (drag.pointerId !== null && drag.tile.releasePointerCapture) {
           try {
             drag.tile.releasePointerCapture(drag.pointerId);
@@ -1629,9 +1612,9 @@
       }
       drag = null;
       paintZones();
-      // Dropping onto the side a card already occupies is a no-op rather
+      // Dropping onto the side a block already occupies is a no-op rather
       // than a move, so the reader cannot create a duplicate by wobbling.
-      if (target && target !== zoneOf(party)) move(party, target, true);
+      if (target && target !== zoneOf(party)) move(party, target);
     }
 
     function attachDrag(tile, party, zone) {
@@ -1642,6 +1625,7 @@
         var rect = tile.getBoundingClientRect();
         drag = {
           party: party, tile: tile, from: zone, over: null, active: false,
+          baseClass: tile.className,
           touch: event.pointerType === "touch",
           startX: event.clientX, startY: event.clientY,
           lastX: event.clientX, lastY: event.clientY,
@@ -1677,10 +1661,10 @@
         if (!drag.active) {
           if (drag.touch) {
             // Once the finger leaves the hold radius it is either scrolling
-            // or dragging, and the two are told apart by direction.  The card
-            // travels sideways, so sideways starts a drag; anything more
-            // vertical than horizontal is left to the browser, which pans the
-            // page and cancels the pointer as it goes.
+            // or dragging, and the two are told apart by direction.  The block
+            // travels sideways to the other bar, so sideways starts a drag;
+            // anything more vertical than horizontal is left to the browser,
+            // which pans the page and cancels the pointer as it goes.
             if (Math.abs(dx) > HOLD_SLOP || Math.abs(dy) > HOLD_SLOP) cancelHold();
             if (Math.abs(dx) < DRAG_THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
           } else if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) {
@@ -1701,57 +1685,38 @@
       // The browser takes the gesture over when it decides the page is being
       // scrolled.  That is a scroll, not a drag, and it ends here.
       tile.addEventListener("pointercancel", function () { endDrag(false); });
-
-      tile.addEventListener("keydown", function (event) {
-        if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
-        // The card is the control, so it takes both keys a button would:
-        // Space would otherwise scroll the page.
-        event.preventDefault();
-        move(party, otherZone(zone));
-      });
     }
 
     // --- Rendering -------------------------------------------------------
 
-    function buildTile(party, zone) {
-      var tile = document.createElement("div");
-      tile.className = "eg-party";
-      tile.setAttribute("data-party", party);
-      tile.setAttribute("data-zone", zone);
-      // The whole block is the control: it takes focus, it carries the move,
-      // and it is what a pointer grabs.  Nothing sits inside it to press, so
-      // the accessible name has to say everything -- party, median and side --
-      // and name the key that moves it.
-      tile.setAttribute("role", "button");
-      tile.setAttribute("tabindex", "0");
-      tile.setAttribute("aria-label", cardLabel(party, zone));
+    // One mandate block.  The coloured block is the whole control: it is what
+    // a pointer grabs and what a drop moves, so nothing else on the page has
+    // to carry a duplicate of it.
+    function buildSegment(party, zone, share) {
+      var segment = document.createElement("span");
+      // A party with a median of zero has no height to give, so it is drawn
+      // as a small tab sitting on the bar's baseline instead.  The tab is
+      // taken out of the flow (see the stylesheet), so it adds nothing to the
+      // 0-349 scale -- it is a marker, not a segment.
+      var zero = share <= 0;
+      segment.className = "eg-bar__segment" + (zero ? " eg-bar__segment--zero" : "");
+      if (!zero) segment.style.height = share.toFixed(3) + "%";
+      segment.style.backgroundColor = partyColors[party] || "#777";
+      segment.style.color = readableInk(partyColors[party]);
+      segment.setAttribute("data-party", party);
+      segment.setAttribute("data-side", zone);
+      segment.setAttribute("aria-label", blockLabel(party, zone));
       // Native HTML5 dragging is switched off deliberately: it cannot reach
       // a touchscreen and would race the pointer handlers on a desktop.
-      tile.setAttribute("draggable", "false");
-      tile.innerHTML =
-        "<span class=\"eg-party__swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>" +
-        "<span class=\"eg-party__abbr\">" + escapeHtml(abbr(party)) + "</span>" +
-        "<span class=\"eg-party__seats\">" + format(partyMedian(party), 0) +
-        "<span class=\"eg-party__seats-unit\"> mandat</span></span>";
-      attachDrag(tile, party, zone);
-      return tile;
-    }
-
-    function renderZone(zone, order) {
-      var host = zones[zone];
-      if (!host) return [];
-      var parties = partiesIn(zone, order);
-      host.innerHTML = "";
-      parties.forEach(function (party) {
-        host.appendChild(buildTile(party, zone));
-      });
-      if (!parties.length && ZONE_HINTS[zone]) {
-        var hint = document.createElement("p");
-        hint.className = "eg-zone__hint";
-        hint.textContent = ZONE_HINTS[zone];
-        host.appendChild(hint);
+      segment.setAttribute("draggable", "false");
+      if (zero) {
+        segment.innerHTML = "<span class=\"eg-bar__segment-label\">" +
+          escapeHtml(abbr(party)) + "\u00a0\u00b7\u00a00</span>";
+      } else if (share >= SEGMENT_LABEL_MIN_SHARE) {
+        segment.innerHTML = "<span class=\"eg-bar__segment-label\">" + escapeHtml(abbr(party)) + "</span>";
       }
-      return parties;
+      attachDrag(segment, party, zone);
+      return segment;
     }
 
     // Each side is drawn from its own mask on the shared 0-349 scale, so the
@@ -1780,21 +1745,11 @@
       members.forEach(function (party) {
         var seats = partyMedian(party);
         var share = pct(seats * scale, CHAMBER);
-        var segment = document.createElement("span");
-        segment.className = "eg-bar__segment";
-        segment.style.height = share.toFixed(3) + "%";
-        segment.style.backgroundColor = partyColors[party] || "#777";
-        segment.style.color = readableInk(partyColors[party]);
-        segment.setAttribute("data-party", party);
-        segment.setAttribute("aria-hidden", "true");
-        if (share >= SEGMENT_LABEL_MIN_SHARE) {
-          segment.innerHTML = "<span class=\"eg-bar__segment-label\">" + escapeHtml(abbr(party)) + "</span>";
-        }
-        host.appendChild(segment);
+        host.appendChild(buildSegment(party, key, share));
         described.push(abbr(party) + " " + format(seats, 0));
       });
       // Segments are appended bottom-first (the track is column-reverse), but
-      // the description is read top-down so it matches the card list below.
+      // the description is read top-down, the way the stack is seen.
       host.setAttribute("aria-label", members.length
         ? BAR_NAMES[key] + ": " + described.reverse().join(", ") + ". Median tillsammans " +
           format(total, 0) + " av " + CHAMBER + " mandat."
@@ -1846,19 +1801,7 @@
           : "Inga partier i opposition.");
     }
 
-    function restoreFocus(party, preventScroll) {
-      var host = zones[zoneOf(party)];
-      if (!host || typeof host.querySelector !== "function") return;
-      var tile = host.querySelector(".eg-party[data-party=\"" + party + "\"]");
-      if (tile && typeof tile.focus === "function") {
-        tile.focus(preventScroll ? { preventScroll: true } : undefined);
-      }
-    }
-
-    function render(focusParty, moved, preventScroll) {
-      ZONE_SEQUENCE.forEach(function (zone) {
-        renderZone(zone, columnOrder);
-      });
+    function render(moved) {
       ZONE_SEQUENCE.forEach(function (zone) {
         renderBar(zone, maskOf(zone));
       });
@@ -1866,7 +1809,6 @@
       setText("election-government-announcement",
         moved ? moved + " " + state : state);
       paintZones();
-      if (focusParty) restoreFocus(focusParty, preventScroll);
     }
 
     if (resetButton && resetButton.addEventListener) {

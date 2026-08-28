@@ -59,7 +59,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   <section id="election-government-builder" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Bygg din egen regering</h2>
-      <p class="election-muted">Alla partier börjar i Opposition. Dra dem mellan Regering och Opposition och se hur många mandat sidorna brukar få i simuleringarna.</p>
+      <p class="election-muted">Alla partier börjar i Opposition. Dra mandatblocken mellan Regering och Opposition och se hur många mandat sidorna brukar få i simuleringarna.</p>
     </div>
     <div class="eg-builder">
       <div class="eg-builder__head">
@@ -82,18 +82,9 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
             <span class="eg-chart__tick eg-chart__tick--max">349</span>
             <span class="eg-chart__tick eg-chart__tick--zero">0</span>
           </div>
-          <div class="eg-bar" id="election-government-bar" role="img" aria-label="Regering: inga partier valda"></div>
-          <div class="eg-bar" id="election-opposition-bar" role="img" aria-label="Opposition: inga partier valda"></div>
+          <div class="eg-bar" id="election-government-bar" role="img" data-zone="government" aria-label="Regering: inga partier valda"></div>
+          <div class="eg-bar" id="election-opposition-bar" role="img" data-zone="opposition" aria-label="Opposition: inga partier valda"></div>
           <div class="eg-chart__majority" aria-hidden="true"><span class="eg-chart__majority-label">Majoritetsgräns: 175 mandat</span></div>
-        </div>
-        <div class="eg-chart__row eg-chart__row--zones">
-          <div class="eg-chart__gutter" aria-hidden="true"></div>
-          <div class="eg-chart__zone-cell">
-            <div id="election-government-parties" class="eg-zone" role="group" aria-labelledby="election-government-title" data-zone="government"></div>
-          </div>
-          <div class="eg-chart__zone-cell">
-            <div id="election-opposition-parties" class="eg-zone" role="group" aria-labelledby="election-opposition-title" data-zone="opposition"></div>
-          </div>
         </div>
       </div>
       <dl id="election-government-results" class="eg-summary" hidden data-coalition-mask="" data-government-mask="" data-opposition-mask=""></dl>
