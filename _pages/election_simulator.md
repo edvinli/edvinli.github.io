@@ -194,6 +194,13 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
           &amp;\qquad = \frac{\begin{gathered}\text{antal simuleringar} \\ \text{med minst 175 mandat}\end{gathered}}{100\,000}
         \end{aligned}\]</div>
         <p>Samma princip används för prognosintervallen. Ett 90-procentigt prognosintervall går från den 5:e till den 95:e percentilen bland de simulerade utfallen.</p>
+        <h3 class="election-subhead">7. Fler mandat i median är inte samma sak som större chans till majoritet</h3>
+        <p>Två kombinationer kan byta inbördes ordning beroende på vad man jämför. En kombination kan ligga högre i median och ändå nå 175 mandat i färre simuleringar. Det är inget räknefel, utan en följd av att sannolikheten för majoritet inte avgörs av var fördelningen ligger i mitten, utan av hur ofta den hamnar över gränsen.</p>
+        <p>Hur bred fördelningen blir beror på hur partierna rör sig i förhållande till varandra. Spridningen för en kombination är inte bara summan av partiernas egna varianser, utan innehåller också deras samvariation:</p>
+        <div class="election-equation">\[ \operatorname{Var}(A + B) = \operatorname{Var}(A) + \operatorname{Var}(B) + 2\operatorname{Cov}(A, B) \]</div>
+        <p>Om två partier i de historiska mönstren tenderar att gå upp när det andra går ned är kovariansen negativ. Deras rörelser tar då delvis ut varandra, och kombinationens fördelning blir smalare. En smal fördelning strax under 175 mandat når sällan över gränsen. Går partierna i stället ofta upp och ned samtidigt är kovariansen positiv, fördelningen blir bredare, och den kan nå 175 mandat oftare trots ett lägre medianvärde.</p>
+        <p>Samvariationen är inte ett eget antagande om väljarflöden mellan enskilda partier. Den följer av att varje simulering drar hela opinionsläget gemensamt i steg 2 och 3, så att historiska mönster i hur partierna rört sig i förhållande till varandra finns kvar hela vägen fram till mandaten.</p>
+        <p>Jämför man därför två kombinationer är medianen och sannolikheten två olika frågor, och de behöver inte peka åt samma håll.</p>
         <h3 class="election-subhead">Viktigaste antagandena</h3>
         <p>Modellen bygger framför allt på fyra antaganden:</p>
         <ol class="election-list">

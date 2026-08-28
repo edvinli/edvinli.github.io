@@ -33,7 +33,7 @@ const PAGE = '/election-simulator/';
 const GENERATION = '20260828T064703Z-1da59168';
 
 const MATHJAX_VERSION = '3.2.2';
-const EQUATION_COUNT = 10;
+const EQUATION_COUNT = 11;
 
 const VIEWPORTS = [
   { name: 'desktop', width: 1280, height: 1200 },
