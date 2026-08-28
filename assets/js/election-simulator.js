@@ -54,6 +54,12 @@
     "p75_seats", "p90_seats", "p95_seats", "prob_majority"
   ];
   var COALITION_ENTRY_FIELDS = ["mask", "parties"].concat(COALITION_FIELDS);
+  // Schema 1.3 adds one exact one-seat-bin histogram per combination.  It is
+  // a contiguous support: min_seats plus a count for every seat value from
+  // there up, so there is nothing to interpolate and nothing to smooth.
+  var COALITION_HISTOGRAM_FIELDS = ["min_seats", "counts"];
+  var COALITION_ENTRY_FIELDS_WITH_HISTOGRAM =
+    COALITION_ENTRY_FIELDS.concat(["seat_histogram"]);
 
   // =====================================================================
   // FROZEN PUBLICATION SUBSYSTEM
@@ -779,7 +785,97 @@
     return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? "#111111" : "#ffffff";
   }
 
-  function validCoalitionBuilder(builder) {
+  // The seat value of the nth draw in sorted order, read straight out of the
+  // counts.  The histogram is the sorted sample, so no sample list is needed.
+  function histogramValueAtOrderIndex(minSeats, counts, index) {
+    var remaining = index;
+    for (var offset = 0; offset < counts.length; offset += 1) {
+      if (remaining < counts[offset]) return minSeats + offset;
+      remaining -= counts[offset];
+    }
+    return null;
+  }
+
+  function histogramQuantile(minSeats, counts, quantile, total) {
+    var position = (total - 1) * quantile;
+    var lowerIndex = Math.floor(position);
+    var upperIndex = Math.ceil(position);
+    var lower = histogramValueAtOrderIndex(minSeats, counts, lowerIndex);
+    var upper = histogramValueAtOrderIndex(minSeats, counts, upperIndex);
+    if (lower === null || upper === null) return null;
+    // The published summaries use NumPy's default linear percentile and then
+    // truncate to integer seats.  Match NumPy's _lerp branch at the halfway
+    // point before truncating; the two algebraically equivalent forms can land
+    // on opposite sides of an integer in floating-point arithmetic.
+    var gamma = position - lowerIndex;
+    var difference = upper - lower;
+    var interpolated = gamma < 0.5
+      ? lower + difference * gamma
+      : upper - difference * (1 - gamma);
+    return Math.floor(interpolated);
+  }
+
+  // A histogram is accepted only if it reproduces the summary fields the
+  // publication already prints: the mean, all seven quantiles and the
+  // majority probability.  So the chart cannot drift from the numbers beside
+  // it -- one of them would have to be wrong for both to be accepted.
+  function validCoalitionHistogram(histogram, expectedTotal, entry, mask) {
+    if (!histogram || typeof histogram !== "object" || Array.isArray(histogram)) return false;
+    var histogramKeys = Object.keys(histogram);
+    if (histogramKeys.length !== COALITION_HISTOGRAM_FIELDS.length ||
+        !COALITION_HISTOGRAM_FIELDS.every(function (field, index) {
+          return histogramKeys[index] === field;
+        })) return false;
+
+    var minSeats = histogram.min_seats;
+    var counts = histogram.counts;
+    if (!Number.isInteger(minSeats) || minSeats < 0 || minSeats > CHAMBER ||
+        !Array.isArray(counts) || counts.length < 1 ||
+        minSeats + counts.length - 1 > CHAMBER) return false;
+
+    var total = 0;
+    for (var index = 0; index < counts.length; index += 1) {
+      var count = counts[index];
+      if (!Number.isInteger(count) || count < 0) return false;
+      total += count;
+    }
+    if (!Number.isSafeInteger(total) || total <= 0 ||
+        (expectedTotal !== null && total !== expectedTotal)) return false;
+
+    // The histogram is a contiguous support encoding.  A zero-count edge is
+    // not wrong mathematically, but accepting one would let a malformed
+    // min_seats silently disagree with the first observed seat value.  The
+    // empty/full invariants below additionally make their support explicit.
+    if (counts.length > 1 && (counts[0] === 0 || counts[counts.length - 1] === 0)) return false;
+    if (mask === 0 && (minSeats !== 0 || counts.length !== 1 || counts[0] !== total)) return false;
+    if (mask === 255 && (minSeats !== CHAMBER || counts.length !== 1 || counts[0] !== total)) return false;
+
+    var weightedSeats = counts.reduce(function (sum, count, index) {
+      return sum + (minSeats + index) * count;
+    }, 0);
+    var meanValue = num(entry && entry.mean_seats);
+    if (meanValue === null || Math.abs((weightedSeats / total) - meanValue) > 1e-12) return false;
+    var quantileFields = [
+      ["p05_seats", 0.05], ["p10_seats", 0.10], ["p25_seats", 0.25],
+      ["median_seats", 0.50], ["p75_seats", 0.75], ["p90_seats", 0.90],
+      ["p95_seats", 0.95]
+    ];
+    for (var quantileIndex = 0; quantileIndex < quantileFields.length; quantileIndex += 1) {
+      var quantileField = quantileFields[quantileIndex];
+      var expectedQuantile = histogramQuantile(minSeats, counts, quantileField[1], total);
+      if (expectedQuantile === null || entry[quantileField[0]] !== expectedQuantile) return false;
+    }
+
+    var majorityCount = 0;
+    for (var seatIndex = Math.max(0, MAJORITY - minSeats); seatIndex < counts.length; seatIndex += 1) {
+      majorityCount += counts[seatIndex];
+    }
+    var probabilityValue = num(entry && entry.prob_majority);
+    if (probabilityValue === null || Math.abs((majorityCount / total) - probabilityValue) > 1e-12) return false;
+    return total;
+  }
+
+  function validCoalitionBuilder(builder, histogramRequired, expectedTotal) {
     var builderFields = ["party_order", "encoding", "majority_threshold", "coalitions"];
     if (!builder || typeof builder !== "object" ||
         Object.keys(builder).length !== builderFields.length ||
@@ -804,12 +900,26 @@
       return false;
     }
 
+    // Schema 1.2 entries carry summaries only; 1.3 appends one histogram to
+    // every entry, and a 1.3 publication that is missing even one is not
+    // partially rendered -- the whole builder stays hidden.
+    var entryFields = histogramRequired
+      ? COALITION_ENTRY_FIELDS_WITH_HISTOGRAM
+      : COALITION_ENTRY_FIELDS;
+    var commonTotal = expectedTotal === undefined || expectedTotal === null
+      ? null : num(expectedTotal);
+    if (commonTotal !== null && (!Number.isInteger(commonTotal) || commonTotal <= 0)) return false;
+    if (histogramRequired && (typeof expectedTotal !== "number" ||
+        !Number.isInteger(expectedTotal) || expectedTotal <= 0)) return false;
+    var histogramTotal = commonTotal;
+    var validatedHistograms = {};
+
     for (var mask = 0; mask < 256; mask += 1) {
       var entry = coalitions[String(mask)];
       if (!entry || typeof entry !== "object" || entry.mask !== mask ||
           !Array.isArray(entry.parties) ||
-          Object.keys(entry).length !== COALITION_ENTRY_FIELDS.length ||
-          !COALITION_ENTRY_FIELDS.every(function (field, index) {
+          Object.keys(entry).length !== entryFields.length ||
+          !entryFields.every(function (field, index) {
             return Object.keys(entry)[index] === field;
           })) {
         return false;
@@ -854,6 +964,34 @@
           entry.prob_majority !== 1)) {
         return false;
       }
+      if (histogramRequired) {
+        var validatedTotal = validCoalitionHistogram(entry.seat_histogram, commonTotal, entry, mask);
+        if (!validatedTotal || (histogramTotal !== null && validatedTotal !== histogramTotal)) return false;
+        histogramTotal = validatedTotal;
+        validatedHistograms[mask] = entry.seat_histogram;
+      }
+    }
+    // Every draw seats all 349, so a combination winning s seats is the same
+    // draw as its complement winning 349 - s.  Checking that the two
+    // histograms are exact mirrors catches a table assembled from different
+    // runs, or from anything but one joint simulation.
+    if (histogramRequired) {
+      var fullMask = 255;
+      for (var coalitionMask = 0; coalitionMask <= fullMask; coalitionMask += 1) {
+        var complementMask = fullMask ^ coalitionMask;
+        if (coalitionMask > complementMask) continue;
+        var histogram = validatedHistograms[coalitionMask];
+        var complementHistogram = validatedHistograms[complementMask];
+        for (var seats = 0; seats <= CHAMBER; seats += 1) {
+          var offset = seats - histogram.min_seats;
+          var complementOffset = (CHAMBER - seats) - complementHistogram.min_seats;
+          var count = offset >= 0 && offset < histogram.counts.length
+            ? histogram.counts[offset] : 0;
+          var complementCount = complementOffset >= 0 && complementOffset < complementHistogram.counts.length
+            ? complementHistogram.counts[complementOffset] : 0;
+          if (count !== complementCount) return false;
+        }
+      }
     }
     return true;
   }
@@ -866,6 +1004,91 @@
     return builder.party_order.filter(function (party, index) {
       return (mask & (1 << index)) !== 0;
     });
+  }
+
+  // The chart takes its colour from the coalition it is drawing: the member
+  // with the largest one-party median, so a government reads as the party
+  // that dominates it.  Ties fall to the earlier party in the published
+  // party_order, which makes the choice stable across renders.
+  function coalitionAccentParty(builder, mask) {
+    var parties = coalitionParties(builder, mask);
+    if (!parties.length) return null;
+    var bestParty = parties[0];
+    var bestMedian = -Infinity;
+    parties.forEach(function (party) {
+      var index = builder.party_order.indexOf(party);
+      if (index === -1) return;
+      var entry = coalitionLookup(builder, 1 << index);
+      var median = entry && typeof entry.median_seats === "number" ? entry.median_seats : 0;
+      if (median > bestMedian) {
+        bestMedian = median;
+        bestParty = party;
+      }
+    });
+    return bestParty;
+  }
+
+  function hexToRgb(hex) {
+    var value = String(hex === null || hex === undefined ? "" : hex).replace("#", "");
+    if (!/^[0-9a-fA-F]{6}$/.test(value)) return [120, 120, 120];
+    return [
+      parseInt(value.substr(0, 2), 16),
+      parseInt(value.substr(2, 2), 16),
+      parseInt(value.substr(4, 2), 16)
+    ];
+  }
+
+  function rgbToHex(r, g, b) {
+    function clamp(value) {
+      return Math.max(0, Math.min(255, Math.round(value)));
+    }
+    return "#" + [clamp(r), clamp(g), clamp(b)].map(function (value) {
+      var text = value.toString(16);
+      return text.length === 1 ? "0" + text : text;
+    }).join("");
+  }
+
+  function mixColors(color1, color2, weight1) {
+    var rgb1 = hexToRgb(color1);
+    var rgb2 = hexToRgb(color2);
+    var w1 = typeof weight1 === "number" ? weight1 : 0.5;
+    var w2 = 1 - w1;
+    return rgbToHex(
+      rgb1[0] * w1 + rgb2[0] * w2,
+      rgb1[1] * w1 + rgb2[1] * w2,
+      rgb1[2] * w1 + rgb2[2] * w2
+    );
+  }
+
+  // One accent, mixed down into a restrained set of fills and strokes.  The
+  // party colour is never used at full strength behind text.
+  function deriveCoalitionTheme(accentHex) {
+    var hex = accentHex || "#355f8b";
+    return {
+      accent: hex,
+      belowFill: mixColors(hex, "#f4f5f7", 0.18),
+      belowStroke: mixColors(hex, "#768390", 0.45),
+      majorityFill: mixColors(hex, "#ffffff", 0.58),
+      majorityHatch: mixColors(hex, "#000000", 0.72),
+      majorityRegion: mixColors(hex, "#ffffff", 0.08)
+    };
+  }
+
+  function svgNode(name, attributes, text) {
+    var node = typeof document.createElementNS === "function"
+      ? document.createElementNS("http://www.w3.org/2000/svg", name)
+      : document.createElement(name);
+    Object.keys(attributes || {}).forEach(function (attribute) {
+      node.setAttribute(attribute, attributes[attribute]);
+    });
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function histogramBinLabel(seat, count, total, reachesMajority) {
+    var share = total > 0 ? (count / total) * 100 : 0;
+    return seat + " mandat \u00b7 " + grouped(count) + " simuleringar \u00b7 " + percent(share, 2) +
+      (reachesMajority ? " \u00b7 175 mandat eller fler" : " \u00b7 under 175 mandat");
   }
 
   function summaryRow(metric, term, value) {
@@ -887,10 +1110,339 @@
     return null;
   }
 
-  function renderGovernmentBuilder(groups) {
+  // ---------------------------------------------------------------------
+  // Exact seat histogram (schema 1.3)
+  //
+  // The chart is a lookup, like everything else in this panel: one bar per
+  // seat value, each bar's height the count the publication contains.  There
+  // is no binning choice, no kernel and no smoothing -- the bins are the
+  // integers the simulation can produce.  The histogram drawn is always the
+  // government's own combination; the opposition is never unioned into it.
+  // ---------------------------------------------------------------------
+  function renderCoalitionHistogram(host, entry, builder, mask, totalSamples) {
+    if (!host) return;
+    var heading = byId("election-government-histogram-heading");
+    var svg = byId("election-government-histogram-svg");
+    var context = byId("election-government-histogram-context");
+    var textAlternative = byId("election-government-histogram-text");
+    var status = byId("election-government-histogram-status");
+
+    function clear() {
+      host.hidden = true;
+      host.setAttribute("data-coalition-mask", "");
+      host.removeAttribute("data-coalition-accent");
+      host.removeAttribute("data-coalition-accent-color");
+      host.setAttribute("data-total-count", "0");
+      host.setAttribute("data-min-seats", "");
+      host.setAttribute("data-max-seats", "");
+      host.style.removeProperty("--egh-accent");
+      host.style.removeProperty("--egh-below-fill");
+      host.style.removeProperty("--egh-below-stroke");
+      host.style.removeProperty("--egh-majority-fill");
+      host.style.removeProperty("--egh-majority-hatch");
+      host.style.removeProperty("--egh-majority-region");
+      if (context) context.textContent = "";
+      if (textAlternative) textAlternative.textContent = "";
+      if (status) {
+        status.textContent = "";
+        status.hidden = true;
+      }
+      if (svg) svg.innerHTML = "";
+    }
+
+    // No histogram in the publication (schema 1.2) and no government chosen
+    // both land here: the figure is removed rather than drawn empty.
+    if (!entry || !entry.seat_histogram) {
+      clear();
+      return;
+    }
+
+    var histogram = entry.seat_histogram;
+    var minSeats = histogram.min_seats;
+    var counts = histogram.counts;
+    if (!Number.isInteger(minSeats) || !Array.isArray(counts) || !counts.length) {
+      clear();
+      return;
+    }
+    var total = counts.reduce(function (sum, count) { return sum + count; }, 0);
+    var expectedTotal = totalSamples === undefined || totalSamples === null ? null : num(totalSamples);
+    if (!Number.isSafeInteger(total) || total <= 0 ||
+        (expectedTotal !== null && total !== expectedTotal) || !svg) {
+      clear();
+      return;
+    }
+
+    var maxSeats = minSeats + counts.length - 1;
+    var parties = coalitionParties(builder, mask);
+    var partyLabel = parties.length ? parties.join(" + ") : "Inga partier";
+    var accentParty = coalitionAccentParty(builder, mask);
+    var accentColor = (accentParty && partyColors[accentParty]) || "#355f8b";
+    var theme = deriveCoalitionTheme(accentColor);
+
+    var majorityCount = counts.reduce(function (sum, count, index) {
+      return sum + (minSeats + index >= MAJORITY ? count : 0);
+    }, 0);
+    var majorityShare = total > 0 ? majorityCount / total : 0;
+    var patternId = "egh-majority-hatch-" + String(mask);
+    // The chart uses a broad publication-style coordinate system.  Text is
+    // deliberately sized in SVG units so it remains readable when the same
+    // figure scales down to a 360px viewport.
+    var plot = { left: 108, top: 60, width: 614, height: 230 };
+    plot.right = plot.left + plot.width;
+    plot.bottom = plot.top + plot.height;
+    var supportSpan = Math.max(1, maxSeats - minSeats + 1);
+    var padding = Math.max(2, Math.ceil(supportSpan * 0.06));
+    var domainStart = Math.max(0, Math.min(minSeats, MAJORITY) - padding);
+    var domainEnd = Math.min(CHAMBER, Math.max(maxSeats, MAJORITY) + padding);
+    var domainSpan = Math.max(1, domainEnd - domainStart);
+    var binWidth = plot.width / domainSpan;
+    var thresholdX = plot.left + (MAJORITY - domainStart) * binWidth;
+    var peak = counts.reduce(function (highest, count) {
+      return Math.max(highest, count);
+    }, 0);
+
+    host.hidden = false;
+    host.setAttribute("data-coalition-mask", String(mask));
+    if (accentParty) {
+      host.setAttribute("data-coalition-accent", accentParty);
+      host.setAttribute("data-coalition-accent-color", accentColor);
+    } else {
+      host.removeAttribute("data-coalition-accent");
+      host.removeAttribute("data-coalition-accent-color");
+    }
+    host.setAttribute("data-total-count", String(total));
+    host.setAttribute("data-min-seats", String(minSeats));
+    host.setAttribute("data-max-seats", String(maxSeats));
+    host.style.setProperty("--egh-accent", theme.accent);
+    host.style.setProperty("--egh-below-fill", theme.belowFill);
+    host.style.setProperty("--egh-below-stroke", theme.belowStroke);
+    host.style.setProperty("--egh-majority-fill", theme.majorityFill);
+    host.style.setProperty("--egh-majority-hatch", theme.majorityHatch);
+    host.style.setProperty("--egh-majority-region", theme.majorityRegion);
+
+    // The sample count in the heading is the count that was validated, not a
+    // number typed into the markup, so it cannot outlive a publication that
+    // changes it.
+    if (heading) {
+      heading.textContent = "Mandatf\u00f6rdelning i " + grouped(total) + " simuleringar";
+    }
+    if (context) {
+      var chipsHtml = parties.map(function (party) {
+        return "<span class=\"egh-histogram__party-chip\" style=\"background:" +
+          (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>";
+      }).join("");
+      context.innerHTML =
+        "<span class=\"egh-histogram__party-chips\" aria-hidden=\"true\">" + chipsHtml + "</span>" +
+        "<span class=\"egh-histogram__party-label\">" + escapeHtml(partyLabel) + "</span>" +
+        ". F\u00f6rdelningen visar hur ofta regeringen hamnar p\u00e5 olika mandatniv\u00e5er i simuleringarna.";
+    }
+    if (status) {
+      status.textContent = "";
+      status.hidden = true;
+    }
+
+    svg.innerHTML = "";
+    // Keep the SVG as a named group so focusable bins remain visible to
+    // assistive technology; a root role=img would flatten those descendants
+    // in several browser accessibility trees.
+    svg.setAttribute("role", "group");
+    svg.setAttribute("aria-labelledby", "election-government-histogram-title election-government-histogram-description");
+    svg.setAttribute("aria-label", "Mandatf\u00f6rdelning f\u00f6r " + partyLabel + " med majoritetsgr\u00e4nsen vid " + MAJORITY + " mandat");
+    svg.setAttribute("data-coalition-mask", String(mask));
+    svg.appendChild(svgNode("title", { id: "election-government-histogram-title" },
+      "Mandatf\u00f6rdelning f\u00f6r " + partyLabel));
+    var description = "Mandatf\u00f6rdelning f\u00f6r " + partyLabel + " fr\u00e5n " + minSeats + " till " + maxSeats +
+      " mandat. " + grouped(majorityCount) + " av " + grouped(total) +
+      " simuleringar, " + percent(majorityShare * 100, 2) + ", n\u00e5r minst " + MAJORITY + " mandat.";
+    svg.appendChild(svgNode("desc", { id: "election-government-histogram-description" }, description));
+
+    var defs = svgNode("defs", {});
+    var pattern = svgNode("pattern", {
+      id: patternId,
+      patternUnits: "userSpaceOnUse",
+      width: "8",
+      height: "8"
+    });
+    pattern.appendChild(svgNode("rect", {
+      width: "8",
+      height: "8",
+      fill: theme.majorityFill,
+      opacity: "0.82"
+    }));
+    pattern.appendChild(svgNode("path", {
+      d: "M-2,2 L2,-2 M0,8 L8,0 M6,10 L10,6",
+      class: "egh-hatch",
+      stroke: theme.majorityHatch
+    }));
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+
+    var grid = svgNode("g", { class: "egh-grid", "aria-hidden": "true" });
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (fraction) {
+      var y = plot.bottom - plot.height * fraction;
+      var label = format((peak > 0 ? (peak * fraction / total) * 100 : 0), 1) + NBSP + "%";
+      grid.appendChild(svgNode("line", {
+        x1: plot.left, y1: y, x2: plot.right, y2: y, class: "egh-grid__line"
+      }));
+      grid.appendChild(svgNode("text", {
+        x: plot.left - 8, y: y + 4, class: "egh-axis__tick", "text-anchor": "end"
+      }, label));
+    });
+    svg.appendChild(grid);
+
+    var majorityWidth = Math.max(0, plot.right - thresholdX);
+    if (majorityWidth > 0) {
+      svg.appendChild(svgNode("rect", {
+        x: thresholdX, y: plot.top, width: majorityWidth, height: plot.height,
+        class: "egh-majority-region", fill: theme.majorityRegion, "aria-hidden": "true"
+      }));
+    }
+    if (thresholdX > plot.left) {
+      svg.appendChild(svgNode("rect", {
+        x: plot.left, y: plot.top, width: thresholdX - plot.left, height: plot.height,
+        class: "egh-below-region", "aria-hidden": "true"
+      }));
+    }
+
+    var bins = svgNode("g", { class: "egh-bins" });
+    counts.forEach(function (count, index) {
+      var seat = minSeats + index;
+      var reachesMajority = seat >= MAJORITY;
+      var height = peak > 0 ? (count / peak) * plot.height : 0;
+      var x = plot.left + (seat - domainStart) * binWidth;
+      var gap = Math.min(0.35, binWidth * 0.12);
+      var bin = svgNode("g", {
+        class: "egh-bin " + (reachesMajority ? "egh-bin--majority" : "egh-bin--below"),
+        tabindex: "0",
+        role: "img",
+        "data-seat": String(seat),
+        "data-count": String(count),
+        "data-share": (count / total).toFixed(8),
+        "data-majority": reachesMajority ? "majority" : "below",
+        "data-coalition-mask": String(mask),
+        "aria-label": histogramBinLabel(seat, count, total, reachesMajority)
+      });
+      bin.appendChild(svgNode("rect", {
+        x: x + gap,
+        y: plot.bottom - height,
+        width: Math.max(0.2, binWidth - gap * 2),
+        height: height,
+        class: "egh-bin__bar",
+        fill: reachesMajority ? "url(#" + patternId + ")" : theme.belowFill,
+        stroke: reachesMajority ? theme.majorityHatch : theme.belowStroke,
+        "stroke-width": "0.7",
+        "aria-hidden": "true"
+      }));
+      // A low-frequency bin still needs a usable focus and hover target.  The
+      // transparent hit area fills the bin's lane without changing the bar's
+      // exact height or its frequency meaning.
+      bin.appendChild(svgNode("rect", {
+        x: x + gap,
+        y: plot.top,
+        width: Math.max(0.2, binWidth - gap * 2),
+        height: plot.height,
+        class: "egh-bin__hit",
+        fill: "transparent",
+        "aria-hidden": "true"
+      }));
+      function showBin() {
+        if (!status) return;
+        status.textContent = histogramBinLabel(seat, count, total, reachesMajority);
+        status.hidden = false;
+      }
+      if (bin.addEventListener) {
+        bin.addEventListener("mouseenter", showBin);
+        bin.addEventListener("focus", showBin);
+        bin.addEventListener("click", showBin);
+        bin.addEventListener("keydown", function (event) {
+          if (event && (event.key === "Enter" || event.key === " ")) {
+            if (event.preventDefault) event.preventDefault();
+            showBin();
+          }
+        });
+      }
+      bins.appendChild(bin);
+    });
+    svg.appendChild(bins);
+
+    svg.appendChild(svgNode("line", {
+      x1: plot.left, y1: plot.bottom, x2: plot.right, y2: plot.bottom,
+      class: "egh-axis__line", "aria-hidden": "true"
+    }));
+    var tickStart = Math.ceil(domainStart / 5) * 5;
+    var tickEnd = Math.floor(domainEnd / 5) * 5;
+    var axisValues = [];
+    for (var tick = tickStart; tick <= tickEnd; tick += 5) axisValues.push(tick);
+    axisValues.push(MAJORITY);
+    // The padded domain gives the bars breathing room.  Only add an edge
+    // label when it is not within five seats of a regular five-seat tick;
+    // this prevents 162/165-style collisions on a phone-width SVG.
+    if (!axisValues.some(function (value) { return Math.abs(value - domainStart) <= 5; })) {
+      axisValues.push(domainStart);
+    }
+    if (!axisValues.some(function (value) { return Math.abs(value - domainEnd) <= 5; })) {
+      axisValues.push(domainEnd);
+    }
+    axisValues.sort(function (a, b) { return a - b; });
+    axisValues.filter(function (value, index, values) {
+      return values.indexOf(value) === index;
+    }).forEach(function (value) {
+      var x = plot.left + (value - domainStart) * binWidth;
+      svg.appendChild(svgNode("line", {
+        x1: x, y1: plot.bottom, x2: x, y2: plot.bottom + 6,
+        class: "egh-axis__mark", "aria-hidden": "true"
+      }));
+      svg.appendChild(svgNode("text", {
+        x: x, y: plot.bottom + 24, class: "egh-axis__label",
+        "text-anchor": value === domainStart ? "start" : (value === domainEnd ? "end" : "middle")
+      }, String(value)));
+    });
+    svg.appendChild(svgNode("text", {
+      x: plot.left + plot.width / 2, y: 345, class: "egh-x-axis-label", "text-anchor": "middle"
+    }, "Mandat tillsammans"));
+    svg.appendChild(svgNode("text", {
+      x: plot.left, y: plot.top - 38, class: "egh-y-axis-label", "text-anchor": "start"
+    }, "Andel simuleringar"));
+
+    // The majority rule is the one mark that stays neutral: it is a property
+    // of the Riksdag, not of the coalition being drawn, so it is never tinted
+    // with the accent.
+    svg.appendChild(svgNode("line", {
+      x1: thresholdX, y1: plot.top, x2: thresholdX, y2: plot.bottom,
+      class: "egh-threshold", "stroke-dasharray": "6 5", "data-seat": String(MAJORITY),
+      "aria-label": "Majoritetsgr\u00e4ns: 175 mandat"
+    }));
+    var thresholdLabelX = Math.min(plot.right - 118, Math.max(plot.left + 118, thresholdX + 108));
+    svg.appendChild(svgNode("rect", {
+      x: thresholdLabelX - 116, y: plot.top - 34, width: 232, height: 27, rx: 4,
+      class: "egh-threshold__label-bg", "aria-hidden": "true"
+    }));
+    svg.appendChild(svgNode("text", {
+      // Keep the annotation close to the threshold without obscuring bars.
+      x: thresholdLabelX,
+      y: plot.top - 17,
+      class: "egh-threshold__label",
+      "text-anchor": "middle",
+      textLength: "220",
+      lengthAdjust: "spacingAndGlyphs",
+      "data-seat": String(MAJORITY)
+    }, "Majoritetsgr\u00e4ns: 175 mandat"));
+
+    if (textAlternative) {
+      textAlternative.textContent = description + " Staplar med " + MAJORITY +
+        " mandat eller fler \u00e4r skrafferade; \u00f6vriga staplar ligger under gr\u00e4nsen." +
+        " Fokusera p\u00e5 en stapel f\u00f6r detaljer.";
+    }
+  }
+
+  function renderGovernmentBuilder(groups, totalSamples) {
     var section = byId("election-government-builder");
-    if (!section || !groups || groups.schema_version !== "1.2" ||
-        !validCoalitionBuilder(groups.coalition_builder)) return;
+    // 1.2 publishes the summaries the builder needs; 1.3 adds the exact
+    // histograms.  Anything else -- 1.1 included -- leaves the panel hidden.
+    var histogramRequired = Boolean(groups) && groups.schema_version === "1.3";
+    if (!section || !groups ||
+        (groups.schema_version !== "1.2" && groups.schema_version !== "1.3") ||
+        !validCoalitionBuilder(groups.coalition_builder, histogramRequired, totalSamples)) return;
 
     var builder = groups.coalition_builder;
     var zones = {
@@ -910,6 +1462,7 @@
       opposition: "election-opposition-total"
     };
     var summary = byId("election-government-results");
+    var histogram = byId("election-government-histogram");
     var resetButton = byId("election-builder-reset");
 
     // Every party in the published order, as a single bitmask.  The two sides
@@ -1261,6 +1814,11 @@
       summary.setAttribute("data-opposition-mask", chosen ? String(opposition) : "");
       // The evaluated coalition is the government and nothing else.
       summary.setAttribute("data-coalition-mask", chosen ? String(governmentMask) : "");
+      // The histogram is the government's own combination and nothing else:
+      // the same mask the summary is looked up with, never a union with the
+      // opposition.  An empty government and a 1.2 publication both clear it.
+      renderCoalitionHistogram(histogram, chosen ? entry : null, builder,
+        governmentMask, totalSamples);
       if (!chosen || !entry) {
         summary.innerHTML = "";
         return ZONE_HINTS.government;
@@ -1582,7 +2140,7 @@
       renderHeader(data[0], data[5], data[6], publication.pointer);
       renderVotes(data[0], data[1]);
       renderSeats(data[2], Boolean(publication.pointer));
-      renderGovernmentBuilder(data[3]);
+      renderGovernmentBuilder(data[3], data[0] && data[0].total_samples);
       renderGroups(data[3]);
       renderChanges(data[0], data[1]);
       renderValidation(data[4]);

@@ -55,6 +55,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { launch } from './cdp.mjs';
 import { serve, pointerFor } from './server.mjs';
+import { buildSchema13Site, MATRIX_PATH } from './schema13-fixture.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(process.argv[2] || join(HERE, '..', '_site'));
@@ -65,6 +66,9 @@ const PAGE = '/election-simulator/';
 // files/election-simulator/versions/.
 const GENERATION_1_2 = '20260828T064703Z-1da59168';
 const GENERATION_1_1 = '20260827T205828Z-e6c6ee97';
+// Assembled at run time from the audited joint draws behind GENERATION_1_2 --
+// see schema13-fixture.mjs. Never written into the repository.
+const GENERATION_1_3 = 'schema-1-3-from-audited-matrix';
 
 const PARTY_ORDER = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
 const BIT = {};
@@ -160,8 +164,8 @@ const settle = () => new Promise((r) => setTimeout(r, 140));
 // ---------------------------------------------------------------------------
 
 /** Serve the built site, open the page and wait for the forecast to render. */
-async function open(viewport, pointer, { coarse = false } = {}) {
-  const server = await serve(SITE, { port: 4000, pointer });
+async function open(viewport, pointer, { coarse = false, root = SITE } = {}) {
+  const server = await serve(root, { port: 4000, pointer });
   const browser = await launch({ width: viewport.width, height: viewport.height });
   // Touch emulation, not setEmulatedMedia: `pointer` and `hover` are not
   // overridable media features in CDP, and Blink derives them from the
@@ -282,6 +286,19 @@ const readPanel = (browser) => browser.evaluate(() => {
     oppositionStack: stackHeight('election-opposition-bar'),
     governmentTitle: text('election-government-title'),
     oppositionTitle: text('election-opposition-title'),
+    // The figure only exists in a schema-1.3 publication, and only while a
+    // government is selected.
+    histogram: (() => {
+      const el = document.getElementById('election-government-histogram');
+      if (!el) return null;
+      return {
+        hiddenAttr: el.hidden,
+        display: getComputedStyle(el).display,
+        mask: el.getAttribute('data-coalition-mask'),
+        total: el.getAttribute('data-total-count'),
+        bins: document.querySelectorAll('#election-government-histogram .egh-bin').length,
+      };
+    })(),
     // Nothing in the panel may be a per-card control or a popup any more.
     leftovers: {
       moveButtons: document.querySelectorAll('#election-government-builder .eg-party__move').length,
@@ -621,6 +638,13 @@ async function schema12(viewport, pointer, expected) {
     check('summary is hidden until a government exists',
       !initial.summaryBox.visible && initial.summaryBox.display === 'none',
       JSON.stringify(initial.summaryBox));
+    // Schema 1.2 publishes summaries only. The figure's markup is on the page
+    // either way, so what matters is that it stays hidden and empty.
+    check('a 1.2 publication draws no histogram',
+      initial.histogram && initial.histogram.hiddenAttr &&
+      initial.histogram.display === 'none' && initial.histogram.mask === '' &&
+      initial.histogram.total === '0' && initial.histogram.bins === 0,
+      JSON.stringify(initial.histogram));
     eq('screen-reader status invites a government',
       initial.announcement, 'Dra partier hit för att bygga en regering.');
 
@@ -766,6 +790,10 @@ async function schema12(viewport, pointer, expected) {
       [String(GOVERNMENT_MASK), String(OPPOSITION_MASK)]);
 
     check('summary is revealed', panel.summaryBox.visible, JSON.stringify(panel.summaryBox));
+    check('and a 1.2 publication still draws no histogram',
+      panel.histogram && panel.histogram.hiddenAttr && panel.histogram.mask === '' &&
+      panel.histogram.total === '0' && panel.histogram.bins === 0,
+      JSON.stringify(panel.histogram));
     eq('government median', panel.metrics.government,
       { term: 'Regering', value: `${expected.government.median} mandat` });
     eq('opposition median comes from the opposition mask', panel.metrics.opposition,
@@ -1038,6 +1066,324 @@ async function touchGestures(pointer) {
 }
 
 // ---------------------------------------------------------------------------
+// schema 1.3: the exact seat histogram for the government
+// ---------------------------------------------------------------------------
+
+// The page's accent derivation, mirrored so the test compares against a
+// second implementation rather than against the page's own output.
+const PARTY_COLORS = {
+  M: '#213A8F', L: '#006AB3', C: '#2B8569', KD: '#01263E',
+  S: '#ED1B34', V: '#A81420', MP: '#4C983E', SD: '#A87F00',
+};
+
+const hexToRgb = (hex) => {
+  const v = String(hex || '').replace('#', '');
+  return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
+};
+const rgbToHex = (r, g, b) => {
+  const clamp = (x) => Math.max(0, Math.min(255, Math.round(x)));
+  return '#' + [clamp(r), clamp(g), clamp(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+};
+const mixColors = (c1, c2, w1 = 0.5) => {
+  const a = hexToRgb(c1);
+  const b = hexToRgb(c2);
+  const w2 = 1 - w1;
+  return rgbToHex(a[0] * w1 + b[0] * w2, a[1] * w1 + b[1] * w2, a[2] * w1 + b[2] * w2);
+};
+const expectedTheme = (accent) => ({
+  accent,
+  belowFill: mixColors(accent, '#f4f5f7', 0.18),
+  belowStroke: mixColors(accent, '#768390', 0.45),
+  majorityFill: mixColors(accent, '#ffffff', 0.58),
+  majorityHatch: mixColors(accent, '#000000', 0.72),
+  majorityRegion: mixColors(accent, '#ffffff', 0.08),
+});
+
+/**
+ * The accent the page should pick: the member with the largest one-party
+ * median, ties going to the earlier party in the published party_order.
+ */
+function expectedAccentParty(entries, mask) {
+  let best = null;
+  let bestMedian = -Infinity;
+  PARTY_ORDER.forEach((party, index) => {
+    if (!(mask & (1 << index))) return;
+    const median = entries[String(1 << index)].median_seats;
+    if (best === null) { best = party; bestMedian = median; return; }
+    if (median > bestMedian) { best = party; bestMedian = median; }
+  });
+  return best;
+}
+
+const readHistogram = (browser) => browser.evaluate(() => {
+  const flat = (value) => value.replace(/[\t\n\r ]+/g, ' ').trim();
+  const host = document.getElementById('election-government-histogram');
+  const svg = document.getElementById('election-government-histogram-svg');
+  if (!host) return null;
+  const style = getComputedStyle(host);
+  const bins = Array.from(document.querySelectorAll(
+    '#election-government-histogram-svg .egh-bin'));
+  const threshold = document.querySelector(
+    '#election-government-histogram-svg .egh-threshold');
+  const rect = host.getBoundingClientRect();
+  return {
+    hiddenAttr: host.hidden,
+    display: style.display,
+    visible: style.display !== 'none' && rect.height > 0,
+    width: Math.round(rect.width * 100) / 100,
+    mask: host.getAttribute('data-coalition-mask'),
+    svgMask: svg ? svg.getAttribute('data-coalition-mask') : null,
+    total: host.getAttribute('data-total-count'),
+    minSeats: host.getAttribute('data-min-seats'),
+    maxSeats: host.getAttribute('data-max-seats'),
+    accent: host.getAttribute('data-coalition-accent'),
+    accentColor: host.getAttribute('data-coalition-accent-color'),
+    theme: {
+      accent: style.getPropertyValue('--egh-accent').trim(),
+      belowFill: style.getPropertyValue('--egh-below-fill').trim(),
+      belowStroke: style.getPropertyValue('--egh-below-stroke').trim(),
+      majorityFill: style.getPropertyValue('--egh-majority-fill').trim(),
+      majorityHatch: style.getPropertyValue('--egh-majority-hatch').trim(),
+      majorityRegion: style.getPropertyValue('--egh-majority-region').trim(),
+    },
+    heading: flat(document.getElementById('election-government-histogram-heading').textContent),
+    context: flat(document.getElementById('election-government-histogram-context').textContent),
+    chips: Array.from(document.querySelectorAll(
+      '#election-government-histogram .egh-histogram__party-chip'))
+      .map((el) => el.style.background || el.style.backgroundColor),
+    description: flat(document.getElementById('election-government-histogram-description')
+      ? document.getElementById('election-government-histogram-description').textContent : ''),
+    textAlternative: flat(document.getElementById('election-government-histogram-text').textContent),
+    svgRole: svg ? svg.getAttribute('role') : null,
+    // Bins are the whole contract: one per seat value, in ascending order.
+    bins: bins.map((el) => ({
+      seat: Number(el.getAttribute('data-seat')),
+      count: Number(el.getAttribute('data-count')),
+      majority: el.getAttribute('data-majority'),
+      tabindex: el.getAttribute('tabindex'),
+      label: el.getAttribute('aria-label'),
+    })),
+    threshold: threshold ? {
+      seat: threshold.getAttribute('data-seat'),
+      stroke: getComputedStyle(threshold).stroke,
+      label: flat(document.querySelector(
+        '#election-government-histogram-svg .egh-threshold__label').textContent),
+    } : null,
+    status: (() => {
+      const el = document.getElementById('election-government-histogram-status');
+      return { hidden: el.hidden, text: flat(el.textContent) };
+    })(),
+  };
+});
+
+/** Hover a bin with real mouse input and read the detail it publishes. */
+async function hoverBin(browser, seat) {
+  const at = await browser.evaluate((value) => {
+    const bin = document.querySelector(
+      `#election-government-histogram-svg .egh-bin[data-seat="${value}"] .egh-bin__hit`);
+    if (!bin) return null;
+    bin.scrollIntoView({ block: 'center' });
+    const rect = bin.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, seat);
+  if (!at) return false;
+  await browser.S('Input.dispatchMouseEvent', { type: 'mouseMoved', x: at.x, y: at.y });
+  await settle();
+  return true;
+}
+
+async function schema13(viewport, fixture, expected) {
+  console.log(`\n[schema 1.3 histogram @ ${viewport.name} ${viewport.width}x${viewport.height}]`);
+  await session(viewport, fixture.pointer, async (browser) => {
+    // --- The builder is untouched by the new schema ----------------------
+    const initial = await readPanel(browser);
+    check('the two-state builder still renders under 1.3', initial.section.visible,
+      JSON.stringify(initial.section));
+    eq('1.3 still starts at government 0 / opposition 255',
+      [initial.masks.government, initial.masks.opposition], ['0', String(FULL_MASK)]);
+    partitions('1.3 initial state', initial.masks.government, initial.masks.opposition);
+    eq('no per-card move button appears under 1.3', initial.leftovers.moveButtons, 0);
+    eq('no drag grip appears under 1.3', initial.leftovers.grips, 0);
+    eq('every card is still the control',
+      initial.opposition.map((c) => `${c.role}/${c.tabindex}`),
+      PARTY_ORDER.map(() => 'button/0'));
+    check('an empty government draws no histogram',
+      (await readHistogram(browser)).hiddenAttr, 'histogram was visible with mask 0');
+
+    // --- A whole-card drag brings the figure up --------------------------
+    check('drag S into Regering', await mouseDrag(browser, 'S', GOVERNMENT_ZONE));
+    let state = await readState(browser, 'S');
+    partitions('1.3 after a drag', state.government, state.opposition);
+    let chart = await readHistogram(browser);
+    eq('the histogram follows the government mask', chart.mask, String(BIT.S));
+    eq('and the SVG carries the same mask', chart.svgMask, String(BIT.S));
+    check('the histogram is visible', chart.visible, JSON.stringify(chart));
+
+    // --- The worked case: C + S + MP -------------------------------------
+    await place(browser, 'government', GOVERNMENT);
+    chart = await readHistogram(browser);
+    const worked = expected.histogram(GOVERNMENT_MASK);
+    eq('the histogram is the government mask, never a union with the opposition',
+      chart.mask, String(GOVERNMENT_MASK));
+    eq('the sample count is the published one', chart.total, String(fixture.total));
+    eq('the support is the published support',
+      [chart.minSeats, chart.maxSeats],
+      [String(worked.min_seats), String(worked.min_seats + worked.counts.length - 1)]);
+    eq('there is exactly one bin per seat value in the support',
+      chart.bins.length, worked.counts.length);
+    eq('every bin is an exact one-seat bin at its published count',
+      chart.bins.map((b) => [b.seat, b.count]),
+      worked.counts.map((count, index) => [worked.min_seats + index, count]));
+    eq('bins are split at the majority rule, not near it',
+      chart.bins.filter((b) => b.majority === 'majority').map((b) => b.seat >= MAJORITY)
+        .concat(chart.bins.filter((b) => b.majority === 'below').map((b) => b.seat < MAJORITY))
+        .every(Boolean), true);
+    // The figure and the number printed beside it are the same fact.
+    const majorityDraws = worked.counts.reduce(
+      (sum, count, index) => sum + (worked.min_seats + index >= MAJORITY ? count : 0), 0);
+    eq('the bins above the rule are the published probability',
+      chart.bins.filter((b) => b.majority === 'majority')
+        .reduce((sum, b) => sum + b.count, 0), majorityDraws);
+    const panel = await readPanel(browser);
+    eq('which is the probability the summary prints',
+      panel.metrics.probability.value, expected.government.probability);
+    check('the description states the same count and share',
+      chart.description.includes(`${expected.grouped(majorityDraws)} av ${expected.grouped(fixture.total)}`),
+      chart.description);
+    eq('the heading counts the validated draws, not a number typed into markup',
+      chart.heading, `Mandatfördelning i ${expected.grouped(fixture.total)} simuleringar`);
+    check('the context names the government, and only the government',
+      chart.context.startsWith('C + S + MP.') && !chart.context.includes('Opposition'),
+      chart.context);
+    eq('one colour chip per governing party', chart.chips.length, GOVERNMENT.length);
+    eq('every bin is reachable and named',
+      [chart.bins.every((b) => b.tabindex === '0'),
+        chart.bins.every((b) => typeof b.label === 'string' && b.label.includes(' mandat '))],
+      [true, true]);
+    eq('the SVG stays a named group so its bins survive in the a11y tree',
+      chart.svgRole, 'group');
+
+    // --- The 175 rule stays neutral --------------------------------------
+    eq('the threshold is drawn at 175', chart.threshold.seat, String(MAJORITY));
+    eq('and labelled in seats', chart.threshold.label, 'Majoritetsgräns: 175 mandat');
+    check('the threshold takes no accent tint',
+      chart.threshold.stroke === expected.neutralInk,
+      `${chart.threshold.stroke} should be the neutral ink ${expected.neutralInk}`);
+
+    // --- Hovering a bin publishes its detail ------------------------------
+    const busiest = worked.counts.reduce(
+      (best, count, index) => (count > best.count ? { count, seat: worked.min_seats + index } : best),
+      { count: -1, seat: worked.min_seats });
+    check(`hover the busiest bin (${busiest.seat} mandat)`, await hoverBin(browser, busiest.seat));
+    chart = await readHistogram(browser);
+    check('hovering publishes that bin\'s exact count',
+      !chart.status.hidden && chart.status.text.startsWith(`${busiest.seat} mandat`) &&
+      chart.status.text.includes(expected.grouped(busiest.count)),
+      JSON.stringify(chart.status));
+
+    // --- The figure follows every government move ------------------------
+    check('drag V into Regering', await mouseDrag(browser, 'V', GOVERNMENT_ZONE));
+    chart = await readHistogram(browser);
+    const crossing = expected.histogram(MAJORITY_MASK);
+    eq('the histogram redraws for the enlarged government', chart.mask, String(MAJORITY_MASK));
+    eq('with the enlarged support',
+      [chart.minSeats, chart.maxSeats],
+      [String(crossing.min_seats), String(crossing.min_seats + crossing.counts.length - 1)]);
+    eq('and the enlarged bin counts',
+      chart.bins.map((b) => b.count), crossing.counts);
+    check('the hover detail from the previous mask does not survive the redraw',
+      chart.status.hidden && chart.status.text === '', JSON.stringify(chart.status));
+
+    // --- Enter and Space still move a card under 1.3 ---------------------
+    check('focus the V card', await focusCard(browser, 'V'));
+    await pressEnter(browser);
+    state = await readState(browser, 'V');
+    eq('Enter moved V back to Opposition', state.zone, 'opposition');
+    partitions('1.3 after Enter', state.government, state.opposition);
+    chart = await readHistogram(browser);
+    eq('and the histogram is back on the smaller government', chart.mask, String(GOVERNMENT_MASK));
+    await pressSpace(browser);
+    state = await readState(browser, 'V');
+    eq('Space moved V into Regering again', state.zone, 'government');
+    chart = await readHistogram(browser);
+    eq('and the histogram followed it', chart.mask, String(MAJORITY_MASK));
+
+    // --- Reset -----------------------------------------------------------
+    await browser.evaluate(() => document.getElementById('election-builder-reset').click());
+    await settle();
+    const afterReset = await readPanel(browser);
+    eq('reset restores government 0 / opposition 255',
+      [afterReset.masks.government, afterReset.masks.opposition], ['0', String(FULL_MASK)]);
+    partitions('1.3 after reset', afterReset.masks.government, afterReset.masks.opposition);
+    chart = await readHistogram(browser);
+    check('reset clears the histogram away cleanly',
+      chart.hiddenAttr && chart.display === 'none' && chart.mask === '' &&
+      chart.total === '0' && chart.bins.length === 0 && chart.status.hidden,
+      JSON.stringify({ hidden: chart.hiddenAttr, mask: chart.mask, bins: chart.bins.length }));
+
+    // --- Accent theming ---------------------------------------------------
+    for (const spec of expected.accents) {
+      await browser.evaluate(() => document.getElementById('election-builder-reset').click());
+      await settle();
+      await place(browser, 'government', spec.parties);
+      chart = await readHistogram(browser);
+      const theme = expectedTheme(PARTY_COLORS[spec.party]);
+      eq(`mask ${spec.mask} (${spec.parties.join('+')}) is accented by ${spec.party}`,
+        [chart.mask, chart.accent, chart.accentColor],
+        [String(spec.mask), spec.party, PARTY_COLORS[spec.party]]);
+      eq(`mask ${spec.mask} derives its whole palette from ${spec.party}`,
+        chart.theme, theme);
+    }
+
+    // --- Layout ------------------------------------------------------------
+    const overflow = await readOverflow(browser);
+    eq('the document does not scroll sideways with a histogram on the page',
+      overflow.documentScrollWidth <= overflow.clientWidth, true);
+    check('the panel does not scroll sideways',
+      overflow.panelScrollWidth <= overflow.panelClientWidth, JSON.stringify(overflow));
+    check('nothing in the panel reaches past the viewport',
+      overflow.worst.right <= overflow.clientWidth + 0.5, JSON.stringify(overflow.worst));
+  }, { root: fixture.root });
+}
+
+/**
+ * The histogram validation has to bite, or it is decoration. A 1.3 entry whose
+ * histogram no longer implies the summary printed beside it is not partially
+ * rendered: the whole builder stays hidden, exactly as a 1.1 publication does.
+ * Without this case an inert validator would look identical to a working one.
+ */
+async function schema13FailsClosed(fixture) {
+  console.log('\n[schema 1.3 with a histogram that disagrees fails closed]');
+  const server = await serve(fixture.root, { port: 4000, pointer: fixture.pointer });
+  const browser = await launch({ width: 1280, height: 1200 });
+  try {
+    await browser.goto(`http://127.0.0.1:${server.port}${PAGE}`);
+    await waitForApp(browser);
+    const panel = await browser.evaluate(() => {
+      const section = document.getElementById('election-government-builder');
+      const histogram = document.getElementById('election-government-histogram');
+      return {
+        hiddenAttr: section.hidden,
+        display: getComputedStyle(section).display,
+        cards: document.querySelectorAll('#election-government-builder .eg-party').length,
+        bins: document.querySelectorAll('#election-government-histogram .egh-bin').length,
+        histogramHidden: histogram.hidden,
+      };
+    });
+    check('one bad histogram hides the whole builder',
+      panel.hiddenAttr === true && panel.display === 'none', JSON.stringify(panel));
+    eq('no party cards leak', panel.cards, 0);
+    eq('no histogram bins leak', panel.bins, 0);
+    check('the figure stays hidden too', panel.histogramHidden, JSON.stringify(panel));
+    eq('no uncaught exceptions', browser.exceptions, []);
+    eq('no console errors', appErrors(browser), []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // schema 1.1: the fail-closed contract
 // ---------------------------------------------------------------------------
 
@@ -1121,13 +1467,29 @@ async function expectations() {
   const barLabel = (side, mask) => `${side}: ${stack(mask).slice().reverse()
     .map((party) => `${party} ${of(BIT[party]).median}`).join(', ')}` +
     `. Median tillsammans ${of(mask).median} av ${CHAMBER} mandat.`;
+  // The page's Swedish digit grouping: a non-breaking space every three.
+  const groupedSv = (value) => String(Math.round(Math.abs(value)))
+    .replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  const entries = table;
   return {
     of,
     stack,
     barLabel,
+    grouped: groupedSv,
+    entries,
     government: of(GOVERNMENT_MASK),
     opposition: of(OPPOSITION_MASK),
     majority: of(MAJORITY_MASK),
+    // The stylesheet's --el-ink-soft, resolved: the majority rule is a
+    // property of the Riksdag and never takes the coalition's accent.
+    neutralInk: 'rgb(79, 74, 67)',
+    // The three worked accent cases. Each is checked against a second
+    // implementation of the rule as well as against the party named here.
+    accents: [
+      { mask: BIT.S | BIT.V | BIT.MP, parties: ['S', 'V', 'MP'], party: 'S' },
+      { mask: GOVERNMENT_MASK, parties: GOVERNMENT, party: 'S' },
+      { mask: BIT.M | BIT.L | BIT.KD | BIT.SD, parties: ['M', 'L', 'KD', 'SD'], party: 'SD' },
+    ],
   };
 }
 
@@ -1191,6 +1553,35 @@ const KEYBOARD_CASES = [
 for (const spec of KEYBOARD_CASES) await keyboardCase(pointer12, spec);
 
 await touchGestures(pointer12);
+
+// schema 1.3 runs against a publication assembled at run time from the audited
+// joint draws behind the 1.2 generation. Without that matrix there is no
+// honest way to produce one, so the cases are skipped loudly rather than run
+// against invented numbers.
+const fixture13 = await buildSchema13Site(SITE, GENERATION_1_2, GENERATION_1_3);
+if (!fixture13.available) {
+  console.log(`\n[schema 1.3 histogram]\n  SKIP  ${fixture13.reason}` +
+    `\n        set SEATS_MATRIX=/path/to/seats_matrix.npy to run these cases` +
+    `\n        (expected at ${MATRIX_PATH})`);
+} else {
+  expected.histogram = (mask) => fixture13.histograms[mask];
+  try {
+    for (const viewport of VIEWPORTS) {
+      await schema13(viewport, fixture13, expected);
+    }
+  } finally {
+    await fixture13.cleanup();
+  }
+
+  const broken13 = await buildSchema13Site(SITE, GENERATION_1_2, GENERATION_1_3,
+    { corruptMask: GOVERNMENT_MASK });
+  try {
+    await schema13FailsClosed(broken13);
+  } finally {
+    await broken13.cleanup();
+  }
+}
+
 await schema11FailsClosed(pointer11);
 
 console.log(failures === 0 ? '\nPASS' : `\nFAIL (${failures})`);

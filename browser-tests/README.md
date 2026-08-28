@@ -33,6 +33,9 @@ jekyll build --config _config.yml,_config.dev.yml
 node browser-tests/government-builder.smoke.mjs            # defaults to ./_site
 node browser-tests/government-builder.smoke.mjs path/to/_site
 node browser-tests/equations.smoke.mjs
+
+# The schema-1.3 cases need the preserved joint seat matrix; see below.
+SEATS_MATRIX=/path/to/seats_matrix.npy node browser-tests/government-builder.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -198,6 +201,65 @@ press-and-hold. All three are exercised as real gestures:
 The case also asserts every card is at least 44px tall under a finger
 (WCAG 2.5.8 AA), that `touch-action` really is `pan-y`, the partition after
 each gesture, and that none of it widens the layout.
+
+### `schema13()` — the exact seat histogram
+
+Schema 1.3 adds one `seat_histogram` per combination: `min_seats` plus a count
+for every seat value from there up. The panel draws it as one bar per seat —
+there is no binning choice, no kernel and no smoothing — and it draws it for
+the **government mask alone**. The opposition is never unioned into the figure
+or into its probability.
+
+**Where the fixture comes from.** The repository's published forecast is
+immutable and stays schema 1.2, so a 1.3 publication has to be assembled at run
+time. It is assembled from the *preserved joint draws behind that very 1.2
+generation* — the 100 000-row seat matrix kept beside the covariance audit,
+pinned by SHA-256 in `schema13-fixture.mjs`. Nothing is resampled, smoothed or
+invented. Every summary field in the fixture is the published number, and the
+only field added is the histogram; the builder refuses to run unless each
+derived histogram reproduces that entry's published mean, all seven quantiles
+and `prob_majority` exactly. The 1.3 generation is written into a temporary
+copy of the built site and deleted afterwards — never under
+`files/election-simulator/versions`, and `current.json` is never touched.
+
+The matrix is not in any repository. Point `SEATS_MATRIX` at it to run these
+cases; without it they are skipped loudly rather than run against invented
+numbers. A matrix that is *present but has the wrong digest* is an error, not a
+skip — deriving expectations from a different simulation would be worse than
+running nothing.
+
+At 1280px and 360px the case asserts:
+
+- the two-state builder is unchanged under 1.3 — masks still `0`/`255`, no move
+  button, no grip, every card still `role="button" tabindex="0"`;
+- an empty government draws no histogram at all;
+- a whole-card drag brings the figure up on the dragged party's own mask;
+- for `C + S + MP`: the exact support, one bin per seat value, and **every bin's
+  count equal to the published count**; the bins at or above 175 summing to the
+  same number of draws the summary's `10,78 %` is computed from; the heading
+  counting the validated draws rather than a number typed into the markup; the
+  context naming the government and only the government; one colour chip per
+  governing party; every bin focusable and named; the SVG kept as a named group
+  so its bins survive in the accessibility tree;
+- the 175 rule drawn at 175, labelled in seats, and left **neutral** — it is a
+  property of the Riksdag, not of the coalition, so it never takes the accent;
+- a real mouse hover over the busiest bin publishing that bin's exact count;
+- the figure redrawing on every government change — a drag, an `Enter` and a
+  `Space` — and the previous mask's hover detail not surviving the redraw;
+- `Återställ` clearing the figure away cleanly;
+- the accent cases `112` (S+V+MP) → S, `84` (C+S+MP) → S and `139` (M+L+KD+SD)
+  → SD, each checked against a second implementation of the rule (largest
+  one-party median, ties to the earlier party in `party_order`) and against the
+  whole derived palette, not just the accent;
+- no sideways overflow, no console errors, no uncaught exceptions.
+
+### `schema13FailsClosed()` — a histogram that disagrees with its summary
+
+The same fixture with one draw moved to the neighbouring seat value in one
+mask: the total is untouched and only the distribution shifts, which is the
+quietest way for a chart and the numbers beside it to disagree. The whole
+builder must stay hidden, exactly as a 1.1 publication does. Without this case
+an inert validator would look identical to a working one.
 
 ### `schema11FailsClosed()` — the older publication
 

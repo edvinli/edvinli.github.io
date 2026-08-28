@@ -97,6 +97,22 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         </div>
       </div>
       <dl id="election-government-results" class="eg-summary" hidden data-coalition-mask="" data-government-mask="" data-opposition-mask=""></dl>
+      <div id="election-government-histogram" class="egh-histogram" hidden data-coalition-mask="" data-total-count="0" data-min-seats="" data-max-seats="">
+        <h3 id="election-government-histogram-heading" class="egh-histogram__title">Mandatfördelning i simuleringarna</h3>
+        <p id="election-government-histogram-context" class="egh-histogram__context"></p>
+        <div class="egh-histogram__key" aria-label="Diagramförklaring">
+          <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--below" aria-hidden="true"></span>under 175 mandat</span>
+          <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--majority" aria-hidden="true"></span>175 mandat eller fler</span>
+        </div>
+        <div class="egh-histogram__frame">
+          <svg id="election-government-histogram-svg" class="egh-histogram__svg" role="group" aria-labelledby="election-government-histogram-title election-government-histogram-description" viewBox="0 0 760 360" preserveAspectRatio="xMidYMid meet">
+            <title id="election-government-histogram-title">Mandatfördelning för den valda regeringen</title>
+            <desc id="election-government-histogram-description"></desc>
+          </svg>
+          <p id="election-government-histogram-status" class="egh-histogram__status" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+        </div>
+        <p id="election-government-histogram-text" class="egh-histogram__text"></p>
+      </div>
     </div>
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda regeringspartierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>

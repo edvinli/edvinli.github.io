@@ -1150,6 +1150,253 @@ canvas {
   max-width: 68ch;
 }
 
+/* --- Exact coalition seat histogram ------------------------------------ */
+
+.egh-histogram {
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule);
+  border-radius: 0.7rem;
+  box-shadow: 0 0.2rem 0.8rem rgba(44, 42, 37, 0.035);
+  margin-top: 1.5rem;
+  max-width: none;
+  min-width: 0;
+  padding: 1.25rem 1.35rem 1.1rem;
+}
+
+.egh-histogram__title {
+  font-family: var(--el-mono);
+  font-size: 1.06rem;
+  margin: 0;
+}
+
+.egh-histogram__context,
+.egh-histogram__text {
+  color: var(--el-muted);
+  font-size: 0.8rem;
+  margin: 0.35rem 0 0;
+  max-width: 68ch;
+}
+
+.egh-histogram__party-chips {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.22rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.05rem;
+}
+
+.egh-histogram__party-chip {
+  border-radius: 2px;
+  display: inline-block;
+  flex: none;
+  height: 0.62rem;
+  width: 0.62rem;
+}
+
+.egh-histogram__key {
+  align-items: center;
+  color: var(--el-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--el-mono);
+  font-size: 0.72rem;
+  gap: 0.45rem 1rem;
+  margin-top: 0.9rem;
+}
+
+.egh-histogram__key-item {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.egh-histogram__key-mark {
+  border: 1px solid var(--el-rule-strong);
+  display: inline-block;
+  height: 0.75rem;
+  width: 1.1rem;
+}
+
+.egh-histogram__key-mark--below {
+  background-color: var(--egh-below-fill, #c5d0d9);
+  border-color: var(--egh-below-stroke, #718494);
+}
+
+.egh-histogram__key-mark--majority {
+  background-color: var(--egh-majority-fill, #6f8eaf);
+  border-color: var(--egh-majority-hatch, #385977);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--egh-majority-hatch, #385977) 0,
+    var(--egh-majority-hatch, #385977) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+}
+
+.egh-histogram__frame {
+  margin-top: 0.65rem;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.egh-histogram__svg {
+  color: var(--el-rule-strong);
+  display: block;
+  height: auto;
+  max-width: none;
+  width: 100%;
+}
+
+.egh-grid__line {
+  stroke: var(--el-rule);
+  stroke-dasharray: 2 4;
+  stroke-width: 0.8;
+}
+
+.egh-axis__line,
+.egh-axis__mark {
+  stroke: var(--el-rule-strong);
+  stroke-width: 1;
+}
+
+.egh-axis__tick,
+.egh-axis__label,
+.egh-x-axis-label,
+.egh-y-axis-label {
+  fill: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.egh-x-axis-label,
+.egh-y-axis-label {
+  font-size: 17px;
+}
+
+.egh-below-region {
+  fill: #f5f7f8;
+}
+
+.egh-majority-region {
+  fill: var(--egh-majority-region, #e8eff5);
+  opacity: 0.62;
+}
+
+.egh-hatch {
+  fill: none;
+  stroke-width: 1;
+}
+
+.egh-bin {
+  cursor: pointer;
+  outline: none;
+  shape-rendering: crispEdges;
+}
+
+.egh-bin__bar {
+  pointer-events: none;
+}
+
+.egh-bin__hit {
+  pointer-events: all;
+  stroke: transparent;
+}
+
+.egh-bin--below .egh-bin__bar {
+  opacity: 0.82;
+}
+
+.egh-bin--majority .egh-bin__bar {
+  opacity: 0.88;
+}
+
+.egh-bin:hover,
+.egh-bin:focus {
+  opacity: 1;
+}
+
+.egh-bin:hover .egh-bin__hit,
+.egh-bin:focus .egh-bin__hit {
+  stroke: var(--el-ink);
+  stroke-width: 2;
+}
+
+.egh-threshold {
+  fill: none;
+  stroke: var(--el-ink-soft, #4f4a43);
+  stroke-width: 1.6;
+}
+
+.egh-threshold__label-bg {
+  fill: var(--el-panel);
+  stroke: var(--el-rule);
+  stroke-width: 1;
+}
+
+.egh-threshold__label {
+  fill: var(--el-ink-soft);
+  font-family: var(--el-mono);
+  font-size: 16px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--el-panel);
+  stroke-linejoin: round;
+  stroke-width: 7px;
+}
+
+.egh-histogram__status {
+  background: var(--el-panel);
+  border-left: 2px solid var(--el-rule-strong);
+  color: var(--el-ink-soft);
+  font-family: var(--el-mono);
+  font-size: 0.76rem;
+  margin: 0.35rem 0 0;
+  padding: 0.25rem 0.45rem;
+}
+
+/* The figure keeps its own breakpoints.  A wide viewBox gives desktop an airy
+   chart, so the SVG-unit typography has to grow as the same drawing scales
+   down, independently of where the surrounding panel reflows. */
+@media (max-width: 52em) {
+  .egh-histogram {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+}
+
+@media (max-width: 34em) {
+  .egh-histogram {
+    padding: 1rem 0.65rem 0.85rem;
+  }
+
+  .egh-histogram__title {
+    font-size: 0.96rem;
+  }
+
+  .egh-histogram__key {
+    font-size: 0.68rem;
+    gap: 0.4rem 0.7rem;
+  }
+
+  .egh-axis__tick,
+  .egh-axis__label,
+  .egh-x-axis-label {
+    font-size: 26px;
+  }
+
+  .egh-y-axis-label {
+    font-size: 20px;
+  }
+
+  .egh-threshold__label {
+    font-size: 26px;
+  }
+}
+
 /* --- Party-group probabilities ------------------------------------------ */
 
 .eg-pills {
@@ -1697,6 +1944,8 @@ canvas {
   .ep-legend__swatch,
   .eg-pill__swatch,
   .eg-party__swatch,
+  .egh-histogram__party-chip,
+  .egh-histogram__key-mark,
   .eg-bar__segment {
     forced-color-adjust: none;
   }
