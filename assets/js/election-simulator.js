@@ -754,8 +754,13 @@
   // a majority.
   var BAR_NAMES = { government: "Regering", opposition: "Opposition" };
   // Pointer travel, in CSS pixels, before a press is treated as a drag.
-  // Below it the gesture stays a click, so tapping a card never moves it.
+  // Below it the gesture stays a press, so tapping a card never moves it.
   var DRAG_THRESHOLD = 5;
+  // Touch only.  A finger that has stayed inside HOLD_SLOP pixels for
+  // HOLD_MS is holding the card, not starting to scroll, so the drag begins
+  // where the finger already is.
+  var HOLD_MS = 320;
+  var HOLD_SLOP = 8;
   // A segment shorter than this share of the 349-seat scale cannot hold its
   // own label legibly at 360px, so the label is dropped there and the party
   // is read from the card below the bar instead.
@@ -882,14 +887,6 @@
     return null;
   }
 
-  function containsNode(ancestor, node) {
-    while (node) {
-      if (node === ancestor) return true;
-      node = node.parentNode;
-    }
-    return false;
-  }
-
   function renderGovernmentBuilder(groups) {
     var section = byId("election-government-builder");
     if (!section || !groups || groups.schema_version !== "1.2" ||
@@ -980,38 +977,31 @@
     // The only mutation of the state.  Setting or clearing the one bit is the
     // whole move: the opposition follows because it is derived, so the two
     // sides can never disagree about where a party is.
-    function move(party, zone, focusAfter) {
+    // A move rebuilds both columns, so the card is a new element afterwards
+    // and focus has to be put back deliberately -- otherwise it falls to the
+    // document and the next Tab starts from the top of the page.  `viaPointer`
+    // marks a move that came from a drag: focus still follows, but without
+    // scrolling, because the reader is already looking at the card.
+    function move(party, zone, viaPointer) {
       var bit = bitOf(party);
       if (bit === 0) return;
       if (zone === ZONE_GOVERNMENT) governmentMask |= bit;
       else governmentMask &= ~bit;
-      render(focusAfter === false ? null : party);
+      render(party, fullName(party) + " flyttades till " + ZONE_NAMES[zone] + ".",
+        viaPointer === true);
     }
 
-    // --- Keyboard and touch fallback: one direct control per card --------
-    // Drag and drop is the visible interaction, but it can never be the only
-    // one.  With exactly two sides a card has exactly one other destination,
-    // so the fallback is a plain button that performs that move -- no menu,
-    // no popup, and Enter or Space on it is the browser's own activation.
+    // --- Keyboard: the card is the control -------------------------------
+    // Dragging is the visible interaction, but it can never be the only one.
+    // With exactly two sides there is nothing to choose between, so the block
+    // carries the move itself instead of holding a second control: it takes
+    // focus, it names its party, its median and the side it is on, and Enter
+    // or Space sends it across.
 
-    function buildMove(party, zone) {
-      var target = otherZone(zone);
-      var label = "Flytta " + fullName(party) + " till " + ZONE_NAMES[target];
-      var button = document.createElement("button");
-      button.type = "button";
-      button.className = "eg-party__move";
-      button.setAttribute("aria-label", label);
-      button.setAttribute("title", label);
-      button.setAttribute("data-party", party);
-      button.setAttribute("data-action", target);
-      button.innerHTML = "<span class=\"eg-party__move-icon\" aria-hidden=\"true\"></span>";
-      if (button.addEventListener) {
-        button.addEventListener("click", function (event) {
-          event.stopPropagation();
-          move(party, target);
-        });
-      }
-      return button;
+    function cardLabel(party, zone) {
+      return fullName(party) + ", " + format(partyMedian(party), 0) +
+        " mandat i median, i " + ZONE_NAMES[zone] + ". Tryck Enter f\u00f6r att flytta till " +
+        ZONE_NAMES[otherZone(zone)] + ".";
     }
 
     // --- Pointer dragging ------------------------------------------------
@@ -1041,15 +1031,24 @@
       drag.ghost.style.top = (y - drag.offsetY) + "px";
     }
 
+    function cancelHold() {
+      if (drag && drag.holdTimer !== null) {
+        clearTimeout(drag.holdTimer);
+        drag.holdTimer = null;
+      }
+    }
+
     function activateDrag(x, y) {
+      cancelHold();
       var rect = drag.tile.getBoundingClientRect();
+      // The ghost is decoration: it is invisible to hit testing, so
+      // elementFromPoint still finds the zone underneath, and it is out of
+      // the accessibility tree and the tab order so nothing can reach a copy.
       var ghost = drag.tile.cloneNode(true);
-      var control = ghost.querySelector(".eg-party__move");
-      // The ghost is decoration: it carries no controls and is invisible to
-      // hit testing, so elementFromPoint still finds the zone underneath.
-      if (control && control.parentNode) control.parentNode.removeChild(control);
       ghost.className = "eg-party eg-party--ghost";
       ghost.removeAttribute("data-zone");
+      ghost.removeAttribute("tabindex");
+      ghost.removeAttribute("role");
       ghost.setAttribute("aria-hidden", "true");
       ghost.style.width = rect.width + "px";
       document.body.appendChild(ghost);
@@ -1061,6 +1060,7 @@
 
     function endDrag(commit) {
       if (!drag) return;
+      cancelHold();
       var party = drag.party;
       var target = commit && drag.active ? drag.over : null;
       if (drag.ghost && drag.ghost.parentNode) {
@@ -1078,42 +1078,59 @@
       paintZones();
       // Dropping onto the side a card already occupies is a no-op rather
       // than a move, so the reader cannot create a duplicate by wobbling.
-      if (target && target !== zoneOf(party)) move(party, target, false);
+      if (target && target !== zoneOf(party)) move(party, target, true);
     }
 
     function attachDrag(tile, party, zone) {
       if (!tile.addEventListener) return;
+
       tile.addEventListener("pointerdown", function (event) {
         if (event.button !== undefined && event.button !== 0) return;
-        // The move control is interactive in its own right.  A press there is
-        // never the start of a drag.
-        if (containsNode(tile.querySelector(".eg-party__move"), event.target)) return;
-        // On a touchscreen only the grip starts a drag; a swipe anywhere
-        // else on the card still scrolls the page.
-        if (event.pointerType === "touch" &&
-            !containsNode(tile.querySelector(".eg-party__grip"), event.target)) {
-          return;
-        }
         var rect = tile.getBoundingClientRect();
         drag = {
           party: party, tile: tile, from: zone, over: null, active: false,
+          touch: event.pointerType === "touch",
           startX: event.clientX, startY: event.clientY,
+          lastX: event.clientX, lastY: event.clientY,
           offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top,
-          ghost: null,
+          ghost: null, holdTimer: null,
           pointerId: event.pointerId === undefined ? null : event.pointerId
         };
         if (drag.pointerId !== null && tile.setPointerCapture) {
           try {
             tile.setPointerCapture(drag.pointerId);
-          } catch (error) { /* capture unsupported; the button still works */ }
+          } catch (error) { /* capture unsupported; the keyboard still works */ }
+        }
+        // A finger that holds still is not scrolling.  The browser has not
+        // committed to a pan while the touch is inside its own slop, so the
+        // preventDefault on the first move after the hold is what keeps the
+        // page still under the drag.
+        if (drag.touch) {
+          drag.holdTimer = setTimeout(function () {
+            if (!drag || drag.active) return;
+            drag.holdTimer = null;
+            activateDrag(drag.lastX, drag.lastY);
+            paintZones();
+          }, HOLD_MS);
         }
       });
 
       tile.addEventListener("pointermove", function (event) {
         if (!drag || drag.tile !== tile) return;
+        var dx = event.clientX - drag.startX;
+        var dy = event.clientY - drag.startY;
+        drag.lastX = event.clientX;
+        drag.lastY = event.clientY;
         if (!drag.active) {
-          if (Math.abs(event.clientX - drag.startX) < DRAG_THRESHOLD &&
-              Math.abs(event.clientY - drag.startY) < DRAG_THRESHOLD) {
+          if (drag.touch) {
+            // Once the finger leaves the hold radius it is either scrolling
+            // or dragging, and the two are told apart by direction.  The card
+            // travels sideways, so sideways starts a drag; anything more
+            // vertical than horizontal is left to the browser, which pans the
+            // page and cancels the pointer as it goes.
+            if (Math.abs(dx) > HOLD_SLOP || Math.abs(dy) > HOLD_SLOP) cancelHold();
+            if (Math.abs(dx) < DRAG_THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
+          } else if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) {
             return;
           }
           activateDrag(event.clientX, event.clientY);
@@ -1128,7 +1145,17 @@
       });
 
       tile.addEventListener("pointerup", function () { endDrag(true); });
+      // The browser takes the gesture over when it decides the page is being
+      // scrolled.  That is a scroll, not a drag, and it ends here.
       tile.addEventListener("pointercancel", function () { endDrag(false); });
+
+      tile.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+        // The card is the control, so it takes both keys a button would:
+        // Space would otherwise scroll the page.
+        event.preventDefault();
+        move(party, otherZone(zone));
+      });
     }
 
     // --- Rendering -------------------------------------------------------
@@ -1138,17 +1165,21 @@
       tile.className = "eg-party";
       tile.setAttribute("data-party", party);
       tile.setAttribute("data-zone", zone);
+      // The whole block is the control: it takes focus, it carries the move,
+      // and it is what a pointer grabs.  Nothing sits inside it to press, so
+      // the accessible name has to say everything -- party, median and side --
+      // and name the key that moves it.
+      tile.setAttribute("role", "button");
+      tile.setAttribute("tabindex", "0");
+      tile.setAttribute("aria-label", cardLabel(party, zone));
       // Native HTML5 dragging is switched off deliberately: it cannot reach
       // a touchscreen and would race the pointer handlers on a desktop.
       tile.setAttribute("draggable", "false");
       tile.innerHTML =
-        "<span class=\"eg-party__grip\" aria-hidden=\"true\"></span>" +
         "<span class=\"eg-party__swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>" +
         "<span class=\"eg-party__abbr\">" + escapeHtml(abbr(party)) + "</span>" +
         "<span class=\"eg-party__seats\">" + format(partyMedian(party), 0) +
-        "<span class=\"eg-party__seats-unit\"> mandat</span>" +
-        "<span class=\"visually-hidden\"> i median</span></span>";
-      tile.appendChild(buildMove(party, zone));
+        "<span class=\"eg-party__seats-unit\"> mandat</span></span>";
       attachDrag(tile, party, zone);
       return tile;
     }
@@ -1217,11 +1248,14 @@
         : BAR_NAMES[key] + ": inga partier valda.");
     }
 
+    // Draws the summary and returns the sentence the live region should
+    // carry for the resulting state; the caller prefixes whatever just
+    // happened, so a move and its consequence are announced together.
     function renderSummary() {
       var opposition = oppositionMask();
       var entry = coalitionLookup(builder, governmentMask);
       var chosen = governmentMask !== 0;
-      if (!summary) return;
+      if (!summary) return "";
       summary.hidden = !chosen;
       summary.setAttribute("data-government-mask", chosen ? String(governmentMask) : "");
       summary.setAttribute("data-opposition-mask", chosen ? String(opposition) : "");
@@ -1229,8 +1263,7 @@
       summary.setAttribute("data-coalition-mask", chosen ? String(governmentMask) : "");
       if (!chosen || !entry) {
         summary.innerHTML = "";
-        setText("election-government-announcement", ZONE_HINTS.government);
-        return;
+        return ZONE_HINTS.government;
       }
 
       var governmentSeats = format(entry.median_seats, 0) + " mandat";
@@ -1247,33 +1280,35 @@
         summaryRow("probability", "Sannolikhet f\u00f6r minst " + MAJORITY + " mandat", chance);
 
       var oppositionParties = coalitionParties(builder, opposition);
-      setText("election-government-announcement",
-        "Regering " + coalitionParties(builder, governmentMask).join(" + ") + ", " +
+      return "Regering " + coalitionParties(builder, governmentMask).join(" + ") + ", " +
         governmentSeats + "; 90-procentigt prognosintervall " + range +
         "; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " + chance + ". " +
         (oppositionParties.length
           ? "Opposition " + oppositionParties.join(" + ") + ", " + oppositionSeats + "."
-          : "Inga partier i opposition."));
+          : "Inga partier i opposition.");
     }
 
-    function restoreFocus(party) {
+    function restoreFocus(party, preventScroll) {
       var host = zones[zoneOf(party)];
       if (!host || typeof host.querySelector !== "function") return;
-      var button = host.querySelector(
-        ".eg-party[data-party=\"" + party + "\"] .eg-party__move");
-      if (button && typeof button.focus === "function") button.focus();
+      var tile = host.querySelector(".eg-party[data-party=\"" + party + "\"]");
+      if (tile && typeof tile.focus === "function") {
+        tile.focus(preventScroll ? { preventScroll: true } : undefined);
+      }
     }
 
-    function render(focusParty) {
+    function render(focusParty, moved, preventScroll) {
       ZONE_SEQUENCE.forEach(function (zone) {
         renderZone(zone, columnOrder);
       });
       ZONE_SEQUENCE.forEach(function (zone) {
         renderBar(zone, maskOf(zone));
       });
-      renderSummary();
+      var state = renderSummary();
+      setText("election-government-announcement",
+        moved ? moved + " " + state : state);
       paintZones();
-      if (focusParty) restoreFocus(focusParty);
+      if (focusParty) restoreFocus(focusParty, preventScroll);
     }
 
     if (resetButton && resetButton.addEventListener) {

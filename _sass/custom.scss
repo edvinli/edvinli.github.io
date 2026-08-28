@@ -889,14 +889,35 @@ canvas {
   column-gap: 0.35rem;
   cursor: grab;
   display: grid;
-  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  /* The height the grip used to hold open, kept so the rows read the same
+     now that the block carries nothing but the party. */
+  min-height: 2.2rem;
   min-width: 0;
   padding: 0.3rem 0.35rem;
+  /* The whole block is the drag handle.  pan-y hands vertical panning back
+     to the browser -- a swipe down the page still scrolls over a card --
+     while a sideways drag, the direction a card actually travels, reaches
+     the pointer handlers instead. */
+  touch-action: pan-y;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
   user-select: none;
+}
+
+/* The affordance is the block itself, so it says so on hover and while it is
+   held rather than by carrying a visible handle. */
+.eg-party:hover {
+  border-color: var(--el-rule-strong);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .eg-party:active {
   cursor: grabbing;
+}
+
+.eg-party:focus-visible {
+  outline: 2px solid var(--el-ink);
+  outline-offset: 2px;
 }
 
 .eg-party.is-dragging {
@@ -911,31 +932,6 @@ canvas {
   pointer-events: none;
   position: fixed;
   z-index: 60;
-}
-
-/* Grip: the drag affordance, and on a touchscreen the only surface that
-   starts a drag, so a swipe across the rest of the card still scrolls. */
-.eg-party__grip {
-  cursor: grab;
-  display: block;
-  height: 2.1rem;
-  margin: -0.3rem 0 -0.3rem -0.2rem;
-  position: relative;
-  touch-action: none;
-  width: 1.5rem;
-}
-
-.eg-party__grip::before {
-  background-image: radial-gradient(currentColor 45%, transparent 47%);
-  background-size: 3px 3px;
-  color: var(--el-rule-strong);
-  content: "";
-  height: 9px;
-  left: 50%;
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 6px;
 }
 
 .eg-party__swatch {
@@ -960,79 +956,12 @@ canvas {
   white-space: nowrap;
 }
 
-/* --- The direct move control: the keyboard and touch fallback ------------ */
-/* With only two sides a card has exactly one other destination, so this is a
-   plain button that performs that move.  It is deliberately quiet -- a small
-   chevron pointing at the side the card would go to -- because dragging is
-   the interaction the panel wants read first. */
-
-.eg-party__move {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--el-muted);
-  cursor: pointer;
-  display: block;
-  height: 2.1rem;
-  margin: -0.3rem -0.2rem -0.3rem 0;
-  padding: 0;
-  position: relative;
-  touch-action: manipulation;
-  width: 1.9rem;
-}
-
-.eg-party__move:hover {
-  background: var(--el-fill-soft);
-  border-color: var(--el-rule);
-  color: var(--el-ink-soft);
-}
-
-.eg-party__move:focus-visible {
-  outline: 2px solid var(--el-ink);
-  outline-offset: 1px;
-}
-
-/* A chevron drawn from two borders, turned towards the destination:
-   left for Regering, right for Opposition. */
-.eg-party__move-icon {
-  border-right: 1.5px solid currentColor;
-  border-top: 1.5px solid currentColor;
-  display: block;
-  height: 7px;
-  left: 50%;
-  position: absolute;
-  top: 50%;
-  width: 7px;
-}
-
-.eg-party__move[data-action="government"] .eg-party__move-icon {
-  transform: translate(-30%, -50%) rotate(-135deg);
-}
-
-.eg-party__move[data-action="opposition"] .eg-party__move-icon {
-  transform: translate(-70%, -50%) rotate(45deg);
-}
-
-/* Touch: a finger needs a target the visible chrome has no room for at
-   360px.  Both controls get a 44x44 hit area -- height on the box, which
-   also opens the row up enough that neighbouring targets cannot overlap,
-   and width through a transparent overlay so the columns stay narrow.  The
-   grip dots and the chevron keep the size they have. */
+/* Touch: the block is the target, so it takes the comfortable height the
+   grip used to carry.  Nothing else changes -- there is no second control
+   left to size. */
 @media (pointer: coarse) {
-  .eg-party__grip,
-  .eg-party__move {
-    height: 44px;
-  }
-
-  .eg-party__grip::after,
-  .eg-party__move::after {
-    content: "";
-    height: 100%;
-    left: 50%;
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 44px;
+  .eg-party {
+    min-height: 44px;
   }
 }
 
@@ -1712,9 +1641,9 @@ canvas {
     padding: 0.25rem 0.3rem;
   }
 
-  /* A card has to fit a grip, a party, a seat count and a move control into
-     a 360px column split in two, so the unit is dropped from the ink and
-     kept for screen readers. */
+  /* A 360px column split in two leaves a card room for the party and its
+     seat count and little else, so the unit is dropped from the ink; the
+     card's accessible name still reads "110 mandat i median". */
   .eg-party__seats-unit {
     clip: rect(0 0 0 0);
     clip-path: inset(50%);
@@ -1723,14 +1652,6 @@ canvas {
     position: absolute;
     white-space: nowrap;
     width: 1px;
-  }
-
-  .eg-party__grip {
-    width: 1.05rem;
-  }
-
-  .eg-party__move {
-    width: 1.8rem;
   }
 
   .eg-bar__segment-label {

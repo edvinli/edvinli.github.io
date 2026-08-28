@@ -63,6 +63,10 @@ only the government mask and derives the opposition as its complement, so the
 sides cannot drift apart; the tests read both back off the DOM and check the
 partition anyway.
 
+The party card is the whole interaction. There is no button and no grip inside
+it: the block is what a pointer grabs, and it is also the control — it takes
+focus and `Enter` or `Space` sends it to the other side.
+
 The drags are driven as **real input**: CDP mouse and touch events through the
 browser's own pointer pipeline, not synthetic `DragEvent` objects dispatched at
 the handlers. A drag that only works because the test constructed the event is
@@ -79,27 +83,33 @@ The run is deliberately split into one long session plus a series of short ones:
   parties — masks `0` and `255`, the opposition total `349` with its bar filled
   to the top of the 0–349 scale, only the government side showing a drop hint,
   and the summary genuinely `display: none`.
-- *Card anatomy*: every card carries a grip; `draggable` is `"false"`, because
-  the pointer handlers own the drag and native HTML5 dragging cannot reach a
-  touchscreen; the fallback is a plain `<button>` with no `aria-haspopup`,
-  offering the single destination the card is not already in and naming it
-  (`Flytta Centerpartiet (C) till Regering`), and nothing anywhere in the panel
-  opens a popup.
-- *Target sizes*: every move control at least 24px on its short side (WCAG
-  2.5.8 AA) with a fine pointer, and every grip a full-height strip at least
-  14px wide. The coarse-pointer sizes are a case of their own, below.
+- *Card anatomy*: no `.eg-party__move` button and no `.eg-party__grip` survive
+  anywhere; a card contains no `button`, `a`, `input`, `[role="button"]` or
+  `[tabindex]` of its own; `Återställ` is the only `<button>` in the panel; and
+  nothing opens a popup. `draggable` is `"false"`, because the pointer handlers
+  own the drag and native HTML5 dragging cannot reach a touchscreen. Each card
+  is `role="button" tabindex="0"` and carries the whole accessible name —
+  `Socialdemokraterna (S), 110 mandat i median, i Opposition. Tryck Enter för
+  att flytta till Regering.` — which flips to name the way back once the party
+  is governing.
+- *Target sizes*: `cursor: grab` on every card, and every card at least 32px
+  tall with a fine pointer, so the row rhythm the grip used to hold open is
+  preserved. The touchscreen sizes are a case of their own, below.
 - *Shared scale*: both bars the same height and the same top edge; the majority
   rule dashed, spanning both columns, positioned at 175/349 of the plot to
   within 1.5px, and labelled `Majoritetsgräns: 175 mandat`.
 - *Dragging*: Opposition → Regering and Regering → Opposition, each asserted to
   leave the party in exactly one zone, with no duplicate anywhere and the
   partition intact; a drop back onto a card's own side asserted to be a no-op;
-  and a **touch** drag from the grip placing a party the same way a mouse drag
+  and a **touch** drag of the card placing a party the same way a mouse drag
   does.
-- *The direct control under real pointer input*: a real click on a card's
-  button performs the move. This is not the same path as a scripted `.click()`,
-  which skips the `pointerdown` a real tap fires — `pointerdown` on the card is
-  where the drag begins, and the two must not fight over the press.
+- *A press that does not travel*: a real click on a card, with no pointer
+  movement at all, must leave the party where it is. The block is both the
+  handle and the control, so the drag threshold is the only thing separating a
+  click from a move.
+- *The card as a control*: an `Enter` reaching the card's own key handler moves
+  the party, and the live region announces the move and then the state it left
+  behind (`Kristdemokraterna (KD) flyttades till Regering. Regering …`).
 - *Reset*: `Återställ` returns all eight parties to Opposition, restores
   government `0` / opposition `255`, hides the summary and announces itself.
 - *Masks and results*: government mask 84 (`C + S + MP`) with opposition mask
@@ -147,44 +157,54 @@ an empty government prints no result at all).
 Accessibility is not weakened here, only isolated. See **the key budget** below
 for why each case gets its own browser.
 
-- `Tab` from the reset control reaching a card's move control, with a computed
+- `Tab` from the reset control reaching a **party card**, with a computed
   outline and a real `:focus-visible` match. `:focus-visible` deliberately does
   not match a programmatic `focus()` after pointer input, so the ring is only
   meaningful once a real key has moved focus.
-- `Enter` and `Space` — the two keys that activate a button — each proved in
-  both directions against real input. Because the fallback is now a plain
-  button rather than a menu trigger, one press is the whole move, so no case
-  spends more than one key.
+- `Enter` across and `Space` back, against real input, from each of the two
+  states a card can start in. One press is the whole move, so a case spends two
+  keys and no more.
 
-Every keyboard case asserts the resulting zone, that the party exists exactly
-once, that the partition holds, that **focus follows the party into its new
-side** — a keyboard user must not be dumped at the top of the document after
-every move — and that the control it lands on now points the other way.
+Every step asserts the resulting zone, that the party exists exactly once, that
+the partition holds, that **focus follows the card into its new side** — a
+keyboard user must not be dumped at the top of the document after every move,
+and the move rebuilds both columns, so the card being focused is a new element
+— and that the newly focused card's accessible name names the side it is now
+on.
 
-### `touchTargets()` — hit areas on a coarse pointer
+### `touchGestures()` — scrolling and dragging the same block
 
 `Emulation.setEmulatedMedia` cannot override `pointer` or `hover`: they are not
 overridable media features, and Blink derives them from the device's touch
 capability. `Emulation.setTouchEmulationEnabled` is what makes
 `(pointer: coarse)` match, so that is what this case uses.
 
-Under it, both the grip and the direct control get a 44×44 CSS-px hit area —
-height on the box, which also opens the row up enough that neighbouring targets
-cannot overlap, and width through a transparent overlay so the 360px columns
-stay narrow. An overlay does not appear in `getBoundingClientRect`, so the area
-is **probed** the way a finger meets it: `elementFromPoint` at the centre, the
-four edges and the four corners of the square must all resolve to the control.
-The case also asserts what is actually painted stays small (the grip dots and
-the chevron, ≤ 12px), that the control does not widen the column, that only the
-grip sets `touch-action: none` — so a swipe anywhere else on a card still
-scrolls the page — that a touch drag still works at this size, and that none of
-it widens the layout.
+The card is the drag handle and it fills most of the column, so the page would
+be unscrollable if the block simply claimed every touch. It claims one
+direction instead: `touch-action: pan-y` leaves vertical panning to the
+browser, and the panel starts a drag only on a sideways move — the direction a
+card actually travels between the two columns — or on a deliberate
+press-and-hold. All three are exercised as real gestures:
+
+- a **vertical swipe** starting on a card, synthesized with
+  `Input.synthesizeScrollGesture` so the browser rather than the test decides
+  whether `touch-action` lets it through, must scroll the page and leave the
+  party where it is;
+- a **sideways drag** must move it;
+- a **press-and-hold** must lift the card — ghost, dimmed original and the
+  destination highlighted — while the finger is still down and has not moved,
+  and then drop it wherever it goes.
+
+The case also asserts every card is at least 44px tall under a finger
+(WCAG 2.5.8 AA), that `touch-action` really is `pan-y`, the partition after
+each gesture, and that none of it widens the layout.
 
 ### `schema11FailsClosed()` — the older publication
 
 A publication without a `coalition_builder` must leave no trace of the panel:
 the `hidden` attribute still set, `display: none`, zero height, no cards, no
-bar segments, no move controls, no summary text — and the column heads still
+bar segments, no per-card controls, nothing focusable in the tab order, no
+summary text — and the column heads still
 carrying the markup's `0` / `0`, so an unusable publication cannot look like a
 chamber with everybody in opposition. This is the empty-shell regression the
 whole file was written for.

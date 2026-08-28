@@ -15,20 +15,23 @@
 // === 255 -- at every point in a session, including the initial state
 // (government 0, opposition 255) and after Återställ.
 //
-// The panel is a direct-manipulation builder, so the drags are driven as real
-// input: CDP mouse and touch events through the browser's own pointer
-// pipeline, not synthetic DragEvent objects dispatched at the handlers. A drag
-// that only works because the test constructed the event is not a drag.
+// The party card is the whole interaction: there is no button and no grip
+// inside it. It is what the pointer grabs, and it is also the control -- it
+// takes focus and Enter or Space sends it to the other side. So the drags are
+// driven as real input: CDP mouse and touch events through the browser's own
+// pointer pipeline, not synthetic DragEvent objects dispatched at the
+// handlers. A drag that only works because the test constructed the event is
+// not a drag.
 //
 // Layout of the run:
 //
 //   schema12()            one long session per viewport: copy, layout, drags,
-//                         reset, direct-control moves, overflow, lookup;
+//                         reset, card anatomy, overflow, lookup;
 //   dragCases()           one short session per drag direction, each asserting
 //                         the whole resulting state (zone, masks, numbers);
 //   keyboardCases()       one short session per keyboard case, each spending
 //                         at most two real key presses -- see KEY BUDGET;
-//   touchTargets()        hit areas under an emulated coarse pointer;
+//   touchGestures()       scroll versus drag under an emulated touchscreen;
 //   schema11FailsClosed() the fail-closed contract for the older publication.
 //
 // KEY BUDGET. Headless Chrome stops answering CDP after roughly five
@@ -87,22 +90,14 @@ const OPPOSITION_MASK = FULL_MASK ^ GOVERNMENT_MASK; // 171
 // Adding V to the same government crosses the rule: median 190 of 349.
 const MAJORITY_MASK = GOVERNMENT_MASK | BIT.V;       // 116
 
-// The move control is the tap target of the accessible fallback, so with a
-// fine pointer it is held to the WCAG 2.5.8 (AA) minimum target size of 24
-// CSS px on its short side. The grip is a drag surface rather than a tap
-// target: what matters there is that it is a full-height strip wide enough to
-// grab. Both are widened to ~44px under a coarse pointer -- see touchTargets.
-const MIN_MOVE_TARGET = 24;
-const MIN_GRIP_HEIGHT = 30;
-const MIN_GRIP_WIDTH = 14;
-// The coarse-pointer hit area, probed rather than measured: a transparent
-// overlay does not show up in getBoundingClientRect.
-const TOUCH_TARGET = 44;
-const TOUCH_PROBE = 20;   // half-extent probed, comfortably inside 44/2
-// ... while what is actually painted -- the grip dots and the chevron --
-// stays small, and the column stays narrow.
-const MAX_VISIBLE_ICON = 12;
-const MAX_CONTROL_WIDTH = 34;
+// The card is now the target, so its own box is what has to be comfortable:
+// the row height the grip used to hold open with a fine pointer, and the WCAG
+// 2.5.8 (AA) 44px on a touchscreen.
+const MIN_CARD_HEIGHT = 32;
+const TOUCH_CARD_HEIGHT = 44;
+// A vertical swipe over a card must still scroll the page. Synthesized as a
+// real touch gesture, so `touch-action` decides the outcome, not the test.
+const SCROLL_DISTANCE = 160;
 
 const GOVERNMENT_ZONE = 'election-government-parties';
 const OPPOSITION_ZONE = 'election-opposition-parties';
@@ -221,19 +216,21 @@ const readPanel = (browser) => browser.evaluate(() => {
   const cards = (hostId) => Array.from(
     document.querySelectorAll(`#${hostId} .eg-party`)
   ).map((el) => {
-    const move = el.querySelector('.eg-party__move');
+    const style = getComputedStyle(el);
     return Object.assign({
       party: el.getAttribute('data-party'),
       zone: el.getAttribute('data-zone'),
       // Native HTML5 dragging must stay off: the pointer handlers own the drag.
       nativeDraggable: el.getAttribute('draggable'),
-      grip: Boolean(el.querySelector('.eg-party__grip')),
-      // The one alternative destination, and the label a screen reader reads.
-      moveAction: move ? move.getAttribute('data-action') : null,
-      moveLabel: move ? move.getAttribute('aria-label') : null,
-      moveTag: move ? move.tagName : null,
-      moveType: move ? move.getAttribute('type') : null,
-      movePopup: move ? move.getAttribute('aria-haspopup') : null,
+      // The card is the control: it takes focus and carries the whole name.
+      role: el.getAttribute('role'),
+      tabindex: el.getAttribute('tabindex'),
+      label: el.getAttribute('aria-label'),
+      cursor: style.cursor,
+      touchAction: style.touchAction,
+      // Nothing inside a card may be a control of its own any more.
+      inner: el.querySelectorAll(
+        'button, a, input, [role="button"], [tabindex], .eg-party__move, .eg-party__grip').length,
       text: flat(el.textContent),
     }, box(el));
   });
@@ -266,15 +263,6 @@ const readPanel = (browser) => browser.evaluate(() => {
     document.querySelectorAll(`#${barId} .eg-bar__segment`)
   ).reduce((sum, el) => sum + el.getBoundingClientRect().height, 0) * 100) / 100;
 
-  const sizes = (selector) => Array.from(document.querySelectorAll(selector))
-    .map((el) => {
-      const rect = el.getBoundingClientRect();
-      return {
-        width: Math.round(rect.width * 100) / 100,
-        height: Math.round(rect.height * 100) / 100,
-      };
-    });
-
   return {
     section: byId('election-government-builder'),
     summaryBox: byId('election-government-results'),
@@ -294,11 +282,16 @@ const readPanel = (browser) => browser.evaluate(() => {
     oppositionStack: stackHeight('election-opposition-bar'),
     governmentTitle: text('election-government-title'),
     oppositionTitle: text('election-opposition-title'),
-    moveControls: sizes('.eg-party__move'),
-    grips: sizes('.eg-party__grip'),
-    // Nothing in the panel may open a popup any more.
-    popups: document.querySelectorAll(
-      '#election-government-builder [aria-haspopup], #election-government-builder [role="menu"]').length,
+    // Nothing in the panel may be a per-card control or a popup any more.
+    leftovers: {
+      moveButtons: document.querySelectorAll('#election-government-builder .eg-party__move').length,
+      grips: document.querySelectorAll('#election-government-builder .eg-party__grip').length,
+      popups: document.querySelectorAll(
+        '#election-government-builder [aria-haspopup], #election-government-builder [role="menu"]').length,
+      // The reset control is the only <button> the panel is allowed to hold.
+      buttons: Array.from(document.querySelectorAll('#election-government-builder button'))
+        .map((el) => el.id || el.className),
+    },
     intro: flat(document.querySelector('#election-government-builder .election-panel__head p').textContent),
     disclaimer: flat(document.querySelector('.eg-builder__disclaimer').textContent),
     hints: Array.from(document.querySelectorAll('.eg-zone__hint')).map((el) => el.textContent.trim()),
@@ -349,8 +342,8 @@ const readState = (browser, party) => browser.evaluate((name) => {
     opposition: document.getElementById('election-opposition-column').getAttribute('data-coalition-mask'),
     activeParty: activeCard ? activeCard.getAttribute('data-party') : null,
     activeZone: activeZone ? activeZone.id : null,
-    activeIsMoveControl: Boolean(active) && active.classList.contains('eg-party__move'),
-    activeAction: active ? active.getAttribute('data-action') : null,
+    activeIsCard: Boolean(active) && active.classList.contains('eg-party'),
+    activeLabel: active ? active.getAttribute('aria-label') : null,
     medianText: dd('government'),
     probabilityText: dd('probability'),
   };
@@ -395,17 +388,17 @@ const membership = (browser) => browser.evaluate((zoneIds) => {
 // Real input. These drive Chrome's own pointer and key pipelines.
 // ---------------------------------------------------------------------------
 
-/** Grip centre of a card, and a drop point inside the target zone. */
+/** Centre of a card -- the whole block is the handle -- and a drop point. */
 const dragPoints = (browser, party, zoneId) => browser.evaluate((arg) => {
   const [name, target] = arg;
   const card = document.querySelector(`#election-government-builder .eg-party[data-party="${name}"]`);
   const zone = document.getElementById(target);
   if (!card || !zone) return null;
-  const grip = card.querySelector('.eg-party__grip').getBoundingClientRect();
+  const from = card.getBoundingClientRect();
   const box = zone.getBoundingClientRect();
   return {
-    fromX: grip.left + grip.width / 2,
-    fromY: grip.top + grip.height / 2,
+    fromX: from.left + from.width / 2,
+    fromY: from.top + from.height / 2,
     // Near the top of the zone, which is inside it whether or not it already
     // holds cards.
     toX: box.left + box.width / 2,
@@ -440,22 +433,81 @@ async function mouseDrag(browser, party, zoneId) {
   return true;
 }
 
+const touchSend = (browser, type, x, y) => browser.S('Input.dispatchTouchEvent', {
+  type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
+});
+
+/**
+ * A finger dragging a card across. The path goes sideways first, because that
+ * is what tells the page apart from a scroll: the two sides sit next to each
+ * other, so the card travels horizontally and the panel claims only that
+ * direction. A straight diagonal would be an ambiguous gesture in real use.
+ */
 async function touchDrag(browser, party, zoneId) {
   await focusPanel(browser);
   const p = await dragPoints(browser, party, zoneId);
   if (!p) return false;
-  const send = (type, x, y) => browser.S('Input.dispatchTouchEvent', {
-    type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
-  });
-  await send('touchStart', p.fromX, p.fromY);
-  for (let step = 1; step <= 8; step += 1) {
-    await send('touchMove',
-      p.fromX + (p.toX - p.fromX) * step / 8,
-      p.fromY + (p.toY - p.fromY) * step / 8);
+  await touchSend(browser, 'touchStart', p.fromX, p.fromY);
+  for (let step = 1; step <= 6; step += 1) {
+    await touchSend(browser, 'touchMove', p.fromX + (p.toX - p.fromX) * step / 6, p.fromY);
   }
-  await send('touchEnd', p.toX, p.toY);
+  for (let step = 1; step <= 4; step += 1) {
+    await touchSend(browser, 'touchMove', p.toX, p.fromY + (p.toY - p.fromY) * step / 4);
+  }
+  await touchSend(browser, 'touchEnd', p.toX, p.toY);
   await settle();
   return true;
+}
+
+/**
+ * The other touch path: press and hold, then move in any direction. `checkHeld`
+ * runs while the finger is still down and nothing has moved, which is the only
+ * moment the hold can be observed on its own.
+ */
+async function touchHoldDrag(browser, party, zoneId, checkHeld) {
+  await focusPanel(browser);
+  const p = await dragPoints(browser, party, zoneId);
+  if (!p) return false;
+  await touchSend(browser, 'touchStart', p.fromX, p.fromY);
+  // Comfortably past the panel's 320 ms hold, and still without moving.
+  await new Promise((r) => setTimeout(r, 450));
+  if (checkHeld) await checkHeld();
+  for (let step = 1; step <= 6; step += 1) {
+    await touchSend(browser, 'touchMove',
+      p.fromX + (p.toX - p.fromX) * step / 6,
+      p.fromY + (p.toY - p.fromY) * step / 6);
+  }
+  await touchSend(browser, 'touchEnd', p.toX, p.toY);
+  await settle();
+  return true;
+}
+
+/**
+ * A vertical swipe that starts on a card, synthesized as a real touch gesture
+ * so the browser -- not the test -- decides whether `touch-action` lets it
+ * scroll. Returns how far the page actually moved.
+ */
+async function touchSwipeDown(browser, party) {
+  await focusPanel(browser);
+  const at = await browser.evaluate((name) => {
+    const card = document.querySelector(
+      `#election-government-builder .eg-party[data-party="${name}"]`);
+    if (!card) return null;
+    const rect = card.getBoundingClientRect();
+    return {
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
+      scrollY: window.scrollY,
+    };
+  }, party);
+  if (!at) return null;
+  await browser.S('Input.synthesizeScrollGesture', {
+    x: at.x, y: at.y, xDistance: 0, yDistance: -SCROLL_DISTANCE,
+    gestureSourceType: 'touch', speed: 800,
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  const after = await browser.evaluate(() => window.scrollY);
+  return { before: at.scrollY, after, moved: after - at.scrollY };
 }
 
 /** Click an element with real mouse input, by selector, at its centre. */
@@ -497,12 +549,17 @@ const pressEnter = (browser) => key(browser, 'Enter', 'Enter', 13, '\r');
 const pressSpace = (browser) => key(browser, ' ', 'Space', 32, ' ');
 const pressTab = (browser) => key(browser, 'Tab', 'Tab', 9);
 
-/** Activate a card's direct move control in script. Costs no key budget. */
-const moveViaControl = (browser, party) => browser.evaluate((name) => {
+/**
+ * Move a party by dispatching the key the card listens for. This is the
+ * panel's own code path -- the same handler a real Enter reaches -- and it
+ * costs no key budget, so setup is free.
+ */
+const moveViaKey = (browser, party) => browser.evaluate((name) => {
   const card = document.querySelector(
     `#election-government-builder .eg-party[data-party="${name}"]`);
   if (!card) return false;
-  card.querySelector('.eg-party__move').click();
+  card.dispatchEvent(new KeyboardEvent('keydown',
+    { key: 'Enter', bubbles: true, cancelable: true }));
   return true;
 }, party);
 
@@ -515,18 +572,18 @@ async function place(browser, zone, parties) {
         `#election-government-builder .eg-party[data-party="${name}"]`);
       return card ? card.getAttribute('data-zone') === target : false;
     }, [party, zone]);
-    if (!here) await moveViaControl(browser, party);
+    if (!here) await moveViaKey(browser, party);
   }
   await settle();
 }
 
-/** Put keyboard focus on one card's move control, in script. */
-const focusMoveControl = (browser, party) => browser.evaluate((name) => {
-  const button = document.querySelector(
-    `#election-government-builder .eg-party[data-party="${name}"] .eg-party__move`);
-  if (!button) return false;
-  button.focus();
-  return document.activeElement === button;
+/** Put keyboard focus on one card, in script. */
+const focusCard = (browser, party) => browser.evaluate((name) => {
+  const card = document.querySelector(
+    `#election-government-builder .eg-party[data-party="${name}"]`);
+  if (!card) return false;
+  card.focus();
+  return document.activeElement === card;
 }, party);
 
 // ---------------------------------------------------------------------------
@@ -567,35 +624,34 @@ async function schema12(viewport, pointer, expected) {
     eq('screen-reader status invites a government',
       initial.announcement, 'Dra partier hit för att bygga en regering.');
 
-    // --- Card anatomy: one destination, no popup -------------------------
+    // --- Card anatomy: a clean block that is itself the control ----------
     check('every card has a real box',
       initial.opposition.every((c) => c.visible && c.width > 0 && c.height > 0),
       JSON.stringify(initial.opposition.filter((c) => !(c.visible && c.width > 0))));
-    check('cards carry a drag grip', initial.opposition.every((c) => c.grip),
-      JSON.stringify(initial.opposition.map((c) => [c.party, c.grip])));
+    eq('no per-card move button is left', initial.leftovers.moveButtons, 0);
+    eq('no dedicated drag grip is left', initial.leftovers.grips, 0);
+    eq('no popup survives anywhere in the panel', initial.leftovers.popups, 0);
+    eq('the reset control is the panel\'s only button',
+      initial.leftovers.buttons, ['election-builder-reset']);
+    eq('a card holds no control of its own',
+      initial.opposition.map((c) => c.inner), PARTY_ORDER.map(() => 0));
     eq('native HTML5 dragging is off',
       initial.opposition.map((c) => c.nativeDraggable),
       PARTY_ORDER.map(() => 'false'));
-    eq('an opposition card offers exactly one destination',
-      initial.opposition.map((c) => c.moveAction),
-      PARTY_ORDER.map(() => 'government'));
-    eq('the fallback is a normal button, not a menu trigger',
-      [initial.opposition[0].moveTag, initial.opposition[0].moveType,
-        initial.opposition[0].movePopup],
-      ['BUTTON', 'button', null]);
-    eq('no popup survives anywhere in the panel', initial.popups, 0);
-    eq('the control names the party and where it would go',
-      initial.opposition.find((c) => c.party === 'C').moveLabel,
-      'Flytta Centerpartiet (C) till Regering');
+    eq('every card is itself focusable and operable',
+      initial.opposition.map((c) => `${c.role}/${c.tabindex}`),
+      PARTY_ORDER.map(() => 'button/0'));
+    eq('the card names its party, its median, its side and the key',
+      initial.opposition.find((c) => c.party === 'S').label,
+      'Socialdemokraterna (S), 110 mandat i median, i Opposition. Tryck Enter för att flytta till Regering.');
     check('a card reads as abbreviation and median seats',
       /^S110mandat/.test(initial.opposition.find((c) => c.party === 'S').text.replace(/\s/g, '')),
       initial.opposition.find((c) => c.party === 'S').text);
-    check(`every move control is at least ${MIN_MOVE_TARGET}px on its short side`,
-      initial.moveControls.every((b) => Math.min(b.width, b.height) >= MIN_MOVE_TARGET),
-      JSON.stringify(initial.moveControls[0]));
-    check('every grip is a full-height graspable strip',
-      initial.grips.every((g) => g.height >= MIN_GRIP_HEIGHT && g.width >= MIN_GRIP_WIDTH),
-      JSON.stringify(initial.grips[0]));
+    eq('the cursor says the block can be grabbed',
+      initial.opposition.map((c) => c.cursor), PARTY_ORDER.map(() => 'grab'));
+    check(`every card is at least ${MIN_CARD_HEIGHT}px tall`,
+      initial.opposition.every((c) => c.height >= MIN_CARD_HEIGHT),
+      JSON.stringify(initial.opposition.map((c) => [c.party, c.height])));
 
     // --- Shared scale and the majority rule ------------------------------
     near('both bars are the same height',
@@ -622,6 +678,11 @@ async function schema12(viewport, pointer, expected) {
     eq('the masks moved the one bit', [state.government, state.opposition],
       [String(BIT.C), String(FULL_MASK ^ BIT.C)]);
     partitions('after Opposition -> Regering', state.government, state.opposition);
+    // A move rebuilds both columns, so the dragged card is a new element. If
+    // focus is not put back on it the next Tab starts from the top of the page.
+    check('focus follows a dragged card into its new side',
+      state.activeIsCard && state.activeParty === 'C' &&
+      state.activeZone === GOVERNMENT_ZONE, JSON.stringify(state));
 
     check('drag C back from Regering into Opposition',
       await mouseDrag(browser, 'C', OPPOSITION_ZONE));
@@ -639,7 +700,7 @@ async function schema12(viewport, pointer, expected) {
     eq('dropping a card back on its own side changes nothing',
       [after.found.M, after.duplicates], [OPPOSITION_ZONE, []]);
 
-    check('touch-drag S into Regering using the grip',
+    check('touch-drag S into Regering by the card itself',
       await touchDrag(browser, 'S', GOVERNMENT_ZONE));
     where = await membership(browser);
     state = await readState(browser, 'S');
@@ -647,17 +708,27 @@ async function schema12(viewport, pointer, expected) {
     eq('a touch drag creates no duplicate', where.duplicates, []);
     partitions('after a touch drag', state.government, state.opposition);
 
-    // --- The direct control under real pointer input ---------------------
-    // A scripted .click() skips the pointerdown a real tap fires, and
-    // pointerdown on the card is what starts a drag. Drive it as real input
-    // instead, so the control and the drag cannot fight over the press.
-    check('a real click on the direct control moves the party',
-      await mouseClick(browser,
-        `#${OPPOSITION_ZONE} .eg-party[data-party="KD"] .eg-party__move`));
+    // --- A press that does not travel is not a drag ----------------------
+    // The block is both the handle and the control, so a plain click on it
+    // has to leave the party exactly where it is.
+    check('click KD without moving the pointer',
+      await mouseClick(browser, `#${OPPOSITION_ZONE} .eg-party[data-party="KD"]`));
+    state = await readState(browser, 'KD');
+    eq('a click that never travels moves nothing', state.zone, 'opposition');
+    eq('and leaves one card', state.copies, 1);
+
+    // --- The card as a control, through its own key handler --------------
+    check('sending Enter to the card moves the party',
+      await moveViaKey(browser, 'KD'));
+    await settle();
     state = await readState(browser, 'KD');
     eq('the party moved to its one destination', state.zone, 'government');
-    eq('a direct move leaves one card', state.copies, 1);
-    partitions('after a direct move', state.government, state.opposition);
+    eq('a keyboard move leaves one card', state.copies, 1);
+    partitions('after a keyboard move', state.government, state.opposition);
+    check('the move itself is announced, then the resulting state',
+      /^Kristdemokraterna \(KD\) flyttades till Regering\. Regering /
+        .test((await readPanel(browser)).announcement),
+      (await readPanel(browser)).announcement);
 
     // --- Reset -----------------------------------------------------------
     await browser.evaluate(() => document.getElementById('election-builder-reset').click());
@@ -721,11 +792,9 @@ async function schema12(viewport, pointer, expected) {
       panel.oppositionSegments.map((s) => s.party), expected.stack(OPPOSITION_MASK));
     eq('cards are listed in the bar\'s own top-to-bottom order',
       panel.government.map((c) => c.party), expected.stack(GOVERNMENT_MASK).slice().reverse());
-    eq('a governing card now points back to Opposition',
-      panel.government.map((c) => c.moveAction),
-      panel.government.map(() => 'opposition'));
-    eq('and says so', panel.government.find((c) => c.party === 'C').moveLabel,
-      'Flytta Centerpartiet (C) till Opposition');
+    eq('a governing card now names the way back',
+      panel.government.find((c) => c.party === 'C').label,
+      'Centerpartiet (C), 25 mandat i median, i Regering. Tryck Enter för att flytta till Opposition.');
     near('the government stack is its median on the 0-349 scale',
       panel.governmentStack,
       panel.majority.plotHeight * (expected.government.median / CHAMBER), 1.5);
@@ -838,34 +907,38 @@ async function dragCase(pointer, expected, spec) {
 // ---------------------------------------------------------------------------
 
 /**
- * The fallback is a plain button, so a single Enter or Space on it performs
- * the move. `presses` is applied after focus is placed on `party`'s control.
+ * The card is the control, so one Enter or Space on the focused card is the
+ * whole move. Each step of `spec.steps` is a real key press followed by the
+ * state it must leave behind; two presses is well inside the key budget.
  */
 async function keyboardCase(pointer, spec) {
   console.log(`\n[keyboard: ${spec.name}]`);
   await session(CASE_VIEWPORT, pointer, async (browser) => {
     if (spec.setup && spec.setup.length) await place(browser, 'government', spec.setup);
     await focusPanel(browser);
-    check(`focus reaches ${spec.party}'s move control`,
-      await focusMoveControl(browser, spec.party));
+    check(`focus reaches the ${spec.party} card itself`,
+      await focusCard(browser, spec.party));
 
-    await spec.presses(browser);
-
-    const state = await readState(browser, spec.party);
-    eq(`${spec.party} moved to ${spec.to}`, state.zone, spec.to);
-    eq(`${spec.party} exists exactly once`, state.copies, 1);
-    eq('the government mask is correct', state.government, String(spec.government));
-    eq('the opposition mask is its complement',
-      state.opposition, String(FULL_MASK ^ spec.government));
-    partitions(spec.name, state.government, state.opposition);
-    // Focus restoration: a keyboard user must not be dumped at the top of the
-    // document after every move.
-    check('focus follows the party into its new side',
-      state.activeIsMoveControl && state.activeParty === spec.party &&
-      state.activeZone === ZONE_OF_ACTION[spec.to], JSON.stringify(state));
-    // And the control it landed on now offers the way back.
-    eq('the control now points the other way', state.activeAction,
-      spec.to === 'government' ? 'opposition' : 'government');
+    for (const step of spec.steps) {
+      await step.press(browser);
+      const state = await readState(browser, spec.party);
+      eq(`${step.name}: ${spec.party} is in ${step.to}`, state.zone, step.to);
+      eq(`${step.name}: ${spec.party} exists exactly once`, state.copies, 1);
+      eq(`${step.name}: the government mask is correct`,
+        state.government, String(step.government));
+      eq(`${step.name}: the opposition mask is its complement`,
+        state.opposition, String(FULL_MASK ^ step.government));
+      partitions(step.name, state.government, state.opposition);
+      // Focus restoration: a keyboard user must not be dumped at the top of
+      // the document after every move, and the card is rebuilt by the move.
+      check(`${step.name}: focus follows the card into its new side`,
+        state.activeIsCard && state.activeParty === spec.party &&
+        state.activeZone === ZONE_OF_ACTION[step.to], JSON.stringify(state));
+      check(`${step.name}: the focused card names the side it is now on`,
+        typeof state.activeLabel === 'string' &&
+        state.activeLabel.includes(`i ${step.to === 'government' ? 'Regering' : 'Opposition'}.`),
+        String(state.activeLabel));
+    }
   });
 }
 
@@ -882,17 +955,16 @@ async function keyboardFocusRing(pointer) {
     const ring = await browser.evaluate(() => {
       const active = document.activeElement;
       const style = getComputedStyle(active);
-      const card = active.closest ? active.closest('.eg-party') : null;
       return {
-        isMoveControl: active.classList.contains('eg-party__move'),
-        party: card ? card.getAttribute('data-party') : null,
+        isCard: active.classList.contains('eg-party'),
+        party: active.getAttribute('data-party'),
         matchesFocusVisible: active.matches(':focus-visible'),
         outlineStyle: style.outlineStyle,
         outlineWidth: style.outlineWidth,
       };
     });
-    check("Tab from the reset control reaches a card's move control",
-      ring.isMoveControl && Boolean(ring.party), JSON.stringify(ring));
+    check('Tab from the reset control reaches a party card',
+      ring.isCard && Boolean(ring.party), JSON.stringify(ring));
     check('keyboard focus is visibly outlined',
       ring.matchesFocusVisible && ring.outlineStyle !== 'none' &&
       parseFloat(ring.outlineWidth) > 0, JSON.stringify(ring));
@@ -900,100 +972,65 @@ async function keyboardFocusRing(pointer) {
 }
 
 // ---------------------------------------------------------------------------
-// Touch: hit areas on a coarse pointer
+// Touch: scrolling and dragging on the same block
 // ---------------------------------------------------------------------------
 
 /**
- * Both the grip and the direct control have to be comfortable under a finger
- * while their icons stay small, so the hit area is widened with a transparent
- * overlay. An overlay does not show up in getBoundingClientRect, so the area
- * is *probed* -- elementFromPoint around each control's centre -- which is
- * what a finger actually does.
+ * The card is the drag handle, and it fills most of the column, so the page
+ * would be unscrollable if the block simply claimed every touch. It claims
+ * one direction instead: `touch-action: pan-y` leaves vertical panning to the
+ * browser, and the panel starts a drag only on a sideways move -- which is
+ * the direction a card actually travels between the two columns -- or on a
+ * deliberate press-and-hold.
+ *
+ * All three are exercised as real gestures: the scroll is synthesized so the
+ * browser, not the test, decides whether `touch-action` lets it through.
  */
-async function touchTargets(pointer) {
-  console.log('\n[touch: 44px hit areas under a coarse pointer]');
+async function touchGestures(pointer) {
+  console.log('\n[touch: scrolling and dragging the same block]');
   await session(VIEWPORTS[1], pointer, async (browser) => {
-    await focusPanel(browser);
-    const probed = await browser.evaluate((arg) => {
-      const [half, controls] = arg;
-      const out = {};
-      controls.forEach(([selector, icon]) => {
-        const el = document.querySelector(
-          `#election-opposition-parties .eg-party[data-party="C"] ${selector}`);
-        if (!el) { out[selector] = null; return; }
-        const rect = el.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const points = [
-          ['centre', 0, 0], ['left', -half, 0], ['right', half, 0],
-          ['top', 0, -half], ['bottom', 0, half],
-          ['top-left', -half, -half], ['top-right', half, -half],
-          ['bottom-left', -half, half], ['bottom-right', half, half],
-        ];
-        // The visible mark is a pseudo-element on the grip and a child span
-        // on the button, so each is measured where it actually lives.
-        const painted = icon === '::before'
-          ? getComputedStyle(el, '::before')
-          : el.querySelector(icon) && getComputedStyle(el.querySelector(icon));
-        out[selector] = {
-          width: Math.round(rect.width * 100) / 100,
-          height: Math.round(rect.height * 100) / 100,
-          iconWidth: painted ? parseFloat(painted.width) : null,
-          iconHeight: painted ? parseFloat(painted.height) : null,
-          missed: points.filter(([, dx, dy]) => {
-            const hit = document.elementFromPoint(cx + dx, cy + dy);
-            return !(hit === el || el.contains(hit));
-          }).map(([name]) => name),
-        };
-      });
-      return out;
-    }, [TOUCH_PROBE, [['.eg-party__grip', '::before'],
-      ['.eg-party__move', '.eg-party__move-icon']]]);
+    const panel = await readPanel(browser);
+    eq('a card hands vertical panning back to the browser',
+      panel.opposition.map((c) => c.touchAction), PARTY_ORDER.map(() => 'pan-y'));
+    check(`every card is at least ${TOUCH_CARD_HEIGHT}px tall under a finger`,
+      panel.opposition.every((c) => c.height >= TOUCH_CARD_HEIGHT),
+      JSON.stringify(panel.opposition.map((c) => [c.party, c.height])));
 
-    for (const [selector, box] of Object.entries(probed)) {
-      check(`${selector} exists on a card`, Boolean(box), JSON.stringify(probed));
-      if (!box) continue;
-      check(`${selector} is pressable across a ~${TOUCH_TARGET}px square`,
-        box.missed.length === 0, `missed ${JSON.stringify(box.missed)}`);
-      check(`${selector} is at least ${TOUCH_TARGET}px tall`,
-        box.height >= TOUCH_TARGET, JSON.stringify(box));
-      check(`${selector} keeps its painted icon small`,
-        box.iconWidth > 0 && box.iconWidth <= MAX_VISIBLE_ICON &&
-        box.iconHeight > 0 && box.iconHeight <= MAX_VISIBLE_ICON,
-        JSON.stringify(box));
-      check(`${selector} does not widen the column to match`,
-        box.width <= MAX_CONTROL_WIDTH, JSON.stringify(box));
-    }
+    // 1. A vertical swipe that starts on a card scrolls the page.
+    const scrolled = await touchSwipeDown(browser, 'C');
+    check('a vertical swipe over a card scrolls the page',
+      Boolean(scrolled) && scrolled.moved > SCROLL_DISTANCE / 2, JSON.stringify(scrolled));
+    let state = await readState(browser, 'C');
+    eq('and does not move the party', state.zone, 'opposition');
+    partitions('after a scroll', state.government, state.opposition);
 
-    // A swipe that does not start on the grip must still scroll the page, so
-    // nothing but the grip may claim the touch.
-    const actions = await browser.evaluate(() => {
-      const card = document.querySelector(
-        '#election-opposition-parties .eg-party[data-party="C"]');
-      const of = (selector) => {
-        const el = selector ? card.querySelector(selector) : card;
-        return el ? getComputedStyle(el).touchAction : null;
-      };
-      return {
-        card: of(null), abbr: of('.eg-party__abbr'), seats: of('.eg-party__seats'),
-        grip: of('.eg-party__grip'), move: of('.eg-party__move'),
-      };
-    });
-    eq('only the grip opts out of native scrolling',
-      [actions.card, actions.abbr, actions.seats], ['auto', 'auto', 'auto']);
-    eq('the grip owns the drag gesture', actions.grip, 'none');
-    eq('the direct control is a tap target, not a scroll surface',
-      actions.move, 'manipulation');
-
-    // And the drag itself still works with a finger at this size.
-    check('a coarse-pointer touch drag still moves a party',
+    // 2. A sideways drag moves it.
+    check('a sideways touch drag moves the card',
       await touchDrag(browser, 'C', GOVERNMENT_ZONE));
-    const state = await readState(browser, 'C');
+    state = await readState(browser, 'C');
     eq('C reached Regering', state.zone, 'government');
-    partitions('coarse-pointer drag', state.government, state.opposition);
+    eq('and exists exactly once', state.copies, 1);
+    partitions('after a sideways drag', state.government, state.opposition);
+
+    // 3. Press and hold, then move in any direction.
+    let held = null;
+    check('a press-and-hold drag moves the card back',
+      await touchHoldDrag(browser, 'C', OPPOSITION_ZONE, async () => {
+        held = await browser.evaluate(() => ({
+          ghosts: document.querySelectorAll('.eg-party--ghost').length,
+          droppable: document.querySelectorAll('.eg-zone.is-droppable').length,
+          lifted: document.querySelectorAll('.eg-party.is-dragging').length,
+        }));
+      }));
+    check('the hold alone lifts the card, before the finger has moved',
+      held && held.ghosts === 1 && held.lifted === 1 && held.droppable === 1,
+      JSON.stringify(held));
+    state = await readState(browser, 'C');
+    eq('C is back in Opposition', state.zone, 'opposition');
+    partitions('after a held drag', state.government, state.opposition);
 
     const overflow = await readOverflow(browser);
-    check('the wider hit areas do not widen the layout',
+    check('the touchscreen layout does not overflow',
       overflow.documentScrollWidth <= overflow.clientWidth &&
       overflow.panelScrollWidth <= overflow.panelClientWidth,
       JSON.stringify(overflow));
@@ -1023,7 +1060,10 @@ async function schema11FailsClosed(pointer) {
         height: section.getBoundingClientRect().height,
         cards: document.querySelectorAll('#election-government-builder .eg-party').length,
         segments: document.querySelectorAll('#election-government-builder .eg-bar__segment').length,
-        controls: document.querySelectorAll('#election-government-builder .eg-party__move').length,
+        controls: document.querySelectorAll(
+          '#election-government-builder .eg-party__move, #election-government-builder .eg-party__grip').length,
+        focusables: document.querySelectorAll(
+          '#election-government-builder .eg-party[tabindex]').length,
         masks: [
           document.getElementById('election-government-column').getAttribute('data-coalition-mask'),
           document.getElementById('election-opposition-column').getAttribute('data-coalition-mask'),
@@ -1036,7 +1076,8 @@ async function schema11FailsClosed(pointer) {
       panel.display === 'none' && panel.height === 0, JSON.stringify(panel));
     eq('no party cards leak', panel.cards, 0);
     eq('no bar segments leak', panel.segments, 0);
-    eq('no move controls leak', panel.controls, 0);
+    eq('no per-card controls leak', panel.controls, 0);
+    eq('nothing focusable leaks into the tab order', panel.focusables, 0);
     // Not even the opposition side is populated: an unusable publication must
     // not look like a chamber with everybody in opposition.
     eq('the markup masks are left untouched', panel.masks, ['0', '0']);
@@ -1126,37 +1167,30 @@ for (const spec of DRAG_CASES) await dragCase(pointer12, expected, spec);
 
 await keyboardFocusRing(pointer12);
 
-// One press each: the fallback is a plain button, so Enter and Space are the
-// browser's own activation of it.
+// The card is the control, so one press is the whole move. Enter takes it
+// across and Space brings it back, both against real key input, in the two
+// starting states a card can be in.
 const KEYBOARD_CASES = [
   {
-    name: 'Enter moves a party from Opposition to Regering',
-    setup: [], party: 'C', to: 'government',
-    government: BIT.C,
-    presses: (browser) => pressEnter(browser),
+    name: 'Enter across and Space back, starting in Opposition',
+    setup: [], party: 'C',
+    steps: [
+      { name: 'Enter', press: pressEnter, to: 'government', government: BIT.C },
+      { name: 'Space', press: pressSpace, to: 'opposition', government: 0 },
+    ],
   },
   {
-    name: 'Space moves a party from Opposition to Regering',
-    setup: [], party: 'C', to: 'government',
-    government: BIT.C,
-    presses: (browser) => pressSpace(browser),
-  },
-  {
-    name: 'Enter moves a governing party back to Opposition',
-    setup: ['C', 'S'], party: 'C', to: 'opposition',
-    government: BIT.S,
-    presses: (browser) => pressEnter(browser),
-  },
-  {
-    name: 'Space moves a governing party back to Opposition',
-    setup: ['C', 'S'], party: 'C', to: 'opposition',
-    government: BIT.S,
-    presses: (browser) => pressSpace(browser),
+    name: 'Enter across and Space back, starting in Regering',
+    setup: ['C', 'S'], party: 'C',
+    steps: [
+      { name: 'Enter', press: pressEnter, to: 'opposition', government: BIT.S },
+      { name: 'Space', press: pressSpace, to: 'government', government: BIT.C | BIT.S },
+    ],
   },
 ];
 for (const spec of KEYBOARD_CASES) await keyboardCase(pointer12, spec);
 
-await touchTargets(pointer12);
+await touchGestures(pointer12);
 await schema11FailsClosed(pointer11);
 
 console.log(failures === 0 ? '\nPASS' : `\nFAIL (${failures})`);
