@@ -49,6 +49,20 @@
   var MONTHS = ["jan", "feb", "mars", "apr", "maj", "juni",
     "juli", "aug", "sep", "okt", "nov", "dec"];
   var COALITION_PARTY_ORDER = ["M", "L", "C", "KD", "S", "V", "MP", "SD"];
+  // The six government alternatives the page offers, written as party names
+  // and resolved against the publication's own party_order every time.  No
+  // mask integer is spelled out here, so a publication that reordered its
+  // parties would still resolve these to the same combinations.  The same
+  // six drive the preset buttons in the builder and the comparison rows in
+  // "Regeringsalternativ".
+  var GOVERNMENT_PRESETS = [
+    ["S", "V", "MP"],
+    ["S", "C", "MP"],
+    ["S", "C", "MP", "V"],
+    ["S", "KD", "C", "MP"],
+    ["SD", "L", "M", "KD"],
+    ["S", "M", "C"]
+  ];
   var COALITION_FIELDS = [
     "mean_seats", "median_seats", "p05_seats", "p10_seats", "p25_seats",
     "p75_seats", "p90_seats", "p95_seats", "prob_majority"
@@ -1010,6 +1024,19 @@
     return builder.coalitions[String(mask)];
   }
 
+  // A combination is named by its parties; the bitmask is derived from the
+  // published party_order.  A name the publication does not carry yields
+  // null rather than a silently wrong mask.
+  function maskForParties(builder, parties) {
+    var mask = 0;
+    for (var index = 0; index < parties.length; index += 1) {
+      var position = builder.party_order.indexOf(parties[index]);
+      if (position === -1) return null;
+      mask |= 1 << position;
+    }
+    return mask;
+  }
+
   function coalitionParties(builder, mask) {
     return builder.party_order.filter(function (party, index) {
       return (mask & (1 << index)) !== 0;
@@ -1140,6 +1167,7 @@
     var majorityResult = byId("election-government-histogram-majority");
     var majorityShareText = byId("election-government-histogram-majority-share");
     var majorityDetailText = byId("election-government-histogram-majority-detail");
+    var stats = byId("election-government-histogram-stats");
     var textAlternative = byId("election-government-histogram-text");
     var status = byId("election-government-histogram-status");
 
@@ -1161,6 +1189,10 @@
       if (majorityResult) majorityResult.hidden = true;
       if (majorityShareText) majorityShareText.textContent = "";
       if (majorityDetailText) majorityDetailText.textContent = "";
+      if (stats) {
+        stats.hidden = true;
+        stats.innerHTML = "";
+      }
       if (textAlternative) textAlternative.textContent = "";
       if (status) {
         status.textContent = "";
@@ -1262,6 +1294,18 @@
         majorityDetailText.textContent = grouped(majorityCount) + " av " + grouped(total) +
           " simuleringar gav minst " + MAJORITY + " mandat.";
       }
+    }
+    // The four summaries the publication already carries for this exact
+    // combination, printed beside the chart they describe.  Every value is a
+    // lookup on the same entry the histogram was drawn from: nothing here is
+    // recomputed from the counts, so the grid and the bars cannot disagree.
+    if (stats) {
+      stats.hidden = false;
+      stats.innerHTML =
+        summaryRow("median", "Medianmandat", format(entry.median_seats, 0)) +
+        summaryRow("p50", "50\u00a0% prognosintervall", rangeText(entry.p25_seats, entry.p75_seats, 0)) +
+        summaryRow("p80", "80\u00a0% prognosintervall", rangeText(entry.p10_seats, entry.p90_seats, 0)) +
+        summaryRow("p90", "90\u00a0% prognosintervall", rangeText(entry.p05_seats, entry.p95_seats, 0));
     }
     if (status) {
       status.textContent = "";
@@ -1483,16 +1527,26 @@
     }
   }
 
-  function renderGovernmentBuilder(groups, totalSamples) {
-    var section = byId("election-government-builder");
-    // 1.2 publishes the summaries the builder needs; 1.3 adds the exact
-    // histograms.  Anything else -- 1.1 included -- leaves the panel hidden.
-    var histogramRequired = Boolean(groups) && groups.schema_version === "1.3";
-    if (!section || !groups ||
-        (groups.schema_version !== "1.2" && groups.schema_version !== "1.3") ||
-        !validCoalitionBuilder(groups.coalition_builder, histogramRequired, totalSamples)) return;
+  // The one gate both coalition views pass through.  1.2 publishes the
+  // summaries they need; 1.3 additionally requires the exact histograms on
+  // every entry.  Anything else -- 1.1 included -- yields null, and every
+  // panel built on the coalition table stays hidden.  Validating once and
+  // sharing the result keeps the two views on provably the same payload.
+  function validatedCoalitionBuilder(groups, totalSamples) {
+    if (!groups || (groups.schema_version !== "1.2" && groups.schema_version !== "1.3")) {
+      return null;
+    }
+    var histogramRequired = groups.schema_version === "1.3";
+    if (!validCoalitionBuilder(groups.coalition_builder, histogramRequired, totalSamples)) {
+      return null;
+    }
+    return groups.coalition_builder;
+  }
 
-    var builder = groups.coalition_builder;
+  function renderGovernmentBuilder(builder, totalSamples) {
+    var section = byId("election-government-builder");
+    if (!section || !builder) return;
+
     // The bars are both the picture and the interaction: the mandate blocks
     // inside them are what a pointer grabs, and the bar a block is dropped
     // on is the side it moves to.  There is no second set of controls.
@@ -1525,6 +1579,17 @@
     var stackOrder = seatingOrder.filter(function (party) {
       return builder.party_order.indexOf(party) !== -1;
     });
+
+    // The preset governments, resolved to masks from the published
+    // party_order.  A preset naming a party the publication does not carry is
+    // dropped rather than guessed at.
+    var presets = GOVERNMENT_PRESETS.map(function (parties) {
+      var mask = maskForParties(builder, parties);
+      return mask === null ? null : { parties: parties, mask: mask };
+    }).filter(function (preset) {
+      return preset !== null;
+    });
+    var presetButtons = [];
 
     function oppositionMask() {
       return FULL_MASK ^ governmentMask;
@@ -1774,6 +1839,51 @@
 
     // --- Rendering -------------------------------------------------------
 
+    // The preset row is built once.  Clicking a preset is the same single
+    // state change a drag makes -- it sets the government mask, and the
+    // opposition follows because it is derived -- so the two sides cannot
+    // drift apart and no scrolling is triggered.
+    function buildPresets() {
+      var host = byId("election-builder-presets");
+      if (!host) return;
+      host.innerHTML = "";
+      presets.forEach(function (preset) {
+        var button = document.createElement("button");
+        button.className = "eg-preset";
+        button.setAttribute("type", "button");
+        button.setAttribute("aria-pressed", "false");
+        button.setAttribute("data-coalition-mask", String(preset.mask));
+        var swatches = preset.parties.map(function (party) {
+          return "<span class=\"eg-preset__swatch\" style=\"background:" +
+            (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>";
+        }).join("");
+        button.innerHTML =
+          "<span class=\"eg-preset__swatches\" aria-hidden=\"true\">" + swatches + "</span>" +
+          "<span class=\"eg-preset__label\">" + escapeHtml(preset.parties.join(" + ")) + "</span>";
+        button.setAttribute("aria-label", "S\u00e4tt regeringen till " +
+          preset.parties.join(" plus ") + ".");
+        if (button.addEventListener) {
+          button.addEventListener("click", function () {
+            governmentMask = preset.mask;
+            render("Regeringen sattes till " + preset.parties.join(" + ") + ".");
+          });
+        }
+        presetButtons.push({ preset: preset, button: button });
+        host.appendChild(button);
+      });
+    }
+
+    // A preset is pressed exactly when the government is that combination and
+    // nothing else.  Because the test is against the one piece of state,
+    // dragging a party in or out of a preset clears it with no bookkeeping.
+    function paintPresets() {
+      presetButtons.forEach(function (item) {
+        var active = item.preset.mask === governmentMask;
+        item.button.className = "eg-preset" + (active ? " is-active" : "");
+        item.button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+
     // One mandate block.  The coloured block is the whole control: it is what
     // a pointer grabs and what a drop moves, so nothing else on the page has
     // to carry a duplicate of it.
@@ -1923,6 +2033,7 @@
       setText("election-government-announcement",
         moved ? moved + " " + state : state);
       paintZones();
+      paintPresets();
     }
 
     if (resetButton && resetButton.addEventListener) {
@@ -1939,122 +2050,137 @@
 
     // Render before revealing: if a future render throws, the section stays
     // hidden instead of exposing an empty shell.
+    buildPresets();
     render();
     section.hidden = false;
   }
 
   // ---------------------------------------------------------------------
-  // 5. Government / bloc probabilities
+  // 5. Government alternatives
+  //
+  // The same six combinations the builder offers as presets, drawn as six
+  // rows on one shared seat scale.  Every row is a lookup in the published
+  // coalition_builder: a combination's median, its intervals and its
+  // majority probability are joint quantities of the simulation, so nothing
+  // here is assembled from party medians and no party-coloured seat segments
+  // are stacked.  The bands are neutral; the swatches carry party identity.
   // ---------------------------------------------------------------------
-  function renderGroups(groups) {
-    reveal("election-groups");
-    var names = Object.keys(groups.groups || {});
-    var pills = byId("election-group-pills");
-    var result = byId("election-group-result");
-    if (!names.length) {
-      if (result) result.textContent = "Inga partikombinationer \u00e4r publicerade i den h\u00e4r versionen.";
-      return;
-    }
+  function renderAlternatives(builder) {
+    var section = byId("election-alternatives");
+    var host = byId("election-alternatives-rows");
+    if (!section || !host || !builder) return;
 
-    var buttons = {};
-    var active = names[0];
-
-    function update() {
-      var group = groups.groups[active];
-      if (!group) return;
-      names.forEach(function (name) {
-        var button = buttons[name];
-        if (!button) return;
-        button.className = "eg-pill" + (name === active ? " is-active" : "");
-        button.setAttribute("aria-pressed", name === active ? "true" : "false");
-      });
-      var threshold = num(group.majority_threshold) === null ? MAJORITY : num(group.majority_threshold);
-      if (result) {
-        result.innerHTML =
-          "<p class=\"eg-result__lead\"><span class=\"eg-result__value\">" + escapeHtml(probability(group.prob_majority)) + "</span>" +
-          "<span class=\"eg-result__text\">sannolikhet att " + escapeHtml((group.parties || []).join(" + ")) +
-          " tillsammans f\u00e5r minst " + threshold + " mandat</span></p>" +
-          "<dl class=\"eg-result__grid\">" +
-            "<div><dt>Medianmandat</dt><dd>" + format(group.median_seats, 0) + "</dd></div>" +
-            "<div><dt>50\u00a0% prognosintervall</dt><dd>" + rangeText(group.p25_seats, group.p75_seats, 0) + "</dd></div>" +
-            "<div><dt>80\u00a0% prognosintervall</dt><dd>" + rangeText(group.p10_seats, group.p90_seats, 0) + "</dd></div>" +
-            "<div><dt>90\u00a0% prognosintervall</dt><dd>" + rangeText(group.p05_seats, group.p95_seats, 0) + "</dd></div>" +
-          "</dl>";
-      }
-      renderGroupHistogram(group, threshold);
-    }
-
-    if (pills) {
-      pills.innerHTML = "";
-      names.forEach(function (name) {
-        var group = groups.groups[name];
-        var button = document.createElement("button");
-        button.className = "eg-pill";
-        button.setAttribute("type", "button");
-        button.setAttribute("aria-pressed", "false");
-        var swatches = (group.parties || []).map(function (party) {
-          return "<span class=\"eg-pill__swatch\" style=\"background:" + (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>";
-        }).join("");
-        button.innerHTML =
-          "<span class=\"eg-pill__parties\">" + swatches + "<span>" + escapeHtml((group.parties || []).join(" + ")) + "</span></span>" +
-          "<span class=\"eg-pill__prob\">" + escapeHtml(probability(group.prob_majority)) + "</span>" +
-          "<span class=\"eg-pill__seats\">median " + format(group.median_seats, 0) + " mandat</span>";
-        button.setAttribute("aria-label", (group.parties || []).join(" plus ") +
-          ": sannolikhet f\u00f6r majoritet " + probability(group.prob_majority) +
-          ", median " + format(group.median_seats, 0) + " mandat.");
-        if (button.addEventListener) {
-          button.addEventListener("click", function () { active = name; update(); });
-        }
-        buttons[name] = button;
-        pills.appendChild(button);
-      });
-    }
-
-    update();
-  }
-
-  function renderGroupHistogram(group, threshold) {
-    var host = byId("election-group-histogram");
-    if (!host) return;
-    var histogram = group.seat_histogram;
-    if (!histogram) {
-      host.innerHTML = "";
-      host.hidden = true;
-      return;
-    }
-    var keys = Object.keys(histogram).map(Number).filter(function (value) {
-      return Number.isFinite(value);
-    }).sort(function (a, b) { return a - b; });
-    if (!keys.length) {
-      host.innerHTML = "";
-      host.hidden = true;
-      return;
-    }
-    host.hidden = false;
-    var low = keys[0];
-    var high = keys[keys.length - 1];
-    var span = Math.max(1, high - low);
-    var peak = 0;
-    keys.forEach(function (key) {
-      var value = num(histogram[String(key)]) || 0;
-      if (value > peak) peak = value;
+    var rows = [];
+    GOVERNMENT_PRESETS.forEach(function (parties) {
+      var mask = maskForParties(builder, parties);
+      if (mask === null) return;
+      var entry = coalitionLookup(builder, mask);
+      if (!entry) return;
+      rows.push({ parties: parties, mask: mask, entry: entry });
     });
-    var bars = keys.map(function (key) {
-      var value = num(histogram[String(key)]) || 0;
-      var height = peak > 0 ? (value / peak) * 100 : 0;
-      var reaches = key >= threshold;
-      return "<span class=\"eh-bar" + (reaches ? " eh-bar--majority" : "") + "\" style=\"left:" +
-        (((key - low) / (span + 1)) * 100).toFixed(3) + "%;width:" + (100 / (span + 1)).toFixed(3) +
-        "%;height:" + height.toFixed(2) + "%\"></span>";
-    }).join("");
-    var markerLeft = (((threshold - low) / (span + 1)) * 100);
-    var marker = markerLeft >= 0 && markerLeft <= 100
-      ? "<span class=\"eh-marker\" style=\"left:" + markerLeft.toFixed(3) + "%\"><span class=\"eh-marker__label\">" + threshold + "</span></span>"
-      : "";
-    host.innerHTML =
-      "<div class=\"eh-plot\" role=\"img\" aria-label=\"F\u00f6rdelning av antalet mandat tillsammans i de simulerade utfallen, fr\u00e5n " +
-      low + " till " + high + " mandat, med majoritetsgr\u00e4nsen vid " + threshold + " mandat markerad.\">" + bars + marker + "</div>" +
-      "<div class=\"eh-scale\" aria-hidden=\"true\"><span>" + low + "</span><span>mandat tillsammans</span><span>" + high + "</span></div>";
+    if (rows.length !== GOVERNMENT_PRESETS.length) return;
+
+    // One domain for all six rows.  It is read off the published 90 %
+    // intervals, padded a little, snapped to five-seat marks and always
+    // widened to contain the majority rule, so every row is read against the
+    // same scale and against the same vertical line at 175.
+    var low = MAJORITY;
+    var high = MAJORITY;
+    rows.forEach(function (row) {
+      var p05 = num(row.entry.p05_seats);
+      var p95 = num(row.entry.p95_seats);
+      if (p05 !== null && p05 < low) low = p05;
+      if (p95 !== null && p95 > high) high = p95;
+    });
+    var pad = Math.max(2, Math.round((high - low) * 0.05));
+    var domainStart = Math.max(0, Math.floor((low - pad) / 5) * 5);
+    var domainEnd = Math.min(CHAMBER, Math.ceil((high + pad) / 5) * 5);
+    if (domainEnd <= domainStart) domainEnd = Math.min(CHAMBER, domainStart + 5);
+    var span = Math.max(1, domainEnd - domainStart);
+
+    function place(value) {
+      var parsed = num(value);
+      if (parsed === null) return 0;
+      return Math.max(0, Math.min(100, ((parsed - domainStart) / span) * 100));
+    }
+
+    var thresholdLeft = place(MAJORITY);
+
+    host.innerHTML = "";
+    rows.forEach(function (row) {
+      var entry = row.entry;
+      var p05 = place(entry.p05_seats);
+      var p95 = place(entry.p95_seats);
+      var p25 = place(entry.p25_seats);
+      var p75 = place(entry.p75_seats);
+      var median = place(entry.median_seats);
+      var name = row.parties.join(" + ");
+      var swatches = row.parties.map(function (party) {
+        return "<span class=\"ev-swatch\" style=\"background:" +
+          (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>";
+      }).join("");
+      // Two decimals, the same convention the exact histogram prints, so a
+      // reader can reconcile a row with the chart above it.
+      var chance = histogramProbability(entry.prob_majority);
+      var node = document.createElement("div");
+      node.className = "ea-row";
+      node.setAttribute("role", "listitem");
+      node.setAttribute("data-coalition-mask", String(row.mask));
+      node.setAttribute("data-median-seats", String(entry.median_seats));
+      node.innerHTML =
+        "<span class=\"ea-name\">" +
+          "<span class=\"ea-name__swatches\" aria-hidden=\"true\">" + swatches + "</span>" +
+          "<span class=\"ea-name__text\">" + escapeHtml(name) + "</span>" +
+        "</span>" +
+        "<span class=\"ea-chart\" aria-hidden=\"true\">" +
+          "<span class=\"ea-track\">" +
+            "<span class=\"ea-threshold\" style=\"left:" + thresholdLeft.toFixed(3) + "%\"></span>" +
+            "<span class=\"ea-band ea-band--90\" style=\"left:" + p05.toFixed(3) +
+              "%;width:" + Math.max(0.4, p95 - p05).toFixed(3) + "%\"></span>" +
+            "<span class=\"ea-band ea-band--50\" style=\"left:" + p25.toFixed(3) +
+              "%;width:" + Math.max(0.4, p75 - p25).toFixed(3) + "%\"></span>" +
+            "<span class=\"ea-median-mark\" style=\"left:" + median.toFixed(3) + "%\"></span>" +
+          "</span>" +
+        "</span>" +
+        "<span class=\"ea-prob\"><span class=\"ea-prob__value\">" + escapeHtml(chance) +
+          "</span><span class=\"ea-prob__word\">majoritet</span></span>";
+      node.setAttribute("aria-label", row.parties.join(" plus ") + ": median " +
+        format(entry.median_seats, 0) + " mandat, centralt 50-procentigt prognosintervall " +
+        rangeText(entry.p25_seats, entry.p75_seats, 0) +
+        " mandat, centralt 90-procentigt prognosintervall " +
+        rangeText(entry.p05_seats, entry.p95_seats, 0) +
+        " mandat, sannolikhet f\u00f6r minst " + MAJORITY + " mandat " + chance + ".");
+      host.appendChild(node);
+    });
+
+    // The axis belongs to all six rows at once, so it is drawn from the same
+    // domain and carries the majority rule as its one emphasised tick.  The
+    // step is chosen so the labels stay apart at phone width.
+    var axis = byId("election-alternatives-axis");
+    if (axis) {
+      var step = 5;
+      [5, 10, 20, 25, 50].some(function (candidate) {
+        step = candidate;
+        return span / candidate <= 6;
+      });
+      var ticks = "";
+      for (var value = Math.ceil(domainStart / step) * step; value <= domainEnd; value += step) {
+        // Drop a regular tick that would sit on top of the majority label.
+        if (Math.abs(value - MAJORITY) < step * 0.5) continue;
+        ticks += axisTick(place(value), String(value), false);
+      }
+      ticks += axisTick(thresholdLeft, String(MAJORITY), true);
+      axis.innerHTML =
+        "<span class=\"ea-axis__spacer\" aria-hidden=\"true\"></span>" +
+        "<span class=\"ea-axis__track\" aria-hidden=\"true\">" + ticks + "</span>" +
+        "<span class=\"ea-axis__unit\" aria-hidden=\"true\">mandat</span>";
+    }
+
+    host.setAttribute("data-domain-start", String(domainStart));
+    host.setAttribute("data-domain-end", String(domainEnd));
+    // Populate before revealing, so a throw leaves the section hidden rather
+    // than exposing an empty shell.
+    section.hidden = false;
   }
 
   // ---------------------------------------------------------------------
@@ -2196,8 +2322,9 @@
       renderHeader(data[0], data[5], data[6], publication.pointer);
       renderVotes(data[0], data[1]);
       renderSeats(data[2], Boolean(publication.pointer));
-      renderGovernmentBuilder(data[3], data[0] && data[0].total_samples);
-      renderGroups(data[3]);
+      var coalitionTable = validatedCoalitionBuilder(data[3], data[0] && data[0].total_samples);
+      renderGovernmentBuilder(coalitionTable, data[0] && data[0].total_samples);
+      renderAlternatives(coalitionTable);
       renderChanges(data[0], data[1]);
       renderValidation(data[4]);
       var certified = renderMetadata(data[5], data[6]);

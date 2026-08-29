@@ -113,7 +113,7 @@ async function runViewport(server, viewport) {
   const browser = await launch({ width: viewport.width, height: viewport.height });
   try {
     await browser.setViewport(viewport.width, viewport.height);
-    await browser.goto(`http://127.0.0.1:${server.port}${PAGE}`);
+    await browser.goto(`http://localhost:${server.port}${PAGE}`);
     await waitForApp(browser);
 
     check('"Så fungerar modellen" opens', await openModel(browser));
@@ -165,7 +165,7 @@ async function runOffline(server) {
   const browser = await launch({ width: 1280, height: 1200 });
   try {
     await browser.S('Network.setBlockedURLs', { urls: ['*cdn.jsdelivr.net*'] });
-    await browser.goto(`http://127.0.0.1:${server.port}${PAGE}`);
+    await browser.goto(`http://localhost:${server.port}${PAGE}`);
     await waitForApp(browser);
     await openModel(browser);
     await new Promise((r) => setTimeout(r, 1500));

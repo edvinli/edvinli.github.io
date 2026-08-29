@@ -53,10 +53,15 @@ export async function serve(siteRoot, { port = 4000, pointer = null } = {}) {
     }
   });
   // The built pages carry absolute http://localhost:4000 asset URLs from
-  // _config.dev.yml, so the stylesheet only loads on that exact port.
+  // _config.dev.yml, so the stylesheet only loads on that exact host and
+  // port.  Bind the same name the markup names, rather than 127.0.0.1: on a
+  // machine where localhost resolves to ::1 first, a 127.0.0.1 binding leaves
+  // ::1:4000 free for any other process to answer the stylesheet request, and
+  // the run then asserts layout against a stranger's CSS with nothing failing.
+  // Binding the name instead turns that collision into a loud EADDRINUSE.
   await new Promise((resolve, reject) => {
     server.on('error', reject);
-    server.listen(port, '127.0.0.1', resolve);
+    server.listen(port, 'localhost', resolve);
   });
   return { port: server.address().port, close: () => new Promise(r => server.close(r)) };
 }

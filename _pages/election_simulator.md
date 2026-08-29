@@ -41,27 +41,16 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <div id="election-vote-axis" class="ev-axis"></div>
     <p class="election-legend-note election-muted"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>4 %-spärr</span></p>
   </section>
-  <section id="election-seats" class="election-panel" hidden>
-    <div class="election-panel__head">
-      <h2>Mandat</h2>
-      <p class="election-muted">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349.</p>
-    </div>
-    <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
-    <div id="election-seat-axis" class="es-axis"></div>
-    <h3 class="election-subhead">Ett simulerat riksdagsutfall</h3>
-    <p class="election-muted" id="election-parliament-caption"></p>
-    <div class="election-parliament-frame">
-      <div id="election-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
-      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
-    </div>
-    <ul id="election-parliament-legend" class="ep-legend"></ul>
-  </section>
   <section id="election-government-builder" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Bygg din egen regering</h2>
       <p class="election-muted">Alla partier börjar i Opposition. Dra mandatblocken mellan Regering och Opposition och se hur många mandat sidorna brukar få i simuleringarna.</p>
     </div>
     <div class="eg-builder">
+      <div class="eg-presets" role="group" aria-labelledby="election-builder-presets-label">
+        <p class="eg-presets__label" id="election-builder-presets-label">Färdiga alternativ</p>
+        <div class="eg-presets__list" id="election-builder-presets"></div>
+      </div>
       <div class="eg-builder__head">
         <button type="button" id="election-builder-reset" class="eg-reset">Återställ</button>
       </div>
@@ -96,6 +85,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
           <p id="election-government-histogram-majority-share" class="egh-majority-result__value"></p>
           <p id="election-government-histogram-majority-detail" class="egh-majority-result__detail"></p>
         </div>
+        <dl id="election-government-histogram-stats" class="egh-stats" hidden></dl>
         <div class="egh-histogram__key" aria-label="Diagramförklaring">
           <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--below" aria-hidden="true"></span>under 175 mandat</span>
           <span class="egh-histogram__key-item"><span class="egh-histogram__key-mark egh-histogram__key-mark--majority" aria-hidden="true"></span>175 mandat eller fler</span>
@@ -113,14 +103,30 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda regeringspartierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>
   </section>
-  <section id="election-groups" class="election-panel" hidden>
+  <section id="election-seats" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Majoritetsscenarier</h2>
-      <p class="election-muted">Välj en kombination för att se mandatfördelningen och sannolikheten att nå minst 175 mandat.</p>
+      <h2>Mandat</h2>
+      <p class="election-muted">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349.</p>
     </div>
-    <div id="election-group-pills" class="eg-pills"></div>
-    <div id="election-group-result" class="eg-result"></div>
-    <div id="election-group-histogram" class="eg-histogram"></div>
+    <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
+    <div id="election-seat-axis" class="es-axis"></div>
+    <h3 class="election-subhead">Ett simulerat riksdagsutfall</h3>
+    <p class="election-muted" id="election-parliament-caption"></p>
+    <div class="election-parliament-frame">
+      <div id="election-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
+      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
+    </div>
+    <ul id="election-parliament-legend" class="ep-legend"></ul>
+  </section>
+  <section id="election-alternatives" class="election-panel" hidden>
+    <div class="election-panel__head">
+      <h2>Regeringsalternativ</h2>
+      <p class="election-muted">Sex möjliga regeringar på en och samma mandatskala. Varje rad visar kombinationens median, dess centrala 50- och 90-procentiga prognosintervall och sannolikheten att den når minst 175 mandat. Talen är beräknade gemensamt för hela kombinationen och är inte summan av partiernas egna medianer.</p>
+    </div>
+    <div id="election-alternatives-rows" class="ea-rows" role="list"></div>
+    <div id="election-alternatives-axis" class="ea-axis" aria-hidden="true"></div>
+    <p class="election-legend-note election-muted ea-legend"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % prognosintervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % prognosintervall</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>175 mandat = majoritet</span></p>
+    <p class="ea-disclaimer">Sannolikheten avser att partierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>
   </section>
   <section id="election-changes" class="election-panel" hidden>
     <div class="election-panel__head">

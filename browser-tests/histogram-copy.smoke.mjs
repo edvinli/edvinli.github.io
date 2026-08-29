@@ -51,7 +51,7 @@ async function open(viewport, pointer = null, coarse = false) {
   if (coarse) {
     await browser.S('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   }
-  await browser.goto(`http://127.0.0.1:${server.port}${PAGE}`);
+  await browser.goto(`http://localhost:${server.port}${PAGE}`);
   await waitForApp(browser);
   return { server, browser };
 }

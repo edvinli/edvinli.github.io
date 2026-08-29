@@ -13,6 +13,10 @@
 //       government & opposition === 0
 //       government | opposition === 255
 //   - Summary and histogram reflect the published coalition lookup.
+//   - The six preset buttons set the government to exactly their combination,
+//     show an is-active / aria-pressed state only while it is exactly that,
+//     and leave the drag interaction working afterwards.
+//   - The histogram carries the four published summaries for the same entry.
 //
 // Usage:
 //   jekyll build --config _config.yml,_config.dev.yml
@@ -40,6 +44,19 @@ const SEATING = ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD'];
 const CHAMBER = 349;
 const MAJORITY = 175;
 const NBSP = '\u00a0';
+
+// The six presets, named the way the page names them.  Masks are derived from
+// PARTY_ORDER here too, so the test and the page agree only if both resolve
+// the same names against the same published order.
+const PRESETS = [
+  ['S', 'V', 'MP'],
+  ['S', 'C', 'MP'],
+  ['S', 'C', 'MP', 'V'],
+  ['S', 'KD', 'C', 'MP'],
+  ['SD', 'L', 'M', 'KD'],
+  ['S', 'M', 'C'],
+];
+const maskFor = (parties) => parties.reduce((mask, party) => mask | BIT[party], 0);
 
 const GOVERNMENT = ['C', 'S', 'MP'];
 const GOVERNMENT_MASK = BIT.C | BIT.S | BIT.MP;      // 84
@@ -92,7 +109,7 @@ async function open(viewport, pointer, { coarse = false } = {}) {
     await browser.S('Emulation.setTouchEmulationEnabled',
       { enabled: true, maxTouchPoints: 5 });
   }
-  await browser.goto(`http://127.0.0.1:${server.port}${PAGE}`);
+  await browser.goto(`http://localhost:${server.port}${PAGE}`);
   await waitForApp(browser);
   return { server, browser };
 }
@@ -160,6 +177,28 @@ const readPanel = (browser) => browser.evaluate(() => {
   const histEl = document.getElementById('election-government-histogram');
   const histLink = document.querySelector('.eg-summary__histogram-link');
 
+  const presets = Array.from(document.querySelectorAll('#election-builder-presets .eg-preset'))
+    .map((el) => ({
+      label: flat(el.querySelector('.eg-preset__label')?.textContent),
+      mask: el.getAttribute('data-coalition-mask'),
+      pressed: el.getAttribute('aria-pressed'),
+      active: el.classList.contains('is-active'),
+      tag: el.tagName,
+      type: el.getAttribute('type'),
+      swatches: el.querySelectorAll('.eg-preset__swatch').length,
+    }));
+
+  const statsEl = document.getElementById('election-government-histogram-stats');
+  const stats = {};
+  if (statsEl) {
+    Array.from(statsEl.querySelectorAll('div[data-metric]')).forEach((row) => {
+      stats[row.getAttribute('data-metric')] = {
+        term: flat(row.querySelector('dt')?.textContent),
+        value: flat(row.querySelector('dd')?.textContent),
+      };
+    });
+  }
+
   return {
     // Obsolete white party-card containers must not exist.
     legacyCards: document.querySelectorAll('.eg-party, .eg-zone, .eg-chart__row--zones').length,
@@ -204,6 +243,21 @@ const readPanel = (browser) => browser.evaluate(() => {
       bars: histEl.querySelectorAll('#election-government-histogram-svg rect').length,
     } : null,
     histogramLinkHref: histLink ? histLink.getAttribute('href') : null,
+
+    presets,
+    stats,
+    statsBox: statsEl ? box(statsEl) : null,
+    // The rows are a grid only when this page's own stylesheet is in effect,
+    // so this doubles as proof the run is not asserting layout against a
+    // stylesheet served by some other process on the same port.
+    statsColumns: statsEl ? getComputedStyle(statsEl).gridTemplateColumns : null,
+
+    // The section order the page is meant to read in.
+    sectionOrder: Array.from(document.querySelectorAll('.election-app > section'))
+      .filter((el) => el.id).map((el) => el.id),
+    // The removed Majoritetsscenarier feature must leave nothing behind.
+    legacyGroups: ['election-groups', 'election-group-pills', 'election-group-result',
+      'election-group-histogram'].filter((id) => document.getElementById(id) !== null),
 
     overflow: doc.scrollWidth - doc.clientWidth,
   };
@@ -298,6 +352,13 @@ async function loadExpectations(generation) {
       probability: swedish(entry.prob_majority),
       intervalText: `${entry.p05_seats}–${entry.p95_seats} mandat`,
       medianText: `${entry.median_seats} mandat`,
+      // The four summaries the histogram view prints beside the chart.
+      stats: {
+        median: String(entry.median_seats),
+        p50: `${entry.p25_seats}–${entry.p75_seats}`,
+        p80: `${entry.p10_seats}–${entry.p90_seats}`,
+        p90: `${entry.p05_seats}–${entry.p95_seats}`,
+      },
     };
   };
 
@@ -321,6 +382,84 @@ async function testSchema12(viewport, pointer, expected) {
 
     eq('no legacy .eg-party cards in DOM', panel.legacyCards, 0);
     eq('no legacy card-list containers in DOM', panel.legacyIds, []);
+    eq('the removed Majoritetsscenarier nodes are gone', panel.legacyGroups, []);
+
+    // Röstandelar -> Bygg din egen regering -> Mandat -> Regeringsalternativ.
+    eq('page section order', panel.sectionOrder, [
+      'election-headline',
+      'election-government-builder',
+      'election-seats',
+      'election-alternatives',
+      'election-changes',
+      'election-how-it-works',
+      'election-validation',
+      'election-meta',
+    ]);
+
+    // --- Preset governments -------------------------------------------------
+    eq('there are exactly six presets', panel.presets.length, PRESETS.length);
+    eq('preset labels', panel.presets.map((p) => p.label),
+      PRESETS.map((parties) => parties.join(' + ')));
+    eq('preset masks are derived from party_order', panel.presets.map((p) => p.mask),
+      PRESETS.map((parties) => String(maskFor(parties))));
+    eq('presets are native buttons', panel.presets.map((p) => `${p.tag}:${p.type}`),
+      PRESETS.map(() => 'BUTTON:button'));
+    eq('each preset carries one swatch per party', panel.presets.map((p) => p.swatches),
+      PRESETS.map((parties) => parties.length));
+    eq('no preset is pressed while the government is empty',
+      panel.presets.map((p) => p.pressed), PRESETS.map(() => 'false'));
+
+    for (let index = 0; index < PRESETS.length; index += 1) {
+      const parties = PRESETS[index];
+      const wanted = maskFor(parties);
+      await browser.evaluate((i) => {
+        document.querySelectorAll('#election-builder-presets .eg-preset')[i].click();
+      }, index);
+      await settle();
+      panel = await readPanel(browser);
+      const name = parties.join(' + ');
+      eq(`preset ${name} sets exactly that government`, panel.governmentMask, String(wanted));
+      eq(`preset ${name} leaves the complement in opposition`,
+        panel.oppositionMask, String(FULL_MASK ^ wanted));
+      partitions(`preset ${name}`, panel.governmentMask, panel.oppositionMask);
+      eq(`preset ${name} puts exactly those blocks in the government bar`,
+        panel.governmentSegments.map((s) => s.party).sort(), parties.slice().sort());
+      eq(`preset ${name} is the only pressed preset`,
+        panel.presets.map((p) => p.pressed),
+        PRESETS.map((_, i) => (i === index ? 'true' : 'false')));
+      eq(`preset ${name} is the only active preset`,
+        panel.presets.filter((p) => p.active).map((p) => p.label), [name]);
+      eq(`preset ${name} median matches the published lookup`,
+        panel.metrics.government?.value, expected.of(wanted).medianText);
+      eq(`preset ${name} probability matches the published lookup`,
+        panel.metrics.probability?.value, expected.of(wanted).probability);
+    }
+
+    // Dragging away from a preset clears its active state, and the manual
+    // drag interaction still works after a preset has been used.
+    const lastPreset = PRESETS[PRESETS.length - 1];          // S + M + C
+    check('drag M out of the preset government',
+      await mouseDrag(browser, 'M', 'election-opposition-bar'));
+    panel = await readPanel(browser);
+    eq('dragging away leaves the preset mask behind',
+      panel.governmentMask, String(maskFor(lastPreset) & ~BIT.M));
+    eq('dragging away clears every active preset',
+      panel.presets.filter((p) => p.active).map((p) => p.label), []);
+    eq('dragging away clears every pressed preset',
+      panel.presets.map((p) => p.pressed), PRESETS.map(() => 'false'));
+    check('drag M back in after a preset',
+      await mouseDrag(browser, 'M', 'election-government-bar'));
+    panel = await readPanel(browser);
+    eq('dragging back re-activates the preset',
+      panel.presets.filter((p) => p.active).map((p) => p.label), [lastPreset.join(' + ')]);
+
+    // Återställ still empties the government, and no preset survives it.
+    await browser.click('#election-builder-reset');
+    await settle();
+    panel = await readPanel(browser);
+    eq('reset empties the government after a preset', panel.governmentSegments, []);
+    eq('reset clears every pressed preset',
+      panel.presets.map((p) => p.pressed), PRESETS.map(() => 'false'));
 
     // Initial state: Government 0, Opposition 255
     eq('government bar starts empty', panel.governmentSegments, []);
@@ -420,6 +559,7 @@ async function testSchema13(viewport, pointer, expected13) {
 
     eq('schema 1.3 starts with hidden histogram', panel.histogram?.hiddenAttr, true);
     eq('schema 1.3 has no histogram link initially', panel.histogramLinkHref, null);
+    eq('the statistics grid starts hidden', panel.statsBox?.hiddenAttr, true);
 
     // Drag S, V, MP into government (mask 112: S+V+MP)
     for (const p of ['S', 'V', 'MP']) {
@@ -435,6 +575,27 @@ async function testSchema13(viewport, pointer, expected13) {
       eq('S+V+MP probability matches published', panel.metrics.probability?.value, exp112.probability);
     }
 
+    // The four published summaries printed beside the chart, for the same
+    // entry the chart was drawn from.  The prominent Majoritet result stays.
+    eq('the statistics grid is visible with a government', panel.statsBox?.visible, true);
+    eq('statistics labels', {
+      median: panel.stats.median?.term,
+      p50: panel.stats.p50?.term,
+      p80: panel.stats.p80?.term,
+      p90: panel.stats.p90?.term,
+    }, {
+      median: 'Medianmandat',
+      p50: `50${NBSP}% prognosintervall`,
+      p80: `80${NBSP}% prognosintervall`,
+      p90: `90${NBSP}% prognosintervall`,
+    });
+    eq('median statistic is median_seats', panel.stats.median?.value, exp112.stats.median);
+    eq('50 % statistic is p25–p75', panel.stats.p50?.value, exp112.stats.p50);
+    eq('80 % statistic is p10–p90', panel.stats.p80?.value, exp112.stats.p80);
+    eq('90 % statistic is p05–p95', panel.stats.p90?.value, exp112.stats.p90);
+    check('the prominent Majoritet result is still shown',
+      Boolean(panel.histogram) && panel.histogram.hiddenAttr === false, panel.histogram);
+
     // Discoverability link and histogram visibility
     eq('summary includes link to histogram', panel.histogramLinkHref, '#election-government-histogram');
     eq('histogram is visible with government', panel.histogram?.hiddenAttr, false);
@@ -446,6 +607,8 @@ async function testSchema13(viewport, pointer, expected13) {
     await settle();
     panel = await readPanel(browser);
     eq('reset hides histogram in schema 1.3', panel.histogram?.hiddenAttr, true);
+    eq('reset hides the statistics grid', panel.statsBox?.hiddenAttr, true);
+    eq('reset empties the statistics grid', panel.stats, {});
 
     eq('schema 1.3 no horizontal overflow', panel.overflow, 0);
     eq('schema 1.3 no console errors', appErrors(browser), []);

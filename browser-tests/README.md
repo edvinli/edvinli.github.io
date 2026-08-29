@@ -32,6 +32,7 @@ real browser.
 jekyll build --config _config.yml,_config.dev.yml
 node browser-tests/government-builder.smoke.mjs            # defaults to ./_site
 node browser-tests/builder-blocks.smoke.mjs
+node browser-tests/alternatives.smoke.mjs
 node browser-tests/histogram-copy.smoke.mjs
 node browser-tests/equations.smoke.mjs
 ```
@@ -43,9 +44,18 @@ is why there is no Puppeteer/Playwright dependency here.
 
 The harness must serve on port **4000**: `_config.dev.yml` sets
 `url: http://localhost:4000`, so the built pages carry absolute asset URLs and
-the stylesheet only loads on that port. A run that serves on another port still
-renders the markup but with no CSS, which silently invalidates every layout
-assertion.
+the stylesheet only loads on that host and port. A run that serves on another
+port still renders the markup but with no CSS, which silently invalidates every
+layout assertion.
+
+The same trap has a subtler form. `server.mjs` binds the name `localhost`, not
+`127.0.0.1`, and the tests navigate to `localhost` too. On a machine where
+`localhost` resolves to `::1` first, a `127.0.0.1` binding leaves `::1:4000`
+free — and any other process squatting there (a stray `python -m http.server`
+from a second worktree, say) answers the stylesheet request instead. The page
+under test then renders with a *stranger's* CSS and every layout assertion
+still passes, because the two stylesheets mostly agree. Binding the name turns
+that collision into a loud `EADDRINUSE` before a single check runs.
 
 ## Test suite overview
 
@@ -82,6 +92,21 @@ Tests the coalition builder across all published schema generations:
   - Earlier publications without `coalition_builder` keep the section hidden
     (`hidden === true`, `display: none`).
 
+- **Preset governments and summary statistics**:
+  - Six preset buttons — `S + V + MP`, `S + C + MP`, `S + C + MP + V`,
+    `S + KD + C + MP`, `SD + L + M + KD`, `S + M + C` — as native `<button>`
+    controls, each with one party swatch per member.
+  - Clicking a preset sets the government to exactly that mask (derived from
+    `party_order`, never hard-coded) and leaves the complement in opposition.
+  - Exactly one preset carries `is-active` / `aria-pressed="true"` at a time;
+    dragging a party out of it clears the state, dragging back restores it, and
+    `Återställ` clears it along with the government.
+  - Manual dragging still works after a preset has been used.
+  - The `Mandatfördelning` view prints the four published summaries for the
+    same entry it drew: `median_seats`, `p25–p75`, `p10–p90`, `p05–p95`.
+  - Page section order: Röstandelar → Bygg din egen regering → Mandat →
+    Regeringsalternativ, and nothing left of the removed Majoritetsscenarier.
+
 ### 2. `builder-blocks.smoke.mjs` — mandate block interaction
 
 Dedicated smoke test for the colored mandate-block interaction:
@@ -93,7 +118,25 @@ Dedicated smoke test for the colored mandate-block interaction:
 - Smooth compositor tracking without layout interpolation lag.
 - Same-side drop no-op.
 
-### 3. `histogram-copy.smoke.mjs` — histogram discoverability and copy
+### 3. `alternatives.smoke.mjs` — the Regeringsalternativ comparison
+
+Covers the section that replaced the old Majoritetsscenarier pill selector:
+
+- Exactly six rows, one per named coalition, masks derived from `party_order`.
+- **One shared x-axis**: every track has the same box, and the 175 rule lands
+  on the same pixel in every row. Each band edge is checked against where its
+  published quantile falls on that one domain.
+- The domain covers all six published 90 % intervals, is padded on both sides,
+  snaps to five-seat marks, and always contains 175.
+- Thin/light 90 % band, thicker/darker 50 % band, median marker; both inks
+  neutral and identical across rows.
+- **No stacked party segments** inside a bar — a coalition's quantiles are
+  joint, not a sum of party medians.
+- Every printed number is the `coalition_builder` lookup for that mask.
+- Renders under schema 1.2 (summaries suffice) and fails closed under 1.1.
+- Desktop (1280px) and mobile (360px), no overflow, zero console errors.
+
+### 4. `histogram-copy.smoke.mjs` — histogram discoverability and copy
 
 Dedicated smoke test for reader-facing histogram copy and discoverability:
 
@@ -103,7 +146,7 @@ Dedicated smoke test for reader-facing histogram copy and discoverability:
 - Majority probability and exact draw count matching published simulation results.
 - Interactive hover on exact seat bins (e.g. 175-seat bin).
 
-### 4. `equations.smoke.mjs` — KaTeX / MathJax typesetting
+### 5. `equations.smoke.mjs` — KaTeX / MathJax typesetting
 
 Verifies the mathematical documentation layout:
 
