@@ -1166,11 +1166,11 @@
       svg.appendChild(svgNode("title", { id: "election-timeseries-title" },
         "Prognos över tid, " + historyMetricLabel(selectedMetric)));
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
-        "Vår simulerade valprognos med median och 50- samt 90-procentiga prognosintervall från " +
+        "Vår simulering med median och 50- samt 90-procentiga prognosintervall från " +
         (swedishDate(history.points[0].date) || history.points[0].date) + " till " +
         (swedishDate(history.points[history.points.length - 1].date) || history.points[history.points.length - 1].date) +
         ". Skalan är anpassad efter de valda serierna." +
-        (selectedMetric === "vote" ? " Poll of Polls och enskilda mätningar visas separat som opinionsunderlag och jämförelse." : "")));
+        (selectedMetric === "vote" ? " Poll of Polls och enskilda mätningar visas som jämförelse." : "")));
 
       var plotDefs = svgNode("defs");
       var plotClip = svgNode("clipPath", { id: "election-timeseries-plot-clip" });
@@ -1521,10 +1521,9 @@
     section.setAttribute("data-history-poll-count", String(history.polls.length));
     var firstDate = history.points[0].date;
     var lastDate = history.points[history.points.length - 1].date;
-    setText("election-timeseries-intro", "Vår simulerade valprognos från " +
+    setText("election-timeseries-intro", "Vår simulerade valprognos " +
       (swedishDate(firstDate) || firstDate) + " till " + (swedishDate(lastDate) || lastDate) +
-      ". Poll of Polls och enskilda mätningar visas separat som opinionsunderlag och jämförelse i röstandelsläget. " +
-      "Byt mellan röstandel och mandatandel och välj vilka koalitioner som ska visas.");
+      ". Välj mått och koalitioner. Poll of Polls och enskilda mätningar visas som jämförelse för röstandel.");
     renderChart();
     section.hidden = false;
     return true;
