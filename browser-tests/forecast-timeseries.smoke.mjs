@@ -21,7 +21,6 @@ const SITE = resolve(process.argv[2] || join(HERE, '..', '_site'));
 const PAGE = '/election-simulator/';
 const HISTORY_RELATIVE = join('files', 'election-simulator', 'history', 'coalition-timeseries.json');
 const ELECTION_DATE = '2026-09-13';
-const DYNAMICS_CUTOFF = '2026-05-24';
 const PARTY_ORDER = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
 const DEFAULT_COALITIONS = [
   ['V', 'MP', 'S', 'C'],
@@ -297,6 +296,17 @@ function readPage(browser) {
     const detail = (tooltip && visible(tooltip)) ? tooltip :
       (status && visible(status) && !statusIsPrompt ? status :
         details.find((element) => visible(element) && !/välj en punkt|choose a point/i.test(element.textContent || '')) || null);
+    const detailMeta = section?.querySelector('.election-timeseries__detail-meta') || null;
+    const detailMetaEntries = detailMeta ? Array.from(detailMeta.children).map((entry) => {
+      const term = entry.querySelector('dt')?.getBoundingClientRect();
+      const value = entry.querySelector('dd')?.getBoundingClientRect();
+      const rect = entry.getBoundingClientRect();
+      return {
+        top: Math.round(rect.top),
+        termLeft: term ? Math.round(term.left) : null,
+        valueLeft: value ? Math.round(value.left) : null,
+      };
+    }) : [];
     const box = (element) => element ? (() => {
       const rect = element.getBoundingClientRect();
       return { left: rect.left, right: rect.right, top: rect.top, width: rect.width, height: rect.height };
@@ -357,6 +367,10 @@ function readPage(browser) {
       } : null,
       dates,
       detail: detail ? { text: detail.textContent.replace(/[\t\n\r ]+/g, ' ').trim(), visible: visible(detail) } : null,
+      detailMeta: detailMeta ? {
+        display: getComputedStyle(detailMeta).display,
+        entries: detailMetaEntries,
+      } : null,
       tooltip: tooltip ? { hidden: tooltip.hidden, text: tooltip.textContent.replace(/[\t\n\r ]+/g, ' ').trim(), visible: visible(tooltip) } : null,
       status: status ? { hidden: status.hidden, text: status.textContent.replace(/[\t\n\r ]+/g, ' ').trim(), visible: visible(status) } : null,
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -455,6 +469,20 @@ async function pointCoordinates(browser) {
     const rect = target.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   }, SELECTORS);
+}
+
+async function plotCoordinates(browser, ratio) {
+  return browser.evaluate(({ selectors, position }) => {
+    const section = document.querySelector(selectors.section);
+    const svg = section?.querySelector(selectors.svg) || document.querySelector(selectors.svg);
+    const hit = svg?.querySelector('.election-timeseries__hit');
+    if (!hit) return null;
+    const rect = hit.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width * Math.max(0, Math.min(1, position)),
+      y: rect.top + rect.height / 2,
+    };
+  }, { selectors: SELECTORS, position: ratio });
 }
 
 async function hoverAt(browser, point) {
@@ -556,12 +584,14 @@ function assertStructure(view, history) {
     return dates.length > 0 && dates.some((date) => date <= '2022-09-30') &&
       (!latest || dates.some((date) => date === latest));
   })(), view.dates.slice(0, 3).concat(view.dates.slice(-3)));
-  check('the 112-day dynamics marker is visible', view.marker?.visible === true &&
-    ((view.marker.date && view.marker.date === DYNAMICS_CUTOFF) ||
-      /112|2026-05-24|24 maj/i.test(`${view.marker.text} ${view.marker.markerType}`)), view.marker);
+  check('the former 24 May dynamics marker is absent from the plot', view.marker === null, view.marker);
   check('the page explains retrospective reconstruction and eight-party normalization',
     /rekonstru|omräkn|återskap/i.test(view.section?.text || '') &&
     /åtta riksdagspartier|normaliser|slutliga historiska poll of polls|poll of polls/i.test(view.section?.text || ''), view.section?.text);
+  check('the chart copy distinguishes our simulation from Poll of Polls',
+    /vår(?:a)? (?:simulerade |modell)?(?:val)?prognos|vår simulering|våra modellsimuleringar/i.test(view.section?.text || '') &&
+    /inte prognoser från Poll of Polls|separat som opinionsunderlag och jämförelse/i.test(view.section?.text || ''),
+  view.section?.text);
   check('the page explains actual and dynamics horizons',
     /faktisk.*tid|faktiska.*dag|horizon|rörelsedel|dynamik/i.test(view.section?.text || '') &&
     /112/.test(view.section?.text || ''), view.section?.text);
@@ -666,6 +696,15 @@ async function exercise(viewport, history, siteRoot) {
       { crosshair: view.crosshairCount, selectedDate: view.svg?.selectedDate });
     check('hovering a forecast point highlights every visible coalition', view.inspectionCount >= 2,
       view.inspectionCount);
+    check('simulation metadata uses an aligned responsive layout', (() => {
+      const entries = view.detailMeta?.entries || [];
+      if (view.detailMeta?.display !== 'grid' || entries.length !== 3) return false;
+      if (viewport.width <= 600) {
+        return new Set(entries.map((entry) => entry.top)).size === 3 &&
+          new Set(entries.map((entry) => entry.valueLeft)).size === 1;
+      }
+      return new Set(entries.map((entry) => entry.top)).size === 1;
+    })(), view.detailMeta);
     check('hover detail does not expose internal provenance enum strings',
       !/reconstructed_current_model|prospective_archived|current_production/.test(view.detail?.text || ''),
       view.detail?.text);
@@ -673,13 +712,21 @@ async function exercise(viewport, history, siteRoot) {
     if (detailText) {
       assertFixturePointText(detailText, point, expected.group.vote, 'vote-share forecast detail');
       check('detail panel includes Poll of Polls', /Poll of Polls/i.test(detailText), detailText);
+      check('detail panel labels our simulated forecast separately', /Vår simulering/i.test(detailText), detailText);
     }
     await clickAt(browser, coordinates);
     view = await readPage(browser);
-    check('clicking a forecast point persists its selection', view.detail?.visible === true &&
+    check('clicking a forecast point keeps its selection visible', view.detail?.visible === true &&
       (view.detail.text || '').length > 0, view.detail);
     check('clicking a forecast point keeps its crosshair and selected date',
       view.crosshairCount === 1 && Boolean(view.svg?.selectedDate), view.svg);
+    const clickedDate = view.svg?.selectedDate;
+    await hoverAt(browser, await plotCoordinates(browser, 0.76));
+    const afterClickHover = await readPage(browser);
+    check('hover inspection remains live after clicking the chart',
+      afterClickHover.crosshairCount === 1 && Boolean(afterClickHover.svg?.selectedDate) &&
+      afterClickHover.svg.selectedDate !== clickedDate,
+    { clickedDate, hoveredDate: afterClickHover.svg?.selectedDate });
     await browser.evaluate((selectors) => {
       const svg = document.querySelector(selectors.svg);
       svg?.focus();

@@ -480,17 +480,6 @@ canvas {
   display: none;
 }
 
-.election-timeseries__dynamics-marker {
-  stroke: rgba(44, 42, 37, 0.42);
-  stroke-dasharray: 3 4;
-  stroke-width: 1;
-}
-
-.election-timeseries__dynamics-label {
-  fill: var(--el-ink-soft) !important;
-  font-size: 11px !important;
-}
-
 .election-timeseries__band--90 {
   opacity: 0.13;
   stroke: none;
@@ -600,16 +589,18 @@ canvas {
 
 .election-timeseries__detail-meta {
   border-top: 1px solid var(--el-rule);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem 1.25rem;
+  display: grid;
+  gap: 0.65rem 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0.7rem 0 0;
   padding-top: 0.5rem;
 }
 
 .election-timeseries__detail-meta > div {
-  display: flex;
-  gap: 0.35rem;
+  align-content: start;
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
 }
 
 .election-timeseries__crosshair {
@@ -2308,10 +2299,6 @@ canvas {
     font-size: 16px;
   }
 
-  .election-timeseries__dynamics-label {
-    font-size: 14px !important;
-  }
-
   .election-timeseries__endpoint-label {
     font-size: 16px !important;
   }
@@ -2329,10 +2316,13 @@ canvas {
   .election-timeseries__detail-meta {
     display: grid;
     gap: 0.22rem;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .election-timeseries__detail-meta > div {
     align-items: baseline;
+    gap: 0.5rem;
+    grid-template-columns: 6.25rem minmax(0, 1fr);
   }
 
   .election-timeseries__key {
