@@ -783,20 +783,6 @@
     };
   }
 
-  function historyPopLinePath(popPoints, definitionId, xScale, yScale) {
-    var path = "";
-    var count = 0;
-    popPoints.forEach(function (point) {
-      var val = point.values && point.values[definitionId];
-      if (val === null || val === undefined || !Number.isFinite(val)) return;
-      var x = xScale(point.time);
-      var y = yScale(val);
-      path += (count ? "L" : "M") + x.toFixed(2) + "," + y.toFixed(2);
-      count += 1;
-    });
-    return path;
-  }
-
   function historyLinePath(points, metric, key, xScale, yScale) {
     var path = "";
     var count = 0;
@@ -954,8 +940,6 @@
       if (modeVote) modeVote.setAttribute("aria-pressed", selectedMetric === "vote" ? "true" : "false");
       if (modeSeats) modeSeats.setAttribute("aria-pressed", selectedMetric === "seats" ? "true" : "false");
       if (seatNote) seatNote.hidden = selectedMetric !== "seats";
-      var popKey = byId("election-timeseries-key-pop");
-      if (popKey) popKey.hidden = selectedMetric !== "vote";
       var pollsKey = byId("election-timeseries-key-polls");
       if (pollsKey) pollsKey.hidden = selectedMetric !== "vote";
     }
@@ -1170,7 +1154,7 @@
         (swedishDate(history.points[0].date) || history.points[0].date) + " till " +
         (swedishDate(history.points[history.points.length - 1].date) || history.points[history.points.length - 1].date) +
         ". Skalan är anpassad efter de valda serierna." +
-        (selectedMetric === "vote" ? " Poll of Polls och enskilda mätningar visas som jämförelse." : "")));
+        (selectedMetric === "vote" ? " Enskilda mätningar visas som jämförelse." : "")));
 
       var plotDefs = svgNode("defs");
       var plotClip = svgNode("clipPath", { id: "election-timeseries-plot-clip" });
@@ -1258,13 +1242,6 @@
           d: fifty, fill: definition.color, "data-coalition": definition.id, "data-quantile": "p25-p75",
           "data-timeseries-band": "50", "data-interval": "50"
         }));
-        if (selectedMetric === "vote" && history.pop && history.pop.length) {
-          var popPath = historyPopLinePath(history.pop, definition.id, xScale, yScale);
-          if (popPath) group.appendChild(svgNode("path", {
-            class: "election-timeseries__line election-timeseries__pop-line", d: popPath, stroke: definition.color,
-            "data-coalition": definition.id, "data-series": "poll_of_polls"
-          }));
-        }
         var medianPath = historyAreaPath(validPoints, selectedMetric, definition.id, xScale, yScale, "p50", "p50");
         if (medianPath) group.appendChild(svgNode("path", {
           class: "election-timeseries__line election-timeseries__median", d: medianPath, stroke: definition.color,
@@ -1523,7 +1500,7 @@
     var lastDate = history.points[history.points.length - 1].date;
     setText("election-timeseries-intro", "Vår simulerade valprognos " +
       (swedishDate(firstDate) || firstDate) + " till " + (swedishDate(lastDate) || lastDate) +
-      ". Välj mått och koalitioner. Poll of Polls och enskilda mätningar visas som jämförelse för röstandel.");
+      ". Välj mått och koalitioner. Enskilda mätningar visas som jämförelse för röstandel.");
     renderChart();
     section.hidden = false;
     return true;

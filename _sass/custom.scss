@@ -497,14 +497,6 @@ canvas {
   stroke-width: 2.5;
 }
 
-.election-timeseries__pop-line {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.35;
-  stroke-dasharray: 4 4;
-}
-
 .election-timeseries__series-group.is-primary .election-timeseries__median {
   stroke-width: 2.9;
 }
@@ -658,13 +650,6 @@ canvas {
 .election-timeseries__key-mark--median {
   background: var(--el-ink);
   height: 2px;
-}
-
-.election-timeseries__key-mark--pop {
-  background: transparent;
-  border-top: 1.5px dashed var(--el-ink);
-  height: 0;
-  width: 1.35rem;
 }
 
 .election-timeseries__key-mark--polls {
