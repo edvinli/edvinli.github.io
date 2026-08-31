@@ -386,6 +386,7 @@ async function testSchema12(viewport, pointer, expected) {
 
     // Röstandelar -> Bygg din egen regering -> Mandat -> Regeringsalternativ.
     eq('page section order', panel.sectionOrder, [
+      'election-timeseries',
       'election-headline',
       'election-government-builder',
       'election-seats',

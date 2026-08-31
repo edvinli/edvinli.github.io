@@ -32,6 +32,37 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
+  <section id="election-timeseries" class="election-panel election-timeseries" hidden>
+    <div class="election-panel__head">
+      <h2>Prognos över tid</h2>
+      <p class="election-muted" id="election-timeseries-intro">Historiska prognosfördelningar från föregående riksdagsval till den senaste tillgängliga prognosen.</p>
+    </div>
+    <div class="election-timeseries__controls">
+      <div class="election-timeseries__mode" role="group" aria-label="Mått i diagrammet">
+        <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-vote" aria-pressed="true">Röstandel</button>
+        <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-seats" aria-pressed="false">Mandatandel</button>
+      </div>
+      <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
+    </div>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Poll of Polls visas endast i röstandelsläget. Mandatandel visar endast valprognosens mandatfördelningar och 175-mandatsgränsen.</p>
+    <div class="election-timeseries__frame" id="election-timeseries-frame">
+      <svg id="election-timeseries-svg" class="election-timeseries__svg" role="group" tabindex="0" aria-labelledby="election-timeseries-title election-timeseries-description" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
+        <title id="election-timeseries-title">Prognos över tid för valprognosens koalitioner</title>
+        <desc id="election-timeseries-description">Intervall och medianer för valprognoser över tid.</desc>
+      </svg>
+      <div id="election-timeseries-tooltip" class="election-timeseries__tooltip" role="status" aria-live="polite" hidden></div>
+    </div>
+    <p id="election-timeseries-status" class="election-timeseries__status" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
+    <p class="election-timeseries__key election-muted">
+      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--p90" aria-hidden="true"></span>90 % prognosintervall</span>
+      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--p50" aria-hidden="true"></span>50 % prognosintervall</span>
+      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--median" aria-hidden="true"></span>—— Valprognos</span>
+      <span class="election-timeseries__key-item" id="election-timeseries-key-pop"><span class="election-timeseries__key-mark election-timeseries__key-mark--pop" aria-hidden="true"></span>- - Poll of Polls</span>
+    </p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Historiska prognoser är rekonstruerade i efterhand med dagens modell och den slutliga historiska Poll of Polls-serien. Röstandelar beräknas över de åtta riksdagspartierna.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsdata och sammanvägning via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>.</p>
+  </section>
   <section id="election-headline" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Röstandelar</h2>

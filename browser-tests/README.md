@@ -33,6 +33,7 @@ jekyll build --config _config.yml,_config.dev.yml
 node browser-tests/government-builder.smoke.mjs            # defaults to ./_site
 node browser-tests/builder-blocks.smoke.mjs
 node browser-tests/alternatives.smoke.mjs
+node browser-tests/forecast-timeseries.smoke.mjs
 node browser-tests/histogram-copy.smoke.mjs
 node browser-tests/equations.smoke.mjs
 ```
@@ -104,8 +105,9 @@ Tests the coalition builder across all published schema generations:
   - Manual dragging still works after a preset has been used.
   - The `Mandatfördelning` view prints the four published summaries for the
     same entry it drew: `median_seats`, `p25–p75`, `p10–p90`, `p05–p95`.
-  - Page section order: Röstandelar → Bygg din egen regering → Mandat →
-    Regeringsalternativ, and nothing left of the removed Majoritetsscenarier.
+  - Page section order: Prognos över tid → Röstandelar → Bygg din egen
+    regering → Mandat → Regeringsalternativ, and nothing left of the removed
+    Majoritetsscenarier.
 
 ### 2. `builder-blocks.smoke.mjs` — mandate block interaction
 
@@ -153,3 +155,12 @@ Verifies the mathematical documentation layout:
 - LaTeX rendering inside collapsed `<details>`.
 - Equation container scrolling without page-level horizontal overflow.
 - Source fallback preservation if the CDN fails.
+
+### 6. `forecast-timeseries.smoke.mjs` — historical forecast chart
+
+Exercises `Prognos över tid` at desktop and 360 px mobile widths: section
+order, accessible coalition and metric toggles, joint quantile bands, raw-poll
+points, the 112-day marker, the 175-seat reference, pointer/touch/keyboard
+inspection, provenance copy, horizontal overflow, and browser errors. It uses
+the built history artifact when present and otherwise installs its dedicated
+fixture only in a temporary copy of `_site`.

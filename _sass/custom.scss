@@ -326,6 +326,314 @@ canvas {
   font-size: 0.82rem;
 }
 
+/* --- Historical forecast chart ----------------------------------------- */
+
+.election-timeseries {
+  --ets-red: #bd3348;
+  --ets-blue: #315fa8;
+  --ets-green: #35866f;
+  --ets-purple: #7b5b9d;
+  --ets-gold: #a26a1f;
+  --ets-cyan: #278597;
+  --ets-orange: #c2672d;
+}
+
+.election-timeseries__controls {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.1rem;
+  margin-top: 1.15rem;
+}
+
+.election-timeseries__mode {
+  display: inline-flex;
+  flex: none;
+}
+
+.election-timeseries__control {
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule-strong);
+  color: var(--el-ink);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.25;
+  padding: 0.42rem 0.7rem;
+}
+
+.election-timeseries__control:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.election-timeseries__control:last-child {
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.election-timeseries__control[aria-pressed="true"] {
+  background: var(--el-ink);
+  color: var(--el-panel);
+}
+
+.election-timeseries__control:hover {
+  text-decoration: underline;
+}
+
+.election-timeseries__coalitions {
+  display: flex;
+  flex: 1 1 30rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+}
+
+.election-timeseries__coalition {
+  align-items: center;
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule);
+  border-radius: 3px;
+  color: var(--el-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 0.35rem;
+  line-height: 1.25;
+  padding: 0.35rem 0.55rem;
+  text-align: left;
+}
+
+.election-timeseries__coalition[aria-pressed="true"] {
+  border-color: var(--el-rule-strong);
+  box-shadow: inset 0 0 0 1px var(--el-rule-strong);
+}
+
+.election-timeseries__coalition:hover .election-timeseries__coalition-label {
+  text-decoration: underline;
+}
+
+.election-timeseries__coalition-swatch {
+  border-radius: 1px;
+  display: inline-block;
+  flex: none;
+  height: 0.18rem;
+  width: 1.25rem;
+}
+
+.election-timeseries__note {
+  margin-top: 0.65rem;
+}
+
+.election-timeseries__frame {
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule);
+  margin-top: 1rem;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.election-timeseries__svg {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  min-height: 13rem;
+  outline-offset: -2px;
+  touch-action: manipulation;
+  width: 100%;
+}
+
+.election-timeseries__svg text {
+  fill: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 14px;
+}
+
+.election-timeseries__svg .election-timeseries__axis-label {
+  fill: var(--el-ink-soft);
+  font-size: 13px;
+}
+
+.election-timeseries__grid-line {
+  stroke: var(--el-rule);
+  stroke-width: 1;
+}
+
+.election-timeseries__axis-line {
+  stroke: var(--el-rule-strong);
+  stroke-width: 1;
+}
+
+.election-timeseries__majority {
+  stroke: var(--el-rule-strong);
+  stroke-dasharray: 6 4;
+  stroke-width: 1.2;
+}
+
+.election-timeseries__majority-label {
+  fill: var(--el-ink-soft) !important;
+  font-size: 12px !important;
+}
+
+.election-timeseries__precap {
+  fill: rgba(44, 42, 37, 0.045);
+}
+
+.election-timeseries__dynamics-marker {
+  stroke: var(--el-rule-strong);
+  stroke-dasharray: 5 4;
+  stroke-width: 1.3;
+}
+
+.election-timeseries__dynamics-label {
+  fill: var(--el-ink-soft) !important;
+  font-size: 12px !important;
+}
+
+.election-timeseries__band--90 {
+  opacity: 0.18;
+}
+
+.election-timeseries__band--50 {
+  opacity: 0.42;
+}
+
+.election-timeseries__median {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.election-timeseries__pop-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  stroke-dasharray: 5 4;
+}
+
+.election-timeseries__series-group.is-primary .election-timeseries__median {
+  stroke-width: 3.2;
+}
+
+.election-timeseries__current {
+  stroke: var(--el-panel);
+  stroke-width: 2;
+}
+
+.election-timeseries__poll {
+  opacity: 0.62;
+  stroke: var(--el-panel);
+  stroke-width: 1.2;
+}
+
+.election-timeseries__poll:hover,
+.election-timeseries__poll:focus {
+  opacity: 1;
+  outline: none;
+  stroke: var(--el-ink);
+  stroke-width: 2;
+}
+
+.election-timeseries__hit {
+  cursor: crosshair;
+  fill: transparent;
+}
+
+.election-timeseries__status {
+  border-left: 2px solid var(--el-rule-strong);
+  font-size: 0.84rem;
+  margin: 0.7rem 0 0;
+  min-height: 1.4em;
+  padding-left: 0.65rem;
+}
+
+.election-timeseries__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 0.8rem;
+}
+
+.election-timeseries__key-item {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.election-timeseries__key-mark {
+  display: inline-block;
+  flex: none;
+  height: 0.78rem;
+  width: 1.35rem;
+}
+
+.election-timeseries__key-mark--p90 {
+  background: rgba(44, 42, 37, 0.18);
+}
+
+.election-timeseries__key-mark--p50 {
+  background: rgba(44, 42, 37, 0.48);
+}
+
+.election-timeseries__key-mark--median {
+  background: var(--el-ink);
+  height: 2px;
+}
+
+.election-timeseries__key-mark--pop {
+  background: transparent;
+  border-top: 2px dashed var(--el-ink);
+  height: 0;
+  width: 1.35rem;
+}
+
+.election-timeseries__key-mark--poll {
+  background: var(--el-ink);
+  border-radius: 50%;
+  height: 0.55rem;
+  width: 0.55rem;
+}
+
+.election-timeseries__tooltip {
+  background: var(--el-ink);
+  border: 1px solid var(--el-rule-strong);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  color: var(--el-panel);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  max-width: min(31rem, calc(100% - 1rem));
+  padding: 0.55rem 0.7rem;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.election-timeseries__tooltip[hidden] {
+  display: none;
+}
+
+.election-timeseries__tooltip strong,
+.election-timeseries__tooltip b {
+  color: #fff;
+}
+
+.election-timeseries__tooltip dl {
+  display: grid;
+  gap: 0.15rem 0.8rem;
+  grid-template-columns: max-content minmax(0, 1fr);
+  margin: 0.25rem 0 0;
+}
+
+.election-timeseries__tooltip dt {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.election-timeseries__tooltip dd {
+  margin: 0;
+}
+
 /* --- National vote forecast --------------------------------------------- */
 
 .election-vote-rows {
@@ -1922,6 +2230,30 @@ canvas {
   .election-app {
     --ev-cols: 3.6rem minmax(0, 1fr) 4.4rem;
     --ev-gap: 0.5rem;
+  }
+
+  .election-timeseries__controls {
+    gap: 0.55rem;
+  }
+
+  .election-timeseries__coalitions {
+    flex-basis: 100%;
+  }
+
+  .election-timeseries__control,
+  .election-timeseries__coalition {
+    font-size: 0.84rem;
+  }
+
+  .election-timeseries__svg {
+    min-height: 12rem;
+  }
+
+  .election-timeseries__tooltip {
+    left: 50% !important;
+    max-width: calc(100% - 0.8rem);
+    position: absolute;
+    transform: translateX(-50%);
   }
 
   .election-hero__facts {
