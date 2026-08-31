@@ -254,6 +254,9 @@ const SELECTORS = {
   popLine: '.election-timeseries__pop-line, [data-series="poll_of_polls"]',
   polls: '[data-poll-point], [data-poll="true"], .et-poll-dot, .eht-poll-dot, .election-timeseries__poll, circle.poll',
   marker: '[data-dynamics-marker], [data-marker="dynamics-horizon"], .et-dynamics-marker, .eht-dynamics-marker, .election-timeseries__dynamics-marker',
+  crosshair: '[data-timeseries-crosshair], .election-timeseries__crosshair, .et-crosshair, .eht-crosshair',
+  inspection: '[data-inspection-marker], .election-timeseries__inspection-point, .election-timeseries__selected-point',
+  endpoint: '[data-endpoint-label], .election-timeseries__endpoint-label',
   details: '#election-timeseries-detail, #election-timeseries-status, #election-forecast-history-detail, [data-timeseries-detail], .election-timeseries__detail, .et-detail, .eht-detail',
 };
 
@@ -313,6 +316,10 @@ function readPage(browser) {
         labelledby: svg.getAttribute('aria-labelledby'),
         title: title?.textContent?.trim() || '',
         description: description?.textContent?.trim() || '',
+        metric: svg.getAttribute('data-metric') || '',
+        yMin: Number(svg.getAttribute('data-y-min')),
+        yMax: Number(svg.getAttribute('data-y-max')),
+        selectedDate: svg.getAttribute('data-selected-date') || '',
         box: box(svg),
       } : null,
       views: views.map((button) => ({
@@ -339,6 +346,9 @@ function readPage(browser) {
       band50Count: svg ? Array.from(svg.querySelectorAll(selectors.band50)).filter(visible).length : 0,
       currentCount: svg ? Array.from(svg.querySelectorAll('.election-timeseries__current, [data-current="true"]')).filter(visible).length : 0,
       pollCount: polls.filter(visible).length,
+      crosshairCount: svg ? Array.from(svg.querySelectorAll(selectors.crosshair)).filter(visible).length : 0,
+      inspectionCount: svg ? Array.from(svg.querySelectorAll(selectors.inspection)).filter(visible).length : 0,
+      endpointCount: svg ? Array.from(svg.querySelectorAll(selectors.endpoint)).filter(visible).length : 0,
       marker: marker ? {
         visible: visible(marker),
         text: marker.textContent.trim(),
@@ -473,6 +483,18 @@ async function tapAt(browser, point) {
   await settle();
 }
 
+async function pressKey(browser, key, code = key) {
+  await browser.S('Input.dispatchKeyEvent', {
+    type: 'keyDown', key, code,
+    windowsVirtualKeyCode: key === 'Enter' ? 13 : key === ' ' ? 32 : undefined,
+  });
+  await browser.S('Input.dispatchKeyEvent', {
+    type: 'keyUp', key, code,
+    windowsVirtualKeyCode: key === 'Enter' ? 13 : key === ' ' ? 32 : undefined,
+  });
+  await settle();
+}
+
 async function clickButton(browser, buttonText) {
   return browser.evaluate((text) => {
     const normalize = (value) => String(value || '').replace(/[\t\n\r ]+/g, ' ').trim();
@@ -510,13 +532,24 @@ function assertStructure(view, history) {
     view.views.map((button) => button.text), ['Röstandel', 'Mandatandel']);
   check('view controls are native buttons with aria-pressed', view.views.every((button) =>
     button.tag === 'BUTTON' && button.type === 'button' && ['true', 'false'].includes(button.pressed)), view.views);
+  check('default vote view uses an adaptive y-axis', view.svg?.metric === 'vote' &&
+    finite(view.svg.yMin) && finite(view.svg.yMax) && view.svg.yMin > 0 && view.svg.yMax > view.svg.yMin,
+  view.svg);
+  check('50% is inside the displayed vote domain', view.svg?.yMin <= 50 && view.svg?.yMax >= 50, view.svg);
   check('the two default forecast series are visible', view.series.filter((series) => series.visible).length >= 2,
     view.series);
   check('the chart has both 50% and 90% forecast bands', view.band90Count >= 2 && view.band50Count >= 2,
     { band90: view.band90Count, band50: view.band50Count });
   check('median forecast lines are visible', view.medianCount >= 2, view.medianCount);
   check('Poll of Polls lines are visible in vote mode', view.popLineCount >= 2, view.popLineCount);
+  check('individual poll observations are visible in vote mode', view.pollCount >= history.polls.length * 2,
+    { rendered: view.pollCount, polls: history.polls.length });
   check('the latest forecast value is visibly marked', view.currentCount >= 2, view.currentCount);
+  check('right-edge current-value labels are visible', view.endpointCount >= 2, view.endpointCount);
+  check('no large floating tooltip is present', view.tooltip === null || view.tooltip.hidden === true,
+    view.tooltip);
+  check('the inspection layer is initially clear', view.crosshairCount === 0 && view.inspectionCount === 0,
+    { crosshair: view.crosshairCount, inspection: view.inspectionCount });
   check('history date extent starts in September 2022 and reaches the latest point', (() => {
     const dates = view.dates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date));
     const latest = history.series[history.series.length - 1]?.date;
@@ -527,7 +560,7 @@ function assertStructure(view, history) {
     ((view.marker.date && view.marker.date === DYNAMICS_CUTOFF) ||
       /112|2026-05-24|24 maj/i.test(`${view.marker.text} ${view.marker.markerType}`)), view.marker);
   check('the page explains retrospective reconstruction and eight-party normalization',
-    /reconstructed_current_model|rekonstru|omräkn|återskap/i.test(view.section?.text || '') &&
+    /rekonstru|omräkn|återskap/i.test(view.section?.text || '') &&
     /åtta riksdagspartier|normaliser|slutliga historiska poll of polls|poll of polls/i.test(view.section?.text || ''), view.section?.text);
   check('the page explains actual and dynamics horizons',
     /faktisk.*tid|faktiska.*dag|horizon|rörelsedel|dynamik/i.test(view.section?.text || '') &&
@@ -573,15 +606,20 @@ async function exercise(viewport, history, siteRoot) {
     view = await readPage(browser);
     check(`${extra} changes aria-pressed back to false`, findLabel(view.coalitions, EXTRA_COALITIONS[0])?.pressed === 'false', view.coalitions);
 
-    // Poll of Polls is the default visible opinion layer in vote-share mode;
-    // raw SwedishPolls dots are not displayed by default.
+    // Both the aggregate Poll of Polls and faded individual observations are
+    // visible in vote-share mode.
     check('Poll of Polls lines appear in vote-share mode', view.popLineCount >= 2, view.popLineCount);
-    check('SwedishPolls dots are not shown by default', view.pollCount === 0, view.pollCount);
+    check('individual poll dots appear for both default coalitions', view.pollCount >= history.polls.length * 2,
+      { rendered: view.pollCount, polls: history.polls.length });
 
     equal('switch to Mandatandel', await clickButton(browser, 'Mandatandel'), true);
     await settle();
     view = await readPage(browser);
     check('Mandatandel is pressed', findLabel(view.views, ['Mandatandel'])?.pressed === 'true', view.views);
+    check('seat mode uses an adaptive y-axis containing the majority threshold',
+      view.svg?.metric === 'seats' && finite(view.svg.yMin) && finite(view.svg.yMax) &&
+      view.svg.yMin > 0 && view.svg.yMin <= (175 / 349 * 100) &&
+      view.svg.yMax >= (175 / 349 * 100), view.svg);
     equal('seat-share mode has no Poll of Polls lines', view.popLineCount, 0);
     equal('seat-share mode has no raw poll dots', view.pollCount, 0);
     check('seat-share mode shows the 175 mandate majority rule', /175\s*mandat/i.test(view.section?.text || '') &&
@@ -595,11 +633,14 @@ async function exercise(viewport, history, siteRoot) {
     check('seat detail includes the raw median seat count',
       numberInText(seatDetail, findPointFor(history, DEFAULT_COALITIONS[0], seatPoint).group.seats.p50) &&
       /mandat/i.test(seatDetail), seatDetail);
+    check('seat detail omits Poll of Polls', !/Poll of Polls/i.test(seatDetail), seatDetail);
     equal('switch back to Röstandel', await clickButton(browser, 'Röstandel'), true);
     await settle();
     view = await readPage(browser);
     check('Röstandel is pressed', findLabel(view.views, ['Röstandel'])?.pressed === 'true', view.views);
     check('vote-share mode restores Poll of Polls lines', view.popLineCount >= 2, view.popLineCount);
+    check('vote-share mode restores individual poll dots', view.pollCount >= history.polls.length * 2,
+      { rendered: view.pollCount, polls: history.polls.length });
 
     // The first forecast point is a deterministic fixture check.
     const point = history.series[0];
@@ -619,17 +660,35 @@ async function exercise(viewport, history, siteRoot) {
     const coordinates = await pointCoordinates(browser);
     await hoverAt(browser, coordinates);
     view = await readPage(browser);
-    check('hovering a forecast point exposes a detail/tooltip', view.detail?.visible === true &&
+    check('hovering a forecast point exposes the persistent detail panel', view.detail?.visible === true &&
       (view.detail.text || '').length > 0, view.detail);
+    check('hovering a forecast point draws a crosshair', view.crosshairCount === 1,
+      { crosshair: view.crosshairCount, selectedDate: view.svg?.selectedDate });
+    check('hovering a forecast point highlights every visible coalition', view.inspectionCount >= 2,
+      view.inspectionCount);
+    check('hover detail does not expose internal provenance enum strings',
+      !/reconstructed_current_model|prospective_archived|current_production/.test(view.detail?.text || ''),
+      view.detail?.text);
     const detailText = view.detail?.text || '';
     if (detailText) {
       assertFixturePointText(detailText, point, expected.group.vote, 'vote-share forecast detail');
-      check('tooltip includes Poll of Polls', /Poll of Polls/i.test(detailText), detailText);
+      check('detail panel includes Poll of Polls', /Poll of Polls/i.test(detailText), detailText);
     }
     await clickAt(browser, coordinates);
     view = await readPage(browser);
     check('clicking a forecast point persists its selection', view.detail?.visible === true &&
       (view.detail.text || '').length > 0, view.detail);
+    check('clicking a forecast point keeps its crosshair and selected date',
+      view.crosshairCount === 1 && Boolean(view.svg?.selectedDate), view.svg);
+    await browser.evaluate((selectors) => {
+      const svg = document.querySelector(selectors.svg);
+      svg?.focus();
+    }, SELECTORS);
+    await pressKey(browser, 'ArrowLeft', 'ArrowLeft');
+    const keyboardView = await readPage(browser);
+    check('keyboard ArrowLeft moves the selected forecast date',
+      keyboardView.crosshairCount === 1 && keyboardView.detail?.visible === true &&
+      Boolean(keyboardView.svg?.selectedDate), keyboardView);
     await browser.evaluate(() => {
       const app = document.getElementById('election-simulator-app');
       app?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
@@ -645,6 +704,8 @@ async function exercise(viewport, history, siteRoot) {
       const tapped = await readPage(browser);
       check('tapping a date persists the selected detail on touch', tapped.detail?.visible === true &&
         (tapped.detail.text || '').length > 0, tapped.detail);
+      check('tapping a date pins the crosshair on touch', tapped.crosshairCount === 1 &&
+        Boolean(tapped.svg?.selectedDate), tapped.svg);
     }
 
     view = await readPage(browser);

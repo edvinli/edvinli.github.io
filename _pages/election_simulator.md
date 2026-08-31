@@ -44,21 +44,25 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       </div>
       <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
     </div>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Poll of Polls visas endast i röstandelsläget. Mandatandel visar endast valprognosens mandatfördelningar och 175-mandatsgränsen.</p>
     <div class="election-timeseries__frame" id="election-timeseries-frame">
       <svg id="election-timeseries-svg" class="election-timeseries__svg" role="group" tabindex="0" aria-labelledby="election-timeseries-title election-timeseries-description" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
         <title id="election-timeseries-title">Prognos över tid för valprognosens koalitioner</title>
         <desc id="election-timeseries-description">Intervall och medianer för valprognoser över tid.</desc>
       </svg>
-      <div id="election-timeseries-tooltip" class="election-timeseries__tooltip" role="status" aria-live="polite" hidden></div>
     </div>
-    <p id="election-timeseries-status" class="election-timeseries__status" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
+    <div id="election-timeseries-detail" class="election-timeseries__detail" role="region" aria-live="polite" aria-labelledby="election-timeseries-detail-title">
+      <h3 id="election-timeseries-detail-title" class="visually-hidden">Detaljer för valt prognosdatum</h3>
+      <p id="election-timeseries-status" class="election-timeseries__status" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
+      <div id="election-timeseries-detail-body" class="election-timeseries__detail-body" hidden></div>
+    </div>
     <p class="election-timeseries__key election-muted">
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--p90" aria-hidden="true"></span>90 % prognosintervall</span>
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--p50" aria-hidden="true"></span>50 % prognosintervall</span>
-      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--median" aria-hidden="true"></span>—— Valprognos</span>
-      <span class="election-timeseries__key-item" id="election-timeseries-key-pop"><span class="election-timeseries__key-mark election-timeseries__key-mark--pop" aria-hidden="true"></span>- - Poll of Polls</span>
+      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--median" aria-hidden="true"></span>Valprognos</span>
+      <span class="election-timeseries__key-item" id="election-timeseries-key-pop"><span class="election-timeseries__key-mark election-timeseries__key-mark--pop" aria-hidden="true"></span>Poll of Polls</span>
+      <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
     </p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Poll of Polls och enskilda mätningar visas endast i röstandelsläget. Mandatandel visar endast valprognosens mandatfördelningar och 175-mandatsgränsen.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Historiska prognoser är rekonstruerade i efterhand med dagens modell och den slutliga historiska Poll of Polls-serien. Röstandelar beräknas över de åtta riksdagspartierna.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsdata och sammanvägning via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>.</p>

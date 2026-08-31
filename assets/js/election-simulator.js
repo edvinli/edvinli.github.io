@@ -742,15 +742,15 @@
 
   function historyProvenanceLabel(value) {
     if (value === "current_production") {
-      return "Officiell aktuell valprognos (current_production)";
+      return "Officiell aktuell valprognos";
     }
     if (value === "prospective_archived") {
-      return "Prospektiv arkiverad prognos (prospective_archived)";
+      return "Prospektiv arkiverad prognos";
     }
     if (value === "reconstructed_current_model") {
-      return "Rekonstruerad med dagens modell (reconstructed_current_model)";
+      return "Rekonstruerad med dagens modell";
     }
-    return value.replace(/_/g, " ");
+    return String(value || "Okänt ursprung").replace(/_/g, " ");
   }
 
   function historyDaysText(value) {
@@ -769,7 +769,7 @@
     // Seat quantiles are published as raw joint seat draws.  The chart's
     // second mode is a share of the 349-seat chamber, so convert only at the
     // rendering boundary and keep the raw values on the normalized group for
-    // the tooltip's exact seat count.
+    // the detail panel's exact seat count.
     return value === null ? null : (metric === "seats" ? 100 * value / CHAMBER : value);
   }
 
@@ -834,27 +834,77 @@
   }
 
   function historyAxisTicks(minTime, maxTime) {
-    var count = 6;
     var ticks = [];
-    for (var index = 0; index < count; index += 1) {
-      var time = minTime + (maxTime - minTime) * index / (count - 1);
-      var date = new Date(time);
-      var iso = date.toISOString().slice(0, 10);
-      ticks.push({ time: time, iso: iso, label: date.getUTCFullYear() === new Date(minTime).getUTCFullYear() &&
-        date.getUTCFullYear() === new Date(maxTime).getUTCFullYear()
-        ? swedishDate(iso) : String(date.getUTCFullYear()) });
+    var firstYear = new Date(minTime).getUTCFullYear();
+    var lastYear = new Date(maxTime).getUTCFullYear();
+    var seenYears = {};
+    for (var year = firstYear; year <= lastYear; year += 1) {
+      var yearStart = Date.parse(String(year) + "-01-01T00:00:00Z");
+      var time = year === firstYear ? minTime : Math.max(minTime, yearStart);
+      if (time > maxTime) continue;
+      if (seenYears[year]) continue;
+      seenYears[year] = true;
+      ticks.push({
+        time: time,
+        iso: new Date(time).toISOString().slice(0, 10),
+        label: String(year)
+      });
     }
-    return ticks.filter(function (tick, index, values) {
-      return index === 0 || Math.abs(tick.time - values[index - 1].time) > 86400000 * 20;
-    });
+    // Very short histories can fall within a single year.  Keep the axis
+    // useful without manufacturing duplicate year labels.
+    if (!ticks.length) {
+      var fallbackIso = new Date(minTime).toISOString().slice(0, 10);
+      ticks.push({ time: minTime, iso: fallbackIso, label: String(firstYear) });
+    }
+    return ticks;
   }
 
-  function historyTooltipPosition(tooltip, frame, xPercent) {
-    if (!tooltip || !frame) return;
-    var width = frame.clientWidth || 0;
-    var left = width * Math.max(0.18, Math.min(0.82, xPercent));
-    tooltip.style.left = left.toFixed(1) + "px";
-    tooltip.style.top = "0.5rem";
+  function historyValueDomain(history, metric, definitions) {
+    var values = [];
+    definitions.forEach(function (definition) {
+      history.points.forEach(function (point) {
+        var group = point.groups && point.groups[definition.id];
+        var low = historyMetricValue(group, metric, "p05");
+        var high = historyMetricValue(group, metric, "p95");
+        if (low !== null) values.push(low);
+        if (high !== null) values.push(high);
+      });
+    });
+    if (metric === "vote" && history.pop && history.pop.length) {
+      history.pop.forEach(function (item) {
+        definitions.forEach(function (definition) {
+          var value = item.values && historyNumber(item.values[definition.id]);
+          if (value !== null) values.push(value);
+        });
+      });
+    }
+    var lower = values.length ? Math.min.apply(Math, values) : 0;
+    var upper = values.length ? Math.max.apply(Math, values) : (metric === "seats" ? 100 : 50);
+    var anchor = metric === "seats" ? 100 * MAJORITY / CHAMBER : 50;
+    // A small amount of breathing room prevents the uncertainty ribbons from
+    // touching the frame.  Rounding at the end gives stable five-point ticks.
+    lower = Math.floor((lower - 2) / 5) * 5;
+    upper = Math.ceil((upper + 2) / 5) * 5;
+    lower = Math.min(lower, anchor);
+    upper = Math.max(upper, anchor);
+    var minimumSpan = 20;
+    if (upper - lower < minimumSpan) {
+      var midpoint = (lower + upper) / 2;
+      lower = Math.floor((midpoint - minimumSpan / 2) / 5) * 5;
+      upper = Math.ceil((midpoint + minimumSpan / 2) / 5) * 5;
+      lower = Math.min(lower, anchor);
+      upper = Math.max(upper, anchor);
+    }
+    // All published vote and seat-share values are percentages.  Clamp only
+    // the padded frame, never the observations themselves, so bands cannot be
+    // clipped at a scale boundary.
+    lower = Math.max(0, lower);
+    upper = Math.min(100, upper);
+    if (upper - lower < minimumSpan) {
+      if (lower === 0) upper = Math.min(100, lower + minimumSpan);
+      else lower = Math.max(0, upper - minimumSpan);
+    }
+    return { min: lower, max: upper };
   }
 
   function renderForecastHistory(payload) {
@@ -864,9 +914,8 @@
     var history = normalizeHistoryPayload(payload);
     if (!history) return false;
 
-    var frame = byId("election-timeseries-frame");
-    var tooltip = byId("election-timeseries-tooltip");
     var liveStatus = byId("election-timeseries-status");
+    var detailBody = byId("election-timeseries-detail-body");
     var seatNote = byId("election-timeseries-seat-note");
     var modeVote = byId("election-timeseries-vote");
     var modeSeats = byId("election-timeseries-seats");
@@ -875,10 +924,19 @@
     var selected = {};
     var selectedDate = null;
     var selectedPoint = null;
-    var selectedPoll = null;
-    var width = 960;
-    var height = 430;
-    var plot = { left: 62, right: 932, top: 28, bottom: 365 };
+    var pinnedSelection = false;
+    var renderSelection = function () {};
+    var renderDetail = function () {};
+    var keyboardSelect = function () {};
+    var compactChart = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
+    var width = compactChart ? 600 : 960;
+    var height = compactChart ? 500 : 430;
+    // Keep a quiet right-hand gutter for the current-value labels.  The
+    // generous top/bottom margins also make the chart read like the site's
+    // histogram sections rather than a boxed dashboard widget.
+    var plot = compactChart
+      ? { left: 62, right: 520, top: 50, bottom: 415 }
+      : { left: 72, right: 880, top: 40, bottom: 360 };
     plot.width = plot.right - plot.left;
     plot.height = plot.bottom - plot.top;
     var chartMinTime = history.points[0].time;
@@ -899,16 +957,26 @@
       if (seatNote) seatNote.hidden = selectedMetric !== "seats";
       var popKey = byId("election-timeseries-key-pop");
       if (popKey) popKey.hidden = selectedMetric !== "vote";
+      var pollsKey = byId("election-timeseries-key-polls");
+      if (pollsKey) pollsKey.hidden = selectedMetric !== "vote";
     }
 
     function dateForEvent(event) {
       if (!event || !svg || !svg.getBoundingClientRect) return null;
       var rect = svg.getBoundingClientRect();
       if (!rect.width) return null;
+      var clientX = event.clientX;
+      if (!Number.isFinite(clientX) && event.touches && event.touches.length) {
+        clientX = event.touches[0].clientX;
+      }
+      if (!Number.isFinite(clientX) && event.changedTouches && event.changedTouches.length) {
+        clientX = event.changedTouches[0].clientX;
+      }
+      if (!Number.isFinite(clientX)) return null;
       // SVG coordinates include the left plot margin.  Mapping the entire
       // element would make a pointer on the first plotted date resolve several
       // percent into the series.
-      var svgX = (event.clientX - rect.left) * width / rect.width;
+      var svgX = (clientX - rect.left) * width / rect.width;
       var ratio = Math.max(0, Math.min(1, (svgX - plot.left) / plot.width));
       return chartMinTime + (chartMaxTime - chartMinTime) * ratio;
     }
@@ -962,157 +1030,112 @@
         ? percentRange(values[low], values[high], 1) : "—";
     }
 
-    function forecastTooltip(point) {
+    function seatRangeText(group, low, high) {
+      var seats = group && group.seats;
+      var lower = seats && historyNumber(seats[low]);
+      var upper = seats && historyNumber(seats[high]);
+      return lower !== null && upper !== null
+        ? grouped(lower) + EN_DASH + grouped(upper) + NBSP + "mandat" : "—";
+    }
+
+    function seatMedianText(group) {
+      var seats = group && group.seats;
+      var median = seats && historyNumber(seats.p50);
+      return median === null ? "—" : grouped(median) + NBSP + "mandat";
+    }
+
+    function forecastDetail(point) {
       if (!point) return "";
       var popPoint = selectedMetric === "vote" ? findPopForDate(point.date) : null;
       var rows = activeDefinitions().map(function (definition) {
         var group = point.groups && point.groups[definition.id];
         var values = historyDisplayQuantiles(group, selectedMetric);
         if (!values) return "";
-        var rawSeats = group.seats ? historyNumber(group.seats.p50) : null;
         var popValue = popPoint && popPoint.values && popPoint.values[definition.id] !== undefined
           ? popPoint.values[definition.id] : null;
-        var popDateLabel = popPoint && popPoint.date !== point.date
-          ? "Poll of Polls (" + (swedishDate(popPoint.date) || popPoint.date) + ")"
-          : "Poll of Polls";
-
-        return "<div class=\"election-timeseries__tooltip-group\"><b>" +
-          escapeHtml(definition.label) + "</b><dl>" +
+        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
+          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
           (selectedMetric === "vote" && popValue !== null
-            ? "<dt>" + escapeHtml(popDateLabel) + "</dt><dd>" + escapeHtml(percent(popValue, 1)) + "</dd>" : "") +
-          "<dt>Valprognos</dt><dd>" + escapeHtml(selectedMetric === "seats" && rawSeats !== null
-            ? grouped(rawSeats) + " mandat (" + percent(values.p50, 1) + ")"
-            : percent(values.p50, 1)) + "</dd>" +
-          "<dt>50 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats" && group.seats
-            ? group.seats.p25 + "–" + group.seats.p75 + " mandat"
-            : rangeTextFor(values, "p25", "p75")) + "</dd>" +
-          "<dt>90 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats" && group.seats
-            ? group.seats.p05 + "–" + group.seats.p95 + " mandat"
-            : rangeTextFor(values, "p05", "p95")) + "</dd>" +
-          "</dl></div>";
-      }).filter(function (row) { return row; }).join("");
-      return "<strong>" + escapeHtml(swedishDate(point.date) || point.date) + "</strong>" + rows +
-        "<dl class=\"election-timeseries__tooltip-meta\">" +
-        "<dt>Simuleringar</dt><dd>" + escapeHtml(historyDaysText(point.samples)) + " simuleringar</dd>" +
-        "<dt>Ursprung</dt><dd>" + escapeHtml(historyProvenanceLabel(point.provenance)) + "</dd>" +
-        "<dt>Horisont</dt><dd>Faktisk tid till valet: " + escapeHtml(historyDaysText(point.horizonDays)) +
-        " dagar · rörelsedel: " + escapeHtml(historyDaysText(point.dynamicsHorizonDays)) + " dagar</dd>" +
+            ? "<dt>Poll of Polls</dt><dd>" + escapeHtml(percent(popValue, 1)) + "</dd>" : "") +
+          "<dt>Valprognos</dt><dd>" + escapeHtml(selectedMetric === "seats"
+            ? seatMedianText(group) : percent(values.p50, 1)) + "</dd>" +
+          "<dt>50 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
+            ? seatRangeText(group, "p25", "p75") : rangeTextFor(values, "p25", "p75")) + "</dd>" +
+          "<dt>90 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
+            ? seatRangeText(group, "p05", "p95") : rangeTextFor(values, "p05", "p95")) + "</dd>" +
+          "</dl></section>";
+      }).filter(function (row) { return row; });
+      return "<h3 class=\"election-timeseries__detail-date\">" +
+        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
+        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
+        "<dl class=\"election-timeseries__detail-meta\">" +
+        "<div><dt>Simuleringar</dt><dd>" + escapeHtml(historyDaysText(point.samples)) + "</dd></div>" +
+        "<div><dt>Ursprung</dt><dd>" + escapeHtml(historyProvenanceLabel(point.provenance)) + "</dd></div>" +
+        "<div><dt>Horisont</dt><dd>" + escapeHtml(historyDaysText(point.horizonDays)) +
+        " dagar · rörelsedel " + escapeHtml(historyDaysText(point.dynamicsHorizonDays)) + " dagar</dd></div>" +
         "</dl>";
     }
 
     function forecastStatus(point) {
       if (!point) return "Välj en punkt i diagrammet för detaljer.";
-      var first = nearestDefinition(point);
-      var group = first && point.groups[first.id];
-      var values = historyDisplayQuantiles(group, selectedMetric);
-      var popPoint = selectedMetric === "vote" ? findPopForDate(point.date) : null;
-      var popValue = popPoint && first && popPoint.values && popPoint.values[first.id] !== undefined
-        ? popPoint.values[first.id] : null;
-      var summary = first && values
-        ? first.label + ": " + (popValue !== null ? "PoP " + percent(popValue, 1) + ", " : "") +
-          "valprognos median " + percent(values.p50, 1) + ", 50 % intervall " +
-          rangeTextFor(values, "p25", "p75") + ", 90 % intervall " + rangeTextFor(values, "p05", "p95")
-        : "Ingen prognosfördelning för valt mått.";
-      return (swedishDate(point.date) || point.date) + " · " + summary + ". " +
+      var descriptions = activeDefinitions().map(function (definition) {
+        var group = point.groups && point.groups[definition.id];
+        var values = historyDisplayQuantiles(group, selectedMetric);
+        if (!values) return "";
+        var median = selectedMetric === "seats" ? seatMedianText(group) : percent(values.p50, 1);
+        return definition.label + ": valprognos " + median;
+      }).filter(function (value) { return value; });
+      return (swedishDate(point.date) || point.date) + " · " + descriptions.join(", ") + ". " +
         historyProvenanceLabel(point.provenance) + ".";
     }
 
-    function pollTooltip(poll, definition) {
-      return "<strong>" + escapeHtml(definition.label) + " · " + escapeHtml(poll.company) + "</strong><dl>" +
-        "<dt>Publicerad</dt><dd>" + escapeHtml(swedishDate(poll.date) || poll.date) + "</dd>" +
-        "<dt>Fältperiod</dt><dd>" + escapeHtml((poll.fieldworkStart || "—") + "–" + (poll.fieldworkEnd || "—")) + "</dd>" +
-        "<dt>Urval</dt><dd>" + escapeHtml(poll.n === null ? "—" : grouped(poll.n)) + "</dd>" +
-        "<dt>Koalitionens röstandel</dt><dd>" + escapeHtml(percent(poll.values[definition.id], 1)) + "</dd>" +
-        "</dl>";
-    }
-
-    function pollStatus(poll, definition) {
-      return (swedishDate(poll.date) || poll.date) + " · " + poll.company + " · " + definition.label +
-        ": " + percent(poll.values[definition.id], 1) + ". Fältperiod " +
-        (poll.fieldworkStart || "—") + "–" + (poll.fieldworkEnd || "—") + ".";
-    }
-
-    function showTooltip(html, statusText, xPercent, persistent) {
-      if (tooltip) {
-        tooltip.innerHTML = html;
-        tooltip.hidden = false;
-        historyTooltipPosition(tooltip, frame, xPercent);
-      }
-      if (liveStatus && statusText) liveStatus.textContent = statusText;
-      if (persistent) svg.setAttribute("data-selected-date", selectedDate === null ? "" :
-        new Date(selectedDate).toISOString().slice(0, 10));
-    }
-
-    function hideTooltip() {
-      if (selectedDate !== null) {
-        var point = selectedPoint || nearestPoint(selectedDate);
-        if (point) {
-          showTooltip(forecastTooltip(point), forecastStatus(point),
-            (point.time - history.points[0].time) /
-              Math.max(1, history.points[history.points.length - 1].time - history.points[0].time), false);
-          return;
+    renderDetail = function (point) {
+      if (!point) {
+        if (detailBody) {
+          detailBody.innerHTML = "";
+          detailBody.hidden = true;
         }
-      }
-      if (selectedPoll) {
-        showTooltip(pollTooltip(selectedPoll.poll, selectedPoll.definition),
-          pollStatus(selectedPoll.poll, selectedPoll.definition),
-          (selectedPoll.poll.time - history.points[0].time) /
-            Math.max(1, history.points[history.points.length - 1].time - history.points[0].time), false);
+        if (liveStatus) {
+          liveStatus.hidden = false;
+          liveStatus.textContent = "Välj en punkt i diagrammet för detaljer.";
+        }
         return;
       }
-      if (tooltip) tooltip.hidden = true;
-      if (liveStatus) liveStatus.textContent = "Välj en punkt i diagrammet för detaljer.";
-    }
-
-    function chooseForecast(point, persistent, event) {
-      if (!point) return;
-      if (persistent) {
-        selectedPoll = null;
-        selectedDate = point.time;
-        selectedPoint = point;
+      if (detailBody) {
+        detailBody.innerHTML = forecastDetail(point);
+        detailBody.hidden = false;
       }
-      var xPercent = (point.time - history.points[0].time) /
-        Math.max(1, history.points[history.points.length - 1].time - history.points[0].time);
-      showTooltip(forecastTooltip(point), forecastStatus(point), xPercent, persistent);
-      if (event && event.preventDefault && persistent) event.preventDefault();
-    }
-
-    function choosePoll(poll, definition, persistent, event) {
-      if (persistent) {
-        selectedDate = null;
-        selectedPoint = null;
-        selectedPoll = { poll: poll, definition: definition };
+      if (liveStatus) {
+        liveStatus.hidden = true;
+        liveStatus.textContent = forecastStatus(point);
       }
-      var xPercent = (poll.time - history.points[0].time) /
-        Math.max(1, history.points[history.points.length - 1].time - history.points[0].time);
-      showTooltip(pollTooltip(poll, definition), pollStatus(poll, definition), xPercent, persistent);
-      if (event && event.stopPropagation) event.stopPropagation();
-      if (event && event.preventDefault && persistent) event.preventDefault();
-    }
+    };
 
     function clearSelection() {
       selectedDate = null;
       selectedPoint = null;
-      selectedPoll = null;
+      pinnedSelection = false;
       svg.removeAttribute("data-selected-date");
-      if (tooltip) tooltip.hidden = true;
-      if (liveStatus) liveStatus.textContent = "Välj en punkt i diagrammet för detaljer.";
+      svg.removeAttribute("data-inspection-date");
+      renderSelection(null);
+      renderDetail(null);
     }
 
     clearTimeseriesSelection = clearSelection;
 
     function renderChart() {
-      // Redrawing changes the metric/visible series; an old selection would
-      // otherwise leave a tooltip describing marks that no longer exist.
-      selectedDate = null;
-      selectedPoint = null;
-      selectedPoll = null;
-      if (tooltip) tooltip.hidden = true;
-      if (liveStatus) liveStatus.textContent = "Välj en punkt i diagrammet för detaljer.";
+      // Keep an inspected date stable while the metric or visible coalitions
+      // change. The detail panel is rebuilt from the newly active series below,
+      // avoiding a distracting collapse-and-expand layout jump.
+      var retainedDate = selectedDate;
+      var retainedPinnedSelection = pinnedSelection;
       var definitions = activeDefinitions();
       var allTimes = history.points.map(function (point) { return point.time; });
       if (history.pop && history.pop.length) {
         history.pop.forEach(function (item) { allTimes.push(item.time); });
+      }
+      if (selectedMetric === "vote" && history.polls && history.polls.length) {
+        history.polls.forEach(function (item) { allTimes.push(item.time); });
       }
       var minTime = Math.min.apply(Math, allTimes);
       var maxTime = Math.max.apply(Math, allTimes);
@@ -1124,34 +1147,21 @@
       var xScale = function (time) {
         return plot.left + (time - minTime) / span * plot.width;
       };
-      var maxValue = selectedMetric === "seats" ? 100 : 0;
-      definitions.forEach(function (definition) {
-        history.points.forEach(function (point) {
-          var values = point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
-          var upper = historyMetricValue(point.groups && point.groups[definition.id], selectedMetric, "p95");
-          if (values && upper !== null) maxValue = Math.max(maxValue, upper);
-        });
-      });
-      if (selectedMetric === "vote" && history.pop && history.pop.length) {
-        history.pop.forEach(function (item) {
-          definitions.forEach(function (definition) {
-            var val = item.values && item.values[definition.id];
-            if (val !== undefined && val !== null) maxValue = Math.max(maxValue, val);
-          });
-        });
-        maxValue = Math.max(60, niceMax(maxValue * 1.12, 5));
-      }
-      maxValue = Math.max(1, maxValue);
+      var yDomain = historyValueDomain(history, selectedMetric, definitions);
+      var minValue = yDomain.min;
+      var maxValue = yDomain.max;
       var yScale = function (value) {
         var parsed = historyNumber(value);
         if (parsed === null) return plot.bottom;
-        return plot.bottom - Math.max(0, Math.min(maxValue, parsed)) / maxValue * plot.height;
+        return plot.bottom - (parsed - minValue) / Math.max(1, maxValue - minValue) * plot.height;
       };
 
       svg.innerHTML = "";
+      svg.setAttribute("viewBox", "0 0 " + width + " " + height);
       svg.setAttribute("data-metric", selectedMetric);
-      svg.setAttribute("data-y-min", "0");
+      svg.setAttribute("data-y-min", String(minValue));
       svg.setAttribute("data-y-max", String(maxValue));
+      svg.setAttribute("data-y-domain", String(minValue) + "–" + String(maxValue));
       svg.setAttribute("data-dynamics-cutoff", HISTORY_DYNAMICS_CUTOFF);
       svg.setAttribute("data-dynamics-horizon-cap", String(HISTORY_DYNAMICS_CAP));
       svg.setAttribute("data-majority-rule", String(MAJORITY));
@@ -1161,18 +1171,28 @@
         "Median och 50- samt 90-procentiga prognosintervall från " +
         (swedishDate(history.points[0].date) || history.points[0].date) + " till " +
         (swedishDate(history.points[history.points.length - 1].date) || history.points[history.points.length - 1].date) +
-        ". I röstandelsläget visas även Poll of Polls."));
+        ". Skalan är anpassad efter de valda serierna." +
+        (selectedMetric === "vote" ? " I röstandelsläget visas även Poll of Polls och enskilda mätningar." : "")));
+
+      var plotDefs = svgNode("defs");
+      var plotClip = svgNode("clipPath", { id: "election-timeseries-plot-clip" });
+      plotClip.appendChild(svgNode("rect", {
+        x: plot.left, y: plot.top, width: plot.width, height: plot.height
+      }));
+      plotDefs.appendChild(plotClip);
+      svg.appendChild(plotDefs);
 
       var background = svgNode("g", { class: "election-timeseries__background", "aria-hidden": "true" });
-      var yStep = selectedMetric === "seats" ? 25 : (maxValue <= 35 ? 5 : 10);
-      for (var yValue = 0; yValue <= maxValue + 0.001; yValue += yStep) {
+      var yStep = (maxValue - minValue) <= 40 ? 5 : 10;
+      for (var yValue = minValue; yValue <= maxValue + 0.001; yValue += yStep) {
         var y = yScale(yValue);
         background.appendChild(svgNode("line", {
           x1: plot.left, y1: y, x2: plot.right, y2: y,
           class: "election-timeseries__grid-line"
         }));
         background.appendChild(svgNode("text", {
-          x: plot.left - 8, y: y + 5, "text-anchor": "end", class: "election-timeseries__axis-label"
+          x: plot.left - 10, y: y + 4, "text-anchor": "end", class: "election-timeseries__axis-label",
+          "data-y-tick": String(yValue)
         }, format(yValue, 0) + "%"));
       }
       background.appendChild(svgNode("line", {
@@ -1195,12 +1215,6 @@
       var cutoffInfo = historyDate(HISTORY_DYNAMICS_CUTOFF);
       var cutoffX = cutoffInfo ? xScale(Math.max(minTime, Math.min(maxTime, cutoffInfo.time))) : null;
       if (cutoffX !== null) {
-        if (cutoffInfo.time > minTime) {
-          background.appendChild(svgNode("rect", {
-            x: plot.left, y: plot.top, width: Math.max(0, cutoffX - plot.left), height: plot.height,
-            class: "election-timeseries__precap", "data-region": "pre-112-days"
-          }));
-        }
         background.appendChild(svgNode("line", {
           x1: cutoffX, y1: plot.top, x2: cutoffX, y2: plot.bottom,
           class: "election-timeseries__dynamics-marker election-timeseries__marker", "data-date": HISTORY_DYNAMICS_CUTOFF,
@@ -1213,6 +1227,10 @@
         }, "24 maj 2026 · 112 dagar"));
       }
       var dateTicks = historyAxisTicks(minTime, maxTime);
+      if (compactChart && dateTicks.length > 1 &&
+          dateTicks[1].time - dateTicks[0].time < 180 * 86400000) {
+        dateTicks.shift();
+      }
       dateTicks.forEach(function (tick, tickIndex) {
         var x = xScale(tick.time);
         background.appendChild(svgNode("line", {
@@ -1226,17 +1244,17 @@
         }, tick.label));
       });
       background.appendChild(svgNode("text", {
-        x: plot.right, y: height - 8, "text-anchor": "end", class: "election-timeseries__axis-label"
+        x: plot.left, y: height - 8, "text-anchor": "start", class: "election-timeseries__axis-label"
       }, historyMetricLabel(selectedMetric)));
       svg.appendChild(background);
 
       var seriesLayer = svgNode("g", { class: "election-timeseries__series", "aria-label": "Prognosserier" });
+      var endpointLabels = [];
       definitions.forEach(function (definition) {
         var validPoints = history.points.filter(function (point) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
         if (!validPoints.length) return;
-        validPoints.forEach(function (point) { point._definitionId = definition.id; });
         var group = svgNode("g", {
           class: "election-timeseries__series-group" + (definition.defaultOn ? " is-primary" : ""),
           "data-coalition": definition.id,
@@ -1288,27 +1306,137 @@
             "data-raw-p50": selectedMetric === "seats" ? rawPointValues.p50 : "",
             "data-raw-p75": selectedMetric === "seats" ? rawPointValues.p75 : "",
             "data-raw-p95": selectedMetric === "seats" ? rawPointValues.p95 : "",
-            "data-current": current ? "true" : "false", tabindex: "0", role: "img",
+            "data-current": current ? "true" : "false", "data-forecast-point": "true", tabindex: "0", role: "img",
             "aria-label": definition.label + ", " + (swedishDate(point.date) || point.date) +
               ": median " + percent(pointValues.p50, 1)
           });
           if (pointCircle.addEventListener) {
             pointCircle.addEventListener("mouseenter", function (event) { chooseForecast(point, false, event); });
             pointCircle.addEventListener("focus", function (event) { chooseForecast(point, false, event); });
-            pointCircle.addEventListener("mouseleave", hideTooltip);
+            pointCircle.addEventListener("mouseleave", hideInspection);
+            pointCircle.addEventListener("blur", hideInspection);
             pointCircle.addEventListener("click", function (event) { chooseForecast(point, true, event); });
             pointCircle.addEventListener("keydown", function (event) {
               if (event && (event.key === "Enter" || event.key === " ")) {
                 if (event.preventDefault) event.preventDefault();
                 chooseForecast(point, true, event);
+              } else if (event && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+                if (event.preventDefault) event.preventDefault();
+                chooseForecast(nearestPoint(point.time, event.key === "ArrowRight" ? 1 : -1), true, event);
               }
             });
           }
           group.appendChild(pointCircle);
+          if (current && pointValues.p50 !== null) {
+            endpointLabels.push({
+              definition: definition,
+              value: pointValues.p50,
+              text: selectedMetric === "seats" ? seatMedianText(point.groups[definition.id]) : percent(pointValues.p50, 1),
+              x: xScale(point.time) + 9,
+              y: yScale(pointValues.p50)
+            });
+          }
         });
         seriesLayer.appendChild(group);
       });
+
+      // Endpoint values are deliberately the only numeric labels on the
+      // series.  Sort and nudge them apart so the latest coalition values stay
+      // legible even when several alternatives converge.
+      endpointLabels.sort(function (left, right) { return left.y - right.y; });
+      var endpointGap = compactChart ? 20 : 16;
+      endpointLabels.forEach(function (label, index) {
+        if (index > 0) label.y = Math.max(label.y, endpointLabels[index - 1].y + endpointGap);
+      });
+      if (endpointLabels.length) {
+        var endpointOverflow = endpointLabels[endpointLabels.length - 1].y - (plot.bottom - 3);
+        if (endpointOverflow > 0) {
+          endpointLabels.forEach(function (label) { label.y -= endpointOverflow; });
+        }
+        endpointLabels.forEach(function (label) {
+          label.y = Math.max(plot.top + 8, Math.min(plot.bottom - 3, label.y));
+          seriesLayer.appendChild(svgNode("text", {
+            x: label.x, y: label.y + 4, "text-anchor": "start",
+            class: "election-timeseries__endpoint-label",
+            fill: label.definition.color, "data-endpoint-label": "true",
+            "data-coalition": label.definition.id, "data-value": label.value,
+            "data-label-value": label.text
+          }, label.text));
+        });
+      }
       svg.appendChild(seriesLayer);
+
+      if (selectedMetric === "vote" && history.polls && history.polls.length) {
+        var scatterLayer = svgNode("g", {
+          class: "election-timeseries__polls", "aria-hidden": "true",
+          "clip-path": "url(#election-timeseries-plot-clip)"
+        });
+        definitions.forEach(function (definition) {
+          history.polls.forEach(function (poll) {
+            var pollValue = poll.values && historyNumber(poll.values[definition.id]);
+            if (pollValue === null) return;
+            scatterLayer.appendChild(svgNode("circle", {
+              class: "election-timeseries__poll", cx: xScale(poll.time), cy: yScale(pollValue),
+              r: compactChart ? 3.2 : 3.5, fill: definition.color,
+              "data-poll-point": "true", "data-poll": "true",
+              "data-coalition": definition.id, "data-date": poll.date,
+              "data-company": poll.company, "data-value": pollValue
+            }));
+          });
+        });
+        svg.appendChild(scatterLayer);
+      }
+
+      var selectionLayer = svgNode("g", {
+        class: "election-timeseries__selection", "aria-hidden": "true"
+      });
+      renderSelection = function (point) {
+        selectionLayer.innerHTML = "";
+        if (!point) {
+          svg.removeAttribute("data-selected-date");
+          svg.removeAttribute("data-inspection-date");
+          return;
+        }
+        var iso = point.date;
+        var x = xScale(point.time);
+        selectionLayer.appendChild(svgNode("line", {
+          x1: x, y1: plot.top, x2: x, y2: plot.bottom,
+          class: "election-timeseries__crosshair", "data-timeseries-crosshair": "true",
+          "data-date": iso
+        }));
+        definitions.forEach(function (definition) {
+          var group = point.groups && point.groups[definition.id];
+          var values = historyDisplayQuantiles(group, selectedMetric);
+          if (!values || values.p50 === null) return;
+          selectionLayer.appendChild(svgNode("circle", {
+            cx: x, cy: yScale(values.p50), r: 5.5,
+            class: "election-timeseries__inspection-point election-timeseries__selected-point",
+            fill: definition.color, stroke: "#fff", "data-inspection-marker": "true",
+            "data-marker": "selected-date", "data-coalition": definition.id,
+            "data-date": iso, "data-value": values.p50,
+            "aria-label": definition.label + ", " + (swedishDate(iso) || iso) +
+              ": markerad median " + percent(values.p50, 1)
+          }));
+        });
+        svg.setAttribute("data-selected-date", iso);
+        svg.setAttribute("data-inspection-date", iso);
+      };
+      svg.appendChild(selectionLayer);
+
+      var retainedPoint = retainedDate === null ? null : nearestPoint(retainedDate);
+      if (retainedPoint) {
+        selectedDate = retainedPoint.time;
+        selectedPoint = retainedPoint;
+        pinnedSelection = retainedPinnedSelection;
+        renderSelection(retainedPoint);
+        renderDetail(retainedPoint);
+      } else {
+        selectedDate = null;
+        selectedPoint = null;
+        pinnedSelection = false;
+        renderSelection(null);
+        renderDetail(null);
+      }
 
       var hit = svgNode("rect", {
         class: "election-timeseries__hit", x: plot.left, y: plot.top,
@@ -1323,21 +1451,54 @@
       if (hit.addEventListener) {
         hit.addEventListener("mouseenter", function (event) { chooseByEvent(event, false); });
         hit.addEventListener("mousemove", function (event) { chooseByEvent(event, false); });
-        hit.addEventListener("mouseleave", hideTooltip);
+        hit.addEventListener("mouseleave", hideInspection);
         hit.addEventListener("click", function (event) { chooseByEvent(event, true); });
-        hit.addEventListener("keydown", function (event) {
-          if (event && (event.key === "Enter" || event.key === " ")) {
-            if (event.preventDefault) event.preventDefault();
-            chooseForecast(nearestPoint(maxTime), true, event);
-          } else if (event && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-            if (event.preventDefault) event.preventDefault();
-            chooseForecast(nearestPoint(selectedDate === null ? maxTime : selectedDate,
-              event.key === "ArrowRight" ? 1 : -1), true, event);
-          }
-        });
+        hit.addEventListener("touchstart", function (event) {
+          chooseByEvent(event, true);
+        }, { passive: false });
       }
       svg.appendChild(hit);
+      keyboardSelect = function (event) {
+        // Point circles own their Enter/Arrow interaction.  This handler is
+        // for the SVG and the plot hit target, which are the keyboard entry
+        // points for users who do not tab through every historical mark.
+        if (event && event.target !== svg && event.target !== hit) return;
+        if (event && (event.key === "Enter" || event.key === " ")) {
+          if (event.preventDefault) event.preventDefault();
+          chooseForecast(nearestPoint(maxTime), true, event);
+        } else if (event && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+          if (event.preventDefault) event.preventDefault();
+          chooseForecast(nearestPoint(selectedDate === null ? maxTime : selectedDate,
+            event.key === "ArrowRight" ? 1 : -1), true, event);
+        }
+      };
+      if (!svg.__timeseriesKeyboardBound) {
+        svg.addEventListener("keydown", function (event) { keyboardSelect(event); });
+        svg.__timeseriesKeyboardBound = true;
+      }
       setModeButtons();
+    }
+
+    function chooseForecast(point, persistent, event) {
+      if (!point || (!persistent && pinnedSelection)) return;
+      selectedDate = point.time;
+      selectedPoint = point;
+      if (persistent) pinnedSelection = true;
+      renderSelection(point);
+      renderDetail(point);
+      if (event && event.preventDefault && persistent) event.preventDefault();
+    }
+
+    function hideInspection() {
+      if (pinnedSelection && selectedPoint) {
+        renderSelection(selectedPoint);
+        renderDetail(selectedPoint);
+        return;
+      }
+      selectedDate = null;
+      selectedPoint = null;
+      renderSelection(null);
+      renderDetail(null);
     }
 
     if (coalitionHost) {
