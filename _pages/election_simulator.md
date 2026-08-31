@@ -205,10 +205,20 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
           r_e &amp;= \text{valresultat}_e - \text{slutligt mätläge}_e \\[6pt]
           \tilde{r}_e &amp;= r_e - \operatorname{medel}(r)
         \end{aligned}\]</div>
-        <p>Ett historiskt, centrerat fel dras gemensamt för alla partier och läggs på den simulerade röstandelen.</p>
+        <p>De centrerade felen används inte ett i taget. I stället skattas en gemensam kovariansmatris för hur partiernas fel samvarierar:</p>
+        <div class="election-equation">\[ S_P = \frac{1}{K}\sum_{e} \tilde{r}_e\,\tilde{r}_e^{\top} \]</div>
+        <p>Med bara en handfull historiska val blir en sådan skattning instabil och kan bli starkt beroende av ett enskilt val. Därför dras den mot ett neutralt mål <var>T</var>, som lägger lika stor osäkerhet i alla riktningar där partiernas fel tar ut varandra:</p>
+        <div class="election-equation">\[\begin{aligned}
+          T &amp;= \tau^{2}\left(I - \tfrac{1}{9}\mathbf{1}\mathbf{1}^{\top}\right) \\[6pt]
+          \tilde{\Sigma} &amp;= \frac{K}{K-1}\left[\delta\,T + (1-\delta)\,S_P\right]
+        \end{aligned}\]</div>
+        <p>Vikten <var>δ</var> ligger mellan 0 och 1 och räknas fram direkt ur de historiska felen. Den är alltså inte en inställning som kan justeras för hand.</p>
+        <p>Valdagsfelet dras sedan gemensamt och kontinuerligt ur en flerdimensionell normalfördelning:</p>
+        <div class="election-equation">\[ r \sim \mathcal{N}\!\left(0,\; \tilde{\Sigma}\right) \]</div>
+        <p>Partierna får alltså inte oberoende fel. Har två partier historiskt missbedömts åt samma håll följer den samvariationen med i draget, och felen summerar alltid till noll så att röstandelarna fortfarande går ihop. Centreringen innebär att modellen använder felens historiska storlek och samvariation utan att anta att tidigare fel i en viss riktning upprepas.</p>
         <p>För att ingen röstandel ska bli negativ skalas felet vid behov:</p>
-        <div class="election-equation">\[ p' = p + \lambda\,\tilde{r}, \qquad 0 \le \lambda \le 1 \]</div>
-        <p>I praktiken är <var>λ</var> nästan alltid nära 1. Centreringen innebär att modellen använder den historiska storleken och samvariationen i mätfelen utan att anta att tidigare fel i en viss riktning upprepas.</p>
+        <div class="election-equation">\[ p' = p + \lambda\,r, \qquad 0 \le \lambda \le 1 \]</div>
+        <p>I praktiken är <var>λ</var> nästan alltid 1. Skalningen används bara när ett drag annars skulle pressa ett litet parti under noll.</p>
         <p>Den här osäkerheten försvinner därför inte helt bara för att valdagen närmar sig.</p>
         <h3 class="election-subhead">4. Från nationella röster till 29 valkretsar</h3>
         <p>Varje simulerat nationellt resultat måste därefter fördelas geografiskt. Modellen utgår från partiernas geografiska mönster i föregående val och använder deterministisk biproportionell raking, även kallad IPF.</p>

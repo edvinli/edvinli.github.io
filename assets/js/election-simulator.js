@@ -3326,12 +3326,20 @@
       "f\u00f6rdelas \u00f6ver de 29 valkretsarna och r\u00e4knas om till mandat enligt svenska valregler.</p>");
     blocks.push("<p>De historiska testerna \u00e4r gjorda i efterhand och \u00e4r inte ett oberoende test " +
       "p\u00e5 nya data.</p>");
+    // The published calibration evidence was produced under the previous model and is
+    // deliberately not regenerated, so the page must say which model it describes.
+    // Presenting v1.0-rc1 hindcasts under a v1.1 forecast without that sentence would
+    // read as a validation of the adopted election-day error model, which it is not.
+    blocks.push("<p>Den h\u00e4r efterhandsutv\u00e4rderingen avser den tidigare modellen " +
+      "v1.0-rc1. Den visas som historisk dokumentation och ska inte tolkas som en separat " +
+      "utv\u00e4rdering av den nya valdagsfelsmodellen i v1.1.</p>");
 
     var coverage = coverageRow(sources.vote_share_hindcast);
     if (coverage) {
       blocks.push("<h3 class=\"election-subhead\">Historisk tr\u00e4ffs\u00e4kerhet f\u00f6r prognosintervall</h3>" +
         "<p>Tabellen visar hur ofta valresultatet l\u00e5g inom modellens intervall i " +
-        "efterhandsutv\u00e4rderingen av valen 2018 och 2022. Det \u00e4r ingen garanti f\u00f6r 2026.</p>" +
+        "efterhandsutv\u00e4rderingen av valen 2018 och 2022, ber\u00e4knad med den tidigare " +
+        "modellen v1.0-rc1. Det \u00e4r ingen garanti f\u00f6r 2026.</p>" +
         "<table class=\"ev-validation-table\"><thead><tr>" +
         "<th scope=\"col\">Intervall</th><th scope=\"col\">Utfall inom intervallet</th><th scope=\"col\">Genomsnittlig bredd</th>" +
         "</tr></thead><tbody>" +
