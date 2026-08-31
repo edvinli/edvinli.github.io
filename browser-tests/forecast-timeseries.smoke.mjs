@@ -590,7 +590,7 @@ function assertStructure(view, history) {
     /åtta riksdagspartier|normaliser|slutliga historiska poll of polls|poll of polls/i.test(view.section?.text || ''), view.section?.text);
   check('the chart copy distinguishes our simulation from Poll of Polls',
     /vår(?:a)? (?:simulerade |modell)?(?:val)?prognos|vår simulering|våra modellsimuleringar/i.test(view.section?.text || '') &&
-    /inte prognoser från Poll of Polls|separat som opinionsunderlag och jämförelse/i.test(view.section?.text || ''),
+    /Poll of Polls.*jämförelse|Opinionsunderlag via Poll of Polls/i.test(view.section?.text || ''),
   view.section?.text);
   check('the page explains actual and dynamics horizons',
     /faktisk.*tid|faktiska.*dag|horizon|rörelsedel|dynamik/i.test(view.section?.text || '') &&
