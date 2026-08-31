@@ -352,6 +352,7 @@ function readPage(browser) {
       })),
       medianCount: svg ? Array.from(svg.querySelectorAll(selectors.median)).filter(visible).length : 0,
       popLineCount: popLines.filter(visible).length,
+      popLegendCount: section ? section.querySelectorAll('#election-timeseries-key-pop').length : 0,
       band90Count: svg ? Array.from(svg.querySelectorAll(selectors.band90)).filter(visible).length : 0,
       band50Count: svg ? Array.from(svg.querySelectorAll(selectors.band50)).filter(visible).length : 0,
       currentCount: svg ? Array.from(svg.querySelectorAll('.election-timeseries__current, [data-current="true"]')).filter(visible).length : 0,
@@ -569,7 +570,8 @@ function assertStructure(view, history) {
   check('the chart has both 50% and 90% forecast bands', view.band90Count >= 2 && view.band50Count >= 2,
     { band90: view.band90Count, band50: view.band50Count });
   check('median forecast lines are visible', view.medianCount >= 2, view.medianCount);
-  check('Poll of Polls lines are visible in vote mode', view.popLineCount >= 2, view.popLineCount);
+  equal('Poll of Polls line is absent from vote mode', view.popLineCount, 0);
+  equal('Poll of Polls line is absent from the legend', view.popLegendCount, 0);
   check('individual poll observations are visible in vote mode', view.pollCount >= history.polls.length * 2,
     { rendered: view.pollCount, polls: history.polls.length });
   check('the latest forecast value is visibly marked', view.currentCount >= 2, view.currentCount);
@@ -638,7 +640,7 @@ async function exercise(viewport, history, siteRoot) {
 
     // Both the aggregate Poll of Polls and faded individual observations are
     // visible in vote-share mode.
-    check('Poll of Polls lines appear in vote-share mode', view.popLineCount >= 2, view.popLineCount);
+    equal('Poll of Polls line remains absent in vote-share mode', view.popLineCount, 0);
     check('individual poll dots appear for both default coalitions', view.pollCount >= history.polls.length * 2,
       { rendered: view.pollCount, polls: history.polls.length });
 
@@ -668,7 +670,7 @@ async function exercise(viewport, history, siteRoot) {
     await settle();
     view = await readPage(browser);
     check('Röstandel is pressed', findLabel(view.views, ['Röstandel'])?.pressed === 'true', view.views);
-    check('vote-share mode restores Poll of Polls lines', view.popLineCount >= 2, view.popLineCount);
+    equal('vote-share mode does not restore the Poll of Polls line', view.popLineCount, 0);
     check('vote-share mode restores individual poll dots', view.pollCount >= history.polls.length * 2,
       { rendered: view.pollCount, polls: history.polls.length });
 
