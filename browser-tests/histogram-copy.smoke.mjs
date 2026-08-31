@@ -15,7 +15,7 @@ const DESKTOP = { width: 1280, height: 1000 };
 const MOBILE = { width: 390, height: 844 };
 const NBSP = '\u00a0';
 const HISTOGRAM_LINK = '#election-government-histogram';
-const TARGET_GENERATION = '20260828T201250Z-1da59168';
+const TARGET_GENERATION = '20260831T170410Z-1f5e0506';
 
 let failures = 0;
 let checks = 0;
@@ -167,16 +167,16 @@ async function desktop() {
     for (const party of ['S', 'V', 'MP']) check(`${party} selects`, await dragParty(browser, party));
     copy = await readCopy(browser);
     equal('the compact summary uses the published values', copy.summaryLine,
-      `Median: 165 mandat · Majoritet: 2,22${NBSP}% · Visa mandatfördelningen ↓`);
+      `Median: 164 mandat · Majoritet: 4,28${NBSP}% · Visa mandatfördelningen ↓`);
     equal('the link targets the histogram', copy.linkHref, HISTOGRAM_LINK);
     equal('the histogram heading is concise', copy.heading, 'Mandatfördelning');
     equal('the denominator is explained once and dynamically', copy.context,
       `S + V + MP. Varje stapel visar hur ofta regeringen fick ett visst antal mandat i modellens 100${NBSP}000 simuleringar.`);
-    equal('the majority percentage is the published probability', copy.majorityShare, `2,22${NBSP}%`);
+    equal('the majority percentage is the published probability', copy.majorityShare, `4,28${NBSP}%`);
     equal('the majority count uses the exact histogram', copy.majorityDetail,
-      `2${NBSP}216 av 100${NBSP}000 simuleringar gav minst 175 mandat.`);
+      `4${NBSP}283 av 100${NBSP}000 simuleringar gav minst 175 mandat.`);
     equal('the bottom summary is short and dynamic', copy.bottom,
-      `S + V + MP fick majoritet i 2,22${NBSP}% av simuleringarna. Utfallet varierade mellan 144 och 188 mandat.`);
+      `S + V + MP fick majoritet i 4,28${NBSP}% av simuleringarna. Utfallet varierade mellan 132 och 195 mandat.`);
     check('the old repetitive prose is gone',
       !copy.context.includes('Fördelningen visar') &&
       !copy.bottom.includes('skrafferade') && !copy.bottom.includes('Fokusera'), copy);
@@ -185,7 +185,7 @@ async function desktop() {
     copy = await readCopy(browser);
     equal('the focused bin states an exact seat value',
       await browser.evaluate(() => document.getElementById('election-government-histogram-status').textContent),
-      `Exakt 175 mandat: 997 simuleringar (1,00${NBSP}%)`);
+      `Exakt 175 mandat: 1${NBSP}262 simuleringar (1,26${NBSP}%)`);
     const reached = await clickReachesHistogram(browser);
     check('clicking the summary link reaches the histogram',
       reached.targetVisible && reached.scrollY > 0 && reached.targetTop > -80 && reached.targetTop < 140,

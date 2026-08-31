@@ -1223,15 +1223,28 @@
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
         if (!validPoints.length) return;
+        // The continuous line and bands answer "what would the CURRENT model have
+        // forecast through time".  A prospective_archived point answers a different
+        // question -- "what was actually published that day", under whatever model
+        // was current then.  Threading the two into one polyline would render a
+        // model revision as a movement in voter opinion, so archived points are
+        // drawn as separate markers and are never vertices of the curve.
+        var curvePoints = validPoints.filter(function (point) {
+          return point.provenance !== "prospective_archived";
+        });
+        var archivedPoints = validPoints.filter(function (point) {
+          return point.provenance === "prospective_archived";
+        });
+        if (!curvePoints.length) return;
         var group = svgNode("g", {
           class: "election-timeseries__series-group" + (definition.defaultOn ? " is-primary" : ""),
           "data-coalition": definition.id,
           "data-coalition-label": definition.label,
           "data-color": definition.color,
-          "data-provenance": validPoints[validPoints.length - 1].provenance
+          "data-provenance": curvePoints[curvePoints.length - 1].provenance
         });
-        var ninety = historyAreaPath(validPoints, selectedMetric, definition.id, xScale, yScale, "p95", "p05");
-        var fifty = historyAreaPath(validPoints, selectedMetric, definition.id, xScale, yScale, "p75", "p25");
+        var ninety = historyAreaPath(curvePoints, selectedMetric, definition.id, xScale, yScale, "p95", "p05");
+        var fifty = historyAreaPath(curvePoints, selectedMetric, definition.id, xScale, yScale, "p75", "p25");
         if (ninety) group.appendChild(svgNode("path", {
           class: "election-timeseries__band election-timeseries__band--90 election-timeseries__band-p90",
           d: ninety, fill: definition.color, "data-coalition": definition.id, "data-quantile": "p05-p95",
@@ -1242,19 +1255,22 @@
           d: fifty, fill: definition.color, "data-coalition": definition.id, "data-quantile": "p25-p75",
           "data-timeseries-band": "50", "data-interval": "50"
         }));
-        var medianPath = historyAreaPath(validPoints, selectedMetric, definition.id, xScale, yScale, "p50", "p50");
+        var medianPath = historyAreaPath(curvePoints, selectedMetric, definition.id, xScale, yScale, "p50", "p50");
         if (medianPath) group.appendChild(svgNode("path", {
           class: "election-timeseries__line election-timeseries__median", d: medianPath, stroke: definition.color,
           "data-coalition": definition.id, "data-quantile": "p50"
         }));
-        var latest = validPoints[validPoints.length - 1];
-        validPoints.forEach(function (point) {
+        var latest = curvePoints[curvePoints.length - 1];
+        curvePoints.concat(archivedPoints).forEach(function (point) {
           var rawPointValues = point.groups[definition.id][selectedMetric];
           var pointValues = historyDisplayQuantiles(point.groups[definition.id], selectedMetric);
           var current = point === latest;
+          var archived = point.provenance === "prospective_archived";
           var pointCircle = svgNode("circle", {
-            class: "election-timeseries__forecast-point" + (current ? " election-timeseries__current" : ""),
-            cx: xScale(point.time), cy: yScale(pointValues.p50), r: current ? 5 : 2.7,
+            class: "election-timeseries__forecast-point"
+              + (current ? " election-timeseries__current" : "")
+              + (archived ? " election-timeseries__archived" : ""),
+            cx: xScale(point.time), cy: yScale(pointValues.p50), r: current ? 5 : (archived ? 4 : 2.7),
             fill: definition.color, "data-coalition": definition.id, "data-date": point.date,
             "data-provenance": point.provenance,
             "data-metric": selectedMetric, "data-p05": pointValues.p05,
@@ -2590,10 +2606,16 @@
   // panel built on the coalition table stays hidden.  Validating once and
   // sharing the result keeps the two views on provably the same payload.
   function validatedCoalitionBuilder(groups, totalSamples) {
-    if (!groups || (groups.schema_version !== "1.2" && groups.schema_version !== "1.3")) {
+    // 1.4 is 1.3 plus metadata only (election_noise_law / election_noise_candidate);
+    // groups.json keeps the 1.3 coalition contract, histograms included.  Without
+    // accepting it the builder returns null and every panel built on the coalition
+    // table silently vanishes from a perfectly valid publication.
+    var COALITION_SCHEMAS = ["1.2", "1.3", "1.4"];
+    var HISTOGRAM_SCHEMAS = ["1.3", "1.4"];
+    if (!groups || COALITION_SCHEMAS.indexOf(groups.schema_version) === -1) {
       return null;
     }
-    var histogramRequired = groups.schema_version === "1.3";
+    var histogramRequired = HISTOGRAM_SCHEMAS.indexOf(groups.schema_version) !== -1;
     if (!validCoalitionBuilder(groups.coalition_builder, histogramRequired, totalSamples)) {
       return null;
     }
@@ -3356,6 +3378,9 @@
       ["Opinionsl\u00e4ge", metadata.as_of || "\u2014"],
       ["Valdag", metadata.election_date || "\u2014"],
       ["Modell", (metadata.model && metadata.model.version) || "\u2014"],
+      ["Valresultatsbrus", metadata.election_noise_law
+        ? metadata.election_noise_law + " (kandidat " + (metadata.election_noise_candidate || "\u2014") + ")"
+        : "\u2014"],
       ["K\u00e4llkodsversion", metadata.source_git_commit || "\u2014"],
       ["Prognos-hash", metadata.deterministic_payload_sha256 || (manifest && manifest.deterministic_payload_sha256) || "\u2014"],
       ["K\u00e4llkodsl\u00e4ge", metadata.source_worktree_clean === true
