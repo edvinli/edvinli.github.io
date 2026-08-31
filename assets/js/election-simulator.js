@@ -485,7 +485,6 @@
   // seats.
   // ---------------------------------------------------------------------
   var HISTORY_PARTIES = ["M", "L", "C", "KD", "S", "V", "MP", "SD"];
-  var HISTORY_DYNAMICS_CUTOFF = "2026-05-24";
   var HISTORY_DYNAMICS_CAP = 112;
   var HISTORY_COALITIONS = [
     { id: "red_green_center", label: "V + MP + S + C", parties: ["V", "MP", "S", "C"], color: "#bd3348", defaultOn: true },
@@ -1057,7 +1056,7 @@
           escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
           (selectedMetric === "vote" && popValue !== null
             ? "<dt>Poll of Polls</dt><dd>" + escapeHtml(percent(popValue, 1)) + "</dd>" : "") +
-          "<dt>Valprognos</dt><dd>" + escapeHtml(selectedMetric === "seats"
+          "<dt>Vår simulering</dt><dd>" + escapeHtml(selectedMetric === "seats"
             ? seatMedianText(group) : percent(values.p50, 1)) + "</dd>" +
           "<dt>50 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
             ? seatRangeText(group, "p25", "p75") : rangeTextFor(values, "p25", "p75")) + "</dd>" +
@@ -1083,7 +1082,7 @@
         var values = historyDisplayQuantiles(group, selectedMetric);
         if (!values) return "";
         var median = selectedMetric === "seats" ? seatMedianText(group) : percent(values.p50, 1);
-        return definition.label + ": valprognos " + median;
+        return definition.label + ": vår simulering " + median;
       }).filter(function (value) { return value; });
       return (swedishDate(point.date) || point.date) + " · " + descriptions.join(", ") + ". " +
         historyProvenanceLabel(point.provenance) + ".";
@@ -1162,17 +1161,16 @@
       svg.setAttribute("data-y-min", String(minValue));
       svg.setAttribute("data-y-max", String(maxValue));
       svg.setAttribute("data-y-domain", String(minValue) + "–" + String(maxValue));
-      svg.setAttribute("data-dynamics-cutoff", HISTORY_DYNAMICS_CUTOFF);
       svg.setAttribute("data-dynamics-horizon-cap", String(HISTORY_DYNAMICS_CAP));
       svg.setAttribute("data-majority-rule", String(MAJORITY));
       svg.appendChild(svgNode("title", { id: "election-timeseries-title" },
         "Prognos över tid, " + historyMetricLabel(selectedMetric)));
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
-        "Median och 50- samt 90-procentiga prognosintervall från " +
+        "Vår simulerade valprognos med median och 50- samt 90-procentiga prognosintervall från " +
         (swedishDate(history.points[0].date) || history.points[0].date) + " till " +
         (swedishDate(history.points[history.points.length - 1].date) || history.points[history.points.length - 1].date) +
         ". Skalan är anpassad efter de valda serierna." +
-        (selectedMetric === "vote" ? " I röstandelsläget visas även Poll of Polls och enskilda mätningar." : "")));
+        (selectedMetric === "vote" ? " Poll of Polls och enskilda mätningar visas separat som opinionsunderlag och jämförelse." : "")));
 
       var plotDefs = svgNode("defs");
       var plotClip = svgNode("clipPath", { id: "election-timeseries-plot-clip" });
@@ -1211,20 +1209,6 @@
           x: plot.right - 4, y: majorityY - 6, "text-anchor": "end",
           class: "election-timeseries__majority-label"
         }, "175 mandat"));
-      }
-      var cutoffInfo = historyDate(HISTORY_DYNAMICS_CUTOFF);
-      var cutoffX = cutoffInfo ? xScale(Math.max(minTime, Math.min(maxTime, cutoffInfo.time))) : null;
-      if (cutoffX !== null) {
-        background.appendChild(svgNode("line", {
-          x1: cutoffX, y1: plot.top, x2: cutoffX, y2: plot.bottom,
-          class: "election-timeseries__dynamics-marker election-timeseries__marker", "data-date": HISTORY_DYNAMICS_CUTOFF,
-          "data-dynamics-marker": "true", "data-dynamics-horizon-days": String(HISTORY_DYNAMICS_CAP)
-        }));
-        background.appendChild(svgNode("text", {
-          x: Math.min(plot.right - 4, Math.max(plot.left + 4, cutoffX + 6)), y: plot.top - 9,
-          class: "election-timeseries__dynamics-label",
-          "text-anchor": cutoffX > plot.right - 100 ? "end" : "start"
-        }, "24 maj 2026 · 112 dagar"));
       }
       var dateTicks = historyAxisTicks(minTime, maxTime);
       if (compactChart && dateTicks.length > 1 &&
@@ -1315,14 +1299,14 @@
             pointCircle.addEventListener("focus", function (event) { chooseForecast(point, false, event); });
             pointCircle.addEventListener("mouseleave", hideInspection);
             pointCircle.addEventListener("blur", hideInspection);
-            pointCircle.addEventListener("click", function (event) { chooseForecast(point, true, event); });
+            pointCircle.addEventListener("click", function (event) { chooseForecast(point, false, event); });
             pointCircle.addEventListener("keydown", function (event) {
               if (event && (event.key === "Enter" || event.key === " ")) {
                 if (event.preventDefault) event.preventDefault();
-                chooseForecast(point, true, event);
+                chooseForecast(point, false, event);
               } else if (event && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
                 if (event.preventDefault) event.preventDefault();
-                chooseForecast(nearestPoint(point.time, event.key === "ArrowRight" ? 1 : -1), true, event);
+                chooseForecast(nearestPoint(point.time, event.key === "ArrowRight" ? 1 : -1), false, event);
               }
             });
           }
@@ -1452,7 +1436,7 @@
         hit.addEventListener("mouseenter", function (event) { chooseByEvent(event, false); });
         hit.addEventListener("mousemove", function (event) { chooseByEvent(event, false); });
         hit.addEventListener("mouseleave", hideInspection);
-        hit.addEventListener("click", function (event) { chooseByEvent(event, true); });
+        hit.addEventListener("click", function (event) { chooseByEvent(event, false); });
         hit.addEventListener("touchstart", function (event) {
           chooseByEvent(event, true);
         }, { passive: false });
@@ -1465,11 +1449,11 @@
         if (event && event.target !== svg && event.target !== hit) return;
         if (event && (event.key === "Enter" || event.key === " ")) {
           if (event.preventDefault) event.preventDefault();
-          chooseForecast(nearestPoint(maxTime), true, event);
+          chooseForecast(nearestPoint(maxTime), false, event);
         } else if (event && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
           if (event.preventDefault) event.preventDefault();
           chooseForecast(nearestPoint(selectedDate === null ? maxTime : selectedDate,
-            event.key === "ArrowRight" ? 1 : -1), true, event);
+            event.key === "ArrowRight" ? 1 : -1), false, event);
         }
       };
       if (!svg.__timeseriesKeyboardBound) {
@@ -1480,10 +1464,12 @@
     }
 
     function chooseForecast(point, persistent, event) {
-      if (!point || (!persistent && pinnedSelection)) return;
+      if (!point) return;
       selectedDate = point.time;
       selectedPoint = point;
-      if (persistent) pinnedSelection = true;
+      // Only a touch selection is pinned. Mouse movement and keyboard
+      // inspection always remain live, including immediately after a click.
+      pinnedSelection = Boolean(persistent);
       renderSelection(point);
       renderDetail(point);
       if (event && event.preventDefault && persistent) event.preventDefault();
@@ -1535,9 +1521,10 @@
     section.setAttribute("data-history-poll-count", String(history.polls.length));
     var firstDate = history.points[0].date;
     var lastDate = history.points[history.points.length - 1].date;
-    setText("election-timeseries-intro", "Historiska prognosfördelningar från " +
+    setText("election-timeseries-intro", "Vår simulerade valprognos från " +
       (swedishDate(firstDate) || firstDate) + " till " + (swedishDate(lastDate) || lastDate) +
-      ". Byt mellan röstandel och mandatandel och välj vilka koalitioner som ska visas.");
+      ". Poll of Polls och enskilda mätningar visas separat som opinionsunderlag och jämförelse i röstandelsläget. " +
+      "Byt mellan röstandel och mandatandel och välj vilka koalitioner som ska visas.");
     renderChart();
     section.hidden = false;
     return true;
