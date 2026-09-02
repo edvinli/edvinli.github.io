@@ -6,6 +6,51 @@ import { join } from 'node:path';
 
 const CHROME = process.env.CHROME_BIN ||
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CDP_REQUEST_TIMEOUT_MS = 15000;
+const NAVIGATION_TIMEOUT_MS = 30000;
+const WEBSOCKET_OPEN_TIMEOUT_MS = 15000;
+
+const timeoutText = (milliseconds) => milliseconds % 1000 === 0
+  ? `${milliseconds / 1000}s`
+  : `${milliseconds}ms`;
+
+async function waitForWebSocketOpen(ws, timeout = WEBSOCKET_OPEN_TIMEOUT_MS) {
+  await new Promise((resolve, reject) => {
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      ws.removeEventListener('open', opened);
+      ws.removeEventListener('error', failed);
+      ws.removeEventListener('close', closed);
+    };
+    const opened = () => { cleanup(); resolve(); };
+    const failed = () => { cleanup(); reject(new Error('the CDP WebSocket connection failed')); };
+    const closed = () => { cleanup(); reject(new Error('the CDP WebSocket closed before opening')); };
+    timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`CDP WebSocket open timed out after ${timeoutText(timeout)}`));
+    }, timeout);
+    ws.addEventListener('open', opened, { once: true });
+    ws.addEventListener('error', failed, { once: true });
+    ws.addEventListener('close', closed, { once: true });
+  });
+}
+
+async function waitForProcessExit(proc, timeout) {
+  if (proc.exitCode != null || proc.signalCode != null) return true;
+  return new Promise((resolve) => {
+    let timer;
+    const exited = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    timer = setTimeout(() => {
+      proc.off('exit', exited);
+      resolve(false);
+    }, timeout);
+    proc.once('exit', exited);
+  });
+}
 
 export async function launch({ width = 1280, height = 1000 } = {}) {
   const profile = mkdtempSync(join(tmpdir(), 'cdp-profile-'));
@@ -40,14 +85,28 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline && !wsUrl) {
     try {
-      const r = await fetch(`http://127.0.0.1:${port}/json/version`);
+      const remaining = Math.max(1, deadline - Date.now());
+      const r = await fetch(`http://127.0.0.1:${port}/json/version`, {
+        signal: AbortSignal.timeout(Math.min(1000, remaining)),
+      });
       wsUrl = (await r.json()).webSocketDebuggerUrl;
     } catch { await new Promise(r => setTimeout(r, 120)); }
   }
-  if (!wsUrl) { proc.kill('SIGKILL'); throw new Error('Chrome did not expose CDP'); }
+  if (!wsUrl) {
+    proc.kill('SIGKILL');
+    try { rmSync(profile, { recursive: true, force: true }); } catch {}
+    throw new Error('Chrome did not expose CDP after 30s');
+  }
 
   const ws = new WebSocket(wsUrl);
-  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+  try {
+    await waitForWebSocketOpen(ws);
+  } catch (error) {
+    try { ws.close(); } catch {}
+    proc.kill('SIGKILL');
+    try { rmSync(profile, { recursive: true, force: true }); } catch {}
+    throw error;
+  }
 
   let id = 0;
   const pending = new Map();
@@ -55,9 +114,8 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id);
-      pending.delete(msg.id);
-      msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result);
+      const request = pending.get(msg.id);
+      msg.error ? request.reject(new Error(JSON.stringify(msg.error))) : request.resolve(msg.result);
     } else if (msg.method) {
       listeners.forEach(fn => fn(msg));
     }
@@ -69,24 +127,76 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   let dead = null;
   const killPending = (reason) => {
     dead = dead || reason;
-    pending.forEach(({ reject }) => reject(new Error(reason)));
-    pending.clear();
+    [...pending.values()].forEach(({ reject }) => reject(new Error(reason)));
   };
   ws.onclose = () => killPending('the CDP connection closed');
   ws.onerror = () => killPending('the CDP connection failed');
   proc.on('exit', (code, signal) =>
     killPending(`Chrome exited early (code ${code}, signal ${signal})`));
 
-  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+  const send = (
+    method,
+    params = {},
+    sessionId,
+    { timeout = CDP_REQUEST_TIMEOUT_MS, timeoutLabel = method } = {},
+  ) => new Promise((resolve, reject) => {
     if (dead) { reject(new Error(`${dead}; cannot send ${method}`)); return; }
     const n = ++id;
-    pending.set(n, { resolve, reject });
-    ws.send(JSON.stringify({ id: n, method, params, sessionId }));
+    let timer;
+    const finish = (handler, value) => {
+      if (!pending.has(n)) return;
+      pending.delete(n);
+      clearTimeout(timer);
+      handler(value);
+    };
+    const request = {
+      resolve: (value) => finish(resolve, value),
+      reject: (error) => finish(reject, error),
+    };
+    pending.set(n, request);
+    timer = setTimeout(() => {
+      request.reject(new Error(`${timeoutLabel} timed out after ${timeoutText(timeout)}`));
+    }, timeout);
+    try {
+      ws.send(JSON.stringify({ id: n, method, params, sessionId }));
+    } catch (error) {
+      request.reject(error);
+    }
   });
 
-  const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
-  const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-  const S = (method, params) => send(method, params, sessionId);
+  let closed = false;
+  const shutdown = async (reason = 'browser closed') => {
+    if (closed) return;
+    closed = true;
+    killPending(reason);
+    listeners.length = 0;
+    ws.onmessage = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    try { ws.close(); } catch {}
+    try {
+      if (proc.exitCode == null && proc.signalCode == null) proc.kill('SIGTERM');
+      if (!await waitForProcessExit(proc, 2000)) {
+        proc.kill('SIGKILL');
+        if (!await waitForProcessExit(proc, 2000)) {
+          throw new Error('Chromium did not exit within 4s after SIGTERM/SIGKILL');
+        }
+      }
+    } finally {
+      try { rmSync(profile, { recursive: true, force: true }); } catch {}
+    }
+  };
+
+  let sessionId;
+  try {
+    const target = await send('Target.createTarget', { url: 'about:blank' });
+    const attached = await send('Target.attachToTarget', { targetId: target.targetId, flatten: true });
+    sessionId = attached.sessionId;
+  } catch (error) {
+    await shutdown('CDP initialization failed');
+    throw error;
+  }
+  const S = (method, params, options) => send(method, params, sessionId, options);
 
   const consoleErrors = [];
   const consoleAll = [];
@@ -119,13 +229,18 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     }
   });
 
-  await S('Runtime.enable');
-  await S('Page.enable');
-  await S('Log.enable');
-  await S('Network.enable');
-  await S('Emulation.setDeviceMetricsOverride', {
-    width, height, deviceScaleFactor: 1, mobile: false,
-  });
+  try {
+    await S('Runtime.enable');
+    await S('Page.enable');
+    await S('Log.enable');
+    await S('Network.enable');
+    await S('Emulation.setDeviceMetricsOverride', {
+      width, height, deviceScaleFactor: 1, mobile: false,
+    });
+  } catch (error) {
+    await shutdown('CDP setup failed');
+    throw error;
+  }
 
   const evaluate = async (fn, ...args) => {
     const expr = `(${fn.toString()})(${args.map(a => JSON.stringify(a)).join(',')})`;
@@ -138,18 +253,12 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     return r.result.value;
   };
 
-  const goto = async (url) => {
-    const loaded = new Promise((resolve) => {
-      const h = (msg) => {
-        if (msg.sessionId === sessionId && msg.method === 'Page.loadEventFired') {
-          listeners.splice(listeners.indexOf(h), 1); resolve();
-        }
-      };
-      listeners.push(h);
-    });
-    await S('Page.navigate', { url });
-    await loaded;
-  };
+  // Page.loadEventFired is deliberately not awaited. It can be lost during a
+  // renderer stall and was the source of an unbounded Promise. The caller's
+  // application-specific readiness check is the authoritative post-navigation
+  // gate after this bounded Page.navigate acknowledgement.
+  const goto = (url, { timeout = NAVIGATION_TIMEOUT_MS, label = 'navigation' } = {}) =>
+    S('Page.navigate', { url }, { timeout, timeoutLabel: label });
 
   const waitFor = async (fn, timeout = 15000, arg) => {
     const end = Date.now() + timeout;
@@ -177,11 +286,7 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     return true;
   }, selector);
 
-  const close = async () => {
-    try { ws.close(); } catch {}
-    proc.kill('SIGKILL');
-    try { rmSync(profile, { recursive: true, force: true }); } catch {}
-  };
+  const close = () => shutdown();
 
   return { evaluate, goto, waitFor, click, close, screenshot, setViewport,
            consoleErrors, consoleAll, exceptions, failedRequests, S,
