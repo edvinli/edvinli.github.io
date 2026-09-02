@@ -27,8 +27,9 @@
   style.textContent = [
     ".election-latest-poll{border-top:1px solid var(--el-rule);margin-top:.75rem;padding-top:.85rem}",
     ".election-latest-poll__title{font-family:var(--el-mono);font-size:.92rem;margin:0 0 .45rem}",
-    ".election-latest-poll__items{display:grid;gap:.75rem}",
+    ".election-latest-poll__items{display:grid;gap:.9rem}",
     ".election-latest-poll__item{min-width:0}",
+    ".election-latest-poll__item+.election-latest-poll__item{border-top:1px solid var(--el-rule);padding-top:.75rem}",
     ".election-latest-poll__meta{color:var(--el-muted);font-size:.78rem;margin:0 0 .45rem}",
     ".election-latest-poll__parties{display:grid;gap:.3rem .85rem;grid-template-columns:repeat(8,minmax(0,1fr));margin:0}",
     ".election-latest-poll__party{border-top:1px solid var(--el-rule);display:flex;justify-content:space-between;gap:.35rem;padding-top:.25rem;min-width:0}",
@@ -118,27 +119,32 @@
         "\"><dt>" + party + "</dt><dd>" + escapeHtml(percent(parties[party])) + "</dd></div>";
     }).join("");
     return "<article class=\"election-latest-poll__item\" data-latest-poll-item=\"true\" data-poll-index=\"" + index +
-      "\" data-poll-company=\"" + escapeHtml(company) + "\"><p class=\"election-latest-poll__meta\">" +
+      "\" data-poll-date=\"" + date + "\" data-poll-company=\"" + escapeHtml(company) + "\"><p class=\"election-latest-poll__meta\">" +
       escapeHtml(metadata(poll, date)) + "</p><dl class=\"election-latest-poll__parties\">" + rows + "</dl></article>";
   }
 
   function render(history) {
     var polls = history && Array.isArray(history.polls) ? history.polls : [];
-    var dated = polls.map(function (poll) { return { poll: poll, date: pollDate(poll) }; }).filter(function (item) {
+    var dated = polls.map(function (poll, index) {
+      return { poll: poll, date: pollDate(poll), sourceIndex: index };
+    }).filter(function (item) {
       return item.date && pollParties(item.poll);
     });
     if (!dated.length) return;
-    var latestDate = dated.reduce(function (latest, item) { return !latest || item.date > latest ? item.date : latest; }, null);
-    var latest = dated.filter(function (item) { return item.date === latestDate; });
+
+    dated.sort(function (left, right) {
+      if (left.date !== right.date) return left.date < right.date ? 1 : -1;
+      return right.sourceIndex - left.sourceIndex;
+    });
+    var latest = dated.slice(0, 3);
     var items = latest.map(function (item, index) { return renderPoll(item.poll, item.date, index); }).filter(Boolean).join("");
     if (!items) return;
-    host.setAttribute("data-latest-poll-date", latestDate);
+
+    host.setAttribute("data-latest-poll-date", latest[0].date);
     host.setAttribute("data-latest-poll-count", String(latest.length));
-    host.innerHTML = "<h3 id=\"election-latest-poll-title\" class=\"election-latest-poll__title\">" +
-      (latest.length === 1 ? "Senaste mätningen" : "Senaste mätningarna") + "</h3><div class=\"election-latest-poll__items\">" +
-      items + "</div><p class=\"election-latest-poll__note election-muted\">" +
-      (latest.length === 1 ? "En enskild opinionsmätning, inte modellens prognos." : "Enskilda opinionsmätningar, inte modellens prognos.") +
-      "</p>";
+    host.innerHTML = "<h3 id=\"election-latest-poll-title\" class=\"election-latest-poll__title\">Senaste mätningarna</h3>" +
+      "<div class=\"election-latest-poll__items\">" + items + "</div>" +
+      "<p class=\"election-latest-poll__note election-muted\">De tre senast publicerade enskilda opinionsmätningarna, inte modellens prognos.</p>";
     host.hidden = false;
   }
 

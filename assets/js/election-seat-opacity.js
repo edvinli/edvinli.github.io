@@ -13,16 +13,16 @@
   var style = document.createElement("style");
   style.textContent = [
     ".es-track{overflow:hidden}",
-    ".es-bar{opacity:.2}",
+    ".es-bar{opacity:0}",
     ".es-range{height:100%;top:0;transform:none;background:currentColor;opacity:.22}",
-    ".es-range.es-range--50{opacity:.5}",
+    ".es-range.es-range--50{opacity:1}",
     ".es-median-mark{position:absolute;top:-2px;bottom:-2px;width:3px;transform:translateX(-1.5px);background:currentColor;box-shadow:0 0 0 1px rgba(255,255,255,.9)}",
     ".es-range,.es-median-mark{pointer-events:none}",
     ".election-seat-legend{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin-top:1rem}",
     ".election-seat-legend__item{display:inline-flex;align-items:center;gap:.35rem;color:var(--el-muted);font-size:.76rem}",
     ".election-seat-legend__mark{display:inline-block;width:1.5rem;height:.7rem;background:var(--el-ink)}",
     ".election-seat-legend__mark--90{opacity:.22}",
-    ".election-seat-legend__mark--50{opacity:.5}",
+    ".election-seat-legend__mark--50{opacity:1}",
     ".election-seat-legend__mark--median{width:3px;height:.95rem;opacity:1}",
     "@media (forced-colors:active){.es-range,.es-median-mark,.election-seat-legend__mark{forced-color-adjust:none}}"
   ].join("");
