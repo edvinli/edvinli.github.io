@@ -67,6 +67,14 @@ function inDateRange(iso, start, end) {
   return typeof iso === 'string' && iso >= start && iso <= end;
 }
 
+function fullRangeStart(history, metric) {
+  const collections = [history?.series || [], history?.poll_of_polls || []];
+  if (metric === 'vote') collections.push(history?.polls || []);
+  return collections.flatMap((items) => items.map(publishedDate))
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date || ''))
+    .sort()[0] || null;
+}
+
 let failures = 0;
 let checks = 0;
 function check(label, condition, detail) {
@@ -753,8 +761,7 @@ function assertStructure(view, history) {
       button.tag === 'BUTTON' && button.type === 'button' && button.controls === 'election-timeseries-svg' &&
       ['true', 'false'].includes(button.pressed)), { group: view.rangeGroup, buttons: view.ranges });
   equal('Sedan 2022 is the default range', view.ranges.map((button) => button.pressed), ['true', 'false']);
-  const fullStart = [history.series, history.poll_of_polls, history.polls]
-    .flatMap((items) => (items || []).map(publishedDate)).filter(Boolean).sort()[0];
+  const fullStart = fullRangeStart(history, 'vote');
   check('default full-range x-domain is unchanged through election day',
     view.svg?.range === 'full' && view.svg?.xMin === fullStart && view.svg?.xMax === history.election_date,
   { expected: [fullStart, history.election_date], svg: view.svg });
@@ -1001,6 +1008,32 @@ async function exercise(viewport, history, siteRoot) {
       numberInText(seatDetail, findPointFor(history, DEFAULT_COALITIONS[0], seatPoint).group.seats.p50) &&
       /mandat/i.test(seatDetail), seatDetail);
     check('seat detail omits Poll of Polls', !/Poll of Polls/i.test(seatDetail), seatDetail);
+
+    // Repeat the range round trip while Mandatandel is active.  This guards
+    // the metric-specific full-domain source list and the majority reference
+    // independently of the vote-share path below.
+    equal('Mandatandel full range uses its published extent',
+      [view.svg?.range, view.svg?.xMin, view.svg?.xMax],
+      ['full', fullRangeStart(history, 'seats'), history.election_date]);
+    const seatFullBeforeRange = structuredClone(view);
+    equal('Mandatandel switches to Sista 30 dagarna', await clickButton(browser, 'Sista 30 dagarna'), true);
+    await settle();
+    let seatShortRoundTrip = await readPage(browser);
+    check('Mandatandel short round-trip has the election-relative domain',
+      seatShortRoundTrip.svg?.metric === 'seats' && seatShortRoundTrip.svg?.range === 'short' &&
+      seatShortRoundTrip.svg?.xMin === shortRangeStart(history) &&
+      seatShortRoundTrip.svg?.xMax === history.election_date, seatShortRoundTrip.svg);
+    equal('Mandatandel switches back to Sedan 2022', await clickButton(browser, 'Sedan 2022'), true);
+    await settle();
+    view = await readPage(browser);
+    check('Mandatandel full domain and y-domain restore after range round trip',
+      view.svg?.metric === 'seats' && view.svg?.range === 'full' &&
+      view.svg?.xMin === seatFullBeforeRange.svg?.xMin &&
+      view.svg?.xMax === seatFullBeforeRange.svg?.xMax &&
+      view.svg?.yMin === seatFullBeforeRange.svg?.yMin &&
+      view.svg?.yMax === seatFullBeforeRange.svg?.yMax &&
+      view.majority?.seats === '175', { before: seatFullBeforeRange.svg, after: view.svg, majority: view.majority });
+
     equal('switch back to Röstandel', await clickButton(browser, 'Röstandel'), true);
     await settle();
     view = await readPage(browser);
@@ -1121,6 +1154,7 @@ async function exercise(viewport, history, siteRoot) {
     check('full domain and default button state are restored',
       view.svg?.range === 'full' && view.svg?.xMin === fullVoteView.svg?.xMin &&
       view.svg?.xMax === fullVoteView.svg?.xMax &&
+      view.svg?.yMin === fullVoteView.svg?.yMin && view.svg?.yMax === fullVoteView.svg?.yMax &&
       JSON.stringify(view.ranges.map((button) => button.pressed)) === JSON.stringify(['true', 'false']),
     { svg: view.svg, ranges: view.ranges });
 
@@ -1282,6 +1316,50 @@ function historicalFingerprint(view) {
   };
 }
 
+async function exerciseMetricSpecificFullDomain(siteRoot = SITE) {
+  // Give vote share one poll-only date before the first series/PoP date in a
+  // throwaway copy of the fixture.  This makes the source-list distinction
+  // observable in a real browser without changing the published fixture.
+  const prepared = await prepareSite((history) => {
+    const firstPoll = history.polls?.[0];
+    const firstSeriesDate = history.series?.[0]?.date;
+    const pollOnlyDate = calendarDateOffset(firstSeriesDate, -1);
+    if (!firstPoll || !pollOnlyDate) return history;
+    const extraPoll = structuredClone(firstPoll);
+    extraPoll.poll_id = `${extraPoll.poll_id || 'domain-check'}-poll-only-date`;
+    extraPoll.publication_date = pollOnlyDate;
+    extraPoll.fieldwork_start = pollOnlyDate;
+    extraPoll.fieldwork_end = pollOnlyDate;
+    history.polls = [extraPoll, ...history.polls];
+    return history;
+  });
+  const viewport = { ...VIEWPORTS[0], diagnostic: 'metric-domain' };
+  const { server, browser } = await open(viewport, prepared.root || siteRoot);
+  try {
+    let view = await readPage(browser);
+    const voteMin = fullRangeStart(prepared.history, 'vote');
+    const seatsMin = fullRangeStart(prepared.history, 'seats');
+    check('vote full range includes its individual-poll extent',
+      view.svg?.metric === 'vote' && view.svg?.range === 'full' &&
+      view.svg?.xMin === voteMin && view.svg?.xMax === prepared.history.election_date &&
+      voteMin !== seatsMin, { svg: view.svg, voteMin, seatsMin });
+
+    equal('metric-domain switches to Mandatandel', await clickButton(browser, 'Mandatandel'), true);
+    await settle();
+    view = await readPage(browser);
+    check('Mandatandel full range uses series plus Poll of Polls extent only',
+      view.svg?.metric === 'seats' && view.svg?.range === 'full' &&
+      view.svg?.xMin === seatsMin && view.svg?.xMax === prepared.history.election_date &&
+      view.svg?.xMin !== voteMin, { svg: view.svg, voteMin, seatsMin });
+    check('metric-specific full-domain browser check has no overflow or errors',
+      view.overflow <= 0 && appErrors(browser).length === 0 && browser.exceptions.length === 0,
+    { overflow: view.overflow, console: appErrors(browser), exceptions: browser.exceptions });
+  } finally {
+    await closeBrowser(viewport.diagnostic, browser, server);
+    await prepared.cleanup();
+  }
+}
+
 async function exerciseFallbackScenarios() {
   const missing = await prepareSite((history) => {
     delete history.future_projection;
@@ -1351,6 +1429,7 @@ async function main() {
     await prepared.cleanup();
   }
   await exerciseFallbackScenarios();
+  await exerciseMetricSpecificFullDomain();
   console.log(`\n${checks - failures}/${checks} checks passed`);
   if (failures) {
     console.log('FAIL');

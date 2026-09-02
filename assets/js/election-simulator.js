@@ -1118,18 +1118,6 @@
     plot.height = plot.bottom - plot.top;
     var electionDate = historyDate(history.electionDate);
     var shortRangeStart = historyDateOffset(history.electionDate, -30);
-    var allDataTimes = history.points.map(function (point) { return point.time; });
-    if (history.pop && history.pop.length) {
-      history.pop.forEach(function (item) { allDataTimes.push(item.time); });
-    }
-    if (history.polls && history.polls.length) {
-      history.polls.forEach(function (item) { allDataTimes.push(item.time); });
-    }
-    if (projection) allDataTimes.push(projection.election.time);
-    var fullMinTime = Math.min.apply(Math, allDataTimes);
-    var fullMaxTime = projection ? projection.election.time : Math.max.apply(Math, allDataTimes);
-    if (!Number.isFinite(fullMinTime)) fullMinTime = history.points[0].time;
-    if (!Number.isFinite(fullMaxTime)) fullMaxTime = history.points[history.points.length - 1].time;
     history.definitions.forEach(function (definition) {
       selected[definition.id] = Boolean(definition.defaultOn);
     });
@@ -1137,6 +1125,23 @@
     function activeTimeDomain() {
       var shortRangeEnd = electionDate;
       var useShortRange = selectedRange === "short" && shortRangeStart && shortRangeEnd;
+      // Sedan 2022 keeps the metric-specific published extent: vote share
+      // includes the historical series, Poll of Polls and individual polls;
+      // seat share has no individual-poll values, so its extent stops at the
+      // series plus Poll of Polls.  The projection always extends the right
+      // edge through election day.
+      var fullTimes = history.points.map(function (point) { return point.time; });
+      if (history.pop && history.pop.length) {
+        history.pop.forEach(function (item) { fullTimes.push(item.time); });
+      }
+      if (selectedMetric === "vote" && history.polls && history.polls.length) {
+        history.polls.forEach(function (item) { fullTimes.push(item.time); });
+      }
+      if (projection) fullTimes.push(projection.election.time);
+      var fullMinTime = Math.min.apply(Math, fullTimes);
+      var fullMaxTime = projection ? projection.election.time : Math.max.apply(Math, fullTimes);
+      if (!Number.isFinite(fullMinTime)) fullMinTime = history.points[0].time;
+      if (!Number.isFinite(fullMaxTime)) fullMaxTime = history.points[history.points.length - 1].time;
       var minTime = useShortRange ? shortRangeStart.time : fullMinTime;
       var maxTime = useShortRange ? shortRangeEnd.time : fullMaxTime;
       if (!Number.isFinite(minTime) || !Number.isFinite(maxTime)) return null;
