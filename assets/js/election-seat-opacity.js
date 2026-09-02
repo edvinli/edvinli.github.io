@@ -63,8 +63,43 @@
     builder.appendChild(host);
   }
 
+  function updateHeroLinks() {
+    var nav = app.querySelector(".election-hero__links");
+    if (!nav) return;
+
+    var links = [
+      ["election-timeseries", "Prognos över tid"],
+      ["election-latest-poll", "Senaste mätningarna"],
+      ["election-headline", "Röstandelar"],
+      ["election-seats", "Mandat"],
+      ["election-alternatives", "Regeringsalternativ"],
+      ["election-government-builder", "Bygg din egen regering"],
+      ["election-parliament-outcome", "Ett simulerat riksdagsutfall"],
+      ["election-changes", "Förändring sedan föregående prognos"],
+      ["election-model", "Så fungerar modellen"],
+      ["election-methodology", "Metod och utvärdering"],
+      ["election-technical", "Teknisk information"]
+    ];
+
+    nav.textContent = "";
+    nav.setAttribute("aria-label", "Gå till avsnitt");
+    links.forEach(function (entry, index) {
+      if (index) {
+        var separator = document.createElement("span");
+        separator.setAttribute("aria-hidden", "true");
+        separator.textContent = " · ";
+        nav.appendChild(separator);
+      }
+      var link = document.createElement("a");
+      link.href = "#" + entry[0];
+      link.textContent = entry[1];
+      nav.appendChild(link);
+    });
+  }
+
   placeElectionSections();
   placeParliamentAfterBuilder();
+  updateHeroLinks();
 
   var intro = root.querySelector(".election-panel__head .election-muted");
   if (intro) {
