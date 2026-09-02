@@ -281,8 +281,9 @@ const dragPoints = (browser, party, barId) => browser.evaluate(([name, target]) 
 
 async function focusPanel(browser) {
   await browser.evaluate(() => {
-    document.getElementById('election-government-builder')
-      ?.scrollIntoView({ block: 'center' });
+    const chart = document.querySelector('.eg-chart') ||
+      document.getElementById('election-government-builder');
+    chart?.scrollIntoView({ block: 'center' });
   });
   await settle();
 }
