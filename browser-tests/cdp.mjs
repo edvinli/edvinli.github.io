@@ -63,6 +63,7 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     '--no-first-run', '--no-default-browser-check', '--disable-gpu',
     '--hide-scrollbars', '--force-device-scale-factor=1',
     '--disable-extensions', '--disable-background-networking',
+    ...(process.platform === 'linux' ? ['--no-sandbox', '--disable-dev-shm-usage'] : []),
     'about:blank',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -93,9 +94,14 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     } catch { await new Promise(r => setTimeout(r, 120)); }
   }
   if (!wsUrl) {
+    const exitState = `exitCode=${proc.exitCode ?? 'running'}, signal=${proc.signalCode ?? 'none'}`;
+    const logTail = browserLog.join('').trim().slice(-12000);
     proc.kill('SIGKILL');
     try { rmSync(profile, { recursive: true, force: true }); } catch {}
-    throw new Error('Chrome did not expose CDP after 30s');
+    throw new Error(
+      `Chrome did not expose CDP after 30s (${exitState})` +
+      (logTail ? `\nChromium output:\n${logTail}` : ''),
+    );
   }
 
   const ws = new WebSocket(wsUrl);
