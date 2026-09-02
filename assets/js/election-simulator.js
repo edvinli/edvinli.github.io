@@ -691,6 +691,129 @@
     };
   }
 
+  function futureProjectionGroups(raw, definitions) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    var ids = definitions.map(function (definition) { return definition.id; });
+    function hasExactKeys(value, expected) {
+      var actual = value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+      return actual.length === expected.length && expected.every(function (key) {
+        return Object.prototype.hasOwnProperty.call(value, key);
+      });
+    }
+    if (!hasExactKeys(raw, ids)) return null;
+    var normalized = {};
+    var quantileKeys = ["p05", "p25", "p50", "p75", "p95"];
+    var valid = ids.every(function (id) {
+      var group = raw[id];
+      if (!group || !hasExactKeys(group, ["vote", "seats"])) return false;
+      return ["vote", "seats"].every(function (metric) {
+        var values = group[metric];
+        if (!values || !hasExactKeys(values, quantileKeys)) return false;
+        var upper = metric === "seats" ? CHAMBER : 100;
+        var numbers = quantileKeys.map(function (key) { return values[key]; });
+        if (!numbers.every(function (value) {
+          return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= upper &&
+            (metric !== "seats" || Number.isInteger(value));
+        })) return false;
+        if (!numbers.every(function (value, index) { return index === 0 || value >= numbers[index - 1]; })) {
+          return false;
+        }
+        return true;
+      });
+    });
+    if (!valid) return null;
+    ids.forEach(function (id) {
+      normalized[id] = {
+        vote: historyQuantiles(raw[id].vote),
+        seats: historyQuantiles(raw[id].seats)
+      };
+    });
+    return normalized;
+  }
+
+  function normalizeFutureProjection(raw, payload, electionDate, definitions, points) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    var origin = historyDate(raw.origin_date);
+    var election = historyDate(raw.election_date);
+    if (!origin || !election || election.iso !== electionDate.iso || origin.time > election.time) return null;
+    if (raw.projection_type !== "conditional_forward_projection" ||
+        raw.assumption !== "frozen_opinion_state_shrinking_dynamics_horizon" ||
+        raw.state_cutoff_date !== origin.iso || raw.future_measurements_known !== false ||
+        raw.state_condition !== "underlying_opinion_unchanged_from_origin" ||
+        raw.dynamics_horizon_rule !== "election_date_minus_projection_date" ||
+        raw.election_noise !== "canonical_adopted_law" ||
+        raw.mandate_allocation !== "canonical_production_path" ||
+        typeof raw.tooltip_sv !== "string" || !raw.tooltip_sv.trim()) return null;
+
+    var rawSeries = Array.isArray(payload.series) ? payload.series : [];
+    var currentRaw = rawSeries.filter(function (point) {
+      return point && point.provenance === "current_production";
+    });
+    if (currentRaw.length !== 1 || currentRaw[0].date !== origin.iso) return null;
+    var anchor = raw.anchor;
+    if (!anchor || anchor.date !== origin.iso || anchor.provenance !== "current_production" ||
+        anchor.samples !== currentRaw[0].samples) return null;
+    var anchorGroups = futureProjectionGroups(anchor.groups, definitions);
+    var currentGroups = futureProjectionGroups(currentRaw[0].groups, definitions);
+    if (!anchorGroups || !currentGroups ||
+        JSON.stringify(anchorGroups) !== JSON.stringify(currentGroups)) return null;
+    var anchorPoint = points.filter(function (point) {
+      return point.date === origin.iso && point.provenance === "current_production";
+    })[0];
+    if (!anchorPoint || anchorPoint.samples !== anchor.samples) return null;
+
+    var rendering = raw.rendering;
+    var region = rendering && rendering.future_region;
+    if (!rendering || rendering.x_axis_max !== election.iso || !region ||
+        region.start !== origin.iso || region.end !== election.iso || region.background !== "light_neutral" ||
+        typeof rendering.latest_forecast_label !== "string" || !rendering.latest_forecast_label.trim() ||
+        typeof rendering.election_day_label !== "string" || !rendering.election_day_label.trim() ||
+        typeof rendering.legend_label !== "string" || !rendering.legend_label.trim() ||
+        rendering.median_line !== "dashed_lighter" ||
+        JSON.stringify(rendering.interval_bands) !== JSON.stringify(["p25_p75", "p05_p95"]) ||
+        JSON.stringify(rendering.units) !== JSON.stringify(["vote", "seats"]) ||
+        rendering.poll_observations_in_future !== false ||
+        rendering.poll_of_polls_observations_in_future !== false ||
+        rendering.connect_from_history_anchor !== true) return null;
+
+    var series = Array.isArray(raw.series) ? raw.series : null;
+    var expectedCount = Math.round((election.time - origin.time) / 86400000);
+    if (!series || series.length !== expectedCount) return null;
+    var historicalDates = {};
+    rawSeries.forEach(function (point) {
+      if (point && typeof point.date === "string") historicalDates[point.date] = true;
+    });
+    var normalizedSeries = [];
+    for (var index = 0; index < series.length; index += 1) {
+      var item = series[index];
+      var expectedTime = origin.time + (index + 1) * 86400000;
+      var expectedDate = new Date(expectedTime).toISOString().slice(0, 10);
+      var groups = item && futureProjectionGroups(item.groups, definitions);
+      if (!item || item.date !== expectedDate || historicalDates[item.date] ||
+          item.remaining_horizon_days !== expectedCount - index - 1 ||
+          !Number.isInteger(item.samples) || item.samples <= 0 || !groups) return null;
+      normalizedSeries.push({
+        date: expectedDate,
+        time: expectedTime,
+        samples: item.samples,
+        remainingHorizonDays: item.remaining_horizon_days,
+        groups: groups,
+        isFuture: true
+      });
+    }
+    if (normalizedSeries.length &&
+        (normalizedSeries[normalizedSeries.length - 1].date !== election.iso ||
+         normalizedSeries[normalizedSeries.length - 1].remainingHorizonDays !== 0)) return null;
+    return {
+      origin: origin,
+      election: election,
+      anchorPoint: anchorPoint,
+      points: normalizedSeries,
+      tooltip: raw.tooltip_sv,
+      rendering: rendering
+    };
+  }
+
   function normalizeHistoryPayload(payload) {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
     var electionDate = historyDate(payload.election_date || payload.electionDate);
@@ -727,6 +850,10 @@
     }).filter(function (poll) { return poll !== null; }).sort(function (a, b) {
       return a.time - b.time;
     });
+    var futureProjectionPresent = Object.prototype.hasOwnProperty.call(payload, "future_projection");
+    var futureProjection = futureProjectionPresent
+      ? normalizeFutureProjection(payload.future_projection, payload, electionDate, definitions, points)
+      : null;
     return {
       schemaVersion: String(payload.schema_version || "1.1"),
       electionDate: electionDate.iso,
@@ -735,7 +862,9 @@
       definitions: definitions,
       points: points,
       pop: pop,
-      polls: polls
+      polls: polls,
+      futureProjection: futureProjection,
+      futureProjectionPresent: futureProjectionPresent
     };
   }
 
@@ -846,8 +975,16 @@
 
   function historyValueDomain(history, metric, definitions) {
     var values = [];
+    var projectionPoints = history.futureProjection ? history.futureProjection.points : [];
     definitions.forEach(function (definition) {
       history.points.forEach(function (point) {
+        var group = point.groups && point.groups[definition.id];
+        var low = historyMetricValue(group, metric, "p05");
+        var high = historyMetricValue(group, metric, "p95");
+        if (low !== null) values.push(low);
+        if (high !== null) values.push(high);
+      });
+      projectionPoints.forEach(function (point) {
         var group = point.groups && point.groups[definition.id];
         var low = historyMetricValue(group, metric, "p05");
         var high = historyMetricValue(group, metric, "p95");
@@ -898,6 +1035,16 @@
     if (!section || !svg) return false;
     var history = normalizeHistoryPayload(payload);
     if (!history) return false;
+    var projection = history.futureProjection;
+    if (history.futureProjectionPresent && !projection) {
+      section.setAttribute("data-future-projection", "invalid");
+    } else if (projection) {
+      section.setAttribute("data-future-projection", projection.points.length ? "true" : "empty");
+      section.setAttribute("data-future-projection-point-count", String(projection.points.length));
+    } else {
+      section.removeAttribute("data-future-projection");
+      section.removeAttribute("data-future-projection-point-count");
+    }
 
     var liveStatus = byId("election-timeseries-status");
     var detailBody = byId("election-timeseries-detail-body");
@@ -925,7 +1072,7 @@
     plot.width = plot.right - plot.left;
     plot.height = plot.bottom - plot.top;
     var chartMinTime = history.points[0].time;
-    var chartMaxTime = history.points[history.points.length - 1].time;
+    var chartMaxTime = projection ? projection.election.time : history.points[history.points.length - 1].time;
     history.definitions.forEach(function (definition) {
       selected[definition.id] = Boolean(definition.defaultOn);
     });
@@ -965,7 +1112,7 @@
     }
 
     function nearestPoint(time, direction) {
-      var candidates = history.points.filter(function (point) {
+      var candidates = history.points.concat(projection ? projection.points : []).filter(function (point) {
         return activeDefinitions().some(function (definition) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
@@ -1059,6 +1206,33 @@
         "</dl>";
     }
 
+    function futureDetail(point) {
+      if (!point || !projection) return "";
+      var rows = activeDefinitions().map(function (definition) {
+        var group = point.groups && point.groups[definition.id];
+        var values = historyDisplayQuantiles(group, selectedMetric);
+        if (!values) return "";
+        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
+          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
+          "<dt>" + escapeHtml(projection.rendering.legend_label) + "</dt><dd>" +
+          escapeHtml(selectedMetric === "seats" ? seatMedianText(group) : percent(values.p50, 1)) + "</dd>" +
+          "<dt>50 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
+            ? seatRangeText(group, "p25", "p75") : rangeTextFor(values, "p25", "p75")) + "</dd>" +
+          "<dt>90 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
+            ? seatRangeText(group, "p05", "p95") : rangeTextFor(values, "p05", "p95")) + "</dd>" +
+          "</dl></section>";
+      }).filter(function (row) { return row; });
+      return "<h3 class=\"election-timeseries__detail-date\">" +
+        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
+        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
+        "<dl class=\"election-timeseries__detail-meta\">" +
+        "<div><dt>Simuleringar</dt><dd>" + escapeHtml(historyDaysText(point.samples)) + "</dd></div>" +
+        "<div><dt>Ursprung</dt><dd>" + escapeHtml(projection.rendering.legend_label) + "</dd></div>" +
+        "<div><dt>Rörelsedel</dt><dd>" + escapeHtml(historyDaysText(point.remainingHorizonDays)) +
+        " dagar kvar</dd></div></dl>" +
+        "<p class=\"election-timeseries__note election-muted\">" + escapeHtml(projection.tooltip) + "</p>";
+    }
+
     function forecastStatus(point) {
       if (!point) return "Välj en punkt i diagrammet för detaljer.";
       var descriptions = activeDefinitions().map(function (definition) {
@@ -1069,7 +1243,7 @@
         return definition.label + ": vår simulering " + median;
       }).filter(function (value) { return value; });
       return (swedishDate(point.date) || point.date) + " · " + descriptions.join(", ") + ". " +
-        historyProvenanceLabel(point.provenance) + ".";
+        (point.isFuture && projection ? projection.rendering.legend_label : historyProvenanceLabel(point.provenance)) + ".";
     }
 
     renderDetail = function (point) {
@@ -1085,7 +1259,7 @@
         return;
       }
       if (detailBody) {
-        detailBody.innerHTML = forecastDetail(point);
+        detailBody.innerHTML = point.isFuture ? futureDetail(point) : forecastDetail(point);
         detailBody.hidden = false;
       }
       if (liveStatus) {
@@ -1120,8 +1294,9 @@
       if (selectedMetric === "vote" && history.polls && history.polls.length) {
         history.polls.forEach(function (item) { allTimes.push(item.time); });
       }
+      if (projection) allTimes.push(projection.election.time);
       var minTime = Math.min.apply(Math, allTimes);
-      var maxTime = Math.max.apply(Math, allTimes);
+      var maxTime = projection ? projection.election.time : Math.max.apply(Math, allTimes);
       if (!Number.isFinite(minTime) || !Number.isFinite(maxTime)) return;
       if (maxTime <= minTime) maxTime = minTime + 86400000;
       chartMinTime = minTime;
@@ -1147,12 +1322,18 @@
       svg.setAttribute("data-y-domain", String(minValue) + "–" + String(maxValue));
       svg.setAttribute("data-dynamics-horizon-cap", String(HISTORY_DYNAMICS_CAP));
       svg.setAttribute("data-majority-rule", String(MAJORITY));
+      svg.setAttribute("data-x-axis-max", new Date(maxTime).toISOString().slice(0, 10));
+      if (projection) {
+        svg.setAttribute("data-future-projection-origin", projection.origin.iso);
+        svg.setAttribute("data-future-projection-election", projection.election.iso);
+      }
       svg.appendChild(svgNode("title", { id: "election-timeseries-title" },
         "Prognos över tid, " + historyMetricLabel(selectedMetric)));
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
         "Vår simulering med median och 50- samt 90-procentiga prognosintervall från " +
         (swedishDate(history.points[0].date) || history.points[0].date) + " till " +
-        (swedishDate(history.points[history.points.length - 1].date) || history.points[history.points.length - 1].date) +
+        (swedishDate(projection ? projection.election.iso : history.points[history.points.length - 1].date) ||
+          (projection ? projection.election.iso : history.points[history.points.length - 1].date)) +
         ". Skalan är anpassad efter de valda serierna." +
         (selectedMetric === "vote" ? " Enskilda mätningar visas som jämförelse." : "")));
 
@@ -1165,6 +1346,33 @@
       svg.appendChild(plotDefs);
 
       var background = svgNode("g", { class: "election-timeseries__background", "aria-hidden": "true" });
+      if (projection && projection.points.length) {
+        var futureStartX = xScale(projection.origin.time);
+        var futureEndX = xScale(projection.election.time);
+        background.appendChild(svgNode("rect", {
+          x: futureStartX, y: plot.top, width: Math.max(0, futureEndX - futureStartX), height: plot.height,
+          fill: "#777", opacity: "0.055", "data-future-region": "true", "data-future-background": "true",
+          "data-region-start": projection.origin.iso, "data-region-end": projection.election.iso
+        }));
+        background.appendChild(svgNode("line", {
+          x1: futureStartX, y1: plot.top, x2: futureStartX, y2: plot.bottom,
+          stroke: "#777", "stroke-width": "1", "stroke-dasharray": "3 4",
+          "data-latest-forecast-boundary": "true", "data-date": projection.origin.iso
+        }));
+        background.appendChild(svgNode("text", {
+          x: futureStartX + 5, y: plot.top + 14, fill: "#666", "font-size": compactChart ? "11" : "12",
+          "text-anchor": "start", "data-latest-forecast-label": "true"
+        }, projection.rendering.latest_forecast_label));
+        background.appendChild(svgNode("line", {
+          x1: futureEndX, y1: plot.top, x2: futureEndX, y2: plot.bottom,
+          stroke: "#555", "stroke-width": "1.2", "data-election-day-boundary": "true",
+          "data-date": projection.election.iso
+        }));
+        background.appendChild(svgNode("text", {
+          x: futureEndX - 4, y: plot.bottom + 24, fill: "#666", "font-size": compactChart ? "11" : "12",
+          "text-anchor": "end", "data-election-day-label": "true", "data-date": projection.election.iso
+        }, projection.rendering.election_day_label));
+      }
       var yStep = (maxValue - minValue) <= 40 ? 5 : 10;
       for (var yValue = minValue; yValue <= maxValue + 0.001; yValue += yStep) {
         var y = yScale(yValue);
@@ -1216,7 +1424,9 @@
       }, historyMetricLabel(selectedMetric)));
       svg.appendChild(background);
 
-      var seriesLayer = svgNode("g", { class: "election-timeseries__series", "aria-label": "Prognosserier" });
+      var seriesLayer = svgNode("g", {
+        class: "election-timeseries__series", "aria-label": "Prognosserier", "pointer-events": "none"
+      });
       var endpointLabels = [];
       definitions.forEach(function (definition) {
         var validPoints = history.points.filter(function (point) {
@@ -1261,7 +1471,9 @@
           "data-coalition": definition.id, "data-quantile": "p50"
         }));
         var latest = curvePoints[curvePoints.length - 1];
-        curvePoints.concat(archivedPoints).forEach(function (point) {
+        // Paint archived markers first so the official current production
+        // remains the topmost pointer target when dates are only a pixel apart.
+        archivedPoints.concat(curvePoints).forEach(function (point) {
           var rawPointValues = point.groups[definition.id][selectedMetric];
           var pointValues = historyDisplayQuantiles(point.groups[definition.id], selectedMetric);
           var current = point === latest;
@@ -1283,7 +1495,8 @@
             "data-raw-p50": selectedMetric === "seats" ? rawPointValues.p50 : "",
             "data-raw-p75": selectedMetric === "seats" ? rawPointValues.p75 : "",
             "data-raw-p95": selectedMetric === "seats" ? rawPointValues.p95 : "",
-            "data-current": current ? "true" : "false", "data-forecast-point": "true", tabindex: "0", role: "img",
+            "data-current": current ? "true" : "false", "data-forecast-point": "true",
+            "pointer-events": "all", tabindex: "0", role: "img",
             "aria-label": definition.label + ", " + (swedishDate(point.date) || point.date) +
               ": median " + percent(pointValues.p50, 1)
           });
@@ -1343,10 +1556,82 @@
       }
       svg.appendChild(seriesLayer);
 
+      if (projection && projection.points.length) {
+        var futureLayer = svgNode("g", {
+          class: "election-timeseries__future-series",
+          "aria-label": projection.rendering.legend_label,
+          "data-future-series": "true", "pointer-events": "none"
+        });
+        var projectedCurve = [projection.anchorPoint].concat(projection.points);
+        definitions.forEach(function (definition) {
+          var futureGroup = svgNode("g", {
+            class: "election-timeseries__future-series-group",
+            "data-coalition": definition.id,
+            "data-coalition-label": definition.label,
+            "data-color": definition.color,
+            "data-projection": "true"
+          });
+          var futureNinety = historyAreaPath(projectedCurve, selectedMetric, definition.id,
+            xScale, yScale, "p95", "p05");
+          var futureFifty = historyAreaPath(projectedCurve, selectedMetric, definition.id,
+            xScale, yScale, "p75", "p25");
+          var futureMedian = historyAreaPath(projectedCurve, selectedMetric, definition.id,
+            xScale, yScale, "p50", "p50");
+          if (futureNinety) futureGroup.appendChild(svgNode("path", {
+            d: futureNinety, fill: definition.color, opacity: "0.06",
+            class: "election-timeseries__future-band election-timeseries__future-band--90",
+            "data-future-band": "90", "data-coalition": definition.id
+          }));
+          if (futureFifty) futureGroup.appendChild(svgNode("path", {
+            d: futureFifty, fill: definition.color, opacity: "0.15",
+            class: "election-timeseries__future-band election-timeseries__future-band--50",
+            "data-future-band": "50", "data-coalition": definition.id
+          }));
+          if (futureMedian) futureGroup.appendChild(svgNode("path", {
+            d: futureMedian, fill: "none", stroke: definition.color, opacity: "0.68",
+            "stroke-width": "2.2", "stroke-dasharray": "7 5", "vector-effect": "non-scaling-stroke",
+            class: "election-timeseries__future-median", "data-future-median": "true",
+            "data-coalition": definition.id
+          }));
+          projection.points.forEach(function (point) {
+            var group = point.groups && point.groups[definition.id];
+            var values = historyDisplayQuantiles(group, selectedMetric);
+            var rawValues = group && group[selectedMetric];
+            if (!values || !rawValues) return;
+            var futurePoint = svgNode("circle", {
+              cx: xScale(point.time), cy: yScale(values.p50), r: "3.1", fill: definition.color,
+              opacity: "0.72", "pointer-events": "all", tabindex: "0", role: "button",
+              class: "election-timeseries__future-point", "data-future-point": "true",
+              "data-projection": "true", "data-coalition": definition.id, "data-date": point.date,
+              "data-p05": values.p05, "data-p25": values.p25, "data-p50": values.p50,
+              "data-p75": values.p75, "data-p95": values.p95,
+              "data-seat-quantiles": selectedMetric === "seats" ? JSON.stringify(rawValues) : "",
+              "aria-label": definition.label + ", " + projection.rendering.legend_label.toLowerCase() + " " +
+                (swedishDate(point.date) || point.date) + ": median " +
+                (selectedMetric === "seats" ? grouped(rawValues.p50) + " mandat" : percent(values.p50, 1))
+            });
+            futurePoint.addEventListener("mouseenter", function (event) { chooseForecast(point, false, event); });
+            futurePoint.addEventListener("focus", function (event) { chooseForecast(point, false, event); });
+            futurePoint.addEventListener("mouseleave", hideInspection);
+            futurePoint.addEventListener("blur", hideInspection);
+            futurePoint.addEventListener("click", function (event) { chooseForecast(point, false, event); });
+            futurePoint.addEventListener("keydown", function (event) {
+              if (event.key === "Enter" || event.key === " ") {
+                if (event.preventDefault) event.preventDefault();
+                chooseForecast(point, false, event);
+              }
+            });
+            futureGroup.appendChild(futurePoint);
+          });
+          futureLayer.appendChild(futureGroup);
+        });
+        svg.appendChild(futureLayer);
+      }
+
       if (selectedMetric === "vote" && history.polls && history.polls.length) {
         var scatterLayer = svgNode("g", {
           class: "election-timeseries__polls", "aria-hidden": "true",
-          "clip-path": "url(#election-timeseries-plot-clip)"
+          "clip-path": "url(#election-timeseries-plot-clip)", "pointer-events": "none"
         });
         definitions.forEach(function (definition) {
           history.polls.forEach(function (poll) {
@@ -1365,7 +1650,7 @@
       }
 
       var selectionLayer = svgNode("g", {
-        class: "election-timeseries__selection", "aria-hidden": "true"
+        class: "election-timeseries__selection", "aria-hidden": "true", "pointer-events": "none"
       });
       renderSelection = function (point) {
         selectionLayer.innerHTML = "";
@@ -1415,14 +1700,16 @@
         renderDetail(null);
       }
 
+      var interactionMaxTime = projection ? projection.origin.time : maxTime;
+      var hitRight = xScale(interactionMaxTime);
       var hit = svgNode("rect", {
         class: "election-timeseries__hit", x: plot.left, y: plot.top,
-        width: plot.width, height: plot.height, tabindex: "0", role: "button",
+        width: Math.max(0, hitRight - plot.left), height: plot.height, tabindex: "0", role: "button",
         "aria-label": "Välj datum i prognosdiagrammet"
       });
       function chooseByEvent(event, persistent) {
         var time = dateForEvent(event);
-        var point = nearestPoint(time === null ? maxTime : time);
+        var point = nearestPoint(time === null ? interactionMaxTime : Math.min(interactionMaxTime, time));
         chooseForecast(point, persistent, event);
       }
       if (hit.addEventListener) {
@@ -1442,10 +1729,10 @@
         if (event && event.target !== svg && event.target !== hit) return;
         if (event && (event.key === "Enter" || event.key === " ")) {
           if (event.preventDefault) event.preventDefault();
-          chooseForecast(nearestPoint(maxTime), false, event);
+          chooseForecast(nearestPoint(interactionMaxTime), false, event);
         } else if (event && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
           if (event.preventDefault) event.preventDefault();
-          chooseForecast(nearestPoint(selectedDate === null ? maxTime : selectedDate,
+          chooseForecast(nearestPoint(selectedDate === null ? interactionMaxTime : selectedDate,
             event.key === "ArrowRight" ? 1 : -1), false, event);
         }
       };
@@ -1512,11 +1799,44 @@
     section.setAttribute("data-history-schema-version", history.schemaVersion);
     section.setAttribute("data-history-point-count", String(history.points.length));
     section.setAttribute("data-history-poll-count", String(history.polls.length));
+    var previousProjectionKey = byId("election-timeseries-key-projection");
+    if (previousProjectionKey && previousProjectionKey.parentNode) {
+      previousProjectionKey.parentNode.removeChild(previousProjectionKey);
+    }
+    var previousProjectionNote = byId("election-timeseries-projection-note");
+    if (previousProjectionNote && previousProjectionNote.parentNode) {
+      previousProjectionNote.parentNode.removeChild(previousProjectionNote);
+    }
+    if (projection && projection.points.length) {
+      var key = section.querySelector(".election-timeseries__key");
+      if (key) {
+        var projectionKey = document.createElement("span");
+        projectionKey.id = "election-timeseries-key-projection";
+        projectionKey.className = "election-timeseries__key-item";
+        projectionKey.innerHTML = "<span aria-hidden=\"true\" style=\"display:inline-block;width:1.5rem;" +
+          "border-top:2px dashed currentColor;vertical-align:middle;margin-right:.35rem;opacity:.65\"></span>" +
+          escapeHtml(projection.rendering.legend_label);
+        key.appendChild(projectionKey);
+      }
+      var projectionNote = document.createElement("p");
+      projectionNote.id = "election-timeseries-projection-note";
+      projectionNote.className = "election-timeseries__note election-muted";
+      projectionNote.textContent = projection.tooltip;
+      var provenanceNote = byId("election-timeseries-provenance-note");
+      if (provenanceNote && provenanceNote.parentNode) {
+        provenanceNote.parentNode.insertBefore(projectionNote, provenanceNote);
+      }
+    }
     var firstDate = history.points[0].date;
     var lastDate = history.points[history.points.length - 1].date;
-    setText("election-timeseries-intro", "Vår simulerade valprognos " +
-      (swedishDate(firstDate) || firstDate) + " till " + (swedishDate(lastDate) || lastDate) +
-      ". Välj mått och koalitioner. Enskilda mätningar visas som jämförelse för röstandel.");
+    setText("election-timeseries-intro", projection && projection.points.length
+      ? "Historisk prognos " + (swedishDate(firstDate) || firstDate) + " till " +
+        (swedishDate(lastDate) || lastDate) + ", följd av en villkorad projektion till " +
+        (swedishDate(projection.election.iso) || projection.election.iso) +
+        ". Välj mått och koalitioner. Enskilda mätningar visas bara i den historiska röstandelsdelen."
+      : "Vår simulerade valprognos " + (swedishDate(firstDate) || firstDate) + " till " +
+        (swedishDate(lastDate) || lastDate) +
+        ". Välj mått och koalitioner. Enskilda mätningar visas som jämförelse för röstandel.");
     renderChart();
     section.hidden = false;
     return true;
