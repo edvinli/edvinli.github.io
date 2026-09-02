@@ -164,3 +164,63 @@ points, the 112-day marker, the 175-seat reference, pointer/touch/keyboard
 inspection, provenance copy, horizontal overflow, and browser errors. It uses
 the built history artifact when present and otherwise installs its dedicated
 fixture only in a temporary copy of `_site`.
+
+## Determinism: pin the generation you assert against
+
+A suite that asserts published numbers — a median, a majority probability, an
+exact histogram count — must pin the publication generation it reads, or the
+next forecast sync moves the numbers underneath it.
+
+`serve()` takes a `pointer`, and `pointerFor(siteRoot, generation)` builds a
+valid one for any directory under `files/election-simulator/versions/`. Those
+directories are immutable, so a pinned suite is deterministic without
+regenerating anything:
+
+```js
+import { serve, pointerFor } from './server.mjs';
+
+const TARGET_GENERATION = '20260831T170410Z-1f5e0506';
+const TARGET_POINTER = await pointerFor(SITE, TARGET_GENERATION);
+const server = await serve(SITE, { port: 4000, pointer: TARGET_POINTER });
+```
+
+`builder-blocks`, `histogram-copy`, `government-builder` and `alternatives` all
+do this. `forecast-timeseries` uses the built history artifact when present and
+its own committed fixture otherwise.
+
+**Also assert that the pointer took effect.** `histogram-copy` previously
+declared `TARGET_GENERATION`, printed it as provenance on success, and never
+passed a pointer to `serve()` — so it silently tested the live forecast against
+stale numbers and failed on every sync. Both pinned suites now read
+`current.json` back through the serving harness and check the served generation
+matches, which turns that mistake into a named failure.
+
+Re-pinning is a deliberate act: bump `TARGET_GENERATION` and update the
+expectations from that generation's `groups.json` in the same change.
+
+## Continuous integration
+
+`.github/workflows/pr.yml` builds the site once and runs the browser suites a
+change can affect; `.github/workflows/full.yml` runs all of them on pushes to
+`master`.
+
+Each suite gets its own runner. That is required, not preferred: `server.mjs`
+binds port 4000 by name because `_config.dev.yml` gives the built pages
+absolute `http://localhost:4000` asset URLs, so two suites cannot share a
+runner. Wall-clock is therefore the slowest single suite (~30 s) rather than
+the ~90 s serial total.
+
+`browser-tests/select-suites.mjs` decides what is affected and carries its own
+checks:
+
+```sh
+node browser-tests/select-suites.mjs --self-test
+node browser-tests/select-suites.mjs --changed assets/js/election-simulator.js
+```
+
+The rules fail toward running more. A change to a single suite file selects
+that suite; a change to `cdp.mjs`, `server.mjs`, `_sass/**`, `_includes/**` or
+`election-simulator.js` selects every suite; an unrecognised path selects every
+suite. Adding a suite means adding it to `SUITES` — the self-test compares that
+table against the directory, so a suite present on disk but missing from the
+table fails rather than quietly never running.

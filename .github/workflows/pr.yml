@@ -1,0 +1,187 @@
+# Pull-request layer for the website: build the site, then run only the browser
+# suites the change can affect -- one per runner.
+#
+# This repository had no CI at all. Every browser suite ran on someone's laptop
+# or not at all, which is how two suites came to be failing on master with
+# nobody's build going red.
+#
+# One suite per job is not a stylistic choice. browser-tests/server.mjs binds
+# port 4000 *by name*, because _config.dev.yml gives the built pages absolute
+# http://localhost:4000 asset URLs and the stylesheet only loads on that exact
+# host and port. Two suites on one runner collide, and a run that serves on
+# another port renders the markup with no CSS while every layout assertion
+# still passes. Separate runners are what make parallelism safe here.
+name: PR
+
+on:
+  pull_request:
+  merge_group:
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan affected suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      empty: ${{ steps.plan.outputs.empty }}
+      reason: ${{ steps.plan.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The selector gates what runs, so its own checks come first.
+      - name: Self-test the suite selector
+        run: node browser-tests/select-suites.mjs --self-test
+
+      - name: Select affected suites
+        id: plan
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$BASE_SHA...HEAD")
+          if [[ ${#changed[@]} -eq 0 ]]; then
+            echo "no changed paths against $BASE_SHA"
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo "reason=no changed paths" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf 'changed: %s\n' "${changed[@]}"
+          matrix="$(node browser-tests/select-suites.mjs --changed "${changed[@]}" 2> reason.txt)"
+          reason="$(cat reason.txt)"
+          echo "$reason"
+          count="$(printf '%s' "$matrix" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).include.length))')"
+          if [[ "$count" -eq 0 ]]; then echo "empty=true" >> "$GITHUB_OUTPUT"; else echo "empty=false" >> "$GITHUB_OUTPUT"; fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Affected browser suites"
+            echo ""
+            echo "- $reason"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # The Jekyll build always runs: it is cheap (under a second) and it is the
+  # only check that a change to any page or include still produces a site.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Jekyll build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      # Mirrors the publication gate's gem list exactly. CI must not build the
+      # site with a different Jekyll than the gate publishes with, so the list
+      # is duplicated verbatim rather than diverging behind a Gemfile.
+      - name: Cache gems
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/gem
+          key: gems-jekyll-${{ runner.os }}-ruby33-v1
+      - name: Install Jekyll
+        run: |
+          gem install --user-install --no-document \
+            jekyll jekyll-paginate jekyll-sitemap jekyll-gist jekyll-feed \
+            jekyll-redirect-from
+          echo "$(ruby -e 'print Gem.user_dir')/bin" >> "$GITHUB_PATH"
+
+      - name: Build the site
+        run: jekyll build --config _config.yml,_config.dev.yml
+
+      - name: Upload the built site
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: _site
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # One affected suite per runner, against the site built once above.
+  # ---------------------------------------------------------------------------
+  browser:
+    name: ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [plan, build]
+    if: needs.plan.outputs.empty == 'false'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Reuse the build rather than rebuilding per suite. The suites only read
+      # _site, so one build serves them all.
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: _site
+
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends chromium-browser || \
+            sudo apt-get install -y --no-install-recommends chromium
+          echo "CHROME_BIN=$(command -v chromium || command -v chromium-browser)" >> "$GITHUB_ENV"
+
+      - name: Run ${{ matrix.suite }}
+        run: node "browser-tests/${{ matrix.suite }}" _site
+
+  required:
+    name: Website PR required checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [plan, build, browser]
+    if: always()
+    steps:
+      - shell: bash
+        env:
+          PLAN: ${{ needs.plan.result }}
+          BUILD: ${{ needs.build.result }}
+          BROWSER: ${{ needs.browser.result }}
+          EMPTY: ${{ needs.plan.outputs.empty }}
+          REASON: ${{ needs.plan.outputs.reason }}
+        run: |
+          set -euo pipefail
+          echo "plan=$PLAN build=$BUILD browser=$BROWSER empty=$EMPTY"
+          echo "selection: $REASON"
+          if [[ "$PLAN" != "success" || "$BUILD" != "success" ]]; then
+            echo "::error::the site did not build or the selector failed"
+            exit 1
+          fi
+          # A skipped browser matrix is only acceptable when the selector
+          # proved no suite can be affected.
+          if [[ "$EMPTY" == "true" ]]; then
+            if [[ "$BROWSER" != "skipped" ]]; then
+              echo "::error::browser result was '$BROWSER' for an empty selection"
+              exit 1
+            fi
+            echo "No browser suite is affected by this diff."
+            exit 0
+          fi
+          if [[ "$BROWSER" != "success" ]]; then
+            echo "::error::affected browser suites did not pass (result: $BROWSER)"
+            exit 1
+          fi
+          echo "All required website PR checks passed."

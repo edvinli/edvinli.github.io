@@ -1,0 +1,117 @@
+# Full layer for the website: every browser suite, each on its own runner.
+#
+# Runs on push to master. Wall-clock is the slowest single suite (about 30s)
+# rather than the ~90s serial total, because each suite gets its own runner --
+# which it needs anyway, since they all bind port 4000.
+name: Full CI
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: full-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Self-test the suite selector
+        run: node browser-tests/select-suites.mjs --self-test
+      - name: Enumerate every suite
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix="$(node browser-tests/select-suites.mjs --all 2> reason.txt)"
+          cat reason.txt
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Jekyll build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      # Same gem list as the publication gate; see pr.yml.
+      - name: Cache gems
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/gem
+          key: gems-jekyll-${{ runner.os }}-ruby33-v1
+      - name: Install Jekyll
+        run: |
+          gem install --user-install --no-document \
+            jekyll jekyll-paginate jekyll-sitemap jekyll-gist jekyll-feed \
+            jekyll-redirect-from
+          echo "$(ruby -e 'print Gem.user_dir')/bin" >> "$GITHUB_PATH"
+      - name: Build the site
+        run: jekyll build --config _config.yml,_config.dev.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: _site
+          retention-days: 1
+
+  browser:
+    name: ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [plan, build]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: _site
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends chromium-browser || \
+            sudo apt-get install -y --no-install-recommends chromium
+          echo "CHROME_BIN=$(command -v chromium || command -v chromium-browser)" >> "$GITHUB_ENV"
+      - name: Run ${{ matrix.suite }}
+        run: node "browser-tests/${{ matrix.suite }}" _site
+
+  required:
+    name: Website full CI required checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [plan, build, browser]
+    if: always()
+    steps:
+      - shell: bash
+        env:
+          PLAN: ${{ needs.plan.result }}
+          BUILD: ${{ needs.build.result }}
+          BROWSER: ${{ needs.browser.result }}
+        run: |
+          set -euo pipefail
+          echo "plan=$PLAN build=$BUILD browser=$BROWSER"
+          if [[ "$PLAN" != "success" || "$BUILD" != "success" || "$BROWSER" != "success" ]]; then
+            echo "::error::website full CI did not pass"
+            exit 1
+          fi
+          echo "Every browser suite passed."
