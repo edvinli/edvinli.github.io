@@ -300,15 +300,15 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       displayIndent: '0'
     },
     options: {
-      // Confine MathJax to the equation blocks. Nothing else on the page is
-      // math, and the forecast app rewrites large parts of the DOM.
+      /* Confine MathJax to the equation blocks. Nothing else on the page is
+         math, and the forecast app rewrites large parts of the DOM. */
       ignoreHtmlClass: '.*',
       processHtmlClass: 'election-equation'
     },
     startup: {
-      // The equations live inside a collapsed <details>. CHTML cannot measure
-      // a display:none subtree, so typesetting is deferred until the section
-      // is first opened.
+      /* The equations live inside a collapsed <details>. CHTML cannot measure
+         a display:none subtree, so typesetting is deferred until the section
+         is first opened. */
       typeset: false,
       pageReady: function () {
         return window.MathJax.startup.defaultPageReady().then(function () {
