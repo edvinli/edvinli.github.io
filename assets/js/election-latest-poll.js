@@ -10,7 +10,7 @@
 
   ["election-timeseries-provenance-note", "election-timeseries-dynamics-note"].forEach(function (id) {
     var node = document.getElementById(id);
-    if (node) node.remove();
+    if (node) node.hidden = true;
   });
 
   var host = document.getElementById("election-latest-poll");
