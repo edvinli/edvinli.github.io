@@ -521,6 +521,19 @@
     } : null;
   }
 
+  // Published dates are calendar dates, not local timestamps. Constructing
+  // the offset at UTC midnight keeps a range such as election day minus 30
+  // days stable across browser time zones and daylight-saving transitions.
+  function historyDateOffset(value, offsetDays) {
+    var date = historyDate(value);
+    if (!date || !Number.isFinite(Number(offsetDays))) return null;
+    var parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.iso);
+    if (!parts) return null;
+    var shifted = new Date(Date.UTC(Number(parts[1]), Number(parts[2]) - 1,
+      Number(parts[3]) + Number(offsetDays)));
+    return historyDate(shifted.toISOString().slice(0, 10));
+  }
+
   function historyFirst(source, names) {
     if (!source || typeof source !== "object") return null;
     for (var index = 0; index < names.length; index += 1) {
@@ -926,6 +939,20 @@
     return path;
   }
 
+  function historyPopLinePath(points, definitionId, xScale, yScale) {
+    var path = "";
+    var count = 0;
+    points.forEach(function (point) {
+      var value = point.values && historyNumber(point.values[definitionId]);
+      if (value === null) return;
+      var x = xScale(point.time);
+      var y = yScale(value);
+      path += (count ? "L" : "M") + x.toFixed(2) + "," + y.toFixed(2);
+      count += 1;
+    });
+    return path;
+  }
+
   function historyAreaPath(points, metric, definitionId, xScale, yScale, upperKey, lowerKey) {
     var upper = [];
     var lower = [];
@@ -973,11 +1000,17 @@
     return ticks;
   }
 
-  function historyValueDomain(history, metric, definitions) {
+  function historyValueDomain(history, metric, definitions, domain) {
     var values = [];
-    var projectionPoints = history.futureProjection ? history.futureProjection.points : [];
+    var inDomain = function (point) {
+      return point && (!domain || (point.time >= domain.minTime && point.time <= domain.maxTime));
+    };
+    var inHistoricalDomain = function (point) {
+      return inDomain(point) && (!history.futureProjection || point.time <= history.futureProjection.origin.time);
+    };
+    var projectionPoints = history.futureProjection ? history.futureProjection.points.filter(inDomain) : [];
     definitions.forEach(function (definition) {
-      history.points.forEach(function (point) {
+      history.points.filter(inDomain).forEach(function (point) {
         var group = point.groups && point.groups[definition.id];
         var low = historyMetricValue(group, metric, "p05");
         var high = historyMetricValue(group, metric, "p95");
@@ -992,13 +1025,21 @@
         if (high !== null) values.push(high);
       });
     });
-    if (metric === "vote" && history.pop && history.pop.length) {
-      history.pop.forEach(function (item) {
+    if (metric === "vote") {
+      if (history.pop && history.pop.length) history.pop.filter(inHistoricalDomain).forEach(function (item) {
         definitions.forEach(function (definition) {
           var value = item.values && historyNumber(item.values[definition.id]);
           if (value !== null) values.push(value);
         });
       });
+      if (domain && domain.range === "short" && history.polls && history.polls.length) {
+        history.polls.filter(inHistoricalDomain).forEach(function (item) {
+          definitions.forEach(function (definition) {
+            var value = item.values && historyNumber(item.values[definition.id]);
+            if (value !== null) values.push(value);
+          });
+        });
+      }
     }
     var lower = values.length ? Math.min.apply(Math, values) : 0;
     var upper = values.length ? Math.max.apply(Math, values) : (metric === "seats" ? 100 : 50);
@@ -1051,8 +1092,11 @@
     var seatNote = byId("election-timeseries-seat-note");
     var modeVote = byId("election-timeseries-vote");
     var modeSeats = byId("election-timeseries-seats");
+    var rangeFull = byId("election-timeseries-range-full");
+    var rangeShort = byId("election-timeseries-range-short");
     var coalitionHost = byId("election-timeseries-coalitions");
     var selectedMetric = "vote";
+    var selectedRange = "full";
     var selected = {};
     var selectedDate = null;
     var selectedPoint = null;
@@ -1060,6 +1104,7 @@
     var renderSelection = function () {};
     var renderDetail = function () {};
     var keyboardSelect = function () {};
+    var activeDomain = null;
     var compactChart = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
     var width = compactChart ? 600 : 960;
     var height = compactChart ? 500 : 430;
@@ -1071,16 +1116,54 @@
       : { left: 72, right: 880, top: 40, bottom: 360 };
     plot.width = plot.right - plot.left;
     plot.height = plot.bottom - plot.top;
-    var chartMinTime = history.points[0].time;
-    var chartMaxTime = projection ? projection.election.time : history.points[history.points.length - 1].time;
+    var electionDate = historyDate(history.electionDate);
+    var shortRangeStart = historyDateOffset(history.electionDate, -30);
+    var allDataTimes = history.points.map(function (point) { return point.time; });
+    if (history.pop && history.pop.length) {
+      history.pop.forEach(function (item) { allDataTimes.push(item.time); });
+    }
+    if (history.polls && history.polls.length) {
+      history.polls.forEach(function (item) { allDataTimes.push(item.time); });
+    }
+    if (projection) allDataTimes.push(projection.election.time);
+    var fullMinTime = Math.min.apply(Math, allDataTimes);
+    var fullMaxTime = projection ? projection.election.time : Math.max.apply(Math, allDataTimes);
+    if (!Number.isFinite(fullMinTime)) fullMinTime = history.points[0].time;
+    if (!Number.isFinite(fullMaxTime)) fullMaxTime = history.points[history.points.length - 1].time;
     history.definitions.forEach(function (definition) {
       selected[definition.id] = Boolean(definition.defaultOn);
     });
+
+    function activeTimeDomain() {
+      var shortRangeEnd = electionDate;
+      var useShortRange = selectedRange === "short" && shortRangeStart && shortRangeEnd;
+      var minTime = useShortRange ? shortRangeStart.time : fullMinTime;
+      var maxTime = useShortRange ? shortRangeEnd.time : fullMaxTime;
+      if (!Number.isFinite(minTime) || !Number.isFinite(maxTime)) return null;
+      if (maxTime <= minTime) maxTime = minTime + 86400000;
+      return {
+        minTime: minTime,
+        maxTime: maxTime,
+        minIso: new Date(minTime).toISOString().slice(0, 10),
+        maxIso: new Date(maxTime).toISOString().slice(0, 10),
+        range: selectedRange
+      };
+    }
 
     function activeDefinitions() {
       return history.definitions.filter(function (definition) {
         return selected[definition.id];
       });
+    }
+
+    function pointInActiveDomain(point) {
+      return Boolean(point && activeDomain && point.time >= activeDomain.minTime &&
+        point.time <= activeDomain.maxTime);
+    }
+
+    function setRangeButtons() {
+      if (rangeFull) rangeFull.setAttribute("aria-pressed", selectedRange === "full" ? "true" : "false");
+      if (rangeShort) rangeShort.setAttribute("aria-pressed", selectedRange === "short" ? "true" : "false");
     }
 
     function setModeButtons() {
@@ -1089,6 +1172,7 @@
       if (seatNote) seatNote.hidden = selectedMetric !== "seats";
       var pollsKey = byId("election-timeseries-key-polls");
       if (pollsKey) pollsKey.hidden = selectedMetric !== "vote";
+      setRangeButtons();
     }
 
     function dateForEvent(event) {
@@ -1108,11 +1192,13 @@
       // percent into the series.
       var svgX = (clientX - rect.left) * width / rect.width;
       var ratio = Math.max(0, Math.min(1, (svgX - plot.left) / plot.width));
-      return chartMinTime + (chartMaxTime - chartMinTime) * ratio;
+      if (!activeDomain) return null;
+      return activeDomain.minTime + (activeDomain.maxTime - activeDomain.minTime) * ratio;
     }
 
     function nearestPoint(time, direction) {
       var candidates = history.points.concat(projection ? projection.points : []).filter(function (point) {
+        if (!pointInActiveDomain(point)) return false;
         return activeDefinitions().some(function (definition) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
@@ -1130,6 +1216,19 @@
       return candidates.reduce(function (best, point) {
         return !best || Math.abs(point.time - time) < Math.abs(best.time - time) ? point : best;
       }, null);
+    }
+
+    function defaultVisiblePoint() {
+      var candidates = history.points.concat(projection ? projection.points : []).filter(function (point) {
+        return pointInActiveDomain(point) && activeDefinitions().some(function (definition) {
+          return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
+        });
+      }).sort(function (left, right) { return left.time - right.time; });
+      if (!candidates.length) return null;
+      var current = candidates.filter(function (point) {
+        return point.provenance === "current_production";
+      });
+      return current.length ? current[current.length - 1] : candidates[candidates.length - 1];
     }
 
     function nearestDefinition(point) {
@@ -1287,25 +1386,27 @@
       var retainedDate = selectedDate;
       var retainedPinnedSelection = pinnedSelection;
       var definitions = activeDefinitions();
-      var allTimes = history.points.map(function (point) { return point.time; });
-      if (history.pop && history.pop.length) {
-        history.pop.forEach(function (item) { allTimes.push(item.time); });
-      }
-      if (selectedMetric === "vote" && history.polls && history.polls.length) {
-        history.polls.forEach(function (item) { allTimes.push(item.time); });
-      }
-      if (projection) allTimes.push(projection.election.time);
-      var minTime = Math.min.apply(Math, allTimes);
-      var maxTime = projection ? projection.election.time : Math.max.apply(Math, allTimes);
-      if (!Number.isFinite(minTime) || !Number.isFinite(maxTime)) return;
-      if (maxTime <= minTime) maxTime = minTime + 86400000;
-      chartMinTime = minTime;
-      chartMaxTime = maxTime;
-      var span = maxTime - minTime;
+      activeDomain = activeTimeDomain();
+      if (!activeDomain) return;
+      section.setAttribute("data-time-range", activeDomain.range);
+      section.setAttribute("data-range", activeDomain.range);
+      section.setAttribute("data-time-range-start", activeDomain.minIso);
+      section.setAttribute("data-time-range-end", activeDomain.maxIso);
+      var minTime = activeDomain.minTime;
+      var maxTime = activeDomain.maxTime;
+      var visibleHistoryPoints = history.points.filter(pointInActiveDomain);
+      var visibleProjectionPoints = projection ? projection.points.filter(pointInActiveDomain) : [];
+      var visiblePopPoints = history.pop ? history.pop.filter(function (point) {
+        return pointInActiveDomain(point) && (!projection || point.time <= projection.origin.time);
+      }) : [];
+      var visiblePollPoints = history.polls ? history.polls.filter(function (point) {
+        return pointInActiveDomain(point) && (!projection || point.time <= projection.origin.time);
+      }) : [];
+      var span = activeDomain.maxTime - activeDomain.minTime;
       var xScale = function (time) {
-        return plot.left + (time - minTime) / span * plot.width;
+        return plot.left + (time - activeDomain.minTime) / span * plot.width;
       };
-      var yDomain = historyValueDomain(history, selectedMetric, definitions);
+      var yDomain = historyValueDomain(history, selectedMetric, definitions, activeDomain);
       var minValue = yDomain.min;
       var maxValue = yDomain.max;
       var yScale = function (value) {
@@ -1322,7 +1423,10 @@
       svg.setAttribute("data-y-domain", String(minValue) + "–" + String(maxValue));
       svg.setAttribute("data-dynamics-horizon-cap", String(HISTORY_DYNAMICS_CAP));
       svg.setAttribute("data-majority-rule", String(MAJORITY));
-      svg.setAttribute("data-x-axis-max", new Date(maxTime).toISOString().slice(0, 10));
+      svg.setAttribute("data-time-range", activeDomain.range);
+      svg.setAttribute("data-range", activeDomain.range);
+      svg.setAttribute("data-x-axis-min", activeDomain.minIso);
+      svg.setAttribute("data-x-axis-max", activeDomain.maxIso);
       if (projection) {
         svg.setAttribute("data-future-projection-origin", projection.origin.iso);
         svg.setAttribute("data-future-projection-election", projection.election.iso);
@@ -1331,11 +1435,14 @@
         "Prognos över tid, " + historyMetricLabel(selectedMetric)));
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
         "Vår simulering med median och 50- samt 90-procentiga prognosintervall från " +
-        (swedishDate(history.points[0].date) || history.points[0].date) + " till " +
-        (swedishDate(projection ? projection.election.iso : history.points[history.points.length - 1].date) ||
-          (projection ? projection.election.iso : history.points[history.points.length - 1].date)) +
+        (swedishDate(activeDomain.minIso) || activeDomain.minIso) + " till " +
+        (swedishDate(activeDomain.maxIso) || activeDomain.maxIso) +
         ". Skalan är anpassad efter de valda serierna." +
-        (selectedMetric === "vote" ? " Enskilda mätningar visas som jämförelse." : "")));
+        (selectedMetric === "vote"
+          ? (selectedRange === "short"
+            ? " Poll of Polls och enskilda mätningar visas som jämförelse."
+            : " Enskilda mätningar visas som jämförelse.")
+          : "")));
 
       var plotDefs = svgNode("defs");
       var plotClip = svgNode("clipPath", { id: "election-timeseries-plot-clip" });
@@ -1429,7 +1536,7 @@
       });
       var endpointLabels = [];
       definitions.forEach(function (definition) {
-        var validPoints = history.points.filter(function (point) {
+        var validPoints = visibleHistoryPoints.filter(function (point) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
         if (!validPoints.length) return;
@@ -1470,7 +1577,10 @@
           class: "election-timeseries__line election-timeseries__median", d: medianPath, stroke: definition.color,
           "data-coalition": definition.id, "data-quantile": "p50"
         }));
-        var latest = curvePoints[curvePoints.length - 1];
+        var currentPoints = curvePoints.filter(function (point) {
+          return point.provenance === "current_production";
+        });
+        var latest = currentPoints.length ? currentPoints[currentPoints.length - 1] : curvePoints[curvePoints.length - 1];
         // Paint archived markers first so the official current production
         // remains the topmost pointer target when dates are only a pixel apart.
         archivedPoints.concat(curvePoints).forEach(function (point) {
@@ -1569,7 +1679,8 @@
             "data-coalition": definition.id,
             "data-coalition-label": definition.label,
             "data-color": definition.color,
-            "data-projection": "true"
+            "data-projection": "true",
+            "clip-path": "url(#election-timeseries-plot-clip)"
           });
           var futureNinety = historyAreaPath(projectedCurve, selectedMetric, definition.id,
             xScale, yScale, "p95", "p05");
@@ -1593,7 +1704,7 @@
             class: "election-timeseries__future-median", "data-future-median": "true",
             "data-coalition": definition.id
           }));
-          projection.points.forEach(function (point) {
+          visibleProjectionPoints.forEach(function (point) {
             var group = point.groups && point.groups[definition.id];
             var values = historyDisplayQuantiles(group, selectedMetric);
             var rawValues = group && group[selectedMetric];
@@ -1628,13 +1739,41 @@
         svg.appendChild(futureLayer);
       }
 
-      if (selectedMetric === "vote" && history.polls && history.polls.length) {
+      if (selectedRange === "short" && selectedMetric === "vote" && visiblePopPoints.length) {
+        var popLayer = svgNode("g", {
+          class: "election-timeseries__pop", "aria-hidden": "true",
+          "clip-path": "url(#election-timeseries-plot-clip)", "pointer-events": "none"
+        });
+        definitions.forEach(function (definition) {
+          var popPath = historyPopLinePath(visiblePopPoints, definition.id, xScale, yScale);
+          if (popPath) popLayer.appendChild(svgNode("path", {
+            class: "election-timeseries__pop-line", d: popPath, fill: "none",
+            stroke: definition.color, "stroke-width": "1.6", opacity: "0.62",
+            "data-series": "poll_of_polls", "data-coalition": definition.id,
+            "data-date-start": visiblePopPoints[0].date,
+            "data-date-end": visiblePopPoints[visiblePopPoints.length - 1].date
+          }));
+          visiblePopPoints.forEach(function (point) {
+            var popValue = point.values && historyNumber(point.values[definition.id]);
+            if (popValue === null) return;
+            popLayer.appendChild(svgNode("circle", {
+              class: "election-timeseries__pop-point", cx: xScale(point.time), cy: yScale(popValue),
+              r: compactChart ? 1.8 : 2.1, fill: definition.color, opacity: "0.62",
+              "data-pop-point": "true",
+              "data-coalition": definition.id, "data-date": point.date, "data-value": popValue
+            }));
+          });
+        });
+        svg.appendChild(popLayer);
+      }
+
+      if (selectedMetric === "vote" && visiblePollPoints.length) {
         var scatterLayer = svgNode("g", {
           class: "election-timeseries__polls", "aria-hidden": "true",
           "clip-path": "url(#election-timeseries-plot-clip)", "pointer-events": "none"
         });
         definitions.forEach(function (definition) {
-          history.polls.forEach(function (poll) {
+          visiblePollPoints.forEach(function (poll) {
             var pollValue = poll.values && historyNumber(poll.values[definition.id]);
             if (pollValue === null) return;
             scatterLayer.appendChild(svgNode("circle", {
@@ -1685,7 +1824,8 @@
       };
       svg.appendChild(selectionLayer);
 
-      var retainedPoint = retainedDate === null ? null : nearestPoint(retainedDate);
+      var retainedPoint = retainedDate === null ? null :
+        (pointInActiveDomain({ time: retainedDate }) ? nearestPoint(retainedDate) : defaultVisiblePoint());
       if (retainedPoint) {
         selectedDate = retainedPoint.time;
         selectedPoint = retainedPoint;
@@ -1700,7 +1840,8 @@
         renderDetail(null);
       }
 
-      var interactionMaxTime = projection ? projection.origin.time : maxTime;
+      var interactionMaxTime = projection
+        ? Math.max(minTime, Math.min(projection.origin.time, maxTime)) : maxTime;
       var hitRight = xScale(interactionMaxTime);
       var hit = svgNode("rect", {
         class: "election-timeseries__hit", x: plot.left, y: plot.top,
@@ -1794,6 +1935,14 @@
     });
     if (modeSeats) modeSeats.addEventListener("click", function () {
       selectedMetric = "seats";
+      renderChart();
+    });
+    if (rangeFull) rangeFull.addEventListener("click", function () {
+      selectedRange = "full";
+      renderChart();
+    });
+    if (rangeShort) rangeShort.addEventListener("click", function () {
+      selectedRange = "short";
       renderChart();
     });
     section.setAttribute("data-history-schema-version", history.schemaVersion);

@@ -346,7 +346,8 @@ canvas {
   margin-top: 1rem;
 }
 
-.election-timeseries__mode {
+.election-timeseries__mode,
+.election-timeseries__range {
   border: 1px solid var(--el-rule);
   border-radius: 999px;
   display: inline-flex;
@@ -377,6 +378,10 @@ canvas {
 
 .election-timeseries__control[aria-pressed="true"]:hover {
   background: var(--el-ink-soft);
+}
+
+.election-timeseries__range-button {
+  white-space: nowrap;
 }
 
 .election-timeseries__coalitions {
@@ -2261,6 +2266,10 @@ canvas {
   .election-timeseries__controls {
     align-items: flex-start;
     gap: 0.55rem;
+  }
+
+  .election-timeseries__range {
+    max-width: 100%;
   }
 
   .election-timeseries__coalitions {
