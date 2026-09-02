@@ -10,6 +10,7 @@
 //   node browser-tests/forecast-timeseries.smoke.mjs [path/to/_site]
 
 import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -35,8 +36,8 @@ const EXTRA_COALITIONS = [
 ];
 const ALL_COALITIONS = DEFAULT_COALITIONS.concat(EXTRA_COALITIONS);
 const VIEWPORTS = [
-  { name: 'desktop (1280x1000)', width: 1280, height: 1000, coarse: false },
-  { name: 'narrow-360 (360x900)', width: 360, height: 900, coarse: true },
+  { name: 'desktop (1280x1000)', diagnostic: 'desktop', width: 1280, height: 1000, coarse: false },
+  { name: 'narrow-360 (360x900)', diagnostic: 'mobile', width: 360, height: 900, coarse: true },
 ];
 
 let failures = 0;
@@ -62,6 +63,35 @@ const labelFor = (parties) => parties.join(' + ');
 const appErrors = (browser) => browser.consoleErrors.filter(
   (entry) => !/favicon|images\/manifest\.json/.test(entry.text));
 const settle = (ms = 180) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+
+async function diagnostic(message) {
+  if (!process.stdout.write(`[forecast-timeseries] ${message}\n`)) {
+    await once(process.stdout, 'drain');
+  }
+}
+
+async function boundary(scope, stage, action) {
+  const label = `${scope} ${stage}`;
+  const started = Date.now();
+  await diagnostic(`${label} START`);
+  try {
+    const value = await action();
+    await diagnostic(`${label} DONE elapsed=${((Date.now() - started) / 1000).toFixed(3)}s`);
+    return value;
+  } catch (error) {
+    await diagnostic(
+      `${label} FAIL elapsed=${((Date.now() - started) / 1000).toFixed(3)}s reason=${error.message}`,
+    );
+    throw error;
+  }
+}
+
+async function closeBrowser(scope, browser, server) {
+  const results = await Promise.allSettled([browser?.close(), server?.close()]);
+  await diagnostic(`${scope} close DONE`);
+  const failure = results.find((result) => result.status === 'rejected');
+  if (failure) throw failure.reason;
+}
 
 function coalitionKey(history, parties) {
   const match = Object.entries(history.coalitions || {}).find(([, members]) =>
@@ -222,17 +252,23 @@ async function waitForApp(browser) {
 
 async function open(viewport, siteRoot = SITE) {
   const server = await serve(siteRoot, { port: 4000 });
-  const browser = await launch({ width: viewport.width, height: viewport.height });
+  let browser;
   try {
-    if (viewport.coarse) {
-      await browser.S('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-    }
-    await browser.goto(`http://localhost:${server.port}${PAGE}`);
-    await waitForApp(browser);
+    browser = await boundary(viewport.diagnostic, 'launch', async () => {
+      const launched = await launch({ width: viewport.width, height: viewport.height });
+      if (viewport.coarse) {
+        await launched.S('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+      }
+      return launched;
+    });
+    await boundary(viewport.diagnostic, 'navigate', () => browser.goto(
+      `http://localhost:${server.port}${PAGE}`,
+      { timeout: 30000, label: `${viewport.diagnostic} navigate` },
+    ));
+    await boundary(viewport.diagnostic, 'app-ready', () => waitForApp(browser));
     return { server, browser };
   } catch (error) {
-    await browser.close();
-    await server.close();
+    await closeBrowser(viewport.diagnostic, browser, server);
     throw error;
   }
 }
@@ -617,6 +653,8 @@ function assertFixturePointText(text, point, group, label) {
 async function exercise(viewport, history, siteRoot) {
   console.log(`\n${viewport.name}`);
   const { server, browser } = await open(viewport, siteRoot);
+  const assertionsStarted = Date.now();
+  await diagnostic(`${viewport.diagnostic} assertions START`);
   try {
     let view = readPage(browser);
     assertStructure(await view, history);
@@ -761,9 +799,17 @@ async function exercise(viewport, history, siteRoot) {
     check('no page-level horizontal overflow', view.overflow <= 0, view.overflow);
     equal('no console errors', appErrors(browser), []);
     equal('no uncaught exceptions', browser.exceptions, []);
+    await diagnostic(
+      `${viewport.diagnostic} assertions DONE elapsed=${((Date.now() - assertionsStarted) / 1000).toFixed(3)}s`,
+    );
+  } catch (error) {
+    await diagnostic(
+      `${viewport.diagnostic} assertions FAIL ` +
+      `elapsed=${((Date.now() - assertionsStarted) / 1000).toFixed(3)}s reason=${error.message}`,
+    );
+    throw error;
   } finally {
-    await browser.close();
-    await server.close();
+    await closeBrowser(viewport.diagnostic, browser, server);
   }
 }
 
