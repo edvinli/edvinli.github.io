@@ -10,21 +10,55 @@
 
   var base = String(app.getAttribute("data-publication-base") || "").replace(/\/$/, "");
 
+  // Keep the DOM order stable for the existing page contract, but present
+  // Mandat immediately after Röstandelar.  The mandate panel itself has no
+  // focusable controls, so this does not reorder keyboard interaction.
+  function placeMandatesAfterVotes() {
+    var voteSection = document.getElementById("election-headline");
+    var children = Array.prototype.slice.call(app.children);
+    var voteIndex = children.indexOf(voteSection);
+    var seatIndex = children.indexOf(root);
+    if (voteIndex < 0 || seatIndex < 0 || seatIndex === voteIndex + 1) return;
+
+    var visualOrder = children.filter(function (child) { return child !== root; });
+    voteIndex = visualOrder.indexOf(voteSection);
+    visualOrder.splice(voteIndex + 1, 0, root);
+
+    app.style.display = "flex";
+    app.style.flexDirection = "column";
+    visualOrder.forEach(function (child, index) {
+      child.style.order = String(index);
+    });
+    root.setAttribute("data-visual-order", "after-vote-shares");
+  }
+
+  placeMandatesAfterVotes();
+
+  var intro = root.querySelector(".election-panel__head .election-muted");
+  if (intro) {
+    intro.textContent = "Median mandat med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Riksdagen har 349 mandat och 175 krävs för majoritet. Medianerna beräknas var för sig och behöver därför inte summera till 349.";
+  }
+
   var style = document.createElement("style");
   style.textContent = [
-    ".es-track{overflow:hidden}",
-    ".es-bar{opacity:0}",
-    ".es-range{height:100%;top:0;transform:none;background:currentColor;opacity:.22}",
-    ".es-range.es-range--50{opacity:1}",
-    ".es-median-mark{position:absolute;top:-2px;bottom:-2px;width:3px;transform:translateX(-1.5px);background:currentColor;box-shadow:0 0 0 1px rgba(255,255,255,.9)}",
-    ".es-range,.es-median-mark{pointer-events:none}",
-    ".election-seat-legend{display:flex;flex-wrap:wrap;gap:.35rem 1rem;margin-top:1rem}",
-    ".election-seat-legend__item{display:inline-flex;align-items:center;gap:.35rem;color:var(--el-muted);font-size:.76rem}",
-    ".election-seat-legend__mark{display:inline-block;width:1.5rem;height:.7rem;background:var(--el-ink)}",
-    ".election-seat-legend__mark--90{opacity:.22}",
-    ".election-seat-legend__mark--50{opacity:1}",
-    ".election-seat-legend__mark--median{width:3px;height:.95rem;opacity:1}",
-    "@media (forced-colors:active){.es-range,.es-median-mark,.election-seat-legend__mark{forced-color-adjust:none}}"
+    // The legend symbol should resemble the deliberately faded poll points,
+    // not read as a standalone black observation in the chart.
+    ".election-timeseries__key-mark--polls{opacity:.28}",
+
+    // Mandat now follows the same visual grammar as Röstandelar: same row
+    // rhythm, same full-colour central 50% band, same lighter 90% band and
+    // the same white median marker.
+    "#election-seats .election-seat-bars{border-top:1px solid var(--el-rule);margin-top:1.2rem}",
+    "#election-seats .es-row{min-height:2.9rem;padding:.35rem .15rem}",
+    "#election-seats .es-track{background:var(--el-fill-soft);height:1.15rem;overflow:hidden}",
+    "#election-seats .es-bar{opacity:0}",
+    "#election-seats .es-range{bottom:0;height:auto;top:0;transform:none;background:currentColor;border:0;opacity:.3}",
+    "#election-seats .es-range.es-range--50{opacity:.95}",
+    "#election-seats .es-median-mark{background:#fff;bottom:-2px;box-shadow:0 0 0 1px rgba(44,42,37,.75);position:absolute;top:-2px;transform:translateX(-1px);width:2px}",
+    "#election-seats .es-range,#election-seats .es-median-mark{pointer-events:none}",
+    "#election-seats .election-legend-note{margin-top:1rem}",
+    "@media (max-width:600px){#election-seats .es-row{padding:.55rem .15rem}}",
+    "@media (forced-colors:active){#election-seats .es-range,#election-seats .es-median-mark{forced-color-adjust:none}}"
   ].join("");
   document.head.appendChild(style);
 
@@ -60,6 +94,10 @@
       var track = row.querySelector(".es-track");
       var bar = row.querySelector(".es-bar");
       var oldRange = row.querySelector(".es-range");
+      var abbr = row.querySelector(".es-abbr");
+      var medianValue = row.querySelector(".es-median");
+      var chart = row.querySelector(".es-chart");
+      var majority = row.querySelector(".es-majority");
       if (!summary || !track || !bar || !oldRange) return;
 
       var p05 = number(summary.p05);
@@ -75,12 +113,20 @@
       if (!Number.isFinite(scale) || scale <= 0) return;
 
       var color = bar.style.backgroundColor || "currentColor";
-      oldRange.classList.add("es-range--90");
+
+      row.classList.add("ev-row");
+      if (abbr) abbr.classList.add("ev-abbr");
+      if (medianValue) medianValue.classList.add("ev-median");
+      if (chart) chart.classList.add("ev-chart");
+      track.classList.add("ev-track");
+      if (majority) majority.classList.add("ev-threshold");
+
+      oldRange.classList.add("es-range--90", "ev-band", "ev-band--90");
       oldRange.style.color = color;
       oldRange.style.background = "currentColor";
 
       var fifty = document.createElement("span");
-      fifty.className = "es-range es-range--50";
+      fifty.className = "es-range es-range--50 ev-band ev-band--50";
       fifty.style.left = (100 * p25 / scale).toFixed(3) + "%";
       fifty.style.width = Math.max(0.4, 100 * (p75 - p25) / scale).toFixed(3) + "%";
       fifty.style.color = color;
@@ -89,10 +135,8 @@
       fifty.setAttribute("data-p75", String(p75));
 
       var median = document.createElement("span");
-      median.className = "es-median-mark";
+      median.className = "es-median-mark ev-median-mark";
       median.style.left = (100 * medianSeats / scale).toFixed(3) + "%";
-      median.style.color = color;
-      median.style.background = "currentColor";
       median.setAttribute("data-median", String(medianSeats));
 
       track.appendChild(fifty);
@@ -105,12 +149,13 @@
     if (!document.getElementById("election-seat-opacity-legend")) {
       var legend = document.createElement("p");
       legend.id = "election-seat-opacity-legend";
-      legend.className = "election-seat-legend";
+      legend.className = "election-legend-note election-muted";
       legend.setAttribute("aria-label", "Osäkerhet i mandatprognosen");
       legend.innerHTML =
-        "<span class=\"election-seat-legend__item\"><span class=\"election-seat-legend__mark election-seat-legend__mark--median\" aria-hidden=\"true\"></span>median</span>" +
-        "<span class=\"election-seat-legend__item\"><span class=\"election-seat-legend__mark election-seat-legend__mark--50\" aria-hidden=\"true\"></span>centrala 50 %</span>" +
-        "<span class=\"election-seat-legend__item\"><span class=\"election-seat-legend__mark election-seat-legend__mark--90\" aria-hidden=\"true\"></span>centrala 90 %</span>";
+        "<span class=\"election-key\"><span class=\"election-key__mark election-key__mark--median\" aria-hidden=\"true\"></span>median</span>" +
+        "<span class=\"election-key\"><span class=\"election-key__mark election-key__mark--p50\" aria-hidden=\"true\"></span>50 % intervall</span>" +
+        "<span class=\"election-key\"><span class=\"election-key__mark election-key__mark--p90\" aria-hidden=\"true\"></span>90 % intervall</span>" +
+        "<span class=\"election-key\"><span class=\"election-key__mark election-key__mark--threshold\" aria-hidden=\"true\"></span>175 mandat</span>";
       bars.insertAdjacentElement("afterend", legend);
     }
     return true;
