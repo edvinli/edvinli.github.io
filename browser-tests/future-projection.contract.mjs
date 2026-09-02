@@ -38,8 +38,9 @@ const checks = [
   ['future points are accessible buttons', source.includes('role: "button"') &&
     source.includes('event.key === "Enter"')],
   ['one renderer owns historical and future scales',
-    source.includes('historyValueDomain(history, selectedMetric, definitions)') &&
-    source.includes('if (projection) allTimes.push(projection.election.time)')],
+    source.includes('activeDomain = activeTimeDomain()') &&
+    source.includes('historyValueDomain(history, selectedMetric, definitions, activeDomain)') &&
+    source.includes('activeDomain.minTime + (activeDomain.maxTime - activeDomain.minTime) * ratio')],
 ];
 
 let failed = 0;

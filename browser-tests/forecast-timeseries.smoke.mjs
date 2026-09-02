@@ -40,6 +40,33 @@ const VIEWPORTS = [
   { name: 'narrow-360 (360x900)', diagnostic: 'mobile', width: 360, height: 900, coarse: true },
 ];
 
+// Keep the expected short range in calendar space.  Parsing at UTC midnight
+// avoids a browser's local timezone changing the boundary around DST.
+function calendarDateOffset(iso, offsetDays) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!match) return null;
+  const shifted = new Date(Date.UTC(
+    Number(match[1]), Number(match[2]) - 1, Number(match[3]) + offsetDays,
+  ));
+  return shifted.toISOString().slice(0, 10);
+}
+
+function shortRangeStart(history) {
+  return calendarDateOffset(history?.election_date, -30);
+}
+
+function dateTime(iso) {
+  return Date.parse(`${iso}T00:00:00Z`);
+}
+
+function publishedDate(item) {
+  return item?.publication_date || item?.date || item?.published || item?.publicationDate || null;
+}
+
+function inDateRange(iso, start, end) {
+  return typeof iso === 'string' && iso >= start && iso <= end;
+}
+
 let failures = 0;
 let checks = 0;
 function check(label, condition, detail) {
@@ -307,6 +334,8 @@ const SELECTORS = {
   section: '#election-timeseries, #election-forecast-history, [data-election-timeseries]',
   svg: '#election-timeseries-svg, #election-timeseries-chart, #election-forecast-history-chart, .election-timeseries__svg, .et-chart',
   viewButtons: '#election-timeseries-view button, #election-timeseries-controls button[data-view], .election-timeseries__mode button, .election-timeseries__views button',
+  rangeGroup: '#election-timeseries-range, .election-timeseries__range, [data-timeseries-range]',
+  rangeButtons: '#election-timeseries-range button, .election-timeseries__range button, [data-timeseries-range] button',
   coalitionButtons: '#election-timeseries-coalitions button, #election-timeseries-legend button, .election-timeseries__legend button',
   series: '[data-timeseries-series], .election-timeseries__series-group, .et-series, .eht-series',
   median: '.et-median, .eht-median, .election-timeseries__median, [data-timeseries-median], [data-role="median"]',
@@ -329,6 +358,7 @@ function readPage(browser) {
   return browser.evaluate((selectors) => {
     const section = document.querySelector(selectors.section);
     const svg = section?.querySelector(selectors.svg) || document.querySelector(selectors.svg);
+    const rangeGroup = section?.querySelector(selectors.rangeGroup) || document.querySelector(selectors.rangeGroup);
     const visible = (element) => {
       if (!element) return false;
       const style = getComputedStyle(element);
@@ -340,13 +370,16 @@ function readPage(browser) {
     const buttonText = (button) => String(button?.textContent || '').replace(/[\t\n\r ]+/g, ' ').trim();
     const buttons = section ? Array.from(section.querySelectorAll('button')) : [];
     const views = buttons.filter((button) => /röstandel|mandatandel/i.test(buttonText(button)));
+    const ranges = rangeGroup ? Array.from(rangeGroup.querySelectorAll('button')) : [];
     const coalitions = buttons.filter((button) => /\b[MVLCKSDP]{1,2}\b\s*\+/i.test(buttonText(button)));
     const series = svg ? Array.from(svg.querySelectorAll(selectors.series)) : [];
     const genericSeries = svg ? Array.from(svg.querySelectorAll('[data-coalition]')).filter((element) =>
       element.tagName.toLowerCase() === 'g' || element.matches('path,polyline')) : [];
     const seriesNodes = series.length ? series : genericSeries;
     const popLines = svg ? Array.from(svg.querySelectorAll(selectors.popLine)) : [];
+    const popPoints = svg ? Array.from(svg.querySelectorAll('[data-pop-point="true"]')) : [];
     const polls = svg ? Array.from(svg.querySelectorAll(selectors.polls)) : [];
+    const forecastPoints = svg ? Array.from(svg.querySelectorAll('[data-forecast-point="true"]')) : [];
     const markerCandidates = section ? Array.from(section.querySelectorAll(selectors.marker)) : [];
     const marker = markerCandidates.find(visible) || null;
     const dateAttrs = ['data-date', 'data-forecast-date', 'data-history-date'];
@@ -383,6 +416,9 @@ function readPage(browser) {
     const latestBoundary = svg?.querySelector('[data-latest-forecast-boundary="true"]');
     const electionBoundary = svg?.querySelector('[data-election-day-boundary="true"]');
     const futurePoints = svg ? Array.from(svg.querySelectorAll(selectors.futurePoints)) : [];
+    const futureMedians = svg ? Array.from(svg.querySelectorAll(selectors.futureMedians)) : [];
+    const plotClip = svg?.querySelector('#election-timeseries-plot-clip rect');
+    const majority = svg?.querySelector('[data-majority="175"]');
     return {
       section: section ? {
         hidden: section.hidden,
@@ -391,6 +427,9 @@ function readPage(browser) {
         box: box(section),
         futureState: section.getAttribute('data-future-projection') || '',
         futurePointCount: Number(section.getAttribute('data-future-projection-point-count')),
+        range: section.getAttribute('data-time-range') || section.getAttribute('data-range') || '',
+        rangeStart: section.getAttribute('data-time-range-start') || '',
+        rangeEnd: section.getAttribute('data-time-range-end') || '',
       } : null,
       sectionOrder: Array.from(document.querySelectorAll('.election-app > section')).map((element) => element.id),
       svg: svg ? {
@@ -402,6 +441,8 @@ function readPage(browser) {
         yMin: Number(svg.getAttribute('data-y-min')),
         yMax: Number(svg.getAttribute('data-y-max')),
         selectedDate: svg.getAttribute('data-selected-date') || '',
+        range: svg.getAttribute('data-time-range') || svg.getAttribute('data-range') || '',
+        xMin: svg.getAttribute('data-x-axis-min') || '',
         xMax: svg.getAttribute('data-x-axis-max') || '',
         futureOrigin: svg.getAttribute('data-future-projection-origin') || '',
         futureElection: svg.getAttribute('data-future-projection-election') || '',
@@ -410,6 +451,18 @@ function readPage(browser) {
       views: views.map((button) => ({
         text: buttonText(button),
         pressed: button.getAttribute('aria-pressed'),
+        tag: button.tagName,
+        type: button.getAttribute('type'),
+      })),
+      rangeGroup: rangeGroup ? {
+        role: rangeGroup.getAttribute('role'),
+        label: rangeGroup.getAttribute('aria-label'),
+        box: box(rangeGroup),
+      } : null,
+      ranges: ranges.map((button) => ({
+        text: buttonText(button),
+        pressed: button.getAttribute('aria-pressed'),
+        controls: button.getAttribute('aria-controls'),
         tag: button.tagName,
         type: button.getAttribute('type'),
       })),
@@ -427,11 +480,16 @@ function readPage(browser) {
       })),
       medianCount: svg ? Array.from(svg.querySelectorAll(selectors.median)).filter(visible).length : 0,
       popLineCount: popLines.filter(visible).length,
+      popPointCount: popPoints.filter(visible).length,
+      popDates: [...new Set(popPoints.filter(visible).map((point) => point.getAttribute('data-date')))].sort(),
       popLegendCount: section ? section.querySelectorAll('#election-timeseries-key-pop').length : 0,
       band90Count: svg ? Array.from(svg.querySelectorAll(selectors.band90)).filter(visible).length : 0,
       band50Count: svg ? Array.from(svg.querySelectorAll(selectors.band50)).filter(visible).length : 0,
       currentCount: svg ? Array.from(svg.querySelectorAll('.election-timeseries__current, [data-current="true"]')).filter(visible).length : 0,
       pollCount: polls.filter(visible).length,
+      pollDates: [...new Set(polls.filter(visible).map((point) => point.getAttribute('data-date')))].sort(),
+      forecastDates: [...new Set(forecastPoints.filter(visible)
+        .map((point) => point.getAttribute('data-date')))].sort(),
       crosshairCount: svg ? Array.from(svg.querySelectorAll(selectors.crosshair)).filter(visible).length : 0,
       inspectionCount: svg ? Array.from(svg.querySelectorAll(selectors.inspection)).filter(visible).length : 0,
       endpointCount: svg ? Array.from(svg.querySelectorAll(selectors.endpoint)).filter(visible).length : 0,
@@ -439,6 +497,8 @@ function readPage(browser) {
         seriesCount: Array.from(svg.querySelectorAll(selectors.futureSeries)).filter(visible).length,
         bandCount: Array.from(svg.querySelectorAll(selectors.futureBands)).filter(visible).length,
         medianCount: Array.from(svg.querySelectorAll(selectors.futureMedians)).filter(visible).length,
+        medianDashes: [...new Set(futureMedians.filter(visible)
+          .map((line) => line.getAttribute('stroke-dasharray') || getComputedStyle(line).strokeDasharray))],
         pointCount: futurePoints.filter(visible).length,
         pointRoles: [...new Set(futurePoints.map((point) => point.getAttribute('role')))],
         pointDates: [...new Set(futurePoints.map((point) => point.getAttribute('data-date')))].sort(),
@@ -461,6 +521,15 @@ function readPage(browser) {
         pollsAfterOrigin: polls.filter((poll) =>
           String(poll.getAttribute('data-date') || '') > String(svg.getAttribute('data-future-projection-origin') || '')
         ).length,
+      } : null,
+      plot: plotClip ? {
+        x: Number(plotClip.getAttribute('x')),
+        width: Number(plotClip.getAttribute('width')),
+      } : null,
+      majority: majority ? {
+        seats: majority.getAttribute('data-majority'),
+        percent: Number(majority.getAttribute('data-majority-percent')),
+        y: Number(majority.getAttribute('y1')),
       } : null,
       marker: marker ? {
         visible: visible(marker),
@@ -677,6 +746,18 @@ function assertStructure(view, history) {
     view.views.map((button) => button.text), ['Röstandel', 'Mandatandel']);
   check('view controls are native buttons with aria-pressed', view.views.every((button) =>
     button.tag === 'BUTTON' && button.type === 'button' && ['true', 'false'].includes(button.pressed)), view.views);
+  equal('range controls expose Sedan 2022 and Sista 30 dagarna',
+    view.ranges.map((button) => button.text), ['Sedan 2022', 'Sista 30 dagarna']);
+  check('range control is an accessible native pressed-button group',
+    view.rangeGroup?.role === 'group' && Boolean(view.rangeGroup?.label) && view.ranges.every((button) =>
+      button.tag === 'BUTTON' && button.type === 'button' && button.controls === 'election-timeseries-svg' &&
+      ['true', 'false'].includes(button.pressed)), { group: view.rangeGroup, buttons: view.ranges });
+  equal('Sedan 2022 is the default range', view.ranges.map((button) => button.pressed), ['true', 'false']);
+  const fullStart = [history.series, history.poll_of_polls, history.polls]
+    .flatMap((items) => (items || []).map(publishedDate)).filter(Boolean).sort()[0];
+  check('default full-range x-domain is unchanged through election day',
+    view.svg?.range === 'full' && view.svg?.xMin === fullStart && view.svg?.xMax === history.election_date,
+  { expected: [fullStart, history.election_date], svg: view.svg });
   check('default vote view uses an adaptive y-axis', view.svg?.metric === 'vote' &&
     finite(view.svg.yMin) && finite(view.svg.yMax) && view.svg.yMin > 0 && view.svg.yMax > view.svg.yMin,
   view.svg);
@@ -742,7 +823,8 @@ function assertFutureStructure(view, history, metric = 'vote') {
     [rendering.latest_forecast_label, rendering.election_day_label]);
   check(`${metric} mode renders future 50/90 bands and dashed medians`,
     view.future?.bandCount >= DEFAULT_COALITIONS.length * 2 &&
-    view.future?.medianCount >= DEFAULT_COALITIONS.length, view.future);
+    view.future?.medianCount >= DEFAULT_COALITIONS.length &&
+    view.future?.medianDashes?.every((value) => value && value !== 'none'), view.future);
   check(`${metric} y-domain contains every visible future p05/p95`,
     view.svg?.yMin <= Math.min(...values) && view.svg?.yMax >= Math.max(...values),
   { yMin: view.svg?.yMin, yMax: view.svg?.yMax, futureMin: Math.min(...values), futureMax: Math.max(...values) });
@@ -772,6 +854,89 @@ function assertFixturePointText(text, point, group, label) {
     numberInText(text, point.horizon_days) && numberInText(text, point.dynamics_horizon_days), text);
 }
 
+function visibleRangeExtremes(history, metric, start, end) {
+  const keys = DEFAULT_COALITIONS.map((parties) => coalitionKey(history, parties));
+  const values = [];
+  const addQuantiles = (point) => {
+    for (const key of keys) {
+      const quantiles = point?.groups?.[key]?.[metric];
+      if (!quantiles) continue;
+      const convert = (value) => metric === 'seats' ? 100 * value / 349 : value;
+      values.push(convert(quantiles.p05), convert(quantiles.p95));
+    }
+  };
+  for (const point of history.series || []) {
+    if (inDateRange(point?.date, start, end)) addQuantiles(point);
+  }
+  for (const point of history.future_projection?.series || []) {
+    if (inDateRange(point?.date, start, end)) addQuantiles(point);
+  }
+  if (metric === 'vote') {
+    for (const collection of [history.poll_of_polls || [], history.polls || []]) {
+      for (const point of collection) {
+        const date = publishedDate(point);
+        if (!inDateRange(date, start, history.future_projection.origin_date)) continue;
+        const denominator = PARTY_ORDER.reduce((sum, party) => sum + Number(point.parties?.[party] || 0), 0);
+        for (const parties of DEFAULT_COALITIONS) {
+          values.push(100 * parties.reduce((sum, party) => sum + Number(point.parties?.[party] || 0), 0) /
+            denominator);
+        }
+      }
+    }
+  }
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
+function assertShortRange(view, history, fullView, metric = 'vote') {
+  const start = shortRangeStart(history);
+  const end = history.election_date;
+  const origin = history.future_projection.origin_date;
+  equal('fixture short-range dates are election minus 30 days through election day',
+    [start, end], ['2026-08-14', '2026-09-13']);
+  check('Sista 30 dagarna exposes the exact active x-domain',
+    view.section?.range === 'short' && view.section?.rangeStart === start && view.section?.rangeEnd === end &&
+    view.svg?.range === 'short' && view.svg?.xMin === start && view.svg?.xMax === end,
+  { section: view.section, svg: view.svg });
+  equal('short-range button state is visible and exclusive',
+    view.ranges.map((button) => button.pressed), ['false', 'true']);
+  check('historical forecasts before the short-range start are not rendered',
+    view.forecastDates.length > 0 && view.forecastDates.every((date) => inDateRange(date, start, origin)),
+  view.forecastDates);
+  const expectedPollDates = [...new Set((history.polls || []).map(publishedDate)
+    .filter((date) => inDateRange(date, start, origin)))].sort();
+  const expectedPopDates = [...new Set((history.poll_of_polls || []).map(publishedDate)
+    .filter((date) => inDateRange(date, start, origin)))].sort();
+  if (metric === 'vote') {
+    equal('all in-range individual poll observations remain visible', view.pollDates, expectedPollDates);
+    equal('all in-range Poll of Polls observations remain visible', view.popDates, expectedPopDates);
+    check('poll and Poll of Polls observations never enter the future region',
+      view.pollDates.every((date) => date <= origin) && view.popDates.every((date) => date <= origin),
+    { polls: view.pollDates, pop: view.popDates, origin });
+  } else {
+    check('Mandatandel keeps poll and Poll of Polls observations hidden',
+      view.pollDates.length === 0 && view.popDates.length === 0,
+    { polls: view.pollDates, pop: view.popDates });
+  }
+  check('short range keeps the complete future projection shaded and dashed',
+    view.future?.pointCount === history.future_projection.series.length * DEFAULT_COALITIONS.length &&
+    view.future?.bandCount >= DEFAULT_COALITIONS.length * 2 &&
+    view.future?.medianDashes?.every((value) => value && value !== 'none'), view.future);
+  check('Senaste prognos stays at the projection origin, not the short-range start',
+    view.future?.latestBoundary?.date === origin && view.future.latestBoundary.x > view.plot?.x,
+  { boundary: view.future?.latestBoundary, plot: view.plot, start });
+  check('election-day boundary stays at the right edge',
+    view.future?.electionBoundary?.date === end &&
+    Math.abs(view.future.electionBoundary.x - (view.plot?.x + view.plot?.width)) < 0.01,
+  { boundary: view.future?.electionBoundary, plot: view.plot });
+  const extremes = visibleRangeExtremes(history, metric, start, end);
+  check(`${metric} short-range y-domain contains visible uncertainty and observations`,
+    view.svg?.yMin <= extremes.min && view.svg?.yMax >= extremes.max,
+  { domain: [view.svg?.yMin, view.svg?.yMax], extremes });
+  check(`${metric} y-domain is recalculated instead of retained from full range`,
+    view.svg?.yMin !== fullView.svg?.yMin || view.svg?.yMax !== fullView.svg?.yMax,
+  { full: [fullView.svg?.yMin, fullView.svg?.yMax], short: [view.svg?.yMin, view.svg?.yMax] });
+}
+
 async function exercise(viewport, history, siteRoot) {
   console.log(`\n${viewport.name}`);
   const { server, browser } = await open(viewport, siteRoot);
@@ -781,6 +946,7 @@ async function exercise(viewport, history, siteRoot) {
     let view = readPage(browser);
     assertStructure(await view, history);
     view = await readPage(browser);
+    const fullVoteView = structuredClone(view);
     assertFutureStructure(view, history, 'vote');
 
     // Clicking an extra coalition must change both aria-pressed and the
@@ -814,6 +980,7 @@ async function exercise(viewport, history, siteRoot) {
     equal('switch to Mandatandel', await clickButton(browser, 'Mandatandel'), true);
     await settle();
     view = await readPage(browser);
+    const fullSeatView = structuredClone(view);
     check('Mandatandel is pressed', findLabel(view.views, ['Mandatandel'])?.pressed === 'true', view.views);
     check('seat mode uses an adaptive y-axis containing the majority threshold',
       view.svg?.metric === 'seats' && finite(view.svg.yMin) && finite(view.svg.yMax) &&
@@ -841,6 +1008,121 @@ async function exercise(viewport, history, siteRoot) {
     equal('vote-share mode does not restore the Poll of Polls line', view.popLineCount, 0);
     check('vote-share mode restores individual poll dots', view.pollCount >= history.polls.length * 2,
       { rendered: view.pollCount, polls: history.polls.length });
+
+    // Exercise the same renderer in the election-relative viewport.  All
+    // assertions below observe the built page after real button interaction.
+    equal('switch to Sista 30 dagarna', await clickButton(browser, 'Sista 30 dagarna'), true);
+    await settle();
+    view = await readPage(browser);
+    assertShortRange(view, history, fullVoteView, 'vote');
+
+    await browser.evaluate(() => document.getElementById('election-timeseries-range-full')?.focus());
+    await pressKey(browser, ' ', 'Space');
+    view = await readPage(browser);
+    check('Space activates the focused Sedan 2022 range button',
+      view.svg?.range === 'full' && view.ranges[0]?.pressed === 'true', view.ranges);
+    await browser.evaluate(() => document.getElementById('election-timeseries-range-short')?.focus());
+    await pressKey(browser, ' ', 'Space');
+    view = await readPage(browser);
+    check('Space activates the focused Sista 30 dagarna range button',
+      view.svg?.range === 'short' && view.ranges[1]?.pressed === 'true', view.ranges);
+
+    const shortFutureMedians = view.future?.medianCount;
+    equal(`short range toggle ${extra} on`, await clickButton(browser, extra), true);
+    await settle();
+    view = await readPage(browser);
+    check('coalition toggles add historical and projected series in the short range',
+      findLabel(view.coalitions, EXTRA_COALITIONS[0])?.pressed === 'true' &&
+      view.future?.medianCount === shortFutureMedians + 1, view);
+    equal(`short range toggle ${extra} off`, await clickButton(browser, extra), true);
+    await settle();
+
+    const shortStart = shortRangeStart(history);
+    const shortOrigin = history.future_projection.origin_date;
+    const visibleHistorical = history.series.filter((point) =>
+      inDateRange(point.date, shortStart, shortOrigin));
+    const pointerDates = [visibleHistorical[0]?.date,
+      visibleHistorical[Math.floor(visibleHistorical.length / 2)]?.date,
+      shortOrigin];
+    for (const [index, date] of pointerDates.entries()) {
+      const ratio = (dateTime(date) - dateTime(shortStart)) /
+        Math.max(1, dateTime(shortOrigin) - dateTime(shortStart));
+      await hoverAt(browser, await plotCoordinates(browser, ratio));
+      const mapped = await readPage(browser);
+      check(`short-range historical pointer mapping ${['left edge', 'intermediate date', 'latest date'][index]}`,
+        mapped.svg?.selectedDate === date, { selected: mapped.svg?.selectedDate, expected: date, ratio });
+    }
+
+    const shortFutureDate = history.future_projection.series[Math.floor(
+      history.future_projection.series.length / 2)].date;
+    await clickAt(browser, await futurePointCoordinates(browser, shortFutureDate));
+    let shortFutureView = await readPage(browser);
+    check('short-range future click opens projected details',
+      shortFutureView.svg?.selectedDate === shortFutureDate && shortFutureView.detail?.visible === true,
+    shortFutureView.detail);
+    equal('short-range future point receives keyboard focus',
+      await focusFuturePoint(browser, history.election_date), { role: 'button', date: history.election_date });
+    await pressKey(browser, 'Enter', 'Enter');
+    shortFutureView = await readPage(browser);
+    check('short-range Enter selects election-day projection',
+      shortFutureView.svg?.selectedDate === history.election_date && shortFutureView.detail?.visible === true,
+    shortFutureView.detail);
+    await pressKey(browser, ' ', 'Space');
+    shortFutureView = await readPage(browser);
+    check('short-range Space preserves projected details',
+      shortFutureView.svg?.selectedDate === history.election_date && shortFutureView.detail?.visible === true,
+    shortFutureView.detail);
+
+    equal('switch short range to Mandatandel', await clickButton(browser, 'Mandatandel'), true);
+    await settle();
+    view = await readPage(browser);
+    assertShortRange(view, history, fullSeatView, 'seats');
+    check('short-range Mandatandel retains the 175-seat majority line',
+      view.svg?.metric === 'seats' && view.majority?.seats === '175' &&
+      Math.abs(view.majority.percent - 100 * 175 / 349) < 0.0001,
+    { metric: view.svg?.metric, majority: view.majority });
+    equal('return short range to Röstandel', await clickButton(browser, 'Röstandel'), true);
+    await settle();
+
+    // Select a full-history point, then change range without a focus/blur
+    // detour.  The renderer must replace the invisible detail deterministically.
+    equal('temporarily restore full range for stale-selection check',
+      await clickButton(browser, 'Sedan 2022'), true);
+    await settle();
+    const staleTransition = await browser.evaluate(({ oldDate, shortLabel }) => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      const point = document.querySelector(
+        `[data-forecast-point="true"][data-date="${oldDate}"]`,
+      );
+      point?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+      const svg = document.getElementById('election-timeseries-svg');
+      const before = svg?.getAttribute('data-selected-date') || '';
+      const button = Array.from(document.querySelectorAll('button')).find((candidate) =>
+        candidate.textContent.replace(/[\t\n\r ]+/g, ' ').trim() === shortLabel);
+      button?.click();
+      return { before, after: svg?.getAttribute('data-selected-date') || '' };
+    }, { oldDate: history.series[0].date, shortLabel: 'Sista 30 dagarna' });
+    await settle();
+    view = await readPage(browser);
+    equal('stale-selection fixture starts outside the short range',
+      staleTransition.before, history.series[0].date);
+    check('range change replaces an out-of-range selection with a visible short-range point',
+      staleTransition.after === shortOrigin &&
+      inDateRange(view.svg?.selectedDate, shortStart, history.election_date) &&
+      view.svg?.selectedDate !== history.series[0].date && view.detail?.visible === true &&
+      !(view.detail?.text || '').includes(history.series[0].date),
+    { transition: staleTransition, selected: view.svg?.selectedDate, detail: view.detail });
+    check('short-range view has no horizontal overflow', view.overflow <= 0, view.overflow);
+
+    equal('switching back restores Sedan 2022 without reloading',
+      await clickButton(browser, 'Sedan 2022'), true);
+    await settle();
+    view = await readPage(browser);
+    check('full domain and default button state are restored',
+      view.svg?.range === 'full' && view.svg?.xMin === fullVoteView.svg?.xMin &&
+      view.svg?.xMax === fullVoteView.svg?.xMax &&
+      JSON.stringify(view.ranges.map((button) => button.pressed)) === JSON.stringify(['true', 'false']),
+    { svg: view.svg, ranges: view.ranges });
 
     await hoverAt(browser, await historicalPointCoordinates(browser, history.future_projection.origin_date));
     const latestHistorical = await readPage(browser);
@@ -972,10 +1254,11 @@ async function exercise(viewport, history, siteRoot) {
   }
 }
 
-async function scenarioView(prepared, label) {
+async function scenarioView(prepared, label, beforeRead = null) {
   const viewport = VIEWPORTS[0];
   const { server, browser } = await open({ ...viewport, diagnostic: label }, prepared.root);
   try {
+    if (beforeRead) await beforeRead(browser);
     return await readPage(browser);
   } finally {
     await closeBrowser(label, browser, server);
@@ -1008,6 +1291,23 @@ async function exerciseFallbackScenarios() {
   check('missing future_projection leaves the historical chart active',
     missingView.section?.futureState === '' && missingView.future?.seriesCount === 0 &&
     missingView.future?.pointCount === 0, missingView);
+
+  const missingShort = await prepareSite((history) => {
+    delete history.future_projection;
+    return history;
+  }, false);
+  const missingShortView = await scenarioView(missingShort, 'missing-projection-short', async (browser) => {
+    equal('missing projection can switch to Sista 30 dagarna',
+      await clickButton(browser, 'Sista 30 dagarna'), true);
+    await settle();
+  });
+  check('missing future_projection still uses election-relative short domain',
+    missingShortView.section?.futureState === '' && missingShortView.svg?.range === 'short' &&
+    missingShortView.svg?.xMin === shortRangeStart(missingShort.history) &&
+    missingShortView.svg?.xMax === missingShort.history.election_date &&
+    missingShortView.forecastDates.every((date) => inDateRange(
+      date, shortRangeStart(missingShort.history), missingShort.history.election_date)),
+  missingShortView);
 
   const malformed = await prepareSite((history) => {
     history.future_projection.anchor.samples += 1;
