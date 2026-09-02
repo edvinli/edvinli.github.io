@@ -5,8 +5,8 @@
   if (!app) return;
 
   var timeseries = document.getElementById("election-timeseries");
-  var frame = document.getElementById("election-timeseries-frame");
-  if (!timeseries || !frame) return;
+  var sourceAttribution = document.getElementById("election-timeseries-source-attribution");
+  if (!timeseries || !sourceAttribution) return;
 
   ["election-timeseries-provenance-note", "election-timeseries-dynamics-note"].forEach(function (id) {
     var node = document.getElementById(id);
@@ -20,24 +20,20 @@
     host.className = "election-latest-poll";
     host.hidden = true;
     host.setAttribute("aria-labelledby", "election-latest-poll-title");
-    frame.insertAdjacentElement("afterend", host);
+    sourceAttribution.insertAdjacentElement("afterend", host);
   }
 
   var style = document.createElement("style");
   style.textContent = [
-    ".election-latest-poll{border-top:1px solid var(--el-rule);margin-top:.75rem;padding-top:.85rem}",
-    ".election-latest-poll__title{font-family:var(--el-mono);font-size:.92rem;margin:0 0 .45rem}",
-    ".election-latest-poll__items{display:grid;gap:.9rem}",
-    ".election-latest-poll__item{min-width:0}",
-    ".election-latest-poll__item+.election-latest-poll__item{border-top:1px solid var(--el-rule);padding-top:.75rem}",
-    ".election-latest-poll__meta{color:var(--el-muted);font-size:.78rem;margin:0 0 .45rem}",
-    ".election-latest-poll__parties{display:grid;gap:.3rem .85rem;grid-template-columns:repeat(8,minmax(0,1fr));margin:0}",
-    ".election-latest-poll__party{border-top:1px solid var(--el-rule);display:flex;justify-content:space-between;gap:.35rem;padding-top:.25rem;min-width:0}",
-    ".election-latest-poll__party dt{font-family:var(--el-mono);font-size:.75rem;font-weight:700;margin:0}",
-    ".election-latest-poll__party dd{font-family:var(--el-mono);font-size:.75rem;font-variant-numeric:tabular-nums;margin:0;white-space:nowrap}",
-    ".election-latest-poll__note{margin:.45rem 0 0}",
-    "@media(max-width:46em){.election-latest-poll__parties{grid-template-columns:repeat(4,minmax(0,1fr))}}",
-    "@media(max-width:26em){.election-latest-poll__parties{grid-template-columns:repeat(2,minmax(0,1fr))}}"
+    ".election-latest-poll{border-top:1px solid var(--el-rule);margin-top:.6rem;padding-top:.8rem}",
+    ".election-latest-poll__title{font-family:var(--el-mono);font-size:.92rem;margin:0 0 .5rem}",
+    ".election-latest-poll__table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
+    ".election-latest-poll__table{border-collapse:collapse;font-size:.76rem;min-width:58rem;width:100%}",
+    ".election-latest-poll__table th,.election-latest-poll__table td{border-bottom:1px solid var(--el-rule);font-variant-numeric:tabular-nums;padding:.38rem .42rem;text-align:right;vertical-align:top;white-space:nowrap}",
+    ".election-latest-poll__table thead th{font-family:var(--el-mono);font-size:.72rem;font-weight:700}",
+    ".election-latest-poll__table th:first-child,.election-latest-poll__table td:first-child,.election-latest-poll__table th:nth-child(2),.election-latest-poll__table td:nth-child(2),.election-latest-poll__table th:nth-child(3),.election-latest-poll__table td:nth-child(3){text-align:left}",
+    ".election-latest-poll__institute{font-weight:700}",
+    ".election-latest-poll__note{margin:.45rem 0 0}"
   ].join("");
   document.head.appendChild(style);
 
@@ -96,31 +92,34 @@
     return Number(value).toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " %";
   }
 
-  function metadata(poll, date) {
-    var pieces = [];
-    pieces.push(String(poll.company || poll.house || poll.pollster || poll.institute || "Okänt institut"));
-    if (date) pieces.push(swedishDate(date));
-    var start = isoDate(poll.fieldwork_start || poll.fieldworkStart || poll.start_date);
-    var end = isoDate(poll.fieldwork_end || poll.fieldworkEnd || poll.end_date);
-    if (start && end) pieces.push("fältperiod " + swedishDate(start) + "–" + swedishDate(end));
-    else if (end) pieces.push("fältarbete till " + swedishDate(end));
-    else if (start) pieces.push("fältarbete från " + swedishDate(start));
-    var n = numeric(poll.n || poll.sample_size || poll.samplesize);
-    if (n !== null && n > 0) pieces.push("n = " + Math.round(n).toLocaleString("sv-SE"));
-    return pieces.join(" · ");
+  function pollCompany(poll) {
+    return String(poll.company || poll.house || poll.pollster || poll.institute || "Okänt institut");
   }
 
-  function renderPoll(poll, date, index) {
+  function fieldwork(poll) {
+    var start = isoDate(poll.fieldwork_start || poll.fieldworkStart || poll.start_date);
+    var end = isoDate(poll.fieldwork_end || poll.fieldworkEnd || poll.end_date);
+    if (start && end) return swedishDate(start) + "–" + swedishDate(end);
+    if (end) return "till " + swedishDate(end);
+    if (start) return "från " + swedishDate(start);
+    return "–";
+  }
+
+  function sampleSize(poll) {
+    var n = numeric(poll.n || poll.sample_size || poll.samplesize);
+    return n !== null && n > 0 ? Math.round(n).toLocaleString("sv-SE") : "–";
+  }
+
+  function renderPollRow(poll, date, index) {
     var parties = pollParties(poll);
     if (!parties) return "";
-    var company = String(poll.company || poll.house || poll.pollster || poll.institute || "Okänt institut");
-    var rows = PARTY_ORDER.map(function (party) {
-      return "<div class=\"election-latest-poll__party\" data-party=\"" + party + "\" data-value=\"" + parties[party].toFixed(6) +
-        "\"><dt>" + party + "</dt><dd>" + escapeHtml(percent(parties[party])) + "</dd></div>";
+    var company = pollCompany(poll);
+    var partyCells = PARTY_ORDER.map(function (party) {
+      return "<td data-party=\"" + party + "\" data-value=\"" + parties[party].toFixed(6) + "\">" + escapeHtml(percent(parties[party])) + "</td>";
     }).join("");
-    return "<article class=\"election-latest-poll__item\" data-latest-poll-item=\"true\" data-poll-index=\"" + index +
-      "\" data-poll-date=\"" + date + "\" data-poll-company=\"" + escapeHtml(company) + "\"><p class=\"election-latest-poll__meta\">" +
-      escapeHtml(metadata(poll, date)) + "</p><dl class=\"election-latest-poll__parties\">" + rows + "</dl></article>";
+    return "<tr data-latest-poll-item=\"true\" data-poll-index=\"" + index + "\" data-poll-date=\"" + date +
+      "\" data-poll-company=\"" + escapeHtml(company) + "\"><th scope=\"row\" class=\"election-latest-poll__institute\">" + escapeHtml(company) +
+      "</th><td>" + escapeHtml(swedishDate(date)) + "</td><td>" + escapeHtml(fieldwork(poll)) + "</td><td>" + escapeHtml(sampleSize(poll)) + "</td>" + partyCells + "</tr>";
   }
 
   function render(history) {
@@ -137,13 +136,17 @@
       return right.sourceIndex - left.sourceIndex;
     });
     var latest = dated.slice(0, 3);
-    var items = latest.map(function (item, index) { return renderPoll(item.poll, item.date, index); }).filter(Boolean).join("");
-    if (!items) return;
+    var rows = latest.map(function (item, index) { return renderPollRow(item.poll, item.date, index); }).filter(Boolean).join("");
+    if (!rows) return;
 
+    var partyHeaders = PARTY_ORDER.map(function (party) { return "<th scope=\"col\">" + party + "</th>"; }).join("");
     host.setAttribute("data-latest-poll-date", latest[0].date);
     host.setAttribute("data-latest-poll-count", String(latest.length));
     host.innerHTML = "<h3 id=\"election-latest-poll-title\" class=\"election-latest-poll__title\">Senaste mätningarna</h3>" +
-      "<div class=\"election-latest-poll__items\">" + items + "</div>" +
+      "<div class=\"election-latest-poll__table-wrap\"><table class=\"election-latest-poll__table\">" +
+      "<caption class=\"visually-hidden\">De tre senast publicerade opinionsmätningarna</caption>" +
+      "<thead><tr><th scope=\"col\">Institut</th><th scope=\"col\">Publicerad</th><th scope=\"col\">Fältperiod</th><th scope=\"col\">n</th>" + partyHeaders + "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table></div>" +
       "<p class=\"election-latest-poll__note election-muted\">De tre senast publicerade enskilda opinionsmätningarna, inte modellens prognos.</p>";
     host.hidden = false;
   }
