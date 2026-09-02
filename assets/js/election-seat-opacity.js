@@ -15,29 +15,56 @@
     S: "#ED1B34", V: "#A81420", MP: "#4C983E", SD: "#A87F00"
   };
 
-  // Keep the DOM order stable for the existing page contract, but present
-  // Mandat immediately after Röstandelar. The mandate panel itself has no
-  // focusable controls, so this does not reorder keyboard interaction.
-  function placeMandatesAfterVotes() {
-    var voteSection = document.getElementById("election-headline");
+  // Keep the existing source DOM contract intact while grouping the public
+  // presentation more naturally: Röstandelar -> Mandat -> Regeringsalternativ
+  // -> Bygg din egen regering. The simulated parliament is moved inside the
+  // builder panel below the interactive builder itself.
+  function placeElectionSections() {
+    var votes = document.getElementById("election-headline");
+    var alternatives = document.getElementById("election-alternatives");
+    var builder = document.getElementById("election-government-builder");
+    if (!votes || !alternatives || !builder) return;
+
     var children = Array.prototype.slice.call(app.children);
-    var voteIndex = children.indexOf(voteSection);
-    var seatIndex = children.indexOf(root);
-    if (voteIndex < 0 || seatIndex < 0 || seatIndex === voteIndex + 1) return;
+    var visualOrder = children.filter(function (child) {
+      return child !== root && child !== alternatives && child !== builder;
+    });
+    var voteIndex = visualOrder.indexOf(votes);
+    if (voteIndex < 0) return;
 
-    var visualOrder = children.filter(function (child) { return child !== root; });
-    voteIndex = visualOrder.indexOf(voteSection);
-    visualOrder.splice(voteIndex + 1, 0, root);
-
+    visualOrder.splice(voteIndex + 1, 0, root, alternatives, builder);
     app.style.display = "flex";
     app.style.flexDirection = "column";
     visualOrder.forEach(function (child, index) {
       child.style.order = String(index);
     });
+
     root.setAttribute("data-visual-order", "after-vote-shares");
+    alternatives.setAttribute("data-visual-order", "after-mandates");
+    builder.setAttribute("data-visual-order", "after-government-alternatives");
   }
 
-  placeMandatesAfterVotes();
+  function placeParliamentAfterBuilder() {
+    var builder = document.getElementById("election-government-builder");
+    var heading = root.querySelector(".election-subhead");
+    var caption = document.getElementById("election-parliament-caption");
+    var frame = root.querySelector(".election-parliament-frame");
+    var legend = document.getElementById("election-parliament-legend");
+    if (!builder || !heading || !caption || !frame || !legend) return;
+
+    var host = document.createElement("div");
+    host.id = "election-parliament-outcome";
+    host.className = "election-parliament-outcome";
+    host.setAttribute("data-placement", "after-government-builder");
+    host.appendChild(heading);
+    host.appendChild(caption);
+    host.appendChild(frame);
+    host.appendChild(legend);
+    builder.appendChild(host);
+  }
+
+  placeElectionSections();
+  placeParliamentAfterBuilder();
 
   var intro = root.querySelector(".election-panel__head .election-muted");
   if (intro) {
@@ -63,6 +90,8 @@
     "#election-seats .es-row[data-opacity-bands=\"true\"] .es-median-mark{background:#fff;bottom:-2px;box-shadow:0 0 0 1px rgba(44,42,37,.75);position:absolute;top:-2px;transform:translateX(-1px);width:2px}",
     "#election-seats .es-row[data-opacity-bands=\"true\"] .es-range,#election-seats .es-median-mark{pointer-events:none}",
     "#election-seats .election-legend-note{margin-top:1rem}",
+    ".election-parliament-outcome{border-top:1px solid var(--el-rule);margin-top:2.3rem;padding-top:1.4rem}",
+    ".election-parliament-outcome .election-subhead{margin-top:0}",
     "@media (max-width:600px){#election-seats .es-row{padding:.55rem .15rem}}",
     "@media (forced-colors:active){#election-seats .es-range,#election-seats .es-median-mark{forced-color-adjust:none}}"
   ].join("");
@@ -189,7 +218,7 @@
     observer.observe(bars, { childList: true, subtree: true });
     if (enhance(seats)) observer.disconnect();
   }).catch(function () {
-    // Presentation-only enhancement. If the independent reload fails, the
-    // original renderer remains fully visible in its party colours.
+    // Presentation-only enhancement. Leave the original mandate bars intact
+    // if the publication data cannot be loaded independently.
   });
 })();
