@@ -1709,7 +1709,7 @@
       });
       function chooseByEvent(event, persistent) {
         var time = dateForEvent(event);
-        var point = nearestPoint(time === null ? interactionMaxTime : time);
+        var point = nearestPoint(time === null ? interactionMaxTime : Math.min(interactionMaxTime, time));
         chooseForecast(point, persistent, event);
       }
       if (hit.addEventListener) {
@@ -1721,7 +1721,7 @@
           chooseByEvent(event, true);
         }, { passive: false });
       }
-      svg.insertBefore(hit, seriesLayer);
+      svg.appendChild(hit);
       keyboardSelect = function (event) {
         // Point circles own their Enter/Arrow interaction.  This handler is
         // for the SVG and the plot hit target, which are the keyboard entry
