@@ -385,13 +385,14 @@ async function testSchema12(viewport, pointer, expected) {
     eq('no legacy card-list containers in DOM', panel.legacyIds, []);
     eq('the removed Majoritetsscenarier nodes are gone', panel.legacyGroups, []);
 
-    // Röstandelar -> Bygg din egen regering -> Mandat -> Regeringsalternativ.
+    // Regeringsalternativ -> Bygg din egen regering -> Prognos över tid ->
+    // Röstandelar -> Mandat.
     eq('page section order', panel.sectionOrder, [
+      'election-alternatives',
+      'election-government-builder',
       'election-timeseries',
       'election-headline',
-      'election-government-builder',
       'election-seats',
-      'election-alternatives',
       'election-changes',
       'election-how-it-works',
       'election-validation',

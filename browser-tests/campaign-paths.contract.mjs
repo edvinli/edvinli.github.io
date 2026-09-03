@@ -84,9 +84,10 @@ const checks = [
   ['the future region is separately marked and distinctly shaded',
     source.includes('data-future-region') && source.includes('data-future-background') &&
     source.includes('region.background !== "light_distinct"')],
-  ['the future region carries its published label',
-    source.includes('data-future-region-label') &&
-    source.includes('campaignPaths.rendering.future_region.label')],
+  ['the future region carries its published label accessibly, without a redundant plot caption',
+    source.includes('futureViewPaths.setAttribute("aria-label", campaignPaths.rendering.future_region.label)') &&
+    source.includes('campaignPaths.rendering.future_region.label') &&
+    !source.includes('data-future-region-label')],
 
   // ---- the origin quantity ----------------------------------------------
   // Path day 0 is the latent opinion state. The certified forecast point on

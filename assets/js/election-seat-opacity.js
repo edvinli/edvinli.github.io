@@ -15,10 +15,10 @@
     S: "#ED1B34", V: "#A81420", MP: "#4C983E", SD: "#A87F00"
   };
 
-  // Keep the existing source DOM contract intact while grouping the public
-  // presentation more naturally: Röstandelar -> Mandat -> Regeringsalternativ
-  // -> Bygg din egen regering. The simulated parliament is moved inside the
-  // builder panel below the interactive builder itself.
+  // Keep the source DOM and visual order aligned: the reader first sees the
+  // coalition comparison and builder, then the detailed forecast history and
+  // party-level views. The simulated parliament is moved inside the builder
+  // panel below the interactive builder itself.
   function placeElectionSections() {
     var votes = document.getElementById("election-headline");
     var alternatives = document.getElementById("election-alternatives");
@@ -26,22 +26,15 @@
     if (!votes || !alternatives || !builder) return;
 
     var children = Array.prototype.slice.call(app.children);
-    var visualOrder = children.filter(function (child) {
-      return child !== root && child !== alternatives && child !== builder;
-    });
-    var voteIndex = visualOrder.indexOf(votes);
-    if (voteIndex < 0) return;
-
-    visualOrder.splice(voteIndex + 1, 0, root, alternatives, builder);
-    app.style.display = "flex";
-    app.style.flexDirection = "column";
-    visualOrder.forEach(function (child, index) {
-      child.style.order = String(index);
-    });
-
-    root.setAttribute("data-visual-order", "after-vote-shares");
-    alternatives.setAttribute("data-visual-order", "after-mandates");
-    builder.setAttribute("data-visual-order", "after-government-alternatives");
+    // The page now carries the intended order in its source, so do not create
+    // a second responsive ordering system with flexbox. Clear any stale
+    // inline order left by a hot reload and let keyboard, screen-reader and
+    // visual navigation follow the same sequence.
+    children.forEach(function (child) { child.style.order = ""; });
+    root.removeAttribute("data-visual-order");
+    alternatives.setAttribute("data-visual-order", "before-forecast-history");
+    builder.setAttribute("data-visual-order", "before-forecast-history");
+    votes.setAttribute("data-visual-order", "after-forecast-history");
   }
 
   function placeParliamentAfterBuilder() {
@@ -68,12 +61,12 @@
     if (!nav) return;
 
     var links = [
+      ["election-alternatives", "Regeringsalternativ"],
+      ["election-government-builder", "Bygg din egen regering"],
       ["election-timeseries", "Prognos över tid"],
       ["election-latest-poll", "Senaste mätningarna"],
       ["election-headline", "Röstandelar"],
       ["election-seats", "Mandat"],
-      ["election-alternatives", "Regeringsalternativ"],
-      ["election-government-builder", "Bygg din egen regering"],
       ["election-parliament-outcome", "Ett simulerat riksdagsutfall"],
       ["election-changes", "Förändring sedan föregående prognos"],
       ["election-model", "Så fungerar modellen"],
