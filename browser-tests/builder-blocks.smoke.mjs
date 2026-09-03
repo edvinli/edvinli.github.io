@@ -13,7 +13,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { launch } from './cdp.mjs';
-import { serve } from './server.mjs';
+import { serve, pointerFor } from './server.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(process.argv[2] || join(HERE, '..', '_site'));
@@ -22,6 +22,11 @@ const PAGE = '/election-simulator/';
 
 const DESKTOP = { width: 1280, height: 1000 };
 const MOBILE = { width: 390, height: 844 };
+
+// The seat totals and histogram masks asserted below are the values published
+// in this generation. Pin the run to it instead of following current.json,
+// which moves with every forecast sync and would drift these expectations.
+const TARGET_GENERATION = '20260831T170410Z-1f5e0506';
 
 const PARTY_ORDER = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
 const BIT = {};
@@ -57,7 +62,7 @@ async function waitForApp(browser) {
 }
 
 async function open(viewport, { coarse = false } = {}) {
-  const server = await serve(SITE, { port: 4000 });
+  const server = await serve(SITE, { port: 4000, pointer: TARGET_POINTER });
   const browser = await launch(viewport);
   if (coarse) {
     await browser.S('Emulation.setTouchEmulationEnabled',
@@ -126,8 +131,13 @@ const dragPoints = (browser, party, barId) => browser.evaluate(([p, id]) => {
 
 const focusPanel = async (browser) => {
   await browser.evaluate(() => {
-    document.getElementById('election-government-builder')
-      .scrollIntoView({ block: 'center' });
+    // Centring the whole section can leave the bars themselves outside the
+    // viewport, and a drop dispatched at an off-screen point is a no-op that
+    // reads as "the party did not move". Centre the chart, as
+    // government-builder.smoke.mjs does.
+    const chart = document.querySelector('.eg-chart') ||
+      document.getElementById('election-government-builder');
+    chart?.scrollIntoView({ block: 'center' });
   });
   await settle();
 };
@@ -171,6 +181,20 @@ async function touchDrag(browser, party, barId) {
   return true;
 }
 
+// The suite's expectations are only meaningful if the page really was served
+// TARGET_GENERATION. Read the pointer back through the same server the page
+// used, so an unwired pointer fails here instead of silently re-testing the
+// live forecast against stale numbers.
+async function assertServedGeneration(browser, assertEqual) {
+  const served = await browser.evaluate(async () => {
+    const res = await fetch('/files/election-simulator/current.json',
+      { cache: 'no-store' });
+    return (await res.json()).publication_generation;
+  });
+  assertEqual('the page was served the pinned generation', served,
+    TARGET_GENERATION);
+}
+
 const parties = (blocks) => blocks.map((b) => b.party);
 
 // --- desktop ---------------------------------------------------------------
@@ -178,6 +202,7 @@ const parties = (blocks) => blocks.map((b) => b.party);
 async function desktop() {
   console.log('\ndesktop 1280x1000');
   const { server, browser } = await open(DESKTOP);
+  await assertServedGeneration(browser, eq);
   try {
     let panel = await readPanel(browser);
 
@@ -343,8 +368,9 @@ async function mobile() {
 
 const { mkdirSync } = await import('node:fs');
 mkdirSync(SHOTS, { recursive: true });
+const TARGET_POINTER = await pointerFor(SITE, TARGET_GENERATION);
 await desktop();
 await mobile();
 console.log(`\n${checks - failures}/${checks} checks passed`);
 if (failures) { console.log('FAIL'); process.exit(1); }
-console.log('PASS');
+console.log(`PASS (${TARGET_GENERATION})`);

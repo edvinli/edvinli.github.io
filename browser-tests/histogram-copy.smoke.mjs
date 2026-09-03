@@ -5,7 +5,7 @@
 //   node browser-tests/histogram-copy.smoke.mjs [path/to/_site]
 
 import { launch } from './cdp.mjs';
-import { serve } from './server.mjs';
+import { serve, pointerFor } from './server.mjs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -90,8 +90,13 @@ const readCopy = (browser) => browser.evaluate(() => {
 
 async function focusBuilder(browser) {
   await browser.evaluate(() => {
-    document.getElementById('election-government-builder')
-      .scrollIntoView({ block: 'center' });
+    // Centring the whole section can leave the bars themselves outside the
+    // viewport, and a drop dispatched at an off-screen point is a no-op that
+    // reads as "the party did not move". Centre the chart, as
+    // government-builder.smoke.mjs does.
+    const chart = document.querySelector('.eg-chart') ||
+      document.getElementById('election-government-builder');
+    chart?.scrollIntoView({ block: 'center' });
   });
   await settle();
 }
@@ -156,9 +161,24 @@ async function clickReachesHistogram(browser) {
   });
 }
 
+// The suite's expectations are only meaningful if the page really was served
+// TARGET_GENERATION. Read the pointer back through the same server the page
+// used, so an unwired pointer fails here instead of silently re-testing the
+// live forecast against stale numbers.
+async function assertServedGeneration(browser, assertEqual) {
+  const served = await browser.evaluate(async () => {
+    const res = await fetch('/files/election-simulator/current.json',
+      { cache: 'no-store' });
+    return (await res.json()).publication_generation;
+  });
+  assertEqual('the page was served the pinned generation', served,
+    TARGET_GENERATION);
+}
+
 async function desktop() {
   console.log('\ndesktop histogram copy');
-  const { server, browser } = await open(DESKTOP);
+  const { server, browser } = await open(DESKTOP, TARGET_POINTER);
+  await assertServedGeneration(browser, equal);
   try {
     let copy = await readCopy(browser);
     equal('the link is absent with no government', copy.linkHref, null);
@@ -208,7 +228,7 @@ async function desktop() {
 
 async function mobile() {
   console.log('\nmobile histogram copy');
-  const { server, browser } = await open(MOBILE, null, true);
+  const { server, browser } = await open(MOBILE, TARGET_POINTER, true);
   try {
     for (const party of ['S', 'V', 'MP']) check(`${party} selects on mobile`, await dragParty(browser, party));
     const copy = await readCopy(browser);
@@ -233,6 +253,12 @@ async function sourceGuard() {
   check('schema 1.2 link guard remains in source',
     source.includes('entry.seat_histogram && histogram && !histogram.hidden'));
 }
+
+// Every expectation below is a value published in TARGET_GENERATION, so the run
+// must be pinned to that generation rather than to whatever current.json points
+// at. Without this the suite silently re-tests the live forecast and fails on
+// every sync while still printing TARGET_GENERATION as its provenance.
+const TARGET_POINTER = await pointerFor(SITE, TARGET_GENERATION);
 
 await sourceGuard();
 await desktop();
