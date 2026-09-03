@@ -59,6 +59,10 @@ const checks = [
     source.includes('bitwise_identical_to_production_election_day_draws')],
   ['a verified parity check must report zero difference',
     source.includes('parity.max_abs_vote_share_difference_pp !== 0')],
+  ['the parity reference has to be named and recognised',
+    source.includes('generate_national_vote_shares') &&
+    source.includes('certified_production_result') &&
+    source.includes('.indexOf(parity.reference) === -1')],
   ['election-day summaries must equal the certified production point',
     source.includes('JSON.stringify(electionGroups) !== JSON.stringify(certifiedGroups)')],
   ['the election-day distribution must carry ElectionNoise, geography and mandates',
@@ -192,9 +196,11 @@ const checks = [
     paths?.path_construction?.time_warp === 'identity'
       ? /av samma längd/.test(paths.tooltip_sv)
       : /tidsutsträckt/.test(paths.tooltip_sv)],
-  ['fixture endpoint parity is verified and exactly zero',
+  ['fixture endpoint parity is verified, exactly zero and attributed',
     paths?.endpoint_parity?.verified === true &&
-    paths.endpoint_parity.max_abs_vote_share_difference_pp === 0],
+    paths.endpoint_parity.max_abs_vote_share_difference_pp === 0 &&
+    ['generate_national_vote_shares', 'certified_production_result']
+      .includes(paths.endpoint_parity.reference)],
   ['fixture election-day groups equal the certified production point',
     current.length === 1 &&
     JSON.stringify(paths?.election_day?.groups) === JSON.stringify(current[0].groups) &&

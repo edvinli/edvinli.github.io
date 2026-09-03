@@ -912,7 +912,9 @@
     var parity = raw.endpoint_parity;
     if (!parity || typeof parity !== "object" ||
         parity.guarantee !== "bitwise_identical_to_production_election_day_draws" ||
-        parity.election_day_summaries_source !== "certified_current_production_point") return null;
+        parity.election_day_summaries_source !== "certified_current_production_point" ||
+        ["generate_national_vote_shares", "certified_production_result"]
+          .indexOf(parity.reference) === -1) return null;
     if (parity.verified === true && parity.max_abs_vote_share_difference_pp !== 0) return null;
 
     var rawSeries = Array.isArray(payload.series) ? payload.series : [];
@@ -1870,9 +1872,10 @@
       var originX = campaignPaths
         ? Math.min(
           xScale(originTime) + originShift,
+          // Never past the left edge of the election-day glyph; on the
+          // four-year scale that floor collapses onto the boundary itself.
           Math.max(xScale(originTime),
-            Math.min(xScale(campaignPaths.election.time), plot.right) -
-              (compactChart ? 8 : 10) - (compactChart ? 10 : 13) / 2 - 3),
+            xScale(campaignPaths.election.time) - (compactChart ? 10 : 13) / 2 - 3),
         )
         : null;
       var campaignX = function (time) {
@@ -2233,9 +2236,18 @@
         // The x-axis maximum *is* election day, so the distribution glyph is
         // inset by its own half-width to stay inside the frame while keeping
         // its published election-day date.
-        var glyphInset = compactChart ? 8 : 10;
-        var glyphX = Math.min(xScale(campaignPaths.election.time), plot.right) - glyphInset;
+        // Horizontal position encodes time, so the election-day glyph sits
+        // exactly on election day.  It is drawn in an un-clipped overlay below
+        // instead of being nudged inwards to avoid the plot clip: moving a
+        // dated mark to solve clipping puts it at the wrong date, and on the
+        // four-year scale it moved left of the "I dag" boundary entirely.
+        var glyphX = xScale(campaignPaths.election.time);
         var boxWidth = compactChart ? 10 : 13;
+        var electionLayer = svgNode("g", {
+          class: "election-timeseries__election-day",
+          "aria-label": campaignPaths.electionDay.label,
+          "data-election-day-series": "true", "pointer-events": "none"
+        });
         definitions.forEach(function (definition) {
           var group = svgNode("g", {
             class: "election-timeseries__campaign-group",
@@ -2402,22 +2414,33 @@
             }
           }
 
+          pathLayer.appendChild(group);
+
           // The emphasized election-day forecast distribution.  Unlike the
           // opinion bands it carries ElectionNoise, geography and mandates,
           // and it is the certified production distribution value for value.
+          // It lives outside the plot clip so it can straddle election day at
+          // the frame's right edge without being cut in half.
+          var electionDayGroup = svgNode("g", {
+            class: "election-timeseries__election-day-group",
+            "data-coalition": definition.id,
+            "data-coalition-label": definition.label,
+            "data-color": definition.color,
+            "data-election-day": "true"
+          });
           var electionGroup = campaignPaths.electionDay.groups[definition.id];
           var electionValues = historyDisplayQuantiles(electionGroup, selectedMetric);
           var electionRaw = electionGroup && electionGroup[selectedMetric];
           if (electionValues && electionValues.p50 !== null && electionValues.p05 !== null &&
               electionValues.p95 !== null) {
-            group.appendChild(svgNode("line", {
+            electionDayGroup.appendChild(svgNode("line", {
               x1: glyphX, y1: yScale(electionValues.p95), x2: glyphX, y2: yScale(electionValues.p05),
               stroke: definition.color, "stroke-width": "2", opacity: "0.55",
               "stroke-linecap": "round", "vector-effect": "non-scaling-stroke",
               class: "election-timeseries__election-day-whisker",
               "data-election-day-interval": "90", "data-coalition": definition.id
             }));
-            group.appendChild(svgNode("rect", {
+            electionDayGroup.appendChild(svgNode("rect", {
               x: glyphX - boxWidth / 2, y: yScale(electionValues.p75),
               width: boxWidth,
               height: Math.max(1.5, yScale(electionValues.p25) - yScale(electionValues.p75)),
@@ -2425,7 +2448,7 @@
               class: "election-timeseries__election-day-box",
               "data-election-day-interval": "50", "data-coalition": definition.id
             }));
-            group.appendChild(svgNode("line", {
+            electionDayGroup.appendChild(svgNode("line", {
               x1: glyphX - boxWidth / 2 - 2, y1: yScale(electionValues.p50),
               x2: glyphX + boxWidth / 2 + 2, y2: yScale(electionValues.p50),
               stroke: definition.color, "stroke-width": "2.6",
@@ -2471,11 +2494,12 @@
                   event.key === "ArrowRight" ? 1 : -1), false, event);
               }
             });
-            group.appendChild(electionMark);
+            electionDayGroup.appendChild(electionMark);
           }
-          pathLayer.appendChild(group);
+          electionLayer.appendChild(electionDayGroup);
         });
         svg.appendChild(pathLayer);
+        svg.appendChild(electionLayer);
         background.appendChild(svgNode("text", {
           x: glyphX + boxWidth / 2 + 2, y: plot.top + (compactChart ? 34 : 31),
           "text-anchor": "end",

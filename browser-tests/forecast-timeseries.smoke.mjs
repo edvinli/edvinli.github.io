@@ -660,6 +660,27 @@ function readPage(browser) {
       crosshairCount: svg ? Array.from(svg.querySelectorAll(selectors.crosshair)).filter(visible).length : 0,
       inspectionCount: svg ? Array.from(svg.querySelectorAll(selectors.inspection)).filter(visible).length : 0,
       endpointCount: svg ? Array.from(svg.querySelectorAll(selectors.endpoint)).filter(visible).length : 0,
+      // Horizontal position is a semantic encoding of time, so it gets its own
+      // measurement block: client rects only, never a mix of client pixels and
+      // viewBox attribute units.
+      geometry: svg ? (() => {
+        const centre = (element) => {
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          return rect.x + rect.width / 2;
+        };
+        const dayMarks = Array.from(svg.querySelectorAll(selectors.campaignPoints))
+          .map(centre).filter((value) => value !== null);
+        return {
+          originBoundary: centre(svg.querySelector('[data-latest-forecast-boundary="true"]')),
+          electionBoundary: centre(svg.querySelector('[data-election-day-boundary="true"]')),
+          originState: centre(svg.querySelector('[data-origin-state-point="true"]')),
+          electionDay: centre(svg.querySelector('[data-election-day-point="true"]')),
+          dayCount: dayMarks.length,
+          dayMin: dayMarks.length ? Math.min(...dayMarks) : null,
+          dayMax: dayMarks.length ? Math.max(...dayMarks) : null,
+        };
+      })() : null,
       certifiedX: (() => {
         const dot = svg?.querySelector('.election-timeseries__current');
         return dot ? dot.getBoundingClientRect().right : null;
@@ -1044,6 +1065,38 @@ function assertStructure(view, history) {
     /112/.test(view.section?.text || ''), view.section?.text);
 }
 
+// Horizontal position encodes time.  An earlier revision inset the
+// election-day glyph by 8-10 px to keep it clear of the plot clip, which put a
+// dated mark at the wrong date -- and on the four-year scale, where the whole
+// remaining campaign is about six pixels wide, left of the "I dag" boundary
+// entirely.  Every one of the 599 other checks passed while that was true, so
+// the ordering is asserted directly, in client pixels, at both viewports and
+// in both ranges.
+function assertCampaignGeometry(view, history, label) {
+  const g = view.geometry;
+  const epsilon = 0.75;
+  check(`${label}: the geometry of both boundaries is measurable`,
+    g !== null && Number.isFinite(g.originBoundary) && Number.isFinite(g.electionBoundary), g);
+  if (!g) return;
+  check(`${label}: the election-day glyph sits exactly on election day`,
+    Number.isFinite(g.electionDay) &&
+    Math.abs(g.electionDay - g.electionBoundary) <= epsilon,
+  { glyph: g.electionDay, boundary: g.electionBoundary,
+    delta: Number.isFinite(g.electionDay) ? g.electionDay - g.electionBoundary : null });
+  check(`${label}: the future region runs forwards in time`,
+    g.originBoundary <= g.electionBoundary + epsilon, g);
+  if (g.dayCount > 0) {
+    check(`${label}: every campaign day lies between today and election day`,
+      g.originBoundary <= g.dayMin + epsilon && g.dayMax <= g.electionDay + epsilon,
+    { boundary: g.originBoundary, dayMin: g.dayMin, dayMax: g.dayMax, glyph: g.electionDay });
+  }
+  if (Number.isFinite(g.originState)) {
+    check(`${label}: the origin marker lies between today and election day`,
+      g.originBoundary <= g.originState + epsilon && g.originState <= g.electionDay + epsilon,
+    { boundary: g.originBoundary, origin: g.originState, glyph: g.electionDay });
+  }
+}
+
 function assertCampaignPathStructure(view, history, metric = 'vote') {
   const paths = history.future_campaign_paths;
   const rendering = paths.rendering;
@@ -1310,6 +1363,13 @@ async function exercise(viewport, history, siteRoot) {
       ['full', fullRangeStart(history, 'vote'), history.election_date]);
     equal('the range buttons open on Sedan 2022',
       view.ranges.map((button) => button.pressed), ['true', 'false']);
+    assertCampaignGeometry(view, history, 'full range, vote');
+    equal('full range switches to Mandatandel', await clickButton(browser, 'Mandatandel'), true);
+    await settle();
+    assertCampaignGeometry(await readPage(browser), history, 'full range, seats');
+    equal('full range returns to Röstandel', await clickButton(browser, 'Röstandel'), true);
+    await settle();
+    view = await readPage(browser);
     check('the campaign-window cue is offered as a native button',
       view.section?.campaignCue?.hidden === false &&
       view.section?.campaignCue?.tag === 'BUTTON' &&
@@ -1336,6 +1396,7 @@ async function exercise(viewport, history, siteRoot) {
         { text: 'Kvarvarande osäkerhet', pressed: 'false' },
       ]);
     assertCampaignPathStructure(view, history, 'vote');
+    assertCampaignGeometry(view, history, 'campaign window, vote');
 
     // ---- secondary view: the shrinking-horizon fan ------------------------
     await switchFutureView(browser, 'conditional_projection', 'Kvarvarande osäkerhet');
@@ -1757,6 +1818,7 @@ async function exercise(viewport, history, siteRoot) {
     await settle();
     campaignView = await readPage(browser);
     assertCampaignPathStructure(campaignView, history, 'seats');
+    assertCampaignGeometry(campaignView, history, 'campaign window, seats');
     await clickAt(browser, await markCoordinates(browser, 'data-election-day-point',
       history.election_date));
     campaignView = await readPage(browser);
