@@ -63,10 +63,17 @@ jobs:
           echo "$(ruby -e 'print Gem.user_dir')/bin" >> "$GITHUB_PATH"
       - name: Build the site
         run: jekyll build --config _config.yml,_config.dev.yml
+
+      # A tracked PDF under files/ has a literal newline in its filename, and
+      # actions/upload-artifact refuses any path containing one (along with
+      # ": < > | * ?"). Renaming it would break a published URL, so hand the
+      # uploader a single tarball instead and keep the one-build design.
+      - name: Pack the built site
+        run: tar -cf site.tar _site
       - uses: actions/upload-artifact@v4
         with:
           name: site
-          path: _site
+          path: site.tar
           retention-days: 1
 
   browser:
@@ -85,7 +92,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: site
-          path: _site
+      - name: Unpack the built site
+        run: tar -xf site.tar && rm site.tar
       - name: Install Chromium
         run: |
           sudo apt-get update

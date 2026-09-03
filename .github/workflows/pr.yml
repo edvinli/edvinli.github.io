@@ -62,7 +62,7 @@ jobs:
           fi
           printf 'changed: %s\n' "${changed[@]}"
           matrix="$(node browser-tests/select-suites.mjs --changed "${changed[@]}" 2> reason.txt)"
-          reason="$(cat reason.txt)"
+          reason="$(sed 's/^selection: //' reason.txt)"
           echo "$reason"
           count="$(printf '%s' "$matrix" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).include.length))')"
           if [[ "$count" -eq 0 ]]; then echo "empty=true" >> "$GITHUB_OUTPUT"; else echo "empty=false" >> "$GITHUB_OUTPUT"; fi
@@ -106,11 +106,18 @@ jobs:
       - name: Build the site
         run: jekyll build --config _config.yml,_config.dev.yml
 
+      # A tracked PDF under files/ has a literal newline in its filename, and
+      # actions/upload-artifact refuses any path containing one (along with
+      # ": < > | * ?"). Renaming it would break a published URL, so hand the
+      # uploader a single tarball instead and keep the one-build design.
+      - name: Pack the built site
+        run: tar -cf site.tar _site
+
       - name: Upload the built site
         uses: actions/upload-artifact@v4
         with:
           name: site
-          path: _site
+          path: site.tar
           retention-days: 1
 
   # ---------------------------------------------------------------------------
@@ -136,7 +143,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: site
-          path: _site
+      - name: Unpack the built site
+        run: tar -xf site.tar && rm site.tar
 
       - name: Install Chromium
         run: |
