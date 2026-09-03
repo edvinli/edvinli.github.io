@@ -183,6 +183,7 @@ function readState(browser) {
         y: Number(node.getAttribute('y1')),
       })),
       thresholdLabel: marks('[data-threshold-label]').map((node) => (node.textContent || '').trim()),
+      majorityLines: marks('[data-majority]').length,
       futureRegion: marks('[data-future-region]').length,
       plot: (() => {
         const grid = svg?.querySelector('.election-timeseries__grid-line');
@@ -417,6 +418,9 @@ async function runViewport(viewport, site) {
         point.metric === 'seats' && Boolean(point.seats)),
       seats.electionDayPoints);
     check('no 4 % threshold line in the mandate view', seats.thresholdLine.length === 0);
+    // The 175-seat rule is a question about a government, not about a party.
+    check('no 175-mandate majority rule is drawn for a single party',
+      seats.majorityLines === 0, seats.majorityLines);
     check('the secondary uncertainty view stays hidden in mandate mode', !seats.futureHostVisible);
 
     await clickId(browser, 'election-timeseries-vote');
@@ -517,6 +521,15 @@ async function runViewport(viewport, site) {
     equal('the coalition domain is exactly what it was', [back.yMin, back.yMax],
       [coalitionDomain.min, coalitionDomain.max]);
     equal('the coalition series are exactly what they were', back.seriesDefinitions, coalitionSeries);
+    check('the coalition mandate view keeps its 175-seat rule', await (async () => {
+      await clickId(browser, 'election-timeseries-seats');
+      await settle(240);
+      const coalitionSeats = await readState(browser);
+      const kept = coalitionSeats.majorityLines > 0;
+      await clickId(browser, 'election-timeseries-vote');
+      await settle(240);
+      return kept;
+    })());
     equal('the coalition poll cloud is exactly what it was',
       back.pollDefinitions.slice().sort(), coalitionPollDefinitions);
     check('the coalition selector is visible again',

@@ -2553,7 +2553,12 @@
           class: "election-timeseries__threshold-label", "data-threshold-label": "true"
         }, history.partyView ? history.partyView.thresholdLabel : "4\u00a0%-sp\u00e4rr"));
       }
-      if (selectedMetric === "seats") {
+      // The 175-seat rule is a question about a government, not about a party:
+      // no single party is going to hold a majority, and drawing the line
+      // invites reading a party's distance from one as meaningful. Coalition
+      // mode keeps it exactly as before; "Regeringsalternativ" and the builder
+      // are where the majority question belongs for a party combination.
+      if (selectedMetric === "seats" && viewMode !== "parties") {
         var majorityShare = 100 * MAJORITY / CHAMBER;
         var majorityY = yScale(majorityShare);
         background.appendChild(svgNode("line", {

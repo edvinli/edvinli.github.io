@@ -108,6 +108,8 @@ const checks = [
     source.includes('thresholdPct >= domain.min && thresholdPct <= domain.max')],
   ['the threshold nudge is bounded, so the scale is not distorted to reach it',
     source.includes('var reach = Math.max(0.25, dataSpan * 0.15);')],
+  ['the 175-seat majority rule is coalition-only',
+    source.includes('selectedMetric === "seats" && viewMode !== "parties"')],
   ['the tick ladder is shared and derived from the domain',
     source.includes('function historyTickStep') &&
     source.includes('var yStep = yDomain.step;')],
