@@ -32,6 +32,47 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
+  <section id="election-timeseries" class="election-panel election-timeseries" hidden>
+    <div class="election-panel__head">
+      <h2>Vägen till valdagen</h2>
+      <p class="election-muted" id="election-timeseries-intro">Historisk prognos fram till i dag. Därefter visas möjliga opinionsbanor fram till valdagen.</p>
+    </div>
+    <div class="election-timeseries__controls">
+      <div class="election-timeseries__mode" role="group" aria-label="Mått i diagrammet">
+        <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-vote" aria-pressed="true">Röstandel</button>
+        <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-seats" aria-pressed="false">Mandatandel</button>
+      </div>
+      <div class="election-timeseries__range" id="election-timeseries-range" role="group" aria-label="Tidsintervall">
+        <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-full" data-range="full" aria-pressed="true" aria-controls="election-timeseries-svg">Sedan 2022</button>
+        <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Sista 30 dagarna</button>
+      </div>
+      <div class="election-timeseries__future" id="election-timeseries-future" role="group" aria-label="Analys av tiden fram till valet" hidden>
+        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-paths" data-future-view="paths" aria-label="Möjliga opinionsbanor" aria-pressed="true" aria-controls="election-timeseries-svg">Opinionsbanor</button>
+        <button type="button" class="election-timeseries__future-button election-timeseries__future-button--secondary" id="election-timeseries-future-stability" data-future-view="projection" aria-pressed="false" aria-controls="election-timeseries-svg">Kvarvarande osäkerhet</button>
+      </div>
+      <button type="button" class="election-timeseries__campaign-cue" id="election-timeseries-campaign-cue" aria-controls="election-timeseries-svg" hidden>Visa kampanjperioden <span aria-hidden="true">→</span></button>
+      <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
+    </div>
+    <div class="election-timeseries__frame" id="election-timeseries-frame">
+      <svg id="election-timeseries-svg" class="election-timeseries__svg" role="group" tabindex="0" aria-labelledby="election-timeseries-title election-timeseries-description" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
+        <title id="election-timeseries-title">Vår simulerade valprognos över tid för valda koalitioner</title>
+        <desc id="election-timeseries-description">Vår simulering visas med median och prognosintervall samt enskilda mätningar som jämförelse.</desc>
+      </svg>
+    </div>
+    <div id="election-timeseries-detail" class="election-timeseries__detail" role="region" aria-live="polite" aria-labelledby="election-timeseries-detail-title">
+      <h3 id="election-timeseries-detail-title" class="visually-hidden">Detaljer för valt prognosdatum</h3>
+      <p id="election-timeseries-status" class="election-timeseries__status" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
+      <div id="election-timeseries-detail-body" class="election-timeseries__detail-body" hidden></div>
+    </div>
+    <p class="election-timeseries__key election-muted">
+      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
+      <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
+    </p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Mandat visas först för valdagsprognosen.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Röstandelar beräknas över de åtta riksdagspartierna.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>. Prognos och intervall: vår modell.</p>
+  </section>
   <section id="election-alternatives" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Regeringsalternativ</h2>
@@ -127,47 +168,6 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
     </div>
     <ul id="election-parliament-legend" class="ep-legend"></ul>
-  </section>
-  <section id="election-timeseries" class="election-panel election-timeseries" hidden>
-    <div class="election-panel__head">
-      <h2>Vägen till valdagen</h2>
-      <p class="election-muted" id="election-timeseries-intro">Historisk prognos fram till i dag. Därefter visas möjliga opinionsbanor fram till valdagen.</p>
-    </div>
-    <div class="election-timeseries__controls">
-      <div class="election-timeseries__mode" role="group" aria-label="Mått i diagrammet">
-        <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-vote" aria-pressed="true">Röstandel</button>
-        <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-seats" aria-pressed="false">Mandatandel</button>
-      </div>
-      <div class="election-timeseries__range" id="election-timeseries-range" role="group" aria-label="Tidsintervall">
-        <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-full" data-range="full" aria-pressed="true" aria-controls="election-timeseries-svg">Sedan 2022</button>
-        <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Sista 30 dagarna</button>
-      </div>
-      <div class="election-timeseries__future" id="election-timeseries-future" role="group" aria-label="Analys av tiden fram till valet" hidden>
-        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-paths" data-future-view="paths" aria-label="Möjliga opinionsbanor" aria-pressed="true" aria-controls="election-timeseries-svg">Opinionsbanor</button>
-        <button type="button" class="election-timeseries__future-button election-timeseries__future-button--secondary" id="election-timeseries-future-stability" data-future-view="projection" aria-pressed="false" aria-controls="election-timeseries-svg">Kvarvarande osäkerhet</button>
-      </div>
-      <button type="button" class="election-timeseries__campaign-cue" id="election-timeseries-campaign-cue" aria-controls="election-timeseries-svg" hidden>Visa kampanjperioden <span aria-hidden="true">→</span></button>
-      <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
-    </div>
-    <div class="election-timeseries__frame" id="election-timeseries-frame">
-      <svg id="election-timeseries-svg" class="election-timeseries__svg" role="group" tabindex="0" aria-labelledby="election-timeseries-title election-timeseries-description" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
-        <title id="election-timeseries-title">Vår simulerade valprognos över tid för valda koalitioner</title>
-        <desc id="election-timeseries-description">Vår simulering visas med median och prognosintervall samt enskilda mätningar som jämförelse.</desc>
-      </svg>
-    </div>
-    <div id="election-timeseries-detail" class="election-timeseries__detail" role="region" aria-live="polite" aria-labelledby="election-timeseries-detail-title">
-      <h3 id="election-timeseries-detail-title" class="visually-hidden">Detaljer för valt prognosdatum</h3>
-      <p id="election-timeseries-status" class="election-timeseries__status" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
-      <div id="election-timeseries-detail-body" class="election-timeseries__detail-body" hidden></div>
-    </div>
-    <p class="election-timeseries__key election-muted">
-      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
-      <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
-    </p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Mandat visas först för valdagsprognosen.</p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Röstandelar beräknas över de åtta riksdagspartierna.</p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>. Prognos och intervall: vår modell.</p>
   </section>
   <section id="election-changes" class="election-panel" hidden>
     <div class="election-panel__head">

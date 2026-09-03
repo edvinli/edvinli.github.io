@@ -19,11 +19,11 @@ const paths = fixture.future_campaign_paths;
 const projection = fixture.future_projection;
 const current = (fixture.series || []).filter((point) => point?.provenance === 'current_production');
 const sourcePrimarySections = [
+  'election-timeseries',
   'election-alternatives',
   'election-government-builder',
   'election-headline',
   'election-seats',
-  'election-timeseries',
 ];
 const sourcePrimarySectionPositions = sourcePrimarySections.map((id) =>
   page.indexOf(`<section id="${id}"`));
