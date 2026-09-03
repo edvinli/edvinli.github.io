@@ -346,6 +346,7 @@ canvas {
   margin-top: 1rem;
 }
 
+.election-timeseries__view,
 .election-timeseries__mode,
 .election-timeseries__range,
 .election-timeseries__future {
@@ -391,8 +392,22 @@ canvas {
 }
 
 .election-timeseries__range-button,
-.election-timeseries__future-button {
+.election-timeseries__future-button,
+.election-timeseries__view-button {
   white-space: nowrap;
+}
+
+// The first control dimension: what the chart is about, before how it is
+// measured and over what period. A slightly heavier border marks it as the
+// outermost choice without turning it into a second visual heading.
+.election-timeseries__view {
+  border-color: var(--el-rule-strong);
+  order: -1;
+}
+
+.election-timeseries__view-button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 // The primary future view is the coherent campaign-path model; the
@@ -503,6 +518,60 @@ canvas {
   flex: none;
   height: 0.56rem;
   width: 0.56rem;
+}
+
+// Exactly one party is on screen at a time, so the selected pill is the only
+// emphasized one and the rest stay quiet. Colour is never the sole encoding:
+// every pill carries its party abbreviation.
+.election-timeseries__party-button {
+  min-width: 3.1rem;
+  justify-content: center;
+}
+
+.election-timeseries__party-button.is-active {
+  background: var(--el-fill-soft);
+  border-color: var(--el-rule-strong);
+  font-weight: 700;
+}
+
+// The statutory threshold, drawn only when the visible domain already
+// contains it. Distinct from the 175-seat majority rule it sits beside in the
+// other metric, because they are different kinds of line.
+.election-timeseries__threshold {
+  stroke: rgba(44, 42, 37, 0.45);
+  stroke-dasharray: 2 3;
+  stroke-width: 1;
+}
+
+.election-timeseries__threshold-label {
+  fill: var(--el-ink-soft) !important;
+  font-size: 12px !important;
+}
+
+// The direct route from a party row into its own time series.
+.election-timeseries__parties {
+  flex: 1 1 26rem;
+}
+
+.ev-detail__actions {
+  margin: 0.6rem 0 0;
+}
+
+.ev-detail__timeline {
+  background: transparent;
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  color: var(--el-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 0.28rem 0.7rem;
+}
+
+.ev-detail__timeline:hover {
+  background: var(--el-fill);
 }
 
 .election-timeseries__note {
@@ -2374,6 +2443,7 @@ canvas {
     gap: 0.55rem;
   }
 
+  .election-timeseries__view,
   .election-timeseries__range,
   .election-timeseries__future {
     max-width: 100%;
@@ -2381,6 +2451,13 @@ canvas {
 
   .election-timeseries__coalitions {
     flex-basis: 100%;
+  }
+
+  // Eight party pills wrap onto two calm rows at 360px rather than becoming a
+  // horizontally scrolling strip.
+  .election-timeseries__party-button {
+    flex: 0 0 auto;
+    min-width: 3.4rem;
   }
 
   .election-timeseries__control,

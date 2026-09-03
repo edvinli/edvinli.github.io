@@ -36,8 +36,11 @@ node browser-tests/alternatives.smoke.mjs
 node browser-tests/forecast-timeseries.smoke.mjs
 node browser-tests/histogram-copy.smoke.mjs
 node browser-tests/equations.smoke.mjs
+node browser-tests/party-timeseries.smoke.mjs              # fixture mode
+node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
 node browser-tests/campaign-paths.contract.mjs      # static, no browser
 node browser-tests/future-projection.contract.mjs   # static, no browser
+node browser-tests/party-timeseries.contract.mjs    # static, no browser
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -193,7 +196,122 @@ It also owns the **coherent campaign-path** future region
   trajectory, a declared daily random walk, and a trajectory ending after the
   origin all fall back to the historical chart with no campaign marks.
 
-### 7. `campaign-paths.contract.mjs` — static campaign-path contract
+### 7. `party-timeseries.smoke.mjs` — the per-party view
+
+Owns the `Koalitioner | Partier` switch and everything behind it, at desktop
+and 360 px mobile widths:
+
+- coalition mode is the default and is asserted **unchanged** — same series,
+  same y-domain, same poll cloud — before and after a round trip through party
+  mode. The switch is only worth having if the default experience did not move;
+- one party at a time, every pill tab-reachable, exactly one `aria-pressed`,
+  and the deterministic default being the largest party in the certified
+  forecast;
+- party poll dots equal to the **published** party number, not a
+  renormalization — the check that catches the ~2 % denominator error that
+  would otherwise move every party away from the 4 % line;
+- the election-day party distribution equal to the certified `parties.json`
+  values that the artifact carries on its `current_production` point;
+- the adaptive party y-domain: tighter in `Sista 30 dagarna` than in
+  `Sedan 2022`, readable tick counts, and every drawn forecast point and poll
+  dot inside the visible domain;
+- the 4 %-spärr drawn for a threshold-near party and **absent** for a large
+  one, with the scale not stretched to reach it;
+- `Mandatandel` drawing the election-day seat distribution and the future
+  shading but **no** intermediate party mandate paths, bands or origin marker;
+- party selection surviving a metric change and a range change;
+- `Visa utveckling →` routing: scroll, switch to `Partier`, select that party,
+  and land focus on the chart's own party pill;
+- pointer, touch and chart-level arrow-key inspection naming the selected
+  party;
+- no horizontal overflow and zero console errors in both modes.
+
+### Fixture mode vs real-artifact mode — read this before wiring a gate
+
+`party-timeseries.smoke.mjs` has two modes, and confusing them produces a
+green run that proves nothing.
+
+**Fixture mode (default)** overlays `fixtures/coalition-timeseries.json` onto a
+throwaway copy of the built site. That overwrite is deliberate: it is what
+makes the mutation and fail-closed matrix deterministic, since every scenario
+is a controlled edit of a known artifact. It must stay exactly as it is.
+
+The consequence is that in fixture mode the suite **ignores the history the
+site you pass it actually ships**. So
+
+```sh
+node browser-tests/party-timeseries.smoke.mjs _site     # validates the FIXTURE
+```
+
+looks like it validates a freshly generated production history and does not.
+
+**Real-artifact mode** is the one that does:
+
+```sh
+node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
+```
+
+It copies nothing and overwrites nothing. It reads the history the site ships,
+and refuses to drive the browser at all unless that artifact passes every
+precondition for exposing the party view: `parties_view` present and valid;
+**every plotted non-archived history point** carrying all eight parties with
+integral seats; exactly one certified `current_production` point; campaign
+bands daily, complete and vote-only; representative trajectories carrying all
+eight party tracks; no intermediate party mandate trajectory in the data or in
+either declaration; `election_day.parties` identical to the certified point; no
+poll or Poll-of-Polls value after the origin; and every published party
+endpoint quantile equal to the publication's own `parties.json`.
+
+That last check resolves `parties.json` **through `current.json`, with no
+fallback**. The flat `files/election-simulator/parties.json` at the publication
+root is a frozen pre-versioning artifact from a different forecast — it still
+reports M at 18.621 where the pointer-resolved generation reports 18.087 — so
+falling back to it would compare a fresh history against the wrong numbers.
+A missing or malformed pointer is an error.
+
+It also compares the history's `publication_generation` against the pointer's,
+so a history generated from a different run than the live publication fails
+with `the artifact and the publication are out of step` rather than passing on
+numbers that happen to be close.
+
+Two consequences worth stating:
+
+- **The publication gate must use the real-artifact form.** The fixture-mode
+  command would gate every future publication against a committed fixture.
+- **Real-artifact mode fails today, correctly.** The currently published
+  history carries no party family, so it reports `parties_view is absent: … A
+  full history regeneration (without --resume) is what creates it.` and exits
+  non-zero. That is the signal that the backfill has not happened yet.
+
+The mode is self-tested on every default run: `selfTestRealArtifactMode()`
+breaks each precondition in turn and requires the matching finding, proves the
+reader returns the site's history rather than the fixture, proves a missing
+pointer is an error rather than a flat-file fallback, and then drives the real
+browser happy path from a site whose genuine history is a complete artifact.
+
+### The fallback and fail-closed matrix
+
+Fixture mode owns this. A publication with **no**
+party family renders exactly the old page with the switch absent and the
+`Visa utveckling` action hidden. A publication whose party family is declared
+but broken — an election-day party value drifting from the certified point, a
+seat quantile inside an opinion band, a declared intermediate mandate
+trajectory, a renormalized denominator, uncertainty declared as reconstructed
+from coalitions, or one campaign day missing its party bands — refuses party
+mode outright and leaves the coalition view untouched.
+
+### 8. `party-timeseries.contract.mjs` — static per-party contract
+
+Runs without a browser. Asserts that the fail-closed rules are present in
+`assets/js/election-simulator.js` (the nine-category denominator, the refusal
+to reconstruct party uncertainty from coalition data, the all-or-nothing party
+family, the bounded threshold nudge), that there is exactly **one** chart
+renderer and one definition namespace rather than a second pipeline, that the
+page markup puts the view switch first in the control order, and that the
+committed fixture publishes a well-formed party family whose party ids never
+leak into the coalition `groups`.
+
+### 9. `campaign-paths.contract.mjs` — static campaign-path contract
 
 Runs without a browser. It asserts that the *rules* the deployed consumer
 enforces are present in `assets/js/election-simulator.js` — bitwise endpoint
@@ -234,6 +352,27 @@ FIX.write_text(json.dumps(history, ensure_ascii=False, separators=(",", ":")) + 
 The builder refuses to produce an object whose election-day endpoint is not
 bitwise identical to the canonical production draws, so a fixture that exists
 is a fixture that passed the scientific gate.
+
+#### The party family in the fixture
+
+The same fixture carries the additive party family (`parties_view`,
+`series[].parties`, `bands[].parties`, `paths.series[].party_values`,
+`election_day.parties`). Backfilling party data into the historical points is
+a full `scripts.forecast_history.generate` run — the resume cache keeps old
+points byte-for-byte, party block or not — so regenerating it means:
+
+```bash
+# from the election-simulator repository root, about 15 minutes on 9 workers
+uv run python -m scripts.forecast_history.generate --output /tmp/history.json --workers 9
+```
+
+then rolling one certified 100 000-draw production result into it with
+`scripts.forecast_history.future_projection.update_history_with_production_result`,
+exactly as the publication automation does. The party quantiles at the
+certified point are asserted against that run's own `parties.json` values by
+`scripts.forecast_history.party_contract.assert_election_day_party_parity`, so
+a fixture that exists is one whose party election-day values are the published
+forecast.
 
 ## Determinism: pin the generation you assert against
 

@@ -389,6 +389,27 @@
   var partyPanels = {};
   var selectedParty = null;
   var clearTimeseriesSelection = function () {};
+  // "Röstandelar på valdagen" and "Vägen till valdagen" load from two
+  // independent fetches that race, so the direct-navigation action is wired
+  // through these two module-level handles rather than a call ordering.
+  var showPartyTimeline = null;
+  var partyTimelineLinks = {};
+  // Which parties the history artifact actually publishes. Kept at module
+  // level because the two sections load from independent fetches in either
+  // order: whichever finishes second reads this and reconciles.
+  var partyTimelineAvailable = [];
+
+  function partyTimelineIsAvailable(party) {
+    return partyTimelineAvailable.indexOf(party) !== -1;
+  }
+
+  function enablePartyTimelineLinks(availableParties) {
+    partyTimelineAvailable = availableParties || [];
+    Object.keys(partyTimelineLinks).forEach(function (party) {
+      var link = partyTimelineLinks[party];
+      if (link) link.hidden = !partyTimelineIsAvailable(party);
+    });
+  }
 
   function track(party, node, baseClass) {
     if (!node) return node;
@@ -489,6 +510,23 @@
   // ---------------------------------------------------------------------
   var HISTORY_PARTIES = ["M", "L", "C", "KD", "S", "V", "MP", "SD"];
   var HISTORY_DYNAMICS_CAP = 112;
+  // ---------------------------------------------------------------------
+  // Party definitions on the same time series.
+  //
+  // A party and a coalition are *different quantities* and the difference is
+  // the denominator. A coalition share is renormalized over the eight
+  // parliamentary parties; a party share is its share of the whole electorate,
+  // REST included, which is the definition parties.json, every published poll
+  // and the statutory 4 % threshold all use. Nothing here derives a party from
+  // coalition numbers: every party value is read from the publication's own
+  // additive party family, and the family is used only if it validates whole.
+  // ---------------------------------------------------------------------
+  var PARTY_VIEW_ROLE = "party_time_series";
+  var PARTY_VOTE_DENOMINATOR = "all_nine_model_categories_including_rest";
+  var PARTY_VOTE_DEFINITION = "national_vote_share";
+  var PARTY_SEAT_DEFINITION = "statutory_mandate_allocation";
+  var PARTY_VIEW_SCHEMA = "1.0";
+  var NATIONAL_THRESHOLD_PCT = 4;
   var HISTORY_COALITIONS = [
     { id: "red_green_center", label: "V + MP + S + C", parties: ["V", "MP", "S", "C"], color: "#bd3348", defaultOn: true },
     { id: "tido", label: "L + KD + M + SD", parties: ["L", "KD", "M", "SD"], color: "#315fa8", defaultOn: true },
@@ -594,12 +632,70 @@
       if (!parties.length) parties = definition.parties.slice();
       return {
         id: definition.id,
+        kind: "coalition",
         label: definition.label,
+        shortLabel: definition.label,
+        // Renormalized over the eight parliamentary parties, which is what a
+        // coalition majority question is asking about.
+        denominator: "parliamentary_8",
         parties: parties,
         color: definition.color,
         defaultOn: definition.defaultOn
       };
     });
+  }
+
+  // The party family is opt-in and fail-closed: an absent, malformed or
+  // partial `parties_view` returns null, the switch is never offered, and the
+  // coalition experience is bit-for-bit what it was.
+  function historyPartyDefinitions(payload) {
+    var view = payload && payload.parties_view;
+    if (!view || typeof view !== "object" || Array.isArray(view)) return null;
+    if (view.schema_version !== PARTY_VIEW_SCHEMA || view.role !== PARTY_VIEW_ROLE) return null;
+    if (view.vote_share_denominator !== PARTY_VOTE_DENOMINATOR) return null;
+    if (view.vote_share_definition !== PARTY_VOTE_DEFINITION) return null;
+    if (view.seat_definition !== PARTY_SEAT_DEFINITION) return null;
+    // REST is aggregate vote mass for modelled-ineligible parties. It cannot
+    // reach the threshold or hold seats, so it is never a followable party.
+    if (view.rest_is_a_party !== false) return null;
+    if (view.intermediate_seat_trajectory !== false) return null;
+    if (historyNumber(view.national_threshold_pct) !== NATIONAL_THRESHOLD_PCT) return null;
+    var parity = view.election_day_parity;
+    if (!parity || typeof parity !== "object") return null;
+    if (parity.reconstructed_from_coalitions !== false) return null;
+    if (typeof parity.guarantee !== "string" || !parity.guarantee.trim()) return null;
+    if (!Array.isArray(view.party_order) || view.party_order.length !== HISTORY_PARTIES.length) return null;
+    if (!view.party_order.every(function (party, index) { return party === HISTORY_PARTIES[index]; })) {
+      return null;
+    }
+    var names = view.party_names_sv;
+    if (!names || typeof names !== "object") return null;
+    var definitions = [];
+    for (var index = 0; index < HISTORY_PARTIES.length; index += 1) {
+      var party = HISTORY_PARTIES[index];
+      var published = typeof names[party] === "string" && names[party].trim() ? names[party] : null;
+      if (!published) return null;
+      definitions.push({
+        id: party,
+        kind: "party",
+        party: party,
+        label: published + " (" + party + ")",
+        shortLabel: party,
+        name: published,
+        // The whole electorate, REST included. Never renormalized.
+        denominator: "model_categories_9",
+        parties: [party],
+        color: partyColors[party] || "#777",
+        defaultOn: false
+      });
+    }
+    return {
+      definitions: definitions,
+      thresholdPct: NATIONAL_THRESHOLD_PCT,
+      thresholdLabel: typeof view.threshold_label_sv === "string" && view.threshold_label_sv.trim()
+        ? view.threshold_label_sv : "4 %-sp\u00e4rr",
+      note: typeof view.provenance_note_sv === "string" ? view.provenance_note_sv : ""
+    };
   }
 
   function historyPoint(raw, electionDate, definitions) {
@@ -614,9 +710,17 @@
     if (samples === null) samples = historyNumber(raw.draws);
     if (samples === null) samples = historyNumber(raw.total_samples);
     var groups = raw.groups || raw.coalitions || {};
+    var partyGroups = raw.parties && typeof raw.parties === "object" && !Array.isArray(raw.parties)
+      ? raw.parties : {};
     var normalizedGroups = {};
+    // Coalition ids are lower-case identifiers and party ids are the eight
+    // upper-case codes, so the two families share one flat definition
+    // namespace without any possibility of collision. That is what lets the
+    // renderer stay a single pipeline: it only ever asks a point for a
+    // definition id.
     definitions.forEach(function (definition) {
-      var group = groups && groups[definition.id];
+      var source = definition.kind === "party" ? partyGroups : groups;
+      var group = source && source[definition.id];
       if (!group) return;
       var vote = historyMetric(group, "vote");
       var seats = historyMetric(group, "seats");
@@ -632,6 +736,26 @@
       provenance: String(raw.provenance || raw.source || "reconstructed_current_model"),
       groups: normalizedGroups
     };
+  }
+
+  // One published observation, read on the definition's own denominator.
+  //
+  // A coalition is renormalized over the eight parliamentary parties, matching
+  // the coalition quantiles it is drawn beside. A party is *not*: the number a
+  // pollster publishes is already that party's share of the electorate, whose
+  // remainder is the same REST mass the model carries, so it is exactly
+  // comparable to the published party quantiles and to the 4 % line. Dividing
+  // it by the eight-party sum would inflate every party by roughly 2 % of its
+  // own value and quietly move it away from the threshold.
+  function definitionObservation(definition, parties, denominator) {
+    if (definition.kind === "party") {
+      var value = parties[definition.id];
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
+    }
+    var total = definition.parties.reduce(function (sum, party) {
+      return sum + (parties[party] || 0);
+    }, 0);
+    return 100 * total / denominator;
   }
 
   function historyPopPoint(raw, definitions) {
@@ -654,10 +778,7 @@
     if (!complete || denominator <= 0) return null;
     var values = {};
     definitions.forEach(function (definition) {
-      var total = definition.parties.reduce(function (sum, party) {
-        return sum + (parties[party] || 0);
-      }, 0);
-      values[definition.id] = 100 * total / denominator;
+      values[definition.id] = definitionObservation(definition, parties, denominator);
     });
     return {
       date: dateInfo.iso,
@@ -690,10 +811,7 @@
     if (!complete || denominator <= 0) return null;
     var values = {};
     definitions.forEach(function (definition) {
-      var total = definition.parties.reduce(function (sum, party) {
-        return sum + parties[party];
-      }, 0);
-      values[definition.id] = 100 * total / denominator;
+      values[definition.id] = definitionObservation(definition, parties, denominator);
     });
     return {
       date: dateInfo.iso,
@@ -882,7 +1000,127 @@
     return normalized;
   }
 
-  function normalizeCampaignPaths(raw, payload, electionDate, definitions, points) {
+  // A vote-only party band. A seat quantile here would assert an intermediate
+  // future mandate trajectory, which the model refuses to publish: latent
+  // opinion has no seat allocation.
+  function campaignBandParties(raw, partyDefinitions) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    var ids = partyDefinitions.map(function (definition) { return definition.id; });
+    if (Object.keys(raw).length !== ids.length) return null;
+    var normalized = {};
+    for (var index = 0; index < ids.length; index += 1) {
+      var entry = raw[ids[index]];
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      if (Object.keys(entry).length !== 1 ||
+          !Object.prototype.hasOwnProperty.call(entry, "vote")) return null;
+      var quantiles = historyQuantiles(entry.vote);
+      if (!quantiles) return null;
+      normalized[ids[index]] = { vote: quantiles };
+    }
+    return normalized;
+  }
+
+  // A full party summary: vote and seats, as the certified election-day
+  // distribution and every historical point publish them.
+  function partySummaryGroups(raw, partyDefinitions) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    var ids = partyDefinitions.map(function (definition) { return definition.id; });
+    if (Object.keys(raw).length !== ids.length) return null;
+    var normalized = {};
+    for (var index = 0; index < ids.length; index += 1) {
+      var entry = raw[ids[index]];
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      if (Object.keys(entry).length !== 2 ||
+          !Object.prototype.hasOwnProperty.call(entry, "vote") ||
+          !Object.prototype.hasOwnProperty.call(entry, "seats")) return null;
+      var vote = historyQuantiles(entry.vote);
+      var seats = historyQuantiles(entry.seats);
+      if (!vote || !seats) return null;
+      var seatValues = ["p05", "p25", "p50", "p75", "p95"].map(function (key) { return seats[key]; });
+      if (!seatValues.every(function (value) {
+        return Number.isInteger(value) && value >= 0 && value <= CHAMBER;
+      })) return null;
+      normalized[ids[index]] = { vote: vote, seats: seats };
+    }
+    return normalized;
+  }
+
+  // Merge the published party family into the already-normalized campaign
+  // object. All or nothing: if any surface is missing or disagrees with the
+  // certified point, the whole party family is refused and the page keeps the
+  // coalition view exactly as it was.
+  function mergeCampaignPartyFamily(raw, normalized, partyDefinitions, certifiedRaw) {
+    var electionDayRaw = raw.election_day;
+    if (!electionDayRaw || !Object.prototype.hasOwnProperty.call(electionDayRaw, "parties")) {
+      return false;
+    }
+    var construction = raw.path_construction;
+    if (!construction || construction.party_vote_share_denominator !== PARTY_VOTE_DENOMINATOR) {
+      return false;
+    }
+    var rendering = raw.rendering;
+    if (!rendering ||
+        JSON.stringify(rendering.party_units) !== JSON.stringify(["vote"]) ||
+        JSON.stringify(rendering.party_election_day_units) !== JSON.stringify(["vote", "seats"]) ||
+        rendering.party_intermediate_seat_trajectory !== false ||
+        historyNumber(rendering.national_threshold_pct) !== NATIONAL_THRESHOLD_PCT) {
+      return false;
+    }
+    var electionParties = partySummaryGroups(electionDayRaw.parties, partyDefinitions);
+    var certifiedParties = partySummaryGroups(certifiedRaw && certifiedRaw.parties, partyDefinitions);
+    // The emphasized election-day party distribution must be the certified
+    // production one, value for value. Anything else would mean the chart had
+    // changed a published probability.
+    if (!electionParties || !certifiedParties ||
+        JSON.stringify(electionParties) !== JSON.stringify(certifiedParties)) return false;
+
+    var bands = Array.isArray(raw.bands) ? raw.bands : [];
+    if (bands.length !== normalized.bands.length) return false;
+    var bandParties = [];
+    for (var index = 0; index < bands.length; index += 1) {
+      var parsed = campaignBandParties(bands[index] && bands[index].parties, partyDefinitions);
+      if (!parsed) return false;
+      bandParties.push(parsed);
+    }
+
+    var series = raw.paths && Array.isArray(raw.paths.series) ? raw.paths.series : [];
+    if (series.length !== normalized.paths.length) return false;
+    var pathParties = [];
+    for (var track = 0; track < series.length; track += 1) {
+      var values = series[track] && series[track].party_values;
+      if (!values || typeof values !== "object") return false;
+      var normalizedValues = {};
+      var valid = partyDefinitions.every(function (definition) {
+        var line = values[definition.id];
+        if (!Array.isArray(line) || line.length !== normalized.bands.length) return false;
+        if (!line.every(function (value) {
+          return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+        })) return false;
+        normalizedValues[definition.id] = line.slice();
+        return true;
+      });
+      if (!valid) return false;
+      pathParties.push(normalizedValues);
+    }
+
+    // Everything validated; commit into the shared definition namespace.
+    normalized.bands.forEach(function (band, bandIndex) {
+      partyDefinitions.forEach(function (definition) {
+        band.groups[definition.id] = bandParties[bandIndex][definition.id];
+      });
+    });
+    normalized.paths.forEach(function (track, trackIndex) {
+      partyDefinitions.forEach(function (definition) {
+        track.values[definition.id] = pathParties[trackIndex][definition.id];
+      });
+    });
+    partyDefinitions.forEach(function (definition) {
+      normalized.electionDay.groups[definition.id] = electionParties[definition.id];
+    });
+    return true;
+  }
+
+  function normalizeCampaignPaths(raw, payload, electionDate, definitions, partyDefinitions, points) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     var origin = historyDate(raw.origin_date);
     var election = historyDate(raw.election_date);
@@ -1027,7 +1265,7 @@
         rendering.poll_of_polls_observations_in_future !== false ||
         rendering.continues_from !== CAMPAIGN_PATH_CONTINUES_FROM) return null;
 
-    return {
+    var normalized = {
       origin: origin,
       election: election,
       pathDays: pathDays,
@@ -1051,6 +1289,14 @@
       tooltip: raw.tooltip_sv,
       rendering: rendering
     };
+    // The coalition object above is complete and correct on its own. The party
+    // family is merged in afterwards precisely so that its failure cannot cost
+    // the reader the coalition view.
+    normalized.partyFamily = Boolean(partyDefinitions) &&
+      mergeCampaignPartyFamily(raw, normalized, partyDefinitions, currentRaw[0]);
+    normalized.partyFamilyDeclared = Boolean(raw.election_day &&
+      Object.prototype.hasOwnProperty.call(raw.election_day, "parties"));
+    return normalized;
   }
 
   function normalizeHistoryPayload(payload) {
@@ -1058,10 +1304,15 @@
     var electionDate = historyDate(payload.election_date || payload.electionDate);
     if (!electionDate) return null;
     var definitions = historyDefinitions(payload);
+    var partyView = historyPartyDefinitions(payload);
+    var partyDefinitions = partyView ? partyView.definitions : null;
+    // One flat definition namespace for the renderer; the two families keep
+    // their own selectors, domains and copy.
+    var allDefinitions = partyDefinitions ? definitions.concat(partyDefinitions) : definitions;
     var rawSeries = Array.isArray(payload.series) ? payload.series
       : (Array.isArray(payload.forecasts) ? payload.forecasts : []);
     var points = rawSeries.map(function (point) {
-      return historyPoint(point, electionDate.iso, definitions);
+      return historyPoint(point, electionDate.iso, allDefinitions);
     }).filter(function (point) { return point !== null; });
     var byDate = {};
     points.forEach(function (point) {
@@ -1088,14 +1339,14 @@
     var rawPop = Array.isArray(payload.poll_of_polls) ? payload.poll_of_polls
       : (Array.isArray(payload.pollofpolls) ? payload.pollofpolls : []);
     var pop = rawPop.map(function (item) {
-      return historyPopPoint(item, definitions);
+      return historyPopPoint(item, allDefinitions);
     }).filter(function (item) { return item !== null; }).sort(function (a, b) {
       return a.time - b.time;
     });
     var rawPolls = Array.isArray(payload.polls) ? payload.polls
       : (Array.isArray(payload.poll_points) ? payload.poll_points : []);
     var polls = rawPolls.map(function (poll) {
-      return historyPoll(poll, definitions);
+      return historyPoll(poll, allDefinitions);
     }).filter(function (poll) { return poll !== null; }).sort(function (a, b) {
       return a.time - b.time;
     });
@@ -1105,7 +1356,8 @@
       : null;
     var campaignPathsPresent = Object.prototype.hasOwnProperty.call(payload, "future_campaign_paths");
     var campaignPaths = campaignPathsPresent
-      ? normalizeCampaignPaths(payload.future_campaign_paths, payload, electionDate, definitions, points)
+      ? normalizeCampaignPaths(payload.future_campaign_paths, payload, electionDate, definitions,
+        partyDefinitions, points)
       : null;
     // The shrinking-horizon fan is a secondary analytical view once the
     // campaign-path model is published, and it must say so itself.
@@ -1115,7 +1367,43 @@
       typeof payload.future_projection.description_sv === "string" &&
       payload.future_projection.description_sv.trim()
       ? payload.future_projection.description_sv : null;
+    // Party mode is offered only when every surface it needs is present and
+    // agrees.
+    var pointsWithParties = partyDefinitions ? points.filter(function (point) {
+      return partyDefinitions.every(function (definition) {
+        return point.groups && point.groups[definition.id];
+      });
+    }) : [];
+    var certifiedPoints = pointsWithParties.filter(function (point) {
+      return point.provenance === "current_production";
+    });
+    // Coverage must be *complete*, not merely non-empty. The publisher
+    // preserves reused history points byte for byte, so a normal incremental
+    // publication can add party data to the new certified point while every
+    // reconstructed point behind it still has none. A partial family would
+    // then draw a party series that starts a few days ago and a coalition
+    // series that starts in 2022, on one axis, with nothing saying why.
+    // `points` already excludes archived prospective points, which are not
+    // plotted, so this is exactly the set the chart would draw.
+    var partyCoverageComplete = points.length > 0 &&
+      pointsWithParties.length === points.length;
+    // A published campaign region disables party mode unless its own party
+    // family validated. `campaignPaths` is null both when the object is absent
+    // and when it is present but failed normalization, so presence has to be
+    // tested separately: otherwise an object malformed badly enough to be
+    // rejected wholesale would read as "no future region published" and let
+    // party mode through.
+    var campaignPathsUsable = !campaignPathsPresent ||
+      (Boolean(campaignPaths) && campaignPaths.partyFamily === true);
+    var partyModeAvailable = Boolean(partyDefinitions) && partyCoverageComplete &&
+      certifiedPoints.length > 0 && campaignPathsUsable;
+
     return {
+      partyView: partyModeAvailable ? partyView : null,
+      partyDefinitions: partyModeAvailable ? partyDefinitions : null,
+      partyDefinitionsDeclared: Boolean(payload.parties_view),
+      partyPointCount: pointsWithParties.length,
+      partyCoverageComplete: partyCoverageComplete,
       campaignPaths: campaignPaths,
       campaignPathsPresent: campaignPathsPresent,
       secondaryProjectionDescription: secondaryProjection,
@@ -1255,6 +1543,118 @@
     return ticks;
   }
 
+  // A tick ladder that keeps every domain readable, from a 0.6 pp party window
+  // to a 60 pp coalition span, without inventing a fixed zoom level.
+  var HISTORY_TICK_STEPS = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20];
+  function historyTickStep(span) {
+    for (var index = 0; index < HISTORY_TICK_STEPS.length; index += 1) {
+      if (span / HISTORY_TICK_STEPS[index] <= 8) return HISTORY_TICK_STEPS[index];
+    }
+    return HISTORY_TICK_STEPS[HISTORY_TICK_STEPS.length - 1];
+  }
+
+  function historyTickDigits(step) {
+    if (step >= 1) return 0;
+    var fraction = String(step).split(".")[1] || "";
+    return fraction.length;
+  }
+
+  // Snap a raw data-driven domain onto its own tick ladder, so the axis labels
+  // are round numbers and the ribbons still clear the frame.
+  function historySnapToTicks(lower, upper, minimumSpan) {
+    var span = Math.max(minimumSpan, upper - lower);
+    if (upper - lower < minimumSpan) {
+      var midpoint = (lower + upper) / 2;
+      lower = midpoint - minimumSpan / 2;
+      upper = midpoint + minimumSpan / 2;
+    }
+    var step = historyTickStep(span);
+    var snappedLower = Math.max(0, Math.floor(lower / step) * step);
+    var snappedUpper = Math.min(100, Math.ceil(upper / step) * step);
+    if (snappedUpper - snappedLower < minimumSpan) {
+      snappedUpper = Math.min(100, snappedLower + Math.ceil(minimumSpan / step) * step);
+      if (snappedUpper - snappedLower < minimumSpan) {
+        snappedLower = Math.max(0, snappedUpper - Math.ceil(minimumSpan / step) * step);
+      }
+    }
+    step = historyTickStep(snappedUpper - snappedLower);
+    // Re-snap once against the final step so the first gridline is a round
+    // number rather than the raw minimum.
+    snappedLower = Math.max(0, Math.floor(snappedLower / step) * step);
+    snappedUpper = Math.min(100, Math.ceil(snappedUpper / step) * step);
+    return {
+      min: Number(snappedLower.toFixed(4)),
+      max: Number(snappedUpper.toFixed(4)),
+      step: step,
+      digits: historyTickDigits(step)
+    };
+  }
+
+  // A party moves far less than a coalition, so its domain is derived purely
+  // from what is on screen. Two coalition-specific anchors are deliberately
+  // absent: the 50 % vote line, which means nothing to a single party, and the
+  // 20 pp minimum span, which would flatten a real 0.4 pp campaign move into a
+  // horizontal line.
+  function historyPartyValueDomain(values, metric, range, thresholdPct) {
+    if (!values.length) {
+      return historySnapToTicks(0, metric === "seats" ? 20 : 10, metric === "seats" ? 5 : 3);
+    }
+    var lower = Math.min.apply(Math, values);
+    var upper = Math.max.apply(Math, values);
+    var dataSpan = Math.max(0, upper - lower);
+    var padding;
+    var minimumSpan;
+    if (metric === "seats") {
+      padding = Math.max(0.5, Math.min(3, dataSpan * 0.08));
+      minimumSpan = 3;
+    } else if (range === "short") {
+      // The election-relative window is where sub-percentage-point movement
+      // has to be legible. The padding is proportional so a flat party is not
+      // magnified into false drama, and the floor only prevents a hairline.
+      padding = Math.max(0.15, Math.min(1, dataSpan * 0.1));
+      minimumSpan = 1;
+    } else {
+      padding = Math.max(0.4, Math.min(2, dataSpan * 0.08));
+      minimumSpan = 3;
+    }
+    var domain = historySnapToTicks(
+      Math.max(0, lower - padding), Math.min(100, upper + padding), minimumSpan
+    );
+    domain.thresholdVisible = false;
+    if (metric === "vote" && Number.isFinite(thresholdPct)) {
+      // Strictly inside, by half a tick. A line drawn on the frame coincides
+      // with the axis, which already labels that value, so it would add ink
+      // without adding information -- and widening the domain to lift it off
+      // the frame would be distorting the scale to include it.
+      var margin = domain.step / 2;
+      if (thresholdPct >= domain.min + margin && thresholdPct <= domain.max - margin) {
+        domain.thresholdVisible = true;
+      } else if (thresholdPct >= domain.min && thresholdPct <= domain.max) {
+        domain.thresholdVisible = false;
+      } else {
+        // The threshold is drawn when it is genuinely near what is on screen.
+        // A party fighting for its survival has a band that reaches towards
+        // the line, so the reach needed is small; a party at 30 % never comes
+        // close and the scale is left alone rather than being stretched down
+        // to a line that carries no information for it.
+        //
+        // The bound is max(0.25 pp, 15 % of the visible span) -- not a strict
+        // 15 %. The floor matters: a threshold-fighting party's whole visible
+        // span can be under two points, where 15 % of it would be a fraction
+        // of a tick and the line would never be reachable at all.
+        var reach = Math.max(0.25, dataSpan * 0.15);
+        if (thresholdPct > domain.max && thresholdPct - domain.max <= reach) {
+          domain = historySnapToTicks(domain.min, thresholdPct + padding / 2, minimumSpan);
+          domain.thresholdVisible = true;
+        } else if (thresholdPct < domain.min && domain.min - thresholdPct <= reach) {
+          domain = historySnapToTicks(Math.max(0, thresholdPct - padding / 2), domain.max, minimumSpan);
+          domain.thresholdVisible = true;
+        }
+      }
+    }
+    return domain;
+  }
+
   function historyValueDomain(history, metric, definitions, domain) {
     var values = [];
     var inDomain = function (point) {
@@ -1308,8 +1708,13 @@
         });
       }
     });
+    var partyMode = Boolean(domain && domain.viewMode === "parties");
     if (metric === "vote") {
-      if (domain && domain.range === "short" && history.polls && history.polls.length) {
+      // Individual measurements are drawn beside the series. In party mode
+      // they are part of the domain in *both* ranges: a single party's poll
+      // cloud is wide relative to its own forecast band, and clipping it would
+      // hide exactly the disagreement the dots are there to show.
+      if (domain && (partyMode || domain.range === "short") && history.polls && history.polls.length) {
         history.polls.filter(inHistoricalDomain).forEach(function (item) {
           definitions.forEach(function (definition) {
             var value = item.values && historyNumber(item.values[definition.id]);
@@ -1317,6 +1722,10 @@
           });
         });
       }
+    }
+    if (partyMode) {
+      return historyPartyValueDomain(values, metric, domain && domain.range,
+        history.partyView ? history.partyView.thresholdPct : NATIONAL_THRESHOLD_PCT);
     }
     var lower = values.length ? Math.min.apply(Math, values) : 0;
     var upper = values.length ? Math.max.apply(Math, values) : (metric === "seats" ? 100 : 50);
@@ -1344,7 +1753,12 @@
           else lower = Math.max(0, upper - minimumCampaignSpan);
         }
       }
-      return { min: lower, max: upper };
+      return {
+        min: lower, max: upper,
+        step: (upper - lower) <= 14 ? 2 : 5,
+        digits: (upper - lower) <= 14 ? 1 : 0,
+        thresholdVisible: false
+      };
     }
     var anchor = metric === "seats" ? 100 * MAJORITY / CHAMBER : 50;
     // A small amount of breathing room prevents the uncertainty ribbons from
@@ -1370,7 +1784,12 @@
       if (lower === 0) upper = Math.min(100, lower + minimumSpan);
       else lower = Math.max(0, upper - minimumSpan);
     }
-    return { min: lower, max: upper };
+    return {
+      min: lower, max: upper,
+      step: (upper - lower) <= 40 ? 5 : 10,
+      digits: 0,
+      thresholdVisible: false
+    };
   }
 
   function renderForecastHistory(payload) {
@@ -1430,6 +1849,17 @@
     var futureViewPaths = byId("election-timeseries-future-paths");
     var futureViewStability = byId("election-timeseries-future-stability");
     var coalitionHost = byId("election-timeseries-coalitions");
+    var partyHost = byId("election-timeseries-parties");
+    var viewHost = byId("election-timeseries-view");
+    var viewCoalitions = byId("election-timeseries-view-coalitions");
+    var viewParties = byId("election-timeseries-view-parties");
+    var partyNote = byId("election-timeseries-party-note");
+    var partyDefinitions = history.partyDefinitions;
+    var partyModeAvailable = Boolean(partyDefinitions && partyDefinitions.length);
+    // Koalitioner stays the default and the coalition experience is unchanged.
+    var viewMode = "coalitions";
+    var selectedPartyId = null;
+    var partyButtons = {};
     var selectedMetric = "vote";
     // "Sedan 2022" stays the opening range.  A published campaign-path region
     // is only a few pixels wide at that scale, but the fix for that is
@@ -1488,11 +1918,27 @@
         minIso: new Date(minTime).toISOString().slice(0, 10),
         maxIso: new Date(maxTime).toISOString().slice(0, 10),
         range: selectedRange,
-        futureView: futureView
+        futureView: futureView,
+        viewMode: viewMode
       };
     }
 
+    // One party at a time. Eight simultaneous party series would be an
+    // unreadable tangle, and the page already has a small-multiples view of
+    // all eight in "Röstandelar på valdagen".
+    function activePartyDefinition() {
+      if (!partyModeAvailable) return null;
+      var match = partyDefinitions.filter(function (definition) {
+        return definition.id === selectedPartyId;
+      });
+      return match.length ? match[0] : partyDefinitions[0];
+    }
+
     function activeDefinitions() {
+      if (viewMode === "parties") {
+        var definition = activePartyDefinition();
+        return definition ? [definition] : [];
+      }
       return history.definitions.filter(function (definition) {
         return selected[definition.id];
       });
@@ -1519,8 +1965,16 @@
     function setFutureViewButtons() {
       // The control only makes sense when both views exist.  A publication
       // without campaign paths keeps exactly the previous behaviour.
+      //
+      // Party mode deliberately has one future interpretation -- campaign
+      // opinion paths meeting the election-day forecast -- so the secondary
+      // "Kvarvarande osäkerhet" fan is not offered there. The simulator does
+      // not publish a party version of it either, so offering the control
+      // would promise a view that has no data behind it.
       var available = Boolean(campaignPaths) && Boolean(projection) && projection.points.length > 0;
-      if (futureViewHost) futureViewHost.hidden = !available || selectedMetric === "seats";
+      if (futureViewHost) {
+        futureViewHost.hidden = !available || selectedMetric === "seats" || viewMode === "parties";
+      }
       if (futureViewPaths) {
         futureViewPaths.setAttribute("aria-pressed", futureView === "paths" ? "true" : "false");
         if (campaignPaths) futureViewPaths.setAttribute("aria-label", campaignPaths.rendering.future_region.label);
@@ -1554,6 +2008,60 @@
       setRangeButtons();
       setFutureViewButtons();
       setCampaignCue();
+      setViewButtons();
+    }
+
+    function setViewButtons() {
+      var parties = viewMode === "parties";
+      if (viewHost) viewHost.hidden = !partyModeAvailable;
+      if (viewCoalitions) viewCoalitions.setAttribute("aria-pressed", parties ? "false" : "true");
+      if (viewParties) {
+        viewParties.setAttribute("aria-pressed", parties ? "true" : "false");
+        viewParties.disabled = !partyModeAvailable;
+      }
+      if (coalitionHost) coalitionHost.hidden = parties;
+      if (partyHost) partyHost.hidden = !parties;
+      // Party mode's one standing note. It exists because the switch changes
+      // what the y-axis measures -- a party share has a different denominator
+      // from a coalition share -- and nothing else on the page says so at the
+      // moment the reader makes that switch. It is not a return of the
+      // methodology paragraphs the page deliberately retired: those describe
+      // the model, this describes the scale currently on screen.
+      // Only in the vote view: it is a statement about the vote-share
+      // denominator, and printing it under a mandate chart would explain
+      // something that is not on screen.
+      if (partyNote) partyNote.hidden = !(parties && selectedMetric === "vote");
+      section.setAttribute("data-view-mode", viewMode);
+      section.setAttribute("data-party-view", partyModeAvailable ? "available" : "unavailable");
+      if (parties) {
+        var definition = activePartyDefinition();
+        section.setAttribute("data-selected-party", definition ? definition.id : "");
+      } else {
+        section.removeAttribute("data-selected-party");
+      }
+    }
+
+    function setPartyButtons() {
+      var current = activePartyDefinition();
+      Object.keys(partyButtons).forEach(function (id) {
+        var button = partyButtons[id];
+        var active = Boolean(current) && current.id === id;
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+        button.className = "election-timeseries__coalition election-timeseries__coalition-button" +
+          " election-timeseries__party-button" + (active ? " is-active" : "");
+      });
+    }
+
+    // Selecting a party never clears the selection: the chart always has
+    // exactly one party on screen in party mode.
+    function selectTimeseriesParty(id, options) {
+      if (!partyModeAvailable) return false;
+      var match = partyDefinitions.filter(function (definition) { return definition.id === id; });
+      if (!match.length) return false;
+      selectedPartyId = match[0].id;
+      setPartyButtons();
+      if (!options || options.render !== false) renderChart();
+      return true;
     }
 
     function dateForEvent(event) {
@@ -1901,7 +2409,11 @@
       var yScale = function (value) {
         var parsed = historyNumber(value);
         if (parsed === null) return plot.bottom;
-        return plot.bottom - (parsed - minValue) / Math.max(1, maxValue - minValue) * plot.height;
+        // The guard exists only to avoid dividing by zero on a degenerate
+        // domain. It must stay well below one percentage point: a party window
+        // can legitimately be a single point wide, and clamping the divisor at
+        // 1 would silently flatten it.
+        return plot.bottom - (parsed - minValue) / Math.max(1e-6, maxValue - minValue) * plot.height;
       };
       // Path day 0 shares its calendar date with the certified forecast point
       // but is a different, much narrower distribution.  Shifting it a few
@@ -1939,8 +2451,18 @@
       svg.setAttribute("data-y-min", String(minValue));
       svg.setAttribute("data-y-max", String(maxValue));
       svg.setAttribute("data-y-domain", String(minValue) + "–" + String(maxValue));
-      svg.setAttribute("data-y-domain-mode", pathsActive() && selectedMetric === "vote" &&
-        activeDomain.range === "short" ? "adaptive-campaign-window" : "published-history");
+      svg.setAttribute("data-y-domain-mode", viewMode === "parties"
+        ? "adaptive-party-window"
+        : (pathsActive() && selectedMetric === "vote" && activeDomain.range === "short"
+          ? "adaptive-campaign-window" : "published-history"));
+      svg.setAttribute("data-view-mode", viewMode);
+      svg.setAttribute("data-threshold-visible", yDomain.thresholdVisible ? "true" : "false");
+      if (viewMode === "parties") {
+        var activeParty = activePartyDefinition();
+        svg.setAttribute("data-selected-party", activeParty ? activeParty.id : "");
+      } else {
+        svg.removeAttribute("data-selected-party");
+      }
       svg.setAttribute("data-dynamics-horizon-cap", String(HISTORY_DYNAMICS_CAP));
       svg.setAttribute("data-majority-rule", String(MAJORITY));
       svg.setAttribute("data-time-range", activeDomain.range);
@@ -1966,6 +2488,8 @@
         (swedishDate(activeDomain.minIso) || activeDomain.minIso) + " till " +
         (swedishDate(activeDomain.maxIso) || activeDomain.maxIso) +
         ". Skalan är anpassad efter de valda serierna." +
+        (viewMode === "parties" && activeDefinitions().length
+          ? " Visar " + activeDefinitions()[0].label + "." : "") +
         (selectedMetric === "vote" ? " Enskilda mätningar visas som jämförelse." : "")));
 
       var plotDefs = svgNode("defs");
@@ -2017,10 +2541,11 @@
           "text-anchor": "end", "data-election-day-label": "true", "data-date": futureElection.iso
         }, electionLabel));
       }
-      var tightCampaignWindow = pathsActive() && selectedMetric === "vote" && activeDomain.range === "short";
-      var yStep = tightCampaignWindow ? ((maxValue - minValue) <= 14 ? 2 : 5)
-        : ((maxValue - minValue) <= 40 ? 5 : 10);
-      var yDigits = tightCampaignWindow && (maxValue - minValue) <= 14 ? 1 : 0;
+      // The tick ladder belongs to the domain that produced it, so a 0.6 pp
+      // party window and a 60 pp coalition span are both readable without the
+      // renderer keeping its own second copy of the rule.
+      var yStep = yDomain.step;
+      var yDigits = yDomain.digits;
       for (var yValue = minValue; yValue <= maxValue + 0.001; yValue += yStep) {
         var y = yScale(yValue);
         background.appendChild(svgNode("line", {
@@ -2036,7 +2561,28 @@
         x1: plot.left, y1: plot.bottom, x2: plot.right, y2: plot.bottom,
         class: "election-timeseries__axis-line"
       }));
-      if (selectedMetric === "seats") {
+      if (viewMode === "parties" && selectedMetric === "vote" && yDomain.thresholdVisible) {
+        // Drawn only when it already falls inside what the data put on screen.
+        // The scale is never stretched to reach it: for a party at 30 % the
+        // line carries no information and its absence is the honest state.
+        var thresholdPct = history.partyView ? history.partyView.thresholdPct : NATIONAL_THRESHOLD_PCT;
+        var thresholdY = yScale(thresholdPct);
+        background.appendChild(svgNode("line", {
+          x1: plot.left, y1: thresholdY, x2: plot.right, y2: thresholdY,
+          class: "election-timeseries__threshold", "data-national-threshold": String(thresholdPct),
+          "data-threshold-line": "true"
+        }));
+        background.appendChild(svgNode("text", {
+          x: plot.right - 4, y: thresholdY - 6, "text-anchor": "end",
+          class: "election-timeseries__threshold-label", "data-threshold-label": "true"
+        }, history.partyView ? history.partyView.thresholdLabel : "4\u00a0%-sp\u00e4rr"));
+      }
+      // The 175-seat rule is a question about a government, not about a party:
+      // no single party is going to hold a majority, and drawing the line
+      // invites reading a party's distance from one as meaningful. Coalition
+      // mode keeps it exactly as before; "Regeringsalternativ" and the builder
+      // are where the majority question belongs for a party combination.
+      if (selectedMetric === "seats" && viewMode !== "parties") {
         var majorityShare = 100 * MAJORITY / CHAMBER;
         var majorityY = yScale(majorityShare);
         background.appendChild(svgNode("line", {
@@ -2704,6 +3250,48 @@
         coalitionHost.appendChild(button);
       });
     }
+    if (partyHost && partyModeAvailable) {
+      partyHost.innerHTML = "";
+      partyButtons = {};
+      partyDefinitions.forEach(function (definition) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "election-timeseries__coalition election-timeseries__coalition-button" +
+          " election-timeseries__party-button";
+        button.setAttribute("data-coalition", definition.id);
+        button.setAttribute("data-party", definition.id);
+        button.setAttribute("aria-pressed", "false");
+        button.setAttribute("aria-label", "Visa " + definition.name + " i diagrammet");
+        button.innerHTML = "<span class=\"election-timeseries__coalition-swatch\" style=\"background:" +
+          definition.color + "\" aria-hidden=\"true\"></span>" +
+          "<span class=\"election-timeseries__coalition-label\">" +
+          escapeHtml(definition.shortLabel) + "</span>";
+        button.addEventListener("click", function () { selectTimeseriesParty(definition.id); });
+        partyButtons[definition.id] = button;
+        partyHost.appendChild(button);
+      });
+    }
+
+    function setViewMode(mode, options) {
+      var next = mode === "parties" && partyModeAvailable ? "parties" : "coalitions";
+      if (next === viewMode && (!options || !options.force)) {
+        setViewButtons();
+        return;
+      }
+      viewMode = next;
+      // The secondary fan has no party counterpart, so entering party mode
+      // returns the future region to the primary campaign-path view.
+      if (viewMode === "parties" && campaignPaths) futureView = "paths";
+      renderChart();
+    }
+
+    if (viewCoalitions) viewCoalitions.addEventListener("click", function () {
+      setViewMode("coalitions");
+    });
+    if (viewParties) viewParties.addEventListener("click", function () {
+      setViewMode("parties");
+    });
+
     if (modeVote) modeVote.addEventListener("click", function () {
       selectedMetric = "vote";
       renderChart();
@@ -2739,6 +3327,71 @@
     section.setAttribute("data-history-schema-version", history.schemaVersion);
     section.setAttribute("data-history-point-count", String(history.points.length));
     section.setAttribute("data-history-poll-count", String(history.polls.length));
+    section.setAttribute("data-party-point-count", String(history.partyPointCount || 0));
+    if (partyModeAvailable) {
+      section.setAttribute("data-party-view-state", "ready");
+    } else if (!history.partyDefinitionsDeclared) {
+      section.setAttribute("data-party-view-state", "absent");
+    } else if (!history.partyCoverageComplete) {
+      // Declared, and structurally fine, but the historical series does not
+      // carry it end to end yet. Named separately from "invalid" because the
+      // fix is a full history regeneration, not a contract repair.
+      section.setAttribute("data-party-view-state", "incomplete-history");
+    } else {
+      // Declared but unusable: say so in the DOM rather than silently
+      // pretending nothing was published.
+      section.setAttribute("data-party-view-state", "invalid");
+    }
+
+    if (partyModeAvailable) {
+      // Prefer whatever the reader already singled out elsewhere on the page.
+      // Otherwise pick the largest party in the certified forecast: a
+      // deterministic, data-driven default that opens on a series with real
+      // movement rather than on an alphabetical accident.
+      var certified = history.points.filter(function (point) {
+        return point.provenance === "current_production";
+      }).pop();
+      var fallback = partyDefinitions[0].id;
+      var best = null;
+      partyDefinitions.forEach(function (definition) {
+        var group = certified && certified.groups && certified.groups[definition.id];
+        var median = group && group.vote ? historyNumber(group.vote.p50) : null;
+        if (median !== null && (best === null || median > best.median)) {
+          best = { id: definition.id, median: median };
+        }
+      });
+      if (best) fallback = best.id;
+      var preselected = partyDefinitions.filter(function (definition) {
+        return definition.id === selectedParty;
+      });
+      selectedPartyId = preselected.length ? preselected[0].id : fallback;
+      setPartyButtons();
+      enablePartyTimelineLinks(partyDefinitions.map(function (definition) {
+        return definition.id;
+      }));
+      // The direct-navigation action from "Röstandelar på valdagen".
+      showPartyTimeline = function (party) {
+        if (!selectTimeseriesParty(party, { render: false })) return false;
+        // The action originates in "Röstandelar på valdagen", so it has to land
+        // on the vote view: arriving on a mandate history because the timeline
+        // happened to be left there answers a question the reader did not ask.
+        // The date range is the reader's own choice and is preserved.
+        selectedMetric = "vote";
+        setViewMode("parties", { force: true });
+        if (section.scrollIntoView) {
+          section.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        // Focus lands on the control that now holds the state, so a keyboard
+        // reader arrives at the chart's own party selector rather than being
+        // scrolled somewhere with focus left behind in the vote rows.
+        var button = partyButtons[party];
+        if (button && button.focus) button.focus({ preventScroll: true });
+        return true;
+      };
+    } else {
+      enablePartyTimelineLinks([]);
+      showPartyTimeline = null;
+    }
     ["election-timeseries-key-projection", "election-timeseries-key-campaign-paths",
       "election-timeseries-key-election-day", "election-timeseries-projection-note",
       "election-timeseries-campaign-note"
@@ -2810,6 +3463,7 @@
           "Enskilda mätningar visas i den historiska röstandelsdelen."
         : "Historisk prognos med enskilda mätningar som jämförelse i röstandelsvyn.");
     }
+    setViewButtons();
     renderChart();
     section.hidden = false;
     return true;
@@ -2885,7 +3539,10 @@
           "</dl>" +
           (name === "REST"
             ? "<p class=\"ev-detail__note\">\u201d\u00d6vriga\u201d \u00e4r en samlad kategori f\u00f6r sm\u00e5 partier. Den kan inte n\u00e5 sp\u00e4rren eller f\u00e5 mandat p\u00e5 egen hand.</p>"
-            : "") +
+            : "<p class=\"ev-detail__actions\"><button type=\"button\" class=\"ev-detail__timeline\"" +
+              " data-party-timeline=\"" + escapeHtml(name) + "\"" +
+              " aria-label=\"Visa " + escapeHtml(fullName) + "s utveckling i V\u00e4gen till valdagen\"" +
+              " hidden>Visa utveckling <span aria-hidden=\"true\">\u2192</span></button></p>") +
         "</div>";
 
       track(name, row, "ev-row");
@@ -2894,6 +3551,18 @@
       partyPanels[name] = { head: head, detail: detail };
       if (head && head.addEventListener) {
         head.addEventListener("click", function () { selectParty(name); });
+      }
+      // Stays hidden until the history artifact turns out to publish the
+      // party family, so an older publication never offers a dead action.
+      var timelineLink = row.querySelector(".ev-detail__timeline");
+      if (timelineLink) {
+        partyTimelineLinks[name] = timelineLink;
+        timelineLink.hidden = !partyTimelineIsAvailable(name);
+        if (timelineLink.addEventListener) {
+          timelineLink.addEventListener("click", function () {
+            if (typeof showPartyTimeline === "function") showPartyTimeline(name);
+          });
+        }
       }
       host.appendChild(row);
     });
