@@ -146,12 +146,30 @@ jobs:
       - name: Unpack the built site
         run: tar -xf site.tar && rm site.tar
 
-      - name: Install Chromium
+      # The runner image already ships a Chrome, and apt-installing another
+      # cost 64s of a 77s job -- six times the suite it was there to run.
+      # Take whatever is already on PATH and only fall back to apt, which is
+      # the precedence the publication workflow already uses.
+      - name: Locate a browser
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends chromium-browser || \
-            sudo apt-get install -y --no-install-recommends chromium
-          echo "CHROME_BIN=$(command -v chromium || command -v chromium-browser)" >> "$GITHUB_ENV"
+          set -euo pipefail
+          for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+              CHROME_BIN_PATH="$(command -v "$candidate")"
+              break
+            fi
+          done
+          if [[ -z "${CHROME_BIN_PATH:-}" ]]; then
+            echo "no preinstalled browser found; installing chromium"
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends chromium-browser || \
+              sudo apt-get install -y --no-install-recommends chromium
+            CHROME_BIN_PATH="$(command -v chromium || command -v chromium-browser)"
+          fi
+          echo "using $CHROME_BIN_PATH"
+          "$CHROME_BIN_PATH" --version || true
+          echo "CHROME_BIN=$CHROME_BIN_PATH" >> "$GITHUB_ENV"
 
       - name: Run ${{ matrix.suite }}
         run: node "browser-tests/${{ matrix.suite }}" _site
