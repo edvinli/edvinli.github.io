@@ -1031,22 +1031,22 @@ function assertStructure(view, history) {
   check('Vägen till valdagen section exists and is visible', view.section && !view.section.hidden && view.section.display !== 'none', view.section);
   equal('the timeline heading uses the election-day-first label', view.section?.heading, 'Vägen till valdagen');
   const order = view.sectionOrder;
-  equal('the five primary sections use the exact election-day-first DOM order',
+  equal('the five primary sections use the exact timeline-first DOM order',
     order.slice(0, 5), [
+      'election-timeseries',
       'election-alternatives',
       'election-government-builder',
       'election-headline',
       'election-seats',
-      'election-timeseries',
     ]);
   equal('the subsection navigation follows the DOM order and labels',
     view.navigation, [
+      { href: '#election-timeseries', text: 'Vägen till valdagen' },
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
       { href: '#election-government-builder', text: 'Bygg din egen regering' },
       { href: '#election-parliament-outcome', text: 'Ett simulerat riksdagsutfall' },
       { href: '#election-headline', text: 'Röstandelar på valdagen' },
       { href: '#election-seats', text: 'Mandat på valdagen' },
-      { href: '#election-timeseries', text: 'Vägen till valdagen' },
       { href: '#election-latest-poll', text: 'Senaste mätningarna' },
       { href: '#election-changes', text: 'Förändring sedan föregående prognos' },
       { href: '#election-model', text: 'Så fungerar modellen' },

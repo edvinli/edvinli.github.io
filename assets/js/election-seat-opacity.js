@@ -16,9 +16,9 @@
   };
 
   // Keep the source DOM and visual order aligned: the reader first sees the
-  // coalition comparison and builder, then the detailed forecast history and
-  // party-level views. The simulated parliament is moved inside the builder
-  // panel below the interactive builder itself.
+  // route to election day, then the coalition comparison, builder and
+  // election-day forecast views. The simulated parliament is moved inside the
+  // builder panel below the interactive builder itself.
   function placeElectionSections() {
     var alternatives = document.getElementById("election-alternatives");
     var builder = document.getElementById("election-government-builder");
@@ -56,12 +56,12 @@
     if (!nav) return;
 
     var links = [
+      ["election-timeseries", "Vägen till valdagen"],
       ["election-alternatives", "Regeringsalternativ"],
       ["election-government-builder", "Bygg din egen regering"],
       ["election-parliament-outcome", "Ett simulerat riksdagsutfall"],
       ["election-headline", "Röstandelar på valdagen"],
       ["election-seats", "Mandat på valdagen"],
-      ["election-timeseries", "Vägen till valdagen"],
       ["election-latest-poll", "Senaste mätningarna"],
       ["election-changes", "Förändring sedan föregående prognos"],
       ["election-model", "Så fungerar modellen"],
