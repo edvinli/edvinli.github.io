@@ -46,6 +46,11 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-full" data-range="full" aria-pressed="true" aria-controls="election-timeseries-svg">Sedan 2022</button>
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Sista 30 dagarna</button>
       </div>
+      <div class="election-timeseries__future" id="election-timeseries-future" role="group" aria-label="Vy för tiden fram till valet" hidden>
+        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-paths" data-future-view="paths" aria-pressed="true" aria-controls="election-timeseries-svg">Möjliga opinionsbanor</button>
+        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-stability" data-future-view="projection" aria-pressed="false" aria-controls="election-timeseries-svg">Kvarvarande osäkerhet</button>
+      </div>
+      <button type="button" class="election-timeseries__campaign-cue" id="election-timeseries-campaign-cue" aria-controls="election-timeseries-svg" hidden>Visa kampanjperioden <span aria-hidden="true">→</span></button>
       <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
     </div>
     <div class="election-timeseries__frame" id="election-timeseries-frame">
@@ -65,8 +70,8 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--median" aria-hidden="true"></span>Vår simulering</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
     </p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Enskilda mätningar och Poll of Polls-värden visas bara för röstandel. Mandatandel visar vår simulering och 175-mandatsgränsen.</p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Arkivpunkter visar prognoser som faktiskt publicerades vid respektive tidpunkt och ingår inte i linjen. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Röstandelar beräknas över de åtta riksdagspartierna.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Enskilda mätningar visas bara för röstandel. Mandatandel visar vår simulering och 175-mandatsgränsen.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Röstandelar beräknas över de åtta riksdagspartierna.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>. Prognos och intervall: vår modell.</p>
   </section>
