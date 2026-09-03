@@ -1265,7 +1265,6 @@
     var history = normalizeHistoryPayload(payload);
     if (!history) return false;
     var liveStatus = byId("election-timeseries-status");
-    var detailBody = byId("election-timeseries-detail-body");
     var modeVote = byId("election-timeseries-vote");
     var modeSeats = byId("election-timeseries-seats");
     var rangeFull = byId("election-timeseries-range-full");
@@ -1280,7 +1279,7 @@
     var partyModeAvailable = Boolean(partyDefinitions && partyDefinitions.length);
     // Koalitioner stays the default and the coalition experience is unchanged.
     var viewMode = "coalitions";
-    var selectedPartyId = null;
+    var selectedParties = {};
     var partyButtons = {};
     var selectedMetric = "vote";
     // "Sedan 2022" stays the opening range; "Sista 30 dagarna" is the
@@ -1345,22 +1344,18 @@
       };
     }
 
-    // One party at a time. Eight simultaneous party series would be an
-    // unreadable tangle, and the page already has a small-multiples view of
-    // all eight in "Röstandelar på valdagen".
-    function activePartyDefinition() {
-      if (!partyModeAvailable) return null;
-      var match = partyDefinitions.filter(function (definition) {
-        return definition.id === selectedPartyId;
+    // Party mode works exactly like coalition mode: every party is a toggle,
+    // and the chart draws whichever set is on. The y-domain is derived from
+    // that set, so turning a party off rescales the axis to what is left.
+    function activePartyDefinitions() {
+      if (!partyModeAvailable) return [];
+      return partyDefinitions.filter(function (definition) {
+        return selectedParties[definition.id];
       });
-      return match.length ? match[0] : partyDefinitions[0];
     }
 
     function activeDefinitions() {
-      if (viewMode === "parties") {
-        var definition = activePartyDefinition();
-        return definition ? [definition] : [];
-      }
+      if (viewMode === "parties") return activePartyDefinitions();
       return history.definitions.filter(function (definition) {
         return selected[definition.id];
       });
@@ -1408,31 +1403,36 @@
       section.setAttribute("data-view-mode", viewMode);
       section.setAttribute("data-party-view", partyModeAvailable ? "available" : "unavailable");
       if (parties) {
-        var definition = activePartyDefinition();
-        section.setAttribute("data-selected-party", definition ? definition.id : "");
+        section.setAttribute("data-selected-parties", activePartyDefinitions()
+          .map(function (definition) { return definition.id; }).join(","));
       } else {
-        section.removeAttribute("data-selected-party");
+        section.removeAttribute("data-selected-parties");
       }
     }
 
     function setPartyButtons() {
-      var current = activePartyDefinition();
       Object.keys(partyButtons).forEach(function (id) {
         var button = partyButtons[id];
-        var active = Boolean(current) && current.id === id;
+        var active = Boolean(selectedParties[id]);
+        var definition = partyDefinitions.filter(function (item) { return item.id === id; })[0];
         button.setAttribute("aria-pressed", active ? "true" : "false");
+        button.setAttribute("aria-label", (active ? "D\u00f6lj " : "Visa ") +
+          (definition ? definition.name : id) + " i diagrammet");
         button.className = "election-timeseries__coalition election-timeseries__coalition-button" +
           " election-timeseries__party-button" + (active ? " is-active" : "");
       });
     }
 
-    // Selecting a party never clears the selection: the chart always has
-    // exactly one party on screen in party mode.
+    // The direct-navigation action from "R\u00f6standelar p\u00e5 valdagen" asks for one
+    // party's development, so it isolates that party rather than adding it to
+    // whatever happened to be on. Toggling a pill afterwards works as usual.
     function selectTimeseriesParty(id, options) {
       if (!partyModeAvailable) return false;
       var match = partyDefinitions.filter(function (definition) { return definition.id === id; });
       if (!match.length) return false;
-      selectedPartyId = match[0].id;
+      partyDefinitions.forEach(function (definition) {
+        selectedParties[definition.id] = definition.id === match[0].id;
+      });
       setPartyButtons();
       if (!options || options.render !== false) renderChart();
       return true;
@@ -1501,71 +1501,10 @@
       })[0] || null;
     }
 
-    function findPopForDate(targetDate) {
-      if (!history.pop || !history.pop.length) return null;
-      for (var i = 0; i < history.pop.length; i++) {
-        if (history.pop[i].date === targetDate) return history.pop[i];
-      }
-      var targetInfo = historyDate(targetDate);
-      if (!targetInfo) return null;
-      var best = null;
-      for (var j = 0; j < history.pop.length; j++) {
-        if (!best || Math.abs(history.pop[j].time - targetInfo.time) < Math.abs(best.time - targetInfo.time)) {
-          best = history.pop[j];
-        }
-      }
-      return best;
-    }
-
-    function rangeTextFor(values, low, high) {
-      return values && values[low] !== null && values[high] !== null
-        ? percentRange(values[low], values[high], 1) : "—";
-    }
-
-    function seatRangeText(group, low, high) {
-      var seats = group && group.seats;
-      var lower = seats && historyNumber(seats[low]);
-      var upper = seats && historyNumber(seats[high]);
-      return lower !== null && upper !== null
-        ? grouped(lower) + EN_DASH + grouped(upper) + NBSP + "mandat" : "—";
-    }
-
     function seatMedianText(group) {
       var seats = group && group.seats;
       var median = seats && historyNumber(seats.p50);
       return median === null ? "—" : grouped(median) + NBSP + "mandat";
-    }
-
-    function forecastDetail(point) {
-      if (!point) return "";
-      var popPoint = selectedMetric === "vote" ? findPopForDate(point.date) : null;
-      var rows = activeDefinitions().map(function (definition) {
-        var group = point.groups && point.groups[definition.id];
-        var values = historyDisplayQuantiles(group, selectedMetric);
-        if (!values) return "";
-        var popValue = popPoint && popPoint.values && popPoint.values[definition.id] !== undefined
-          ? popPoint.values[definition.id] : null;
-        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
-          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
-          (selectedMetric === "vote" && popValue !== null
-            ? "<dt>Poll of Polls</dt><dd>" + escapeHtml(percent(popValue, 1)) + "</dd>" : "") +
-          "<dt>Vår simulering</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatMedianText(group) : percent(values.p50, 1)) + "</dd>" +
-          "<dt>50 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatRangeText(group, "p25", "p75") : rangeTextFor(values, "p25", "p75")) + "</dd>" +
-          "<dt>90 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatRangeText(group, "p05", "p95") : rangeTextFor(values, "p05", "p95")) + "</dd>" +
-          "</dl></section>";
-      }).filter(function (row) { return row; });
-      return "<h3 class=\"election-timeseries__detail-date\">" +
-        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
-        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
-        "<dl class=\"election-timeseries__detail-meta\">" +
-        "<div><dt>Simuleringar</dt><dd>" + escapeHtml(historyDaysText(point.samples)) + "</dd></div>" +
-        "<div><dt>Ursprung</dt><dd>" + escapeHtml(historyProvenanceLabel(point.provenance)) + "</dd></div>" +
-        "<div><dt>Horisont</dt><dd>" + escapeHtml(historyDaysText(point.horizonDays)) +
-        " dagar · rörelsedel " + escapeHtml(historyDaysText(point.dynamicsHorizonDays)) + " dagar</dd></div>" +
-        "</dl>";
     }
 
     function forecastStatus(point) {
@@ -1581,26 +1520,13 @@
         historyProvenanceLabel(point.provenance) + ".";
     }
 
+    // The medians are drawn at the crosshair, which a screen reader cannot
+    // see. This element is visually hidden and carries the same reading, so
+    // dropping the detail panel does not drop the announcement with it.
     renderDetail = function (point) {
-      if (!point) {
-        if (detailBody) {
-          detailBody.innerHTML = "";
-          detailBody.hidden = true;
-        }
-        if (liveStatus) {
-          liveStatus.hidden = false;
-          liveStatus.textContent = "Välj en punkt i diagrammet för detaljer.";
-        }
-        return;
-      }
-      if (detailBody) {
-        detailBody.innerHTML = forecastDetail(point);
-        detailBody.hidden = false;
-      }
-      if (liveStatus) {
-        liveStatus.hidden = true;
-        liveStatus.textContent = forecastStatus(point);
-      }
+      if (!liveStatus) return;
+      liveStatus.textContent = point
+        ? forecastStatus(point) : "Välj en punkt i diagrammet för detaljer.";
     };
 
     function clearSelection() {
@@ -1662,10 +1588,10 @@
       svg.setAttribute("data-view-mode", viewMode);
       svg.setAttribute("data-threshold-visible", yDomain.thresholdVisible ? "true" : "false");
       if (viewMode === "parties") {
-        var activeParty = activePartyDefinition();
-        svg.setAttribute("data-selected-party", activeParty ? activeParty.id : "");
+        svg.setAttribute("data-selected-parties", activePartyDefinitions()
+          .map(function (definition) { return definition.id; }).join(","));
       } else {
-        svg.removeAttribute("data-selected-party");
+        svg.removeAttribute("data-selected-parties");
       }
       svg.setAttribute("data-dynamics-horizon-cap", String(HISTORY_DYNAMICS_CAP));
       svg.setAttribute("data-majority-rule", String(MAJORITY));
@@ -1776,6 +1702,12 @@
         class: "election-timeseries__series", "aria-label": "Prognosserier", "pointer-events": "none"
       });
       var endpointLabels = [];
+      // The current-value labels live in their own group so the hover readout
+      // can take the gutter over. Both print medians, and near the right-hand
+      // edge -- where the latest forecast is, and where a reader is most
+      // likely to hover -- the two sets would otherwise sit side by side and
+      // read as one crowded column of unexplained numbers.
+      var endpointLayer = svgNode("g", { "data-endpoint-labels": "true" });
       definitions.forEach(function (definition) {
         var validPoints = visibleHistoryPoints.filter(function (point) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
@@ -1890,7 +1822,7 @@
         }
         endpointLabels.forEach(function (label) {
           label.y = Math.max(plot.top + 8, Math.min(plot.bottom - 3, label.y));
-          seriesLayer.appendChild(svgNode("text", {
+          endpointLayer.appendChild(svgNode("text", {
             x: label.x, y: label.y + 4, "text-anchor": label.anchor || "start",
             class: "election-timeseries__endpoint-label",
             fill: label.definition.color, "data-endpoint-label": "true",
@@ -1899,6 +1831,7 @@
           }, label.text));
         });
       }
+      seriesLayer.appendChild(endpointLayer);
       svg.appendChild(seriesLayer);
 
       if (selectedMetric === "vote" && visiblePollPoints.length) {
@@ -1925,8 +1858,14 @@
       var selectionLayer = svgNode("g", {
         class: "election-timeseries__selection", "aria-hidden": "true", "pointer-events": "none"
       });
+      // Hovering a date is answered on the chart itself: the crosshair, a dot
+      // per visible series, and that series' median printed beside it. The
+      // intervals stay readable as the bands the dot sits inside, so the
+      // readout is one number per series rather than a table underneath.
       renderSelection = function (point) {
         selectionLayer.innerHTML = "";
+        // One set of medians on screen at a time.
+        endpointLayer.setAttribute("display", point ? "none" : "inline");
         if (!point) {
           svg.removeAttribute("data-selected-date");
           svg.removeAttribute("data-inspection-date");
@@ -1939,6 +1878,14 @@
           class: "election-timeseries__crosshair", "data-timeseries-crosshair": "true",
           "data-date": iso
         }));
+        // Labels go in whichever direction has room. Near the right-hand edge
+        // -- which is where the current forecast is, and the most likely place
+        // to hover -- they flip to the left of the line instead of running off
+        // the frame.
+        var labelGap = compactChart ? 11 : 9;
+        var labelRoom = compactChart ? 96 : 104;
+        var flip = x + labelRoom > plot.right;
+        var readouts = [];
         definitions.forEach(function (definition) {
           var group = point.groups && point.groups[definition.id];
           var values = historyDisplayQuantiles(group, selectedMetric);
@@ -1952,6 +1899,37 @@
             "aria-label": definition.label + ", " + (swedishDate(iso) || iso) +
               ": markerad median " + percent(values.p50, 1)
           }));
+          readouts.push({
+            definition: definition,
+            y: yScale(values.p50),
+            value: values.p50,
+            text: definition.shortLabel + NBSP +
+              (selectedMetric === "seats"
+                ? seatMedianText(group) : percent(values.p50, 1))
+          });
+        });
+        // Eight parties can converge to within a pixel of each other. Sort and
+        // nudge apart, the same rule the endpoint labels use, so a crowded
+        // date still reads as eight separate numbers.
+        readouts.sort(function (left, right) { return left.y - right.y; });
+        var readoutGap = compactChart ? 19 : 15;
+        readouts.forEach(function (readout, index) {
+          if (index > 0) readout.y = Math.max(readout.y, readouts[index - 1].y + readoutGap);
+        });
+        if (readouts.length) {
+          var overflow = readouts[readouts.length - 1].y - (plot.bottom - 3);
+          if (overflow > 0) readouts.forEach(function (readout) { readout.y -= overflow; });
+        }
+        readouts.forEach(function (readout) {
+          readout.y = Math.max(plot.top + 8, Math.min(plot.bottom - 3, readout.y));
+          selectionLayer.appendChild(svgNode("text", {
+            x: flip ? x - labelGap : x + labelGap, y: readout.y + 4,
+            "text-anchor": flip ? "end" : "start",
+            class: "election-timeseries__crosshair-label",
+            fill: readout.definition.color, "data-crosshair-label": "true",
+            "data-coalition": readout.definition.id, "data-date": iso,
+            "data-value": readout.value, "data-label-value": readout.text
+          }, readout.text));
         });
         svg.setAttribute("data-selected-date", iso);
         svg.setAttribute("data-inspection-date", iso);
@@ -2077,7 +2055,11 @@
           definition.color + "\" aria-hidden=\"true\"></span>" +
           "<span class=\"election-timeseries__coalition-label\">" +
           escapeHtml(definition.shortLabel) + "</span>";
-        button.addEventListener("click", function () { selectTimeseriesParty(definition.id); });
+        button.addEventListener("click", function () {
+          selectedParties[definition.id] = !selectedParties[definition.id];
+          setPartyButtons();
+          renderChart();
+        });
         partyButtons[definition.id] = button;
         partyHost.appendChild(button);
       });
@@ -2136,27 +2118,19 @@
     }
 
     if (partyModeAvailable) {
-      // Prefer whatever the reader already singled out elsewhere on the page.
-      // Otherwise pick the largest party in the certified forecast: a
-      // deterministic, data-driven default that opens on a series with real
-      // movement rather than on an alphabetical accident.
-      var certified = history.points.filter(function (point) {
-        return point.provenance === "current_production";
-      }).pop();
-      var fallback = partyDefinitions[0].id;
-      var best = null;
-      partyDefinitions.forEach(function (definition) {
-        var group = certified && certified.groups && certified.groups[definition.id];
-        var median = group && group.vote ? historyNumber(group.vote.p50) : null;
-        if (median !== null && (best === null || median > best.median)) {
-          best = { id: definition.id, median: median };
-        }
-      });
-      if (best) fallback = best.id;
+      // Party mode opens on the whole riksdag: all eight on, each a toggle.
+      // The reader narrows down from there, and the y-domain follows whatever
+      // is left on screen.
       var preselected = partyDefinitions.filter(function (definition) {
         return definition.id === selectedParty;
       });
-      selectedPartyId = preselected.length ? preselected[0].id : fallback;
+      partyDefinitions.forEach(function (definition) {
+        // Unless the reader already singled a party out elsewhere on the page,
+        // in which case arriving on all eight would bury the one they asked
+        // about.
+        selectedParties[definition.id] = preselected.length
+          ? definition.id === preselected[0].id : true;
+      });
       setPartyButtons();
       enablePartyTimelineLinks(partyDefinitions.map(function (definition) {
         return definition.id;

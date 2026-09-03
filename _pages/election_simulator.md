@@ -59,11 +59,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <desc id="election-timeseries-description">Vår simulering visas med median och prognosintervall samt enskilda mätningar som jämförelse.</desc>
       </svg>
     </div>
-    <div id="election-timeseries-detail" class="election-timeseries__detail" role="region" aria-live="polite" aria-labelledby="election-timeseries-detail-title">
-      <h3 id="election-timeseries-detail-title" class="visually-hidden">Detaljer för valt prognosdatum</h3>
-      <p id="election-timeseries-status" class="election-timeseries__status" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
-      <div id="election-timeseries-detail-body" class="election-timeseries__detail-body" hidden></div>
-    </div>
+    <p id="election-timeseries-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
     <p class="election-timeseries__key election-muted">
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>

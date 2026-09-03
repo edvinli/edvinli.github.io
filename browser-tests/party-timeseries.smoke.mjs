@@ -150,7 +150,8 @@ function readState(browser) {
       viewMode: section?.getAttribute('data-view-mode') || null,
       partyViewState: section?.getAttribute('data-party-view-state') || null,
       partyPointCount: Number(section?.getAttribute('data-party-point-count') || 0),
-      selectedParty: svg?.getAttribute('data-selected-party') || null,
+      selectedParties: (svg?.getAttribute('data-selected-parties') || '')
+        .split(',').filter(Boolean),
       metric: svg?.getAttribute('data-metric') || null,
       range: svg?.getAttribute('data-range') || null,
       rangePressed: ['election-timeseries-range-full', 'election-timeseries-range-short']
@@ -212,9 +213,18 @@ function readState(browser) {
         return grid ? { top: Number(grid.getAttribute('y1')) } : null;
       })(),
       yTicks: marks('[data-y-tick]').map((node) => Number(node.getAttribute('data-y-tick'))),
-      detailHeadings: Array.from(
-        document.querySelectorAll('#election-timeseries-detail-body .election-timeseries__detail-group h4'),
-      ).map((node) => (node.textContent || '').trim()),
+      // The hover readout: one median per visible series, printed at the
+      // crosshair. The detail panel it replaced must not come back.
+      crosshairLabels: marks('[data-crosshair-label="true"]').map((node) => ({
+        party: node.getAttribute('data-coalition'),
+        date: node.getAttribute('data-date'),
+        value: Number(node.getAttribute('data-value')),
+        text: (node.textContent || '').replace(/\u00a0/g, ' ').trim(),
+      })),
+      endpointLabelCount: marks('[data-endpoint-label="true"]').filter(visible).length,
+      retiredDetailCount: document.querySelectorAll(
+        '#election-timeseries-detail, #election-timeseries-detail-body, .election-timeseries__detail-body',
+      ).length,
       status: (document.getElementById('election-timeseries-status')?.textContent || '').trim(),
       horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     };
@@ -235,6 +245,23 @@ function clickParty(browser, party) {
     const node = document.querySelector(`#election-timeseries-parties button[data-party="${wanted}"]`);
     if (!node) return false;
     node.click();
+    return true;
+  }, party);
+}
+
+// Several checks -- the poll-dot denominator, the threshold, the per-party
+// domain -- are statements about one party's own scale, so they need that
+// party alone on screen. Pills are toggles now, so isolating is explicit.
+function showOnlyParty(browser, party) {
+  return browser.evaluate((wanted) => {
+    const buttons = Array.from(
+      document.querySelectorAll('#election-timeseries-parties button[data-party]'));
+    if (!buttons.some((button) => button.getAttribute('data-party') === wanted)) return false;
+    buttons.forEach((button) => {
+      const on = button.getAttribute('aria-pressed') === 'true';
+      const want = button.getAttribute('data-party') === wanted;
+      if (on !== want) button.click();
+    });
     return true;
   }, party);
 }
@@ -512,12 +539,15 @@ async function runViewport(viewport, site) {
       state.partyButtons.map((button) => button.tabIndex));
     check('every party pill carries its abbreviation',
       state.partyButtons.every((button) => button.label.length > 0), state.partyButtons);
-    check('exactly one party is pressed',
-      state.partyButtons.filter((button) => button.pressed === 'true').length === 1,
-      state.partyButtons);
-    equal('the deterministic default is the largest certified party', state.selectedParty, big);
-    check('exactly one series is drawn', state.seriesDefinitions.length === 1, state.seriesDefinitions);
-    equal('the drawn series is the selected party', state.seriesDefinitions, [state.selectedParty]);
+    // Party mode opens on the whole riksdag, and every pill is a toggle.
+    equal('every party is pressed on entry',
+      state.partyButtons.filter((button) => button.pressed === 'true').map((button) => button.party),
+      PARTY_ORDER);
+    equal('every party is reported as selected', state.selectedParties, PARTY_ORDER);
+    equal('one series is drawn per party', state.seriesDefinitions.slice().sort(),
+      PARTY_ORDER.slice().sort());
+    equal('the detail panel the crosshair readout replaced is gone',
+      state.retiredDetailCount, 0);
     check('no coalition quantity is drawn in party mode',
       state.pollDefinitions.every((id) => PARTY_ORDER.includes(id)), state.pollDefinitions);
     equal('party mode draws nothing beyond the latest forecast', state.forwardMarkCount, 0);
@@ -525,6 +555,47 @@ async function runViewport(viewport, site) {
     check('the party domain differs from the coalition one',
       state.yMin !== coalitionDomain.min || state.yMax !== coalitionDomain.max,
       { party: [state.yMin, state.yMax], coalition: [coalitionDomain.min, coalitionDomain.max] });
+
+    // ---- toggling parties on and off -------------------------------------
+    // The y-domain is derived from the selected set, so dropping the largest
+    // party has to visibly tighten the axis rather than leave dead space where
+    // its band used to be.
+    const allOn = { min: state.yMin, max: state.yMax };
+    check('the largest party toggles off', await clickParty(browser, big));
+    await settle(280);
+    const withoutBig = await readState(browser);
+    check(`${big} is unpressed and its series is gone`,
+      withoutBig.partyButtons.find((button) => button.party === big)?.pressed === 'false' &&
+      !withoutBig.selectedParties.includes(big) &&
+      !withoutBig.seriesDefinitions.includes(big), withoutBig.selectedParties);
+    equal('the remaining seven still draw', withoutBig.seriesDefinitions.length, 7);
+    check('the y-domain tightens when the largest party is dropped',
+      withoutBig.yMax < allOn.max,
+      { allOn, withoutBig: { min: withoutBig.yMin, max: withoutBig.yMax } });
+    check('the same party toggles back on', await clickParty(browser, big));
+    await settle(280);
+    const backOn = await readState(browser);
+    equal('toggling back restores the full set', backOn.selectedParties, PARTY_ORDER);
+    equal('toggling back restores the domain', [backOn.yMin, backOn.yMax], [allOn.min, allOn.max]);
+
+    // Every party off is a legal, empty chart -- the same as deselecting every
+    // coalition -- and must not throw or leave a stale series behind.
+    await browser.evaluate(() => {
+      document.querySelectorAll('#election-timeseries-parties button[aria-pressed="true"]')
+        .forEach((button) => button.click());
+    });
+    await settle(320);
+    const noneOn = await readState(browser);
+    equal('every party can be switched off', noneOn.selectedParties, []);
+    equal('no series is drawn with nothing selected', noneOn.seriesDefinitions, []);
+    equal('no readout is drawn with nothing selected', noneOn.crosshairLabels, []);
+    await browser.evaluate((order) => {
+      order.forEach((party) => document
+        .querySelector(`#election-timeseries-parties button[data-party="${party}"]`)?.click());
+    }, PARTY_ORDER);
+    await settle(320);
+    state = await readState(browser);
+    equal('switching them all back on restores every series', state.selectedParties, PARTY_ORDER);
 
     // ---- party poll dots are the published numbers -----------------------
     // Several institutes can publish on one date, so a drawn dot has to match
@@ -535,11 +606,11 @@ async function runViewport(viewport, site) {
       values.push(poll.parties);
       publishedPolls.set(poll.publication_date, values);
     });
-    const drawnPolls = state.polls.filter((poll) => poll.definition === state.selectedParty);
+    const drawnPolls = state.polls.filter((poll) => poll.definition === big);
     const mismatched = drawnPolls.filter((poll) => {
       const published = publishedPolls.get(poll.date) || [];
       return !published.some((parties) =>
-        Math.abs(poll.value - parties[state.selectedParty]) < 1e-9);
+        Math.abs(poll.value - parties[big]) < 1e-9);
     });
     check('party poll dots use the published party value, not a renormalization',
       drawnPolls.length > 0 && mismatched.length === 0, mismatched.slice(0, 3));
@@ -550,7 +621,7 @@ async function runViewport(viewport, site) {
         const published = (publishedPolls.get(poll.date) || [])[0];
         if (!published) return false;
         const eight = PARTY_ORDER.reduce((sum, party) => sum + published[party], 0);
-        return Math.abs(100 * published[state.selectedParty] / eight - poll.value) > 0.2;
+        return Math.abs(100 * published[big] / eight - poll.value) > 0.2;
       }), 'a renormalized denominator must not be indistinguishable');
     check('every drawn party poll is inside the visible domain',
       drawnPolls.every((poll) => poll.value >= state.yMin - 1e-9 && poll.value <= state.yMax + 1e-9),
@@ -560,14 +631,18 @@ async function runViewport(viewport, site) {
     // ---- the last drawn point is the certified party forecast ------------
     // The chart's closing claim: its rightmost mark is today's published
     // forecast for the selected party, value for value.
-    const certifiedParty = certified.parties[state.selectedParty].vote;
-    const lastDrawn = state.forecastPoints
-      .filter((point) => point.definition === state.selectedParty)
-      .sort((left, right) => (left.date < right.date ? -1 : 1)).at(-1);
-    check('the last drawn party point is the certified forecast for today',
-      Boolean(lastDrawn) && lastDrawn.date === certified.date &&
-      Math.abs(lastDrawn.p50 - certifiedParty.p50) < 1e-9,
-    { drawn: lastDrawn, certified: { date: certified.date, p50: certifiedParty.p50 } });
+    // Asserted for every party on screen, not just one: eight series each
+    // have to end on their own published number.
+    const lastDrawnMismatches = PARTY_ORDER.filter((party) => {
+      const published = certified.parties[party].vote.p50;
+      const drawn = state.forecastPoints
+        .filter((point) => point.definition === party)
+        .sort((left, right) => (left.date < right.date ? -1 : 1)).at(-1);
+      return !drawn || drawn.date !== certified.date ||
+        Math.abs(drawn.p50 - published) > 1e-9;
+    });
+    equal('every drawn party series ends on its certified forecast for today',
+      lastDrawnMismatches, []);
     check('every historical forecast point is inside the visible domain',
       state.forecastPoints.every((point) => point.p50 >= state.yMin - 1e-9 && point.p50 <= state.yMax + 1e-9),
       { min: state.yMin, max: state.yMax });
@@ -576,7 +651,7 @@ async function runViewport(viewport, site) {
     check('the range control responds', await clickId(browser, 'election-timeseries-range-short'));
     await settle(260);
     let short = await readState(browser);
-    equal('the party selection survives a range change', short.selectedParty, state.selectedParty);
+    equal('the party selection survives a range change', short.selectedParties, state.selectedParties);
     equal('the short range still uses the adaptive party window', short.yDomainMode, 'adaptive-party-window');
     check('the short-range party window is tighter than the four-year one',
       (short.yMax - short.yMin) <= (state.yMax - state.yMin),
@@ -585,21 +660,41 @@ async function runViewport(viewport, site) {
     // span) leaking into the party window, not against the data itself. The
     // 30 days up to the latest forecast span about 7 pp of poll scatter for
     // the largest party, which snaps to a 10 pp tick domain.
-    check('the short-range window is fine enough for sub-point movement',
-      (short.yMax - short.yMin) <= 12, short.yMax - short.yMin);
     check('the short-range axis has readable ticks',
       short.yTicks.length >= 3 && short.yTicks.length <= 9, short.yTicks);
+    // With one party on its own, the window has to be fine enough for
+    // sub-point movement. The bound guards against the four-year coalition
+    // ladder (20 pp minimum span) leaking in, not against the data: the 30
+    // days up to the latest forecast span about 7 pp of poll scatter for the
+    // largest party, which snaps to a 10 pp tick domain.
+    check('one party alone gets a fine short-range window',
+      await showOnlyParty(browser, big));
+    await settle(280);
+    const soloShort = await readState(browser);
+    check('the solo short-range window is fine enough for sub-point movement',
+      (soloShort.yMax - soloShort.yMin) <= 12, soloShort.yMax - soloShort.yMin);
+    check('the solo window is no wider than the eight-party one',
+      (soloShort.yMax - soloShort.yMin) <= (short.yMax - short.yMin),
+      { solo: [soloShort.yMin, soloShort.yMax], all: [short.yMin, short.yMax] });
+    await browser.evaluate((order) => {
+      order.forEach((party) => {
+        const button = document
+          .querySelector(`#election-timeseries-parties button[data-party="${party}"]`);
+        if (button && button.getAttribute('aria-pressed') !== 'true') button.click();
+      });
+    }, PARTY_ORDER);
+    await settle(320);
 
     check('the mandate metric responds', await clickId(browser, 'election-timeseries-seats'));
     await settle(260);
     let seats = await readState(browser);
-    equal('the party selection survives a metric change', seats.selectedParty, state.selectedParty);
+    equal('the party selection survives a metric change', seats.selectedParties, state.selectedParties);
     equal('the chart is still in party mode', seats.viewMode, 'parties');
     equal('the mandate view draws nothing beyond the latest forecast',
       seats.forwardMarkCount, 0);
-    check('the mandate view draws the historical party mandate series',
-      seats.metric === 'seats' && seats.seriesDefinitions.length === 1 &&
-      seats.forecastPoints.some((point) => point.definition === seats.selectedParty),
+    check('the mandate view draws a historical mandate series per party',
+      seats.metric === 'seats' &&
+      seats.seriesDefinitions.slice().sort().join(',') === PARTY_ORDER.slice().sort().join(','),
       { series: seats.seriesDefinitions, points: seats.forecastPoints.length });
     check('no 4 % threshold line in the mandate view', seats.thresholdLine.length === 0);
     // The 175-seat rule is a question about a government, not about a party.
@@ -613,10 +708,10 @@ async function runViewport(viewport, site) {
     await settle(260);
 
     // ---- the threshold appears only where it belongs ----------------------
-    check('selecting a threshold-near party responds', await clickParty(browser, small));
-    await settle(260);
+    check('isolating a threshold-near party responds', await showOnlyParty(browser, small));
+    await settle(280);
     const near = await readState(browser);
-    equal('the threshold-near party is selected', near.selectedParty, small);
+    equal('only the threshold-near party is selected', near.selectedParties, [small]);
     check('the 4 % threshold is drawn for the threshold-near party',
       near.thresholdVisible === 'true' && near.thresholdLine.length === 1 &&
       near.thresholdLine[0].value === 4 &&
@@ -629,9 +724,10 @@ async function runViewport(viewport, site) {
       near.yMin > 0 || near.yMax - near.yMin <= 8,
       { min: near.yMin, max: near.yMax });
 
-    check('selecting a large party responds', await clickParty(browser, big));
-    await settle(260);
+    check('isolating a large party responds', await showOnlyParty(browser, big));
+    await settle(280);
     const large = await readState(browser);
+    equal('only the large party is selected', large.selectedParties, [big]);
     check('the 4 % threshold is absent for a large party, and the scale is not distorted',
       large.thresholdVisible === 'false' && large.thresholdLine.length === 0 && large.yMin > 4,
       { visible: large.thresholdVisible, min: large.yMin });
@@ -651,16 +747,19 @@ async function runViewport(viewport, site) {
     if (box) {
       await movePointer(browser, box.left + box.width * 0.55, box.top + box.height / 2);
       const hovered = await readState(browser);
-      check('pointer inspection names the selected party',
-        hovered.detailHeadings.length === 1 &&
-        hovered.detailHeadings[0].includes(large.selectedParty),
-      hovered.detailHeadings);
+      check('pointer inspection prints the selected party\u2019s median at the crosshair',
+        hovered.crosshairLabels.length === 1 &&
+        hovered.crosshairLabels[0].party === big &&
+        hovered.crosshairLabels[0].text.startsWith(big),
+      hovered.crosshairLabels);
+      check('the current-value label stands down while a date is inspected',
+        hovered.endpointLabelCount === 0, hovered.endpointLabelCount);
       if (viewport.coarse) {
         await tap(browser, box.left + box.width * 0.4, box.top + box.height / 2);
         const tapped = await readState(browser);
-        check('touch inspection pins one party detail',
-          tapped.detailHeadings.length === 1 &&
-          tapped.detailHeadings[0].includes(large.selectedParty), tapped.detailHeadings);
+        check('touch inspection pins the readout',
+          tapped.crosshairLabels.length === 1 &&
+          tapped.crosshairLabels[0].party === big, tapped.crosshairLabels);
       }
     }
     await browser.evaluate(() => document.getElementById('election-timeseries-svg')?.focus());
@@ -668,8 +767,10 @@ async function runViewport(viewport, site) {
     await pressKey(browser, 'ArrowLeft', 'ArrowLeft');
     const keyboard = await readState(browser);
     check('chart-level arrow navigation works in party mode',
-      keyboard.detailHeadings.length === 1 &&
-      keyboard.detailHeadings[0].includes(large.selectedParty), keyboard.detailHeadings);
+      keyboard.crosshairLabels.length === 1 &&
+      keyboard.crosshairLabels[0].party === big, keyboard.crosshairLabels);
+    check('the hidden live region announces the party and its median',
+      keyboard.status.includes(big) && /\d/.test(keyboard.status), keyboard.status);
 
     // ---- direct navigation from the vote rows ----------------------------
     // Start from Mandatandel and the election-relative range. The action comes
@@ -701,7 +802,9 @@ async function runViewport(viewport, site) {
     const navigated = await readState(browser);
     check('the "Visa utveckling" action exists and is offered', routed.found && routed.hidden === false, routed);
     equal('the action switches the chart to party mode', navigated.viewMode, 'parties');
-    equal('the action selects the party it came from', navigated.selectedParty, 'L');
+    // The action asks for one party's development, so it isolates that party
+    // rather than adding it to whatever set happened to be on screen.
+    equal('the action selects only the party it came from', navigated.selectedParties, ['L']);
     equal('focus lands on the chart control that now holds the state', routed.focused, 'L');
     check('the party series really changed to the routed party',
       navigated.seriesDefinitions.length === 1 && navigated.seriesDefinitions[0] === 'L',

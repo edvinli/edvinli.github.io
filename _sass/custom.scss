@@ -592,83 +592,6 @@ canvas {
   pointer-events: all;
 }
 
-.election-timeseries__status {
-  color: var(--el-muted);
-  font-size: 0.8rem;
-  margin: 0;
-  min-height: 1.25em;
-}
-
-.election-timeseries__detail {
-  margin-top: 0.55rem;
-  max-width: 100%;
-}
-
-.election-timeseries__detail-body {
-  background: var(--el-fill-soft);
-  border-top: 1px solid var(--el-rule);
-  border-bottom: 1px solid var(--el-rule);
-  padding: 0.72rem 0.85rem 0.65rem;
-}
-
-.election-timeseries__detail-date {
-  font-size: 0.95rem;
-  margin: 0 0 0.55rem;
-}
-
-.election-timeseries__detail-groups {
-  display: grid;
-  gap: 0.8rem 1.4rem;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-}
-
-.election-timeseries__detail-group {
-  min-width: 0;
-}
-
-.election-timeseries__detail-group h4 {
-  font-family: var(--el-mono);
-  font-size: 0.81rem;
-  letter-spacing: 0;
-  margin: 0 0 0.25rem;
-}
-
-.election-timeseries__detail-group dl {
-  display: grid;
-  gap: 0.08rem 0.8rem;
-  grid-template-columns: max-content minmax(0, 1fr);
-  margin: 0;
-}
-
-.election-timeseries__detail-group dt,
-.election-timeseries__detail-meta dt {
-  color: var(--el-muted);
-  font-size: 0.76rem;
-}
-
-.election-timeseries__detail-group dd,
-.election-timeseries__detail-meta dd {
-  font-family: var(--el-mono);
-  font-size: 0.8rem;
-  margin: 0;
-}
-
-.election-timeseries__detail-meta {
-  border-top: 1px solid var(--el-rule);
-  display: grid;
-  gap: 0.65rem 1.25rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0.7rem 0 0;
-  padding-top: 0.5rem;
-}
-
-.election-timeseries__detail-meta > div {
-  align-content: start;
-  display: grid;
-  gap: 0.08rem;
-  min-width: 0;
-}
-
 .election-timeseries__crosshair {
   pointer-events: none;
   stroke: rgba(44, 42, 37, 0.45);
@@ -680,6 +603,19 @@ canvas {
   pointer-events: none;
   stroke: var(--el-panel);
   stroke-width: 1.5;
+}
+
+// The hover readout. Knocked out of the plot with a panel-coloured stroke so a
+// median stays legible where it crosses a band edge or a grid line.
+.election-timeseries__crosshair-label {
+  font-family: var(--el-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: var(--el-panel);
+  stroke-linejoin: round;
+  stroke-width: 3px;
 }
 
 .election-timeseries__endpoint-label {
@@ -2383,26 +2319,8 @@ canvas {
     font-size: 16px !important;
   }
 
-  .election-timeseries__detail-body {
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
-  }
-
-  .election-timeseries__detail-groups {
-    gap: 0.75rem;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .election-timeseries__detail-meta {
-    display: grid;
-    gap: 0.22rem;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .election-timeseries__detail-meta > div {
-    align-items: baseline;
-    gap: 0.5rem;
-    grid-template-columns: 6.25rem minmax(0, 1fr);
+  .election-timeseries__crosshair-label {
+    font-size: 15px;
   }
 
   .election-timeseries__key {

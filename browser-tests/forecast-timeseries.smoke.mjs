@@ -360,7 +360,9 @@ const SELECTORS = {
     '[data-election-day-distribution-label="true"]',
     '[data-latest-forecast-boundary="true"]', '[data-latest-forecast-label="true"]',
   ].join(','),
-  details: '#election-timeseries-detail, #election-timeseries-status, #election-forecast-history-detail, [data-timeseries-detail], .election-timeseries__detail, .et-detail, .eht-detail',
+  crosshairLabels: '[data-crosshair-label="true"]',
+  // The detail panel the crosshair readout replaced. None of these may exist.
+  retiredDetail: '#election-timeseries-detail, #election-timeseries-detail-body, #election-timeseries-detail-title, .election-timeseries__detail, .election-timeseries__detail-body, .election-timeseries__detail-meta, #election-timeseries-tooltip, .election-timeseries__tooltip',
 };
 
 function readPage(browser) {
@@ -396,27 +398,12 @@ function readPage(browser) {
     const dateAttrs = ['data-date', 'data-forecast-date', 'data-history-date'];
     const dates = svg ? Array.from(svg.querySelectorAll('[data-date], [data-forecast-date], [data-history-date]'))
       .map((element) => dateAttrs.map((name) => element.getAttribute(name)).find(Boolean)).filter(Boolean) : [];
-    const tooltip = section?.querySelector('#election-timeseries-tooltip, .election-timeseries__tooltip') || null;
-    const status = section?.querySelector('#election-timeseries-status, .election-timeseries__status') || null;
-    const details = section ? Array.from(section.querySelectorAll(selectors.details)) : [];
-    // The static status prompt is intentionally visible before a point is
-    // chosen.  Treat it as a detail only after the app has replaced that
-    // prompt with a selected-date summary; a visible tooltip always wins.
-    const statusIsPrompt = status && /välj en punkt|choose a point/i.test(status.textContent || '');
-    const detail = (tooltip && visible(tooltip)) ? tooltip :
-      (status && visible(status) && !statusIsPrompt ? status :
-        details.find((element) => visible(element) && !/välj en punkt|choose a point/i.test(element.textContent || '')) || null);
-    const detailMeta = section?.querySelector('.election-timeseries__detail-meta') || null;
-    const detailMetaEntries = detailMeta ? Array.from(detailMeta.children).map((entry) => {
-      const term = entry.querySelector('dt')?.getBoundingClientRect();
-      const value = entry.querySelector('dd')?.getBoundingClientRect();
-      const rect = entry.getBoundingClientRect();
-      return {
-        top: Math.round(rect.top),
-        termLeft: term ? Math.round(term.left) : null,
-        valueLeft: value ? Math.round(value.left) : null,
-      };
-    }) : [];
+    // The hover readout is now on the chart: a crosshair plus one median per
+    // visible series, printed beside it.
+    const crosshairLabels = svg ? Array.from(svg.querySelectorAll(selectors.crosshairLabels)) : [];
+    // The status line survives as a visually hidden aria-live announcement, so
+    // it is read for its text, never for its visibility.
+    const status = section?.querySelector('#election-timeseries-status') || null;
     const box = (element) => element ? (() => {
       const rect = element.getBoundingClientRect();
       return { left: rect.left, right: rect.right, top: rect.top, width: rect.width, height: rect.height };
@@ -560,13 +547,39 @@ function readPage(browser) {
         markerType: marker.getAttribute('data-marker') || marker.getAttribute('data-horizon') || '',
       } : null,
       dates,
-      detail: detail ? { text: detail.textContent.replace(/[\t\n\r ]+/g, ' ').trim(), visible: visible(detail) } : null,
-      detailMeta: detailMeta ? {
-        display: getComputedStyle(detailMeta).display,
-        entries: detailMetaEntries,
-      } : null,
-      tooltip: tooltip ? { hidden: tooltip.hidden, text: tooltip.textContent.replace(/[\t\n\r ]+/g, ' ').trim(), visible: visible(tooltip) } : null,
-      status: status ? { hidden: status.hidden, text: status.textContent.replace(/[\t\n\r ]+/g, ' ').trim(), visible: visible(status) } : null,
+      crosshair: {
+        count: crosshairLabels.filter(visible).length,
+        labels: crosshairLabels.map((label) => ({
+          coalition: label.getAttribute('data-coalition'),
+          date: label.getAttribute('data-date'),
+          value: Number(label.getAttribute('data-value')),
+          text: (label.textContent || '').replace(/\u00a0/g, ' ').trim(),
+          anchor: label.getAttribute('text-anchor'),
+          visible: visible(label),
+          // A readout that ran outside the frame would be worse than none.
+          insideFrame: (() => {
+            if (!svg) return false;
+            const frame = svg.getBoundingClientRect();
+            const box = label.getBoundingClientRect();
+            return box.left >= frame.left - 0.5 && box.right <= frame.right + 0.5;
+          })(),
+        })),
+      },
+      // Retired with the panel: none of these nodes may come back.
+      retiredDetailCount: section ? section.querySelectorAll(selectors.retiredDetail).length : 0,
+      // Visually hidden, but it must still announce what the crosshair shows.
+      status: status ? (() => {
+        // "Visually hidden" is a 1x1 clipped box, not display:none -- it must
+        // stay in the accessibility tree. So it is measured, not asked.
+        const box = status.getBoundingClientRect();
+        const style = getComputedStyle(status);
+        return {
+          text: status.textContent.replace(/[\t\n\r ]+/g, ' ').trim(),
+          visuallyHidden: style.display !== 'none' && style.position === 'absolute' &&
+            box.width <= 1.5 && box.height <= 1.5,
+          live: status.getAttribute('aria-live'),
+        };
+      })() : null,
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     };
   }, SELECTORS);
@@ -815,8 +828,9 @@ function assertStructure(view, history) {
     { rendered: view.pollCount, polls: history.polls.length });
   check('the latest forecast value is visibly marked', view.currentCount >= 2, view.currentCount);
   check('right-edge current-value labels are visible', view.endpointCount >= 2, view.endpointCount);
-  check('no large floating tooltip is present', view.tooltip === null || view.tooltip.hidden === true,
-    view.tooltip);
+  equal('the detail panel the crosshair readout replaced is gone', view.retiredDetailCount, 0);
+  check('the hidden live region still announces the readout',
+    view.status?.visuallyHidden === true && view.status?.live === 'polite', view.status);
   check('the inspection layer is initially clear', view.crosshairCount === 0 && view.inspectionCount === 0,
     { crosshair: view.crosshairCount, inspection: view.inspectionCount });
   check('history date extent starts in September 2022 and reaches the latest point', (() => {
@@ -871,19 +885,33 @@ function assertNoForwardView(view, history, label) {
       .test(view.section?.text || ''), view.section?.text);
 }
 
-function assertFixturePointText(text, point, group, label) {
-  check(`${label}: selected detail includes its date`, text.includes(point.date) ||
-    text.includes(point.date.slice(0, 4)) ||
-    /\b(?:19|20)\d{2}\b/.test(text), text);
-  check(`${label}: selected detail includes median and 50% interval`, numberInText(text, group.p50) &&
-    numberInText(text, group.p25) && numberInText(text, group.p75), text);
-  check(`${label}: selected detail includes 90% interval`, numberInText(text, group.p05) &&
-    numberInText(text, group.p95), text);
-  check(`${label}: selected detail includes simulation count`, numberInText(text, point.samples), text);
-  check(`${label}: selected detail includes provenance`,
-    /reconstructed_current_model|prospective_archived|rekonstru|omräkn|återskap|prospektiv|arkiver/i.test(text), text);
-  check(`${label}: selected detail includes actual/dynamics horizons`,
-    numberInText(text, point.horizon_days) && numberInText(text, point.dynamics_horizon_days), text);
+// The hover readout is one median per visible series, printed at the crosshair
+// and nowhere else. It is deliberately not the old interval table: the 50/90 %
+// numbers are the bands the marker sits inside.
+function assertCrosshairReadout(view, history, expectedDate, label) {
+  const keys = DEFAULT_COALITIONS.map((parties) => coalitionKey(history, parties));
+  const labels = view.crosshair?.labels || [];
+  equal(`${label}: one readout per visible series`,
+    labels.map((entry) => entry.coalition).sort(), keys.slice().sort());
+  check(`${label}: every readout is drawn and inside the frame`,
+    labels.length > 0 && labels.every((entry) => entry.visible && entry.insideFrame), labels);
+  equal(`${label}: every readout carries the inspected date`,
+    [...new Set(labels.map((entry) => entry.date))], [expectedDate]);
+  equal(`${label}: the readouts share one side of the crosshair`,
+    [...new Set(labels.map((entry) => entry.anchor))].length, 1);
+  const point = (history.series || []).find((item) => item.date === expectedDate);
+  const metric = view.svg?.metric === 'seats' ? 'seats' : 'vote';
+  check(`${label}: each readout prints that series' published median`,
+    labels.every((entry) => {
+      const published = point?.groups?.[entry.coalition]?.[metric]?.p50;
+      if (!finite(published)) return false;
+      const shown = metric === 'seats' ? published : published;
+      return numberInText(entry.text, metric === 'seats' ? shown : shown);
+    }), { labels, expectedDate, metric });
+  check(`${label}: no interval, provenance or simulation count is printed`,
+    labels.every((entry) =>
+      !/intervall|simuleringar|horisont|rekonstru|prospektiv|poll of polls/i.test(entry.text)),
+  labels);
 }
 
 function visibleRangeExtremes(history, metric, start, end) {
@@ -1042,11 +1070,15 @@ async function exercise(viewport, history, siteRoot) {
     const seatCoordinates = await historicalPointCoordinates(browser, seatPoint.date);
     await clickAt(browser, seatCoordinates);
     const seatView = await readPage(browser);
-    const seatDetail = seatView.detail?.text || '';
-    check('seat detail includes the raw median seat count',
-      numberInText(seatDetail, findPointFor(history, DEFAULT_COALITIONS[0], seatPoint).group.seats.p50) &&
-      /mandat/i.test(seatDetail), seatDetail);
-    check('seat detail omits Poll of Polls', !/Poll of Polls/i.test(seatDetail), seatDetail);
+    const seatReadout = (seatView.crosshair?.labels || [])
+      .find((entry) => entry.coalition === coalitionKey(history, DEFAULT_COALITIONS[0]));
+    check('the seat readout prints the raw median seat count',
+      Boolean(seatReadout) &&
+      numberInText(seatReadout.text, findPointFor(history, DEFAULT_COALITIONS[0], seatPoint).group.seats.p50) &&
+      /mandat/i.test(seatReadout.text), seatReadout);
+    check('the seat readout omits Poll of Polls',
+      !/Poll of Polls/i.test(seatView.crosshair?.labels?.map((e) => e.text).join(' ') || ''),
+    seatView.crosshair);
 
     // Repeat the range round trip while Mandatandel is active.  This guards
     // the metric-specific full-domain source list and the majority reference
@@ -1162,9 +1194,9 @@ async function exercise(viewport, history, siteRoot) {
     check('range change replaces an out-of-range selection with a visible short-range point',
       staleTransition.after === shortOrigin &&
       inDateRange(view.svg?.selectedDate, shortStart, history.election_date) &&
-      view.svg?.selectedDate !== history.series[0].date && view.detail?.visible === true &&
-      !(view.detail?.text || '').includes(history.series[0].date),
-    { transition: staleTransition, selected: view.svg?.selectedDate, detail: view.detail });
+      view.svg?.selectedDate !== history.series[0].date && view.crosshair?.count > 0 &&
+      (view.crosshair?.labels || []).every((entry) => entry.date !== history.series[0].date),
+    { transition: staleTransition, selected: view.svg?.selectedDate, crosshair: view.crosshair });
     check('short-range view has no horizontal overflow', view.overflow <= 0, view.overflow);
 
     equal('switching back restores Sedan 2022 without reloading',
@@ -1224,34 +1256,27 @@ async function exercise(viewport, history, siteRoot) {
     const coordinates = await historicalPointCoordinates(browser, point.date);
     await hoverAt(browser, coordinates);
     view = await readPage(browser);
-    check('hovering a forecast point exposes the persistent detail panel', view.detail?.visible === true &&
-      (view.detail.text || '').length > 0, view.detail);
     check('hovering a forecast point draws a crosshair', view.crosshairCount === 1,
       { crosshair: view.crosshairCount, selectedDate: view.svg?.selectedDate });
     check('hovering a forecast point highlights every visible coalition', view.inspectionCount >= 2,
       view.inspectionCount);
-    check('simulation metadata uses an aligned responsive layout', (() => {
-      const entries = view.detailMeta?.entries || [];
-      if (view.detailMeta?.display !== 'grid' || entries.length !== 3) return false;
-      if (viewport.width <= 600) {
-        return new Set(entries.map((entry) => entry.top)).size === 3 &&
-          new Set(entries.map((entry) => entry.valueLeft)).size === 1;
-      }
-      return new Set(entries.map((entry) => entry.top)).size === 1;
-    })(), view.detailMeta);
-    check('hover detail does not expose internal provenance enum strings',
-      !/reconstructed_current_model|prospective_archived|current_production/.test(view.detail?.text || ''),
-      view.detail?.text);
-    const detailText = view.detail?.text || '';
-    if (detailText) {
-      assertFixturePointText(detailText, point, expected.group.vote, 'vote-share forecast detail');
-      check('detail panel includes Poll of Polls', /Poll of Polls/i.test(detailText), detailText);
-      check('detail panel labels our simulated forecast separately', /Vår simulering/i.test(detailText), detailText);
-    }
+    assertCrosshairReadout(view, history, point.date, 'vote-share hover');
+    // The right-hand current-value labels and the crosshair readout both print
+    // medians. Exactly one set is on screen at a time, or a hover near the
+    // right edge reads as one crowded column of unexplained numbers.
+    equal('the current-value labels stand down while a date is inspected',
+      view.endpointCount, 0);
+    check('the hidden live region announces the inspected date and medians',
+      view.status?.visuallyHidden === true &&
+      (view.status?.text || '').includes(String(new Date(point.date).getUTCFullYear())) &&
+      numberInText(view.status?.text || '', expected.group.vote.p50), view.status);
+    check('the announcement does not expose internal provenance enum strings',
+      !/reconstructed_current_model|prospective_archived|current_production/.test(view.status?.text || ''),
+      view.status?.text);
     await clickAt(browser, coordinates);
     view = await readPage(browser);
-    check('clicking a forecast point keeps its selection visible', view.detail?.visible === true &&
-      (view.detail.text || '').length > 0, view.detail);
+    check('clicking a forecast point keeps its readout visible', view.crosshair?.count > 0,
+      view.crosshair);
     check('clicking a forecast point keeps its crosshair and selected date',
       view.crosshairCount === 1 && Boolean(view.svg?.selectedDate), view.svg);
     const clickedDate = view.svg?.selectedDate;
@@ -1268,23 +1293,25 @@ async function exercise(viewport, history, siteRoot) {
     await pressKey(browser, 'ArrowLeft', 'ArrowLeft');
     const keyboardView = await readPage(browser);
     check('keyboard ArrowLeft moves the selected forecast date',
-      keyboardView.crosshairCount === 1 && keyboardView.detail?.visible === true &&
-      Boolean(keyboardView.svg?.selectedDate), keyboardView);
+      keyboardView.crosshairCount === 1 && keyboardView.crosshair?.count > 0 &&
+      Boolean(keyboardView.svg?.selectedDate), keyboardView.crosshair);
     await browser.evaluate(() => {
       const app = document.getElementById('election-simulator-app');
       app?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
     });
     await settle(100);
     const afterEscape = await readPage(browser);
-    check('Escape clears the persistent point selection', !afterEscape.detail?.visible || !afterEscape.detail?.text,
-      afterEscape.detail);
+    check('Escape clears the persistent point selection', afterEscape.crosshair?.count === 0,
+      afterEscape.crosshair);
+    equal('the current-value labels come back once nothing is inspected',
+      afterEscape.endpointCount >= 2, true);
 
     // Touch interaction
     if (viewport.coarse) {
       await tapAt(browser, coordinates);
       const tapped = await readPage(browser);
-      check('tapping a date persists the selected detail on touch', tapped.detail?.visible === true &&
-        (tapped.detail.text || '').length > 0, tapped.detail);
+      check('tapping a date persists the readout on touch', tapped.crosshair?.count > 0,
+        tapped.crosshair);
       check('tapping a date pins the crosshair on touch', tapped.crosshairCount === 1 &&
         Boolean(tapped.svg?.selectedDate), tapped.svg);
     }

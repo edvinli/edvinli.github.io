@@ -171,11 +171,32 @@ const checks = [
     source.includes('enablePartyTimelineLinks') && source.includes('partyTimelineIsAvailable')],
 
   // ---- accessibility ------------------------------------------------------
-  ['exactly one party is active at a time',
-    source.includes('function activePartyDefinition') &&
-    source.includes('return definition ? [definition] : [];')],
-  ['selecting a party can never clear the selection',
-    !/selectedPartyId = selectedPartyId === /.test(source)],
+  // Party mode is a toggle set, exactly like coalition mode: one selection
+  // map, one filter, and the shared value domain derives the y-axis from
+  // whatever is on. A second selection model would be how the two families
+  // start drifting apart.
+  ['parties are a toggle set, not a single selection',
+    source.includes('function activePartyDefinitions') &&
+    source.includes('return partyDefinitions.filter(function (definition) {') &&
+    !source.includes('selectedPartyId')],
+  ['the y-axis is derived from the selected set',
+    source.includes('if (viewMode === "parties") return activePartyDefinitions();') &&
+    source.includes('historyValueDomain(history, selectedMetric, definitions, activeDomain)')],
+  ['the direct-navigation action isolates the party it came from',
+    /function selectTimeseriesParty[\s\S]*?selectedParties\[definition\.id\] = definition\.id === match\[0\]\.id;/
+      .test(source)],
+  // The hover readout is on the chart, at the crosshair, and the panel it
+  // replaced must not come back.
+  ['hovering prints one median per visible series at the crosshair',
+    source.includes('data-crosshair-label') &&
+    source.includes('election-timeseries__crosshair-label') &&
+    !source.includes('function forecastDetail') &&
+    !page.includes('election-timeseries-detail-body')],
+  ['the readout stays announced for screen readers',
+    /id="election-timeseries-status"[^>]*class="visually-hidden"/.test(page) &&
+    source.includes('liveStatus.textContent = point')],
+  ['only one set of medians is on screen at a time',
+    source.includes('endpointLayer.setAttribute("display", point ? "none" : "inline")')],
   ['the party pills carry their abbreviation, so colour is not the sole encoding',
     source.includes('escapeHtml(definition.shortLabel)')],
   ['party pills inherit the app focus ring',
