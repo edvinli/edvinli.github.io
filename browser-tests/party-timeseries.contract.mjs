@@ -32,7 +32,6 @@ const QUANTILES = ['p05', 'p25', 'p50', 'p75', 'p95'];
 const view = fixture.parties_view;
 const series = Array.isArray(fixture.series) ? fixture.series : [];
 const current = series.filter((point) => point?.provenance === 'current_production');
-const paths = fixture.future_campaign_paths;
 
 // The control order the product requires: what the chart is about, then how it
 // is measured, then over what period, then which party.
@@ -68,13 +67,7 @@ const checks = [
   ['the published party order is pinned to the eight parliamentary parties',
     source.includes('view.party_order.length !== HISTORY_PARTIES.length')],
   ['a declared intermediate seat trajectory disables the party family',
-    source.includes('view.intermediate_seat_trajectory !== false') &&
-    source.includes('rendering.party_intermediate_seat_trajectory !== false')],
-  ['party election-day values must equal the certified production point',
-    source.includes('JSON.stringify(electionParties) !== JSON.stringify(certifiedParties)')],
-  ['the party family is all-or-nothing, so a partial publication is refused',
-    source.includes('mergeCampaignPartyFamily') &&
-    source.includes('campaignPaths.partyFamily === true')],
+    source.includes('view.intermediate_seat_trajectory !== false')],
   ['party mode needs a certified point that carries party summaries',
     source.includes('certifiedPoints.length > 0')],
   // The publisher preserves reused history points byte for byte, so an
@@ -83,18 +76,9 @@ const checks = [
   ['party mode needs the whole plotted history, not merely one point',
     source.includes('pointsWithParties.length === points.length') &&
     !source.includes('pointsWithParties.length > 0')],
-  // `campaignPaths` is null both when the object is absent and when it is
-  // present but rejected, so presence has to be tested separately.
-  ['a campaign-path object rejected wholesale still closes the gate',
-    source.includes('var campaignPathsUsable = !campaignPathsPresent ||') &&
-    !source.includes('(!campaignPaths || campaignPaths.partyFamily === true)')],
   ['the refusal names its own reason in the DOM',
     source.includes('"incomplete-history"') && source.includes('"invalid"') &&
     source.includes('"absent"')],
-  ['party opinion bands are vote-only',
-    source.includes('campaignBandParties') &&
-    source.includes('!Object.prototype.hasOwnProperty.call(entry, "vote")') &&
-    source.includes('rendering.party_units')],
 
   // ---- one renderer, not two --------------------------------------------
   ['there is no second chart renderer',
@@ -139,12 +123,19 @@ const checks = [
     source.includes('function historyTickStep') &&
     source.includes('var yStep = yDomain.step;')],
 
-  // ---- the future interpretation in party mode ---------------------------
-  ['the secondary uncertainty fan is hidden in party mode',
-    source.includes('viewMode === "parties"') &&
-    source.includes('selectedMetric === "seats" || viewMode === "parties"')],
-  ['entering party mode returns the future region to the campaign paths',
-    source.includes('if (viewMode === "parties" && campaignPaths) futureView = "paths";')],
+  // ---- the chart ends at the latest certified forecast -------------------
+  // The page no longer extrapolates from today to election day, so no future
+  // artifact may be read back into the chart and no forward view control may
+  // reappear in the markup.
+  ['no forward-looking artifact is read',
+    !source.includes('payload.future_projection') &&
+    !source.includes('payload.future_campaign_paths')],
+  ['no forward view controls remain in the markup',
+    !page.includes('election-timeseries-future') &&
+    !page.includes('election-timeseries-campaign-cue')],
+  ['the time domain ends at the latest published point',
+    source.includes('var fullMaxTime = Math.max.apply(Math, fullTimes);') &&
+    !/futureElection/.test(source)],
 
   // ---- markup, order and direct navigation -------------------------------
   ['the view switch is in the page markup with both labels',
@@ -180,11 +171,32 @@ const checks = [
     source.includes('enablePartyTimelineLinks') && source.includes('partyTimelineIsAvailable')],
 
   // ---- accessibility ------------------------------------------------------
-  ['exactly one party is active at a time',
-    source.includes('function activePartyDefinition') &&
-    source.includes('return definition ? [definition] : [];')],
-  ['selecting a party can never clear the selection',
-    !/selectedPartyId = selectedPartyId === /.test(source)],
+  // Party mode is a toggle set, exactly like coalition mode: one selection
+  // map, one filter, and the shared value domain derives the y-axis from
+  // whatever is on. A second selection model would be how the two families
+  // start drifting apart.
+  ['parties are a toggle set, not a single selection',
+    source.includes('function activePartyDefinitions') &&
+    source.includes('return partyDefinitions.filter(function (definition) {') &&
+    !source.includes('selectedPartyId')],
+  ['the y-axis is derived from the selected set',
+    source.includes('if (viewMode === "parties") return activePartyDefinitions();') &&
+    source.includes('historyValueDomain(history, selectedMetric, definitions, activeDomain)')],
+  ['the direct-navigation action isolates the party it came from',
+    /function selectTimeseriesParty[\s\S]*?selectedParties\[definition\.id\] = definition\.id === match\[0\]\.id;/
+      .test(source)],
+  // The hover readout is on the chart, at the crosshair, and the panel it
+  // replaced must not come back.
+  ['hovering prints one median per visible series at the crosshair',
+    source.includes('data-crosshair-label') &&
+    source.includes('election-timeseries__crosshair-label') &&
+    !source.includes('function forecastDetail') &&
+    !page.includes('election-timeseries-detail-body')],
+  ['the readout stays announced for screen readers',
+    /id="election-timeseries-status"[^>]*class="visually-hidden"/.test(page) &&
+    source.includes('liveStatus.textContent = point')],
+  ['only one set of medians is on screen at a time',
+    source.includes('endpointLayer.setAttribute("display", point ? "none" : "inline")')],
   ['the party pills carry their abbreviation, so colour is not the sole encoding',
     source.includes('escapeHtml(definition.shortLabel)')],
   ['party pills inherit the app focus ring',
@@ -258,38 +270,8 @@ const checks = [
     // the REST mass. A renormalized set would sit at or above it.
     current.length === 1 &&
     PARTY_ORDER.reduce((sum, party) => sum + current[0].parties[party].vote.p50, 0) < 100],
-  ['fixture election-day parties equal the certified point exactly',
-    current.length === 1 &&
-    JSON.stringify(paths?.election_day?.parties) === JSON.stringify(current[0].parties)],
   ['fixture party keys never leak into the coalition groups',
-    series.every((point) => PARTY_ORDER.every((party) => !(party in (point.groups || {})))) &&
-    (paths?.bands || []).every((band) =>
-      PARTY_ORDER.every((party) => !(party in (band.groups || {})))) &&
-    PARTY_ORDER.every((party) => !(party in (paths?.election_day?.groups || {})))],
-  ['fixture party bands are daily, vote-only and monotone',
-    Array.isArray(paths?.bands) && paths.bands.length === paths.path_days + 1 &&
-    paths.bands.every((band, index) => band.path_day === index &&
-      JSON.stringify(Object.keys(band.parties || {})) === JSON.stringify(PARTY_ORDER) &&
-      PARTY_ORDER.every((party) => {
-        const entry = band.parties[party];
-        return Object.keys(entry).length === 1 && quantilesOk(entry.vote);
-      }))],
-  ['fixture party trajectories match the coalition trajectories draw for draw',
-    (paths?.paths?.series || []).length > 0 &&
-    paths.paths.series.every((track) =>
-      JSON.stringify(Object.keys(track.party_values || {})) === JSON.stringify(PARTY_ORDER) &&
-      PARTY_ORDER.every((party) => track.party_values[party].length === paths.path_days + 1))],
-  ['fixture publishes no intermediate party mandate trajectory',
-    paths?.rendering?.party_units?.length === 1 && paths.rendering.party_units[0] === 'vote' &&
-    paths.rendering.party_intermediate_seat_trajectory === false &&
-    JSON.stringify(paths.rendering.party_election_day_units) === JSON.stringify(['vote', 'seats'])],
-  ['fixture declares the party denominator in the construction',
-    paths?.path_construction?.party_vote_share_denominator ===
-      'all_nine_model_categories_including_rest'],
-  ['fixture publishes the national threshold for the party view',
-    paths?.rendering?.national_threshold_pct === 4 &&
-    typeof paths?.rendering?.national_threshold_label_sv === 'string' &&
-    paths.rendering.national_threshold_label_sv.length > 0],
+    series.every((point) => PARTY_ORDER.every((party) => !(party in (point.groups || {}))))],
   ['fixture contains a party near the threshold and a large party',
     current.length === 1 &&
     PARTY_ORDER.some((party) => current[0].parties[party].vote.p50 < 6) &&

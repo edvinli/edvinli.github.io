@@ -27,8 +27,6 @@ export const SUITES = {
   'histogram-copy.smoke.mjs': { seconds: 10, area: 'builder' },
   'forecast-timeseries.smoke.mjs': { seconds: 29, area: 'forecast' },
   'party-timeseries.smoke.mjs': { seconds: 24, area: 'forecast' },
-  'future-projection.contract.mjs': { seconds: 1, area: 'forecast' },
-  'campaign-paths.contract.mjs': { seconds: 1, area: 'forecast' },
   'party-timeseries.contract.mjs': { seconds: 1, area: 'forecast' },
   'equations.smoke.mjs': { seconds: 7, area: 'equations' },
 };
