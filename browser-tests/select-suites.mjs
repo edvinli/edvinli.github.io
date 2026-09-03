@@ -60,15 +60,35 @@ const RULES = [
   { prefix: '_layouts/', suites: null },
   { prefix: '_pages/election_simulator.md', suites: null },
 
+  // The workflows *are* the browser harness in CI: they build the site, move
+  // it between jobs, find Chrome and run the suites. A change here that breaks
+  // any of that must not be able to select nothing and pass on a skipped
+  // matrix, so it selects everything. This rule has to precede the general
+  // '.github/' rule below, since the first matching prefix wins.
+  { prefix: '.github/workflows/', suites: null },
+
+  // Jekyll data is rendered-site input, not inert configuration:
+  // _data/navigation.yml drives the masthead and _data/ui-text.yml the chrome
+  // around every page, both of which the suites assert against -- including
+  // the no-horizontal-overflow checks at 360px. The selector cannot prove a
+  // given key is unused, so it does not try.
+  { prefix: '_data/', suites: null },
+
   // Paths that cannot affect a browser suite. The Jekyll build still runs.
+  //
+  // These are narrow on purpose. The suites only ever load
+  // /election-simulator/, so another page's content cannot reach them; and the
+  // election page has its own rule above. Anything less clear-cut belongs in
+  // the `suites: null` group instead.
   { prefix: '_pages/', suites: [] },
   { prefix: '_drafts/', suites: [] },
-  { prefix: '_data/', suites: [] },
   { prefix: 'images/', suites: [] },
   { prefix: 'README.md', suites: [] },
   { prefix: 'CHANGELOG.md', suites: [] },
   { prefix: 'CONTRIBUTING.md', suites: [] },
   { prefix: 'LICENSE', suites: [] },
+  // Non-workflow .github content (issue templates, CODEOWNERS) cannot reach
+  // the built site.
   { prefix: '.github/', suites: [] },
 ];
 
@@ -151,6 +171,22 @@ function selfTest() {
 
   eq('an unmapped path selects everything',
     selectSuites(['some/new/thing.txt']).suites, ALL);
+
+  // The workflows are the harness in CI. A change that breaks the browser job
+  // must not be able to select nothing and pass on a skipped matrix.
+  eq('a browser workflow change selects everything',
+    selectSuites(['.github/workflows/pr.yml']).suites, ALL);
+  eq('the full workflow also selects everything',
+    selectSuites(['.github/workflows/full.yml']).suites, ALL);
+  eq('non-workflow .github content selects nothing',
+    selectSuites(['.github/ISSUE_TEMPLATE/bug.md']).suites, []);
+
+  // _data is rendered-site input: navigation.yml drives the masthead the
+  // suites measure for overflow at 360px.
+  eq('a Jekyll data change selects everything',
+    selectSuites(['_data/navigation.yml']).suites, ALL);
+  eq('ui-text also selects everything',
+    selectSuites(['_data/ui-text.yml']).suites, ALL);
 
   const published = selectSuites(['files/election-simulator/groups.json']).suites;
   check('published forecast data selects the election suites, not equations',

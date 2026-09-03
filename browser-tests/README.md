@@ -219,8 +219,23 @@ node browser-tests/select-suites.mjs --changed assets/js/election-simulator.js
 ```
 
 The rules fail toward running more. A change to a single suite file selects
-that suite; a change to `cdp.mjs`, `server.mjs`, `_sass/**`, `_includes/**` or
-`election-simulator.js` selects every suite; an unrecognised path selects every
-suite. Adding a suite means adding it to `SUITES` — the self-test compares that
-table against the directory, so a suite present on disk but missing from the
-table fails rather than quietly never running.
+that suite; a change to `cdp.mjs`, `server.mjs`, `_sass/**`, `_includes/**`,
+`_data/**`, `.github/workflows/**` or `election-simulator.js` selects every
+suite; an unrecognised path selects every suite. Adding a suite means adding it
+to `SUITES` — the self-test compares that table against the directory, so a
+suite present on disk but missing from the table fails rather than quietly
+never running.
+
+Two of those entries are there for reasons worth stating, because both were
+initially classified as affecting nothing:
+
+- **`.github/workflows/**`** — in CI the workflows *are* the harness. They build
+  the site, move it between jobs, locate Chrome and run the suites. A change
+  that broke any of that would otherwise select nothing, the browser matrix
+  would be skipped, and `Website PR required checks` would accept the skip and
+  pass.
+- **`_data/**`** — Jekyll data is rendered-site input, not inert configuration.
+  `navigation.yml` drives the masthead and `ui-text.yml` the chrome around every
+  page, both of which appear on the election page and both of which the suites
+  measure — including the no-horizontal-overflow checks at 360 px. The selector
+  cannot prove a given key is unused, so it does not try.
