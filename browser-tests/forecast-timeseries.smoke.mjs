@@ -729,6 +729,8 @@ function readPage(browser) {
         pointFocusableCount: campaignPointMarks.filter((mark) => mark.getAttribute('tabindex') === '0').length,
         pointTabindexValues: [...new Set(campaignPointMarks.map((mark) => mark.getAttribute('tabindex')))],
         pointRoles: [...new Set(campaignPointMarks.map((mark) => mark.getAttribute('role')))],
+        pointAriaHiddenValues: [...new Set(campaignPointMarks.map((mark) => mark.getAttribute('aria-hidden')))],
+        pointAriaLabelValues: [...new Set(campaignPointMarks.map((mark) => mark.getAttribute('aria-label')))],
         pointDates: [...new Set(campaignPointMarks.map((mark) => mark.getAttribute('data-date')))].sort(),
         pathDays: [...new Set(campaignPointMarks.map((mark) => Number(mark.getAttribute('data-path-day'))))]
           .sort((a, b) => a - b),
@@ -1242,7 +1244,11 @@ function assertCampaignPathStructure(view, history, metric = 'vote') {
         JSON.stringify(interior.map((band) => band.date)) &&
       view.campaign?.pathDays[0] === 1 &&
       view.campaign?.pathDays.at(-1) === paths.path_days, view.campaign);
-    equal('campaign band marks are accessible buttons', view.campaign?.pointRoles, ['button']);
+    check('daily campaign hit geometry is hidden from the accessibility tree',
+      JSON.stringify(view.campaign?.pointRoles) === JSON.stringify([null]) &&
+      JSON.stringify(view.campaign?.pointAriaHiddenValues) === JSON.stringify(['true']) &&
+      JSON.stringify(view.campaign?.pointAriaLabelValues) === JSON.stringify([null]),
+    view.campaign);
     // Path day 0 is the latent opinion state, a different and much narrower
     // distribution than the certified forecast point on the same date.  It
     // gets its own mark, its own shape and its own published label.

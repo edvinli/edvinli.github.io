@@ -159,18 +159,20 @@ const checks = [
     source.includes('activeDomain.minTime + (activeDomain.maxTime - activeDomain.minTime) * ratio')],
 
   // ---- interaction and accessibility ------------------------------------
-  ['band and election-day marks are accessible buttons',
-    source.includes('data-campaign-point') && source.includes('data-election-day-point') &&
-    source.includes('event.key === "Enter"')],
-  ['daily campaign marks are pointer targets but not tab stops',
-    campaignMarkBlock.includes('role: "button"') && !campaignMarkBlock.includes('tabindex:')],
+  ['election-day marks are accessible buttons',
+    source.includes('data-election-day-point') && source.includes('event.key === "Enter"')],
+  ['daily campaign marks are pointer-only and hidden from the accessibility tree',
+    campaignMarkBlock.includes('"pointer-events": "all"') &&
+    campaignMarkBlock.includes('"aria-hidden": "true"') &&
+    !campaignMarkBlock.includes('role:') &&
+    !campaignMarkBlock.includes('tabindex:') &&
+    !campaignMarkBlock.includes('"aria-label"')],
   ['chart-level arrow navigation remains the keyboard route to campaign days',
     source.includes('event.target !== svg && event.target !== hit') &&
     source.includes('event.key === "ArrowLeft" || event.key === "ArrowRight"')],
   ['origin and election-day marks remain keyboard-accessible',
     originMarkBlock.includes('tabindex: "0"') && electionMarkBlock.includes('tabindex: "0"')],
-  ['focus is visible on all three new mark kinds',
-    styles.includes('.election-timeseries__campaign-point:focus-visible') &&
+  ['focus is visible on the two keyboard-accessible mark kinds',
     styles.includes('.election-timeseries__origin-state-point:focus-visible') &&
     styles.includes('.election-timeseries__election-day-point:focus-visible')],
   ['decorative trajectories are not pointer targets',

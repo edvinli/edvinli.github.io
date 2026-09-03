@@ -2360,15 +2360,12 @@
               if (!values || values.p50 === null) return;
               var mark = svgNode("circle", {
                 cx: xScale(band.time), cy: yScale(values.p50), r: "9", fill: "transparent",
-                opacity: "0", stroke: "none", "pointer-events": "all", role: "button",
+                opacity: "0", stroke: "none", "pointer-events": "all", "aria-hidden": "true",
                 class: "election-timeseries__campaign-point", "data-campaign-point": "true",
                 "data-coalition": definition.id, "data-date": band.date,
                 "data-path-day": String(band.pathDay),
                 "data-p05": values.p05, "data-p25": values.p25, "data-p50": values.p50,
                 "data-p75": values.p75, "data-p95": values.p95,
-                "aria-label": definition.label + ", " +
-                  campaignPaths.rendering.future_region.label.toLowerCase() + " " +
-                  (swedishDate(band.date) || band.date) + ": median " + percent(values.p50, 1)
               });
               mark.addEventListener("mouseenter", function (event) { chooseForecast(band, false, event); });
               mark.addEventListener("mouseleave", hideInspection);

@@ -20,10 +20,9 @@
   // party-level views. The simulated parliament is moved inside the builder
   // panel below the interactive builder itself.
   function placeElectionSections() {
-    var votes = document.getElementById("election-headline");
     var alternatives = document.getElementById("election-alternatives");
     var builder = document.getElementById("election-government-builder");
-    if (!votes || !alternatives || !builder) return;
+    if (!alternatives || !builder) return;
 
     var children = Array.prototype.slice.call(app.children);
     // The page now carries the intended order in its source, so do not create
@@ -31,10 +30,6 @@
     // inline order left by a hot reload and let keyboard, screen-reader and
     // visual navigation follow the same sequence.
     children.forEach(function (child) { child.style.order = ""; });
-    root.removeAttribute("data-visual-order");
-    alternatives.setAttribute("data-visual-order", "before-forecast-history");
-    builder.setAttribute("data-visual-order", "before-forecast-history");
-    votes.setAttribute("data-visual-order", "after-forecast-history");
   }
 
   function placeParliamentAfterBuilder() {

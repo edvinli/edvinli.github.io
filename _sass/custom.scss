@@ -451,15 +451,14 @@ canvas {
   color: var(--el-ink);
 }
 
-.election-timeseries__campaign-point:focus-visible,
 .election-timeseries__origin-state-point:focus-visible,
 .election-timeseries__election-day-point:focus-visible {
   outline: 2px solid var(--el-ink);
   outline-offset: 2px;
 }
 
-// Daily campaign marks retain a real SVG hit target for mouse, touch and
-// keyboard inspection, but the fan itself carries the visual signal.
+// Daily campaign marks retain pointer/touch hit geometry, but stay hidden from
+// the accessibility tree; keyboard users use the chart-level focus target.
 .election-timeseries__campaign-point {
   opacity: 0 !important;
 }
