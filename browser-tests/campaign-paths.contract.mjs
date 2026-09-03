@@ -18,6 +18,18 @@ const fixture = JSON.parse(await readFile(join(HERE, 'fixtures', 'coalition-time
 const paths = fixture.future_campaign_paths;
 const projection = fixture.future_projection;
 const current = (fixture.series || []).filter((point) => point?.provenance === 'current_production');
+const sourcePrimarySections = [
+  'election-alternatives',
+  'election-government-builder',
+  'election-headline',
+  'election-seats',
+  'election-timeseries',
+];
+const sourcePrimarySectionPositions = sourcePrimarySections.map((id) =>
+  page.indexOf(`<section id="${id}"`));
+const campaignMarkBlock = source.match(/var mark = svgNode\("circle", \{[\s\S]*?\n\s*\}\);/)?.[0] || '';
+const originMarkBlock = source.match(/var originMark = svgNode\("rect", \{[\s\S]*?\n\s*\}\);/)?.[0] || '';
+const electionMarkBlock = source.match(/var electionMark = svgNode\("circle", \{[\s\S]*?\n\s*\}\);/)?.[0] || '';
 
 const checks = [
   // ---- consumer reads the additive object separately --------------------
@@ -88,6 +100,13 @@ const checks = [
     source.includes('futureViewPaths.setAttribute("aria-label", campaignPaths.rendering.future_region.label)') &&
     source.includes('campaignPaths.rendering.future_region.label') &&
     !source.includes('data-future-region-label')],
+  ['the primary page sections use the election-day-first source order',
+    sourcePrimarySectionPositions.every((position, index) => position >= 0 &&
+      (index === 0 || position > sourcePrimarySectionPositions[index - 1]))],
+  ['the timeline and primary future control use the final labels',
+    page.includes('<h2>Vägen till valdagen</h2>') &&
+    page.includes('aria-label="Möjliga opinionsbanor"') &&
+    />Opinionsbanor<\/button>/.test(page)],
 
   // ---- the origin quantity ----------------------------------------------
   // Path day 0 is the latent opinion state. The certified forecast point on
@@ -143,6 +162,13 @@ const checks = [
   ['band and election-day marks are accessible buttons',
     source.includes('data-campaign-point') && source.includes('data-election-day-point') &&
     source.includes('event.key === "Enter"')],
+  ['daily campaign marks are pointer targets but not tab stops',
+    campaignMarkBlock.includes('role: "button"') && !campaignMarkBlock.includes('tabindex:')],
+  ['chart-level arrow navigation remains the keyboard route to campaign days',
+    source.includes('event.target !== svg && event.target !== hit') &&
+    source.includes('event.key === "ArrowLeft" || event.key === "ArrowRight"')],
+  ['origin and election-day marks remain keyboard-accessible',
+    originMarkBlock.includes('tabindex: "0"') && electionMarkBlock.includes('tabindex: "0"')],
   ['focus is visible on all three new mark kinds',
     styles.includes('.election-timeseries__campaign-point:focus-visible') &&
     styles.includes('.election-timeseries__origin-state-point:focus-visible') &&
@@ -174,7 +200,11 @@ const checks = [
     (await readFile(join(HERE, 'select-suites.mjs'), 'utf8'))
       .includes("'campaign-paths.contract.mjs':")],
   ['the control is hidden unless both views are published',
-    source.includes('futureViewHost.hidden = !available')],
+    source.includes('futureViewHost.hidden = !available || selectedMetric === "seats"')],
+  ['mandate mode retains the election-day distribution without seat paths',
+    source.includes('selectedMetric === "seats"') &&
+    source.includes('campaignPaths.electionDay') &&
+    source.includes('selectedMetric === "vote" && visibleBandPoints.length')],
 
   // ---- the fixture the smoke test consumes ------------------------------
   ['fixture publishes the primary campaign-path object',

@@ -15,7 +15,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p class="election-hero__kicker">Sverige · Riksdagen · valprognos 2026</p>
     <dl class="election-hero__facts">
       <div class="election-hero__fact">
-        <dt>Opinionsläge</dt>
+        <dt>Underlag t.o.m.</dt>
         <dd id="election-hero-asof">—</dd>
       </div>
       <div class="election-hero__fact">
@@ -35,17 +35,17 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   <section id="election-alternatives" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Regeringsalternativ</h2>
-      <p class="election-muted">Sex möjliga regeringar på samma mandatskala. Varje rad visar kombinationens gemensamma intervall och sannolikheten att nå minst 175 mandat.</p>
+      <p class="election-muted">Sex möjliga regeringar i valdagsprognosen. Varje rad visar kombinationens gemensamma intervall och sannolikheten att nå minst 175 mandat.</p>
     </div>
     <div id="election-alternatives-rows" class="ea-rows" role="list"></div>
     <div id="election-alternatives-axis" class="ea-axis" aria-hidden="true"></div>
     <p class="election-legend-note election-muted ea-legend"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % prognosintervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % prognosintervall</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>175 mandat = majoritet</span></p>
-    <p class="ea-disclaimer">Sannolikheten avser att partierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>
+    <p class="ea-disclaimer">Sannolikheten avser att partierna tillsammans får minst 175 mandat i valdagsprognosen – inte sannolikheten att de faktiskt bildar regering.</p>
   </section>
   <section id="election-government-builder" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Bygg din egen regering</h2>
-      <p class="election-muted">Alla partier börjar i Opposition. Dra mandatblocken mellan Regering och Opposition och se hur många mandat sidorna brukar få i simuleringarna.</p>
+      <p class="election-muted">Alla partier börjar i Opposition. Dra mandatblocken mellan Regering och Opposition och se hur många mandat sidorna får i valdagsprognosen.</p>
     </div>
     <div class="eg-builder">
       <div class="eg-presets" role="group" aria-labelledby="election-builder-presets-label">
@@ -102,12 +102,36 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       </div>
     </div>
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
-    <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda regeringspartierna tillsammans får minst 175 mandat – inte sannolikheten att de faktiskt bildar regering.</p>
+    <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda regeringspartierna tillsammans får minst 175 mandat i valdagsprognosen – inte sannolikheten att de faktiskt bildar regering.</p>
+  </section>
+  <section id="election-headline" class="election-panel" hidden>
+    <div class="election-panel__head">
+      <h2>Röstandelar på valdagen</h2>
+      <p class="election-muted">Median röstandel med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Klicka på ett parti för mer information.</p>
+    </div>
+    <div id="election-party-cards" class="election-vote-rows"></div>
+    <div id="election-vote-axis" class="ev-axis"></div>
+    <p class="election-legend-note election-muted"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>4 %-spärr</span></p>
+  </section>
+  <section id="election-seats" class="election-panel" hidden>
+    <div class="election-panel__head">
+      <h2>Mandat på valdagen</h2>
+      <p class="election-muted">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349.</p>
+    </div>
+    <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
+    <div id="election-seat-axis" class="es-axis"></div>
+    <h3 class="election-subhead">Ett simulerat riksdagsutfall</h3>
+    <p class="election-muted" id="election-parliament-caption"></p>
+    <div class="election-parliament-frame">
+      <div id="election-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
+      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
+    </div>
+    <ul id="election-parliament-legend" class="ep-legend"></ul>
   </section>
   <section id="election-timeseries" class="election-panel election-timeseries" hidden>
     <div class="election-panel__head">
-      <h2>Prognos över tid</h2>
-      <p class="election-muted" id="election-timeseries-intro">Vår simulerade valprognos över tid, med enskilda mätningar som jämförelse.</p>
+      <h2>Vägen till valdagen</h2>
+      <p class="election-muted" id="election-timeseries-intro">Historisk prognos fram till i dag. Därefter visas möjliga opinionsbanor fram till valdagen.</p>
     </div>
     <div class="election-timeseries__controls">
       <div class="election-timeseries__mode" role="group" aria-label="Mått i diagrammet">
@@ -119,7 +143,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Sista 30 dagarna</button>
       </div>
       <div class="election-timeseries__future" id="election-timeseries-future" role="group" aria-label="Analys av tiden fram till valet" hidden>
-        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-paths" data-future-view="paths" aria-label="Möjliga opinionsbanor" aria-pressed="true" aria-controls="election-timeseries-svg">Banor</button>
+        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-paths" data-future-view="paths" aria-label="Möjliga opinionsbanor" aria-pressed="true" aria-controls="election-timeseries-svg">Opinionsbanor</button>
         <button type="button" class="election-timeseries__future-button election-timeseries__future-button--secondary" id="election-timeseries-future-stability" data-future-view="projection" aria-pressed="false" aria-controls="election-timeseries-svg">Kvarvarande osäkerhet</button>
       </div>
       <button type="button" class="election-timeseries__campaign-cue" id="election-timeseries-campaign-cue" aria-controls="election-timeseries-svg" hidden>Visa kampanjperioden <span aria-hidden="true">→</span></button>
@@ -140,34 +164,10 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
     </p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Mandat visas först för valdagsprognosen. Historisk mandatprognos visas fram till i dag; mellanliggande opinionsbanor översätts inte till mandat.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-seat-note" hidden>Mandat visas först för valdagsprognosen.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Röstandelar beräknas över de åtta riksdagspartierna.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>. Prognos och intervall: vår modell.</p>
-  </section>
-  <section id="election-headline" class="election-panel" hidden>
-    <div class="election-panel__head">
-      <h2>Röstandelar</h2>
-      <p class="election-muted">Median röstandel med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Klicka på ett parti för mer information.</p>
-    </div>
-    <div id="election-party-cards" class="election-vote-rows"></div>
-    <div id="election-vote-axis" class="ev-axis"></div>
-    <p class="election-legend-note election-muted"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>4 %-spärr</span></p>
-  </section>
-  <section id="election-seats" class="election-panel" hidden>
-    <div class="election-panel__head">
-      <h2>Mandat</h2>
-      <p class="election-muted">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349.</p>
-    </div>
-    <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
-    <div id="election-seat-axis" class="es-axis"></div>
-    <h3 class="election-subhead">Ett simulerat riksdagsutfall</h3>
-    <p class="election-muted" id="election-parliament-caption"></p>
-    <div class="election-parliament-frame">
-      <div id="election-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
-      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
-    </div>
-    <ul id="election-parliament-legend" class="ep-legend"></ul>
   </section>
   <section id="election-changes" class="election-panel" hidden>
     <div class="election-panel__head">
