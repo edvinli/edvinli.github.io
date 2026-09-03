@@ -69,6 +69,20 @@ const checks = [
     source.includes('campaignPaths.partyFamily === true')],
   ['party mode needs a certified point that carries party summaries',
     source.includes('certifiedPoints.length > 0')],
+  // The publisher preserves reused history points byte for byte, so an
+  // incremental publication produces a certified point with party data and
+  // reconstructed points without it. Non-empty coverage is not enough.
+  ['party mode needs the whole plotted history, not merely one point',
+    source.includes('pointsWithParties.length === points.length') &&
+    !source.includes('pointsWithParties.length > 0')],
+  // `campaignPaths` is null both when the object is absent and when it is
+  // present but rejected, so presence has to be tested separately.
+  ['a campaign-path object rejected wholesale still closes the gate',
+    source.includes('var campaignPathsUsable = !campaignPathsPresent ||') &&
+    !source.includes('(!campaignPaths || campaignPaths.partyFamily === true)')],
+  ['the refusal names its own reason in the DOM',
+    source.includes('"incomplete-history"') && source.includes('"invalid"') &&
+    source.includes('"absent"')],
   ['party opinion bands are vote-only',
     source.includes('campaignBandParties') &&
     source.includes('!Object.prototype.hasOwnProperty.call(entry, "vote")') &&
@@ -106,7 +120,10 @@ const checks = [
     source.includes('thresholdVisible') &&
     source.includes('yDomain.thresholdVisible') &&
     source.includes('thresholdPct >= domain.min && thresholdPct <= domain.max')],
-  ['the threshold nudge is bounded, so the scale is not distorted to reach it',
+  // max(0.25 pp, 15% of the visible span) -- not a strict 15% bound: the
+  // 0.25 pp floor is what keeps the reach usable when a party's visible span
+  // is itself under two points.
+  ['the threshold nudge is bounded at max(0.25 pp, 15% of span)',
     source.includes('var reach = Math.max(0.25, dataSpan * 0.15);')],
   ['the 175-seat majority rule is coalition-only',
     source.includes('selectedMetric === "seats" && viewMode !== "parties"')],
@@ -146,6 +163,11 @@ const checks = [
     source.includes('showPartyTimeline')],
   ['direct navigation scrolls, switches mode, selects and moves focus',
     /showPartyTimeline = function \(party\) \{[\s\S]*?selectTimeseriesParty\(party[\s\S]*?setViewMode\("parties"[\s\S]*?scrollIntoView[\s\S]*?\.focus\(/.test(source)],
+  // The action comes from a vote-share section, so it must land on Röstandel
+  // rather than on whatever metric the timeline was left on.
+  ['direct navigation forces the vote view and leaves the range alone',
+    /showPartyTimeline = function \(party\) \{[\s\S]*?selectedMetric = "vote";[\s\S]*?setViewMode\("parties"/.test(source) &&
+    !/showPartyTimeline = function \(party\) \{[\s\S]*?selectedRange =/.test(source)],
   ['the action stays hidden until the artifact publishes the party family',
     source.includes('enablePartyTimelineLinks') && source.includes('partyTimelineIsAvailable')],
 

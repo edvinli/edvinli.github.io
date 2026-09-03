@@ -1368,9 +1368,7 @@
       payload.future_projection.description_sv.trim()
       ? payload.future_projection.description_sv : null;
     // Party mode is offered only when every surface it needs is present and
-    // agrees. A published campaign region whose party family failed to
-    // validate disables party mode outright rather than letting the chart mix
-    // a party history with a coalition future.
+    // agrees.
     var pointsWithParties = partyDefinitions ? points.filter(function (point) {
       return partyDefinitions.every(function (definition) {
         return point.groups && point.groups[definition.id];
@@ -1379,15 +1377,33 @@
     var certifiedPoints = pointsWithParties.filter(function (point) {
       return point.provenance === "current_production";
     });
-    var partyModeAvailable = Boolean(partyDefinitions) && pointsWithParties.length > 0 &&
-      certifiedPoints.length > 0 &&
-      (!campaignPaths || campaignPaths.partyFamily === true);
+    // Coverage must be *complete*, not merely non-empty. The publisher
+    // preserves reused history points byte for byte, so a normal incremental
+    // publication can add party data to the new certified point while every
+    // reconstructed point behind it still has none. A partial family would
+    // then draw a party series that starts a few days ago and a coalition
+    // series that starts in 2022, on one axis, with nothing saying why.
+    // `points` already excludes archived prospective points, which are not
+    // plotted, so this is exactly the set the chart would draw.
+    var partyCoverageComplete = points.length > 0 &&
+      pointsWithParties.length === points.length;
+    // A published campaign region disables party mode unless its own party
+    // family validated. `campaignPaths` is null both when the object is absent
+    // and when it is present but failed normalization, so presence has to be
+    // tested separately: otherwise an object malformed badly enough to be
+    // rejected wholesale would read as "no future region published" and let
+    // party mode through.
+    var campaignPathsUsable = !campaignPathsPresent ||
+      (Boolean(campaignPaths) && campaignPaths.partyFamily === true);
+    var partyModeAvailable = Boolean(partyDefinitions) && partyCoverageComplete &&
+      certifiedPoints.length > 0 && campaignPathsUsable;
 
     return {
       partyView: partyModeAvailable ? partyView : null,
       partyDefinitions: partyModeAvailable ? partyDefinitions : null,
       partyDefinitionsDeclared: Boolean(payload.parties_view),
       partyPointCount: pointsWithParties.length,
+      partyCoverageComplete: partyCoverageComplete,
       campaignPaths: campaignPaths,
       campaignPathsPresent: campaignPathsPresent,
       secondaryProjectionDescription: secondaryProjection,
@@ -1621,6 +1637,11 @@
         // the line, so the reach needed is small; a party at 30 % never comes
         // close and the scale is left alone rather than being stretched down
         // to a line that carries no information for it.
+        //
+        // The bound is max(0.25 pp, 15 % of the visible span) -- not a strict
+        // 15 %. The floor matters: a threshold-fighting party's whole visible
+        // span can be under two points, where 15 % of it would be a fraction
+        // of a tick and the line would never be reachable at all.
         var reach = Math.max(0.25, dataSpan * 0.15);
         if (thresholdPct > domain.max && thresholdPct - domain.max <= reach) {
           domain = historySnapToTicks(domain.min, thresholdPct + padding / 2, minimumSpan);
@@ -3307,12 +3328,19 @@
     section.setAttribute("data-history-point-count", String(history.points.length));
     section.setAttribute("data-history-poll-count", String(history.polls.length));
     section.setAttribute("data-party-point-count", String(history.partyPointCount || 0));
-    if (history.partyDefinitionsDeclared && !partyModeAvailable) {
+    if (partyModeAvailable) {
+      section.setAttribute("data-party-view-state", "ready");
+    } else if (!history.partyDefinitionsDeclared) {
+      section.setAttribute("data-party-view-state", "absent");
+    } else if (!history.partyCoverageComplete) {
+      // Declared, and structurally fine, but the historical series does not
+      // carry it end to end yet. Named separately from "invalid" because the
+      // fix is a full history regeneration, not a contract repair.
+      section.setAttribute("data-party-view-state", "incomplete-history");
+    } else {
       // Declared but unusable: say so in the DOM rather than silently
       // pretending nothing was published.
       section.setAttribute("data-party-view-state", "invalid");
-    } else {
-      section.setAttribute("data-party-view-state", partyModeAvailable ? "ready" : "absent");
     }
 
     if (partyModeAvailable) {
@@ -3344,6 +3372,11 @@
       // The direct-navigation action from "Röstandelar på valdagen".
       showPartyTimeline = function (party) {
         if (!selectTimeseriesParty(party, { render: false })) return false;
+        // The action originates in "Röstandelar på valdagen", so it has to land
+        // on the vote view: arriving on a mandate history because the timeline
+        // happened to be left there answers a question the reader did not ask.
+        // The date range is the reader's own choice and is preserved.
+        selectedMetric = "vote";
         setViewMode("parties", { force: true });
         if (section.scrollIntoView) {
           section.scrollIntoView({ behavior: "smooth", block: "start" });

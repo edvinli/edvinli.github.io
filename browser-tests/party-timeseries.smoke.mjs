@@ -132,6 +132,8 @@ function readState(browser) {
       selectedParty: svg?.getAttribute('data-selected-party') || null,
       metric: svg?.getAttribute('data-metric') || null,
       range: svg?.getAttribute('data-range') || null,
+      rangePressed: ['election-timeseries-range-full', 'election-timeseries-range-short']
+        .map((id) => document.getElementById(id)?.getAttribute('aria-pressed') || null),
       yMin: Number(svg?.getAttribute('data-y-min')),
       yMax: Number(svg?.getAttribute('data-y-max')),
       yDomainMode: svg?.getAttribute('data-y-domain-mode') || null,
@@ -489,6 +491,15 @@ async function runViewport(viewport, site) {
       keyboard.detailHeadings[0].includes(large.selectedParty), keyboard.detailHeadings);
 
     // ---- direct navigation from the vote rows ----------------------------
+    // Start from Mandatandel and the election-relative range. The action comes
+    // from a vote-share section, so it must arrive on Röstandel; the range is
+    // the reader's own choice and must survive.
+    await clickId(browser, 'election-timeseries-seats');
+    await clickId(browser, 'election-timeseries-range-short');
+    await settle(260);
+    const beforeRoute = await readState(browser);
+    equal('the timeline starts in the mandate view', beforeRoute.metric, 'seats');
+    equal('the timeline starts in the election-relative range', beforeRoute.range, 'short');
     const routed = await browser.evaluate((wanted) => {
       const rows = Array.from(document.querySelectorAll('#election-party-cards .ev-head'));
       const target = rows.find((node) => (node.getAttribute('aria-label') || '').includes(wanted.name));
@@ -514,6 +525,15 @@ async function runViewport(viewport, site) {
     check('the party series really changed to the routed party',
       navigated.seriesDefinitions.length === 1 && navigated.seriesDefinitions[0] === 'L',
       navigated.seriesDefinitions);
+    equal('the action lands on the vote view it came from', navigated.metric, 'vote');
+    equal('the action preserves the range the reader chose', navigated.range, 'short');
+    equal('the range control agrees with the rendered range',
+      navigated.rangePressed, ['false', 'true']);
+    check('the routed vote view really drew the party vote series',
+      navigated.pollDefinitions.length === 1 && navigated.pollDefinitions[0] === 'L',
+      navigated.pollDefinitions);
+    await clickId(browser, 'election-timeseries-range-full');
+    await settle(260);
 
     // ---- back to coalitions, unchanged ------------------------------------
     check('the Koalitioner control responds', await clickId(browser, 'election-timeseries-view-coalitions'));
@@ -596,7 +616,7 @@ async function runFallback() {
 }
 
 // A declared-but-broken party family must not be half-rendered.
-async function runFailClosed(label, transform) {
+async function runFailClosed(label, transform, options) {
   console.log(`\nfail-closed: ${label}`);
   const site = await prepareSite(transform);
   const { server, browser } = await open(VIEWPORTS[0], site.root);
@@ -604,9 +624,21 @@ async function runFailClosed(label, transform) {
     const state = await readState(browser);
     equal('the chart stays in coalition mode', state.viewMode, 'coalitions');
     check('party mode is refused', state.partyViewState !== 'ready', state.partyViewState);
+    if (options && options.expectState) {
+      equal('the refusal names its own reason', state.partyViewState, options.expectState);
+    }
     check('the view switch is not offered', !state.viewSwitchVisible);
+    check('the party selector is not shown', !state.partyHostVisible);
     check('the coalition chart is unaffected', state.seriesDefinitions.length === 2,
       state.seriesDefinitions);
+    check('the direct-navigation action stays hidden', await browser.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('#election-party-cards .ev-head'));
+      const target = rows.find((node) =>
+        (node.getAttribute('aria-label') || '').includes('Moderaterna'));
+      if (target) target.click();
+      const button = document.querySelector('button[data-party-timeline="M"]');
+      return Boolean(button) && button.hidden === true;
+    }));
     equal('no console errors', appErrors(browser).map((entry) => entry.text), []);
   } finally {
     await closeBrowser(browser, server);
@@ -656,6 +688,38 @@ async function main() {
     delete history.future_campaign_paths.bands[2].parties;
     return history;
   });
+  // The shape a normal incremental publication produces before a full history
+  // regeneration: the certified point has party data and the reused
+  // reconstructed points behind it do not. Party mode must stay closed rather
+  // than draw a party series that starts days ago beside a coalition series
+  // that starts in 2022.
+  await runFailClosed('one reconstructed history point missing its party summaries',
+    (history) => {
+      const point = history.series.find((item) =>
+        item.provenance === 'reconstructed_current_model' && item.parties);
+      delete point.parties;
+      return history;
+    }, { expectState: 'incomplete-history' });
+  await runFailClosed('every reconstructed point missing its party summaries, as after an incremental publication',
+    (history) => {
+      history.series.forEach((point) => {
+        if (point.provenance !== 'current_production') delete point.parties;
+      });
+      return history;
+    }, { expectState: 'incomplete-history' });
+  // Not merely one party sub-block: the whole future object fails
+  // normalization, so `campaignPaths` is null exactly as it is when nothing was
+  // published. Presence has to be what closes the gate.
+  await runFailClosed('a campaign-path object that fails normalization entirely',
+    (history) => {
+      history.future_campaign_paths.model_id = 'not_the_published_model';
+      return history;
+    });
+  await runFailClosed('a campaign-path object rejected for a coalition-side rule',
+    (history) => {
+      history.future_campaign_paths.path_construction.directional_momentum = true;
+      return history;
+    });
 
   console.log(`\n${checks - failures}/${checks} checks passed`);
   if (failures) process.exit(1);
