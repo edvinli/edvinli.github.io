@@ -17,6 +17,14 @@ const source = await readFile(join(HERE, '..', 'assets', 'js', 'election-simulat
 const page = await readFile(join(HERE, '..', '_pages', 'election_simulator.md'), 'utf8');
 const styles = await readFile(join(HERE, '..', '_sass', 'custom.scss'), 'utf8');
 const fixture = JSON.parse(await readFile(join(HERE, 'fixtures', 'coalition-timeseries.json'), 'utf8'));
+const smoke = await readFile(join(HERE, 'party-timeseries.smoke.mjs'), 'utf8');
+// The real-artifact reader must be written without any knowledge of the
+// fixtures directory. Sliced out so the fixture-mode helper above it cannot
+// satisfy the check by accident.
+const realArtifactReader = smoke.slice(
+  smoke.indexOf('async function readSiteHistory'),
+  smoke.indexOf('function orderedNumbers'),
+);
 
 const PARTY_ORDER = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
 const QUANTILES = ['p05', 'p25', 'p50', 'p75', 'p95'];
@@ -186,6 +194,43 @@ const checks = [
   ['the suite is registered with the CI selector',
     (await readFile(join(HERE, 'select-suites.mjs'), 'utf8'))
       .includes("'party-timeseries.contract.mjs':")],
+
+  // ---- the two smoke modes ------------------------------------------------
+  // Fixture mode overwrites the site's history, which is what makes the
+  // mutation matrix deterministic -- and is why a release gate must not use
+  // it: `party-timeseries.smoke.mjs _site` would look reassuring while
+  // validating the committed fixture instead of the new production artifact.
+  ['the smoke suite has a real-artifact mode reachable from the command line',
+    smoke.includes("ARGV.includes('--real-artifact')") &&
+    smoke.includes("ARGV.includes('--no-fixture')") &&
+    smoke.includes('if (REAL_ARTIFACT)')],
+  ['the real-artifact reader knows nothing about the fixtures directory',
+    realArtifactReader.length > 0 && !/fixtures/.test(realArtifactReader)],
+  ['real-artifact mode neither copies nor overwrites the site',
+    (() => {
+      const body = smoke.slice(smoke.indexOf('async function runRealArtifactAt'),
+        smoke.indexOf('// Scenarios'));
+      return body.length > 0 && !/prepareSite\(|writeFile\(|cp\(/.test(body);
+    })()],
+  ['fixture mode still overwrites history, so the mutation matrix stays deterministic',
+    /async function prepareSite[\s\S]*?writeFile\(historyPath/.test(smoke)],
+  // The flat parties.json at the publication root is a frozen legacy forecast
+  // -- a different generation entirely. Falling back to it would compare a
+  // fresh history against the wrong numbers.
+  ['the certified rows come from the pointer, with no flat-file fallback',
+    smoke.includes('POINTER_RELATIVE') &&
+    smoke.includes("/^versions\\/[A-Za-z0-9_-]+$/") &&
+    !smoke.includes("join(root, PUBLICATION_DIR, 'parties.json')")],
+  ['real-artifact mode verifies the published endpoint quantiles',
+    smoke.includes('VOTE_FIELDS') && smoke.includes('SEAT_FIELDS') &&
+    smoke.includes('published forecast says')],
+  ['real-artifact mode refuses to drive the browser on an unfit artifact',
+    smoke.includes('skipping the browser phase')],
+  ['real-artifact mode reuses the one happy path rather than a second copy',
+    /runRealArtifactAt[\s\S]*?await runViewport\(viewport, \{ root: root/.test(smoke)],
+  ['the mode is self-tested on every default run',
+    smoke.includes('await selfTestRealArtifactMode();') &&
+    smoke.includes('real-artifact mode rejects ')],
 
   // ---- the fixture the smoke test consumes -------------------------------
   ['fixture declares the party family',

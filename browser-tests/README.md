@@ -36,7 +36,8 @@ node browser-tests/alternatives.smoke.mjs
 node browser-tests/forecast-timeseries.smoke.mjs
 node browser-tests/histogram-copy.smoke.mjs
 node browser-tests/equations.smoke.mjs
-node browser-tests/party-timeseries.smoke.mjs
+node browser-tests/party-timeseries.smoke.mjs              # fixture mode
+node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
 node browser-tests/campaign-paths.contract.mjs      # static, no browser
 node browser-tests/future-projection.contract.mjs   # static, no browser
 node browser-tests/party-timeseries.contract.mjs    # static, no browser
@@ -225,7 +226,72 @@ and 360 px mobile widths:
   party;
 - no horizontal overflow and zero console errors in both modes.
 
-It also owns the fallback and fail-closed matrix. A publication with **no**
+### Fixture mode vs real-artifact mode — read this before wiring a gate
+
+`party-timeseries.smoke.mjs` has two modes, and confusing them produces a
+green run that proves nothing.
+
+**Fixture mode (default)** overlays `fixtures/coalition-timeseries.json` onto a
+throwaway copy of the built site. That overwrite is deliberate: it is what
+makes the mutation and fail-closed matrix deterministic, since every scenario
+is a controlled edit of a known artifact. It must stay exactly as it is.
+
+The consequence is that in fixture mode the suite **ignores the history the
+site you pass it actually ships**. So
+
+```sh
+node browser-tests/party-timeseries.smoke.mjs _site     # validates the FIXTURE
+```
+
+looks like it validates a freshly generated production history and does not.
+
+**Real-artifact mode** is the one that does:
+
+```sh
+node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
+```
+
+It copies nothing and overwrites nothing. It reads the history the site ships,
+and refuses to drive the browser at all unless that artifact passes every
+precondition for exposing the party view: `parties_view` present and valid;
+**every plotted non-archived history point** carrying all eight parties with
+integral seats; exactly one certified `current_production` point; campaign
+bands daily, complete and vote-only; representative trajectories carrying all
+eight party tracks; no intermediate party mandate trajectory in the data or in
+either declaration; `election_day.parties` identical to the certified point; no
+poll or Poll-of-Polls value after the origin; and every published party
+endpoint quantile equal to the publication's own `parties.json`.
+
+That last check resolves `parties.json` **through `current.json`, with no
+fallback**. The flat `files/election-simulator/parties.json` at the publication
+root is a frozen pre-versioning artifact from a different forecast — it still
+reports M at 18.621 where the pointer-resolved generation reports 18.087 — so
+falling back to it would compare a fresh history against the wrong numbers.
+A missing or malformed pointer is an error.
+
+It also compares the history's `publication_generation` against the pointer's,
+so a history generated from a different run than the live publication fails
+with `the artifact and the publication are out of step` rather than passing on
+numbers that happen to be close.
+
+Two consequences worth stating:
+
+- **The publication gate must use the real-artifact form.** The fixture-mode
+  command would gate every future publication against a committed fixture.
+- **Real-artifact mode fails today, correctly.** The currently published
+  history carries no party family, so it reports `parties_view is absent: … A
+  full history regeneration (without --resume) is what creates it.` and exits
+  non-zero. That is the signal that the backfill has not happened yet.
+
+The mode is self-tested on every default run: `selfTestRealArtifactMode()`
+breaks each precondition in turn and requires the matching finding, proves the
+reader returns the site's history rather than the fixture, proves a missing
+pointer is an error rather than a flat-file fallback, and then drives the real
+browser happy path from a site whose genuine history is a complete artifact.
+
+### The fallback and fail-closed matrix
+
+Fixture mode owns this. A publication with **no**
 party family renders exactly the old page with the switch absent and the
 `Visa utveckling` action hidden. A publication whose party family is declared
 but broken — an election-day party value drifting from the certified point, a

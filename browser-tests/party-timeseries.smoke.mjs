@@ -1,14 +1,24 @@
 // Real-browser smoke test for the per-party view of "Vägen till valdagen".
 //
-// It consumes the same static history artifact the page consumes and never
-// invents expected values: the fixture is read first, and everything the
-// browser draws is checked against it. Coalition mode is asserted to be
-// unchanged, because the whole point of the switch is that the default
-// experience did not move.
+// Two modes, and the difference matters for release validation.
+//
+// FIXTURE MODE (default) overlays browser-tests/fixtures/coalition-timeseries.json
+// onto a throwaway copy of the built site. That is what makes the mutation and
+// fail-closed matrix deterministic -- every scenario is a controlled edit of a
+// known artifact -- and it is why the default must keep overwriting history.
+//
+// REAL-ARTIFACT MODE (--real-artifact, or --no-fixture to match the screenshot
+// helper) reads the history the supplied site actually ships, copies nothing
+// and overwrites nothing, and validates it before driving the browser against
+// it. This is the mode that proves a *newly generated production artifact*
+// works: in fixture mode `party-timeseries.smoke.mjs _site` would look
+// reassuring while testing the committed fixture, so the publication gate must
+// use the real-artifact form.
 //
 // Usage:
 //   jekyll build --config _config.yml,_config.dev.yml
 //   node browser-tests/party-timeseries.smoke.mjs [path/to/_site]
+//   node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
 
 import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
@@ -19,10 +29,21 @@ import { launch } from './cdp.mjs';
 import { serve } from './server.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SITE = resolve(process.argv[2] || join(HERE, '..', '_site'));
+const ARGV = process.argv.slice(2);
+// Position-independent, so both `_site --real-artifact` and
+// `--real-artifact _site` work; the gate will use the former.
+const REAL_ARTIFACT = ARGV.includes('--real-artifact') || ARGV.includes('--no-fixture');
+const SITE = resolve(ARGV.find((value) => !value.startsWith('--')) || join(HERE, '..', '_site'));
 const PAGE = '/election-simulator/';
-const HISTORY_RELATIVE = join('files', 'election-simulator', 'history', 'coalition-timeseries.json');
+const PUBLICATION_DIR = join('files', 'election-simulator');
+const HISTORY_RELATIVE = join(PUBLICATION_DIR, 'history', 'coalition-timeseries.json');
+const POINTER_RELATIVE = join(PUBLICATION_DIR, 'current.json');
 const PARTY_ORDER = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
+const QUANTILES = ['p05', 'p25', 'p50', 'p75', 'p95'];
+// parties.json field names for the five published quantiles.
+const VOTE_FIELDS = ['vote_share_p05', 'vote_share_p25', 'vote_share_median',
+  'vote_share_p75', 'vote_share_p95'];
+const SEAT_FIELDS = ['seats_p05', 'seats_p25', 'seats_median', 'seats_p75', 'seats_p95'];
 const VIEWPORTS = [
   { name: 'desktop (1280x1000)', diagnostic: 'desktop', width: 1280, height: 1000, coarse: false },
   { name: 'narrow-360 (360x900)', diagnostic: 'mobile', width: 360, height: 900, coarse: true },
@@ -59,9 +80,10 @@ async function closeBrowser(browser, server) {
   if (failure) throw failure.reason;
 }
 
-// The published artifact does not carry the party family until the simulator
-// side ships, so the interaction contract is exercised against the committed
-// fixture in a throwaway copy of _site. The checkout is never modified.
+// FIXTURE MODE ONLY. This deliberately overwrites the site's history with the
+// committed fixture, which is what makes the mutation matrix deterministic --
+// and is exactly why it must never be the path a release gate takes. See
+// readSiteHistory() for the real-artifact path.
 async function prepareSite(transform = (history) => history) {
   const fixturePath = join(HERE, 'fixtures', 'coalition-timeseries.json');
   const history = transform(structuredClone(JSON.parse(await readFile(fixturePath, 'utf8'))));
@@ -273,6 +295,239 @@ function thresholdNearParty(history) {
   const point = certifiedPoint(history);
   return PARTY_ORDER.reduce((best, party) =>
     (best === null || point.parties[party].vote.p50 < point.parties[best].vote.p50 ? party : best), null);
+}
+
+// ---------------------------------------------------------------------------
+// Real-artifact mode
+// ---------------------------------------------------------------------------
+
+// Reads the history the site actually ships. No copy, no overwrite, and
+// deliberately no knowledge of browser-tests/fixtures/.
+async function readSiteHistory(root) {
+  return JSON.parse(await readFile(join(root, HISTORY_RELATIVE), 'utf8'));
+}
+
+// Resolves the certified party rows through the publication pointer.
+//
+// The flat `files/election-simulator/parties.json` at the publication root is
+// a *frozen legacy* artifact from before the versioned layout -- for the
+// current checkout it still reports M at 18.621 while the pointer-resolved
+// generation reports 18.087. Falling back to it would compare a fresh history
+// against numbers from a different forecast entirely, which is precisely the
+// kind of false reassurance this mode exists to prevent. So the pointer is
+// required and there is no fallback.
+async function readCertifiedPartyRows(root) {
+  const pointer = JSON.parse(await readFile(join(root, POINTER_RELATIVE), 'utf8'));
+  const path = String(pointer.path || '');
+  if (!/^versions\/[A-Za-z0-9_-]+$/.test(path)) {
+    throw new Error(`publication pointer has a malformed path: ${JSON.stringify(pointer.path)}`);
+  }
+  const parties = JSON.parse(
+    await readFile(join(root, PUBLICATION_DIR, path, 'parties.json'), 'utf8'),
+  );
+  const rows = {};
+  (parties.parties || []).forEach((row) => { rows[String(row.party)] = row; });
+  return { generation: String(pointer.publication_generation || ''), path, rows };
+}
+
+function orderedNumbers(entry) {
+  if (!entry || typeof entry !== 'object') return false;
+  const values = QUANTILES.map((key) => entry[key]);
+  return values.every((value, index) => typeof value === 'number' && Number.isFinite(value) &&
+    (index === 0 || value >= values[index - 1]));
+}
+
+// Everything the published artifact must satisfy before the UI may expose the
+// party view. Returns a list of failures so it can be self-tested directly,
+// without a browser and without a port.
+function validateRealArtifact(history, certified) {
+  const problems = [];
+  const fail = (message) => problems.push(message);
+
+  const view = history?.parties_view;
+  if (!view || typeof view !== 'object') {
+    fail('parties_view is absent: the published history carries no party family. ' +
+      'A full history regeneration (without --resume) is what creates it.');
+    return problems;
+  }
+  if (view.schema_version !== '1.0') fail(`parties_view.schema_version is ${view.schema_version}`);
+  if (view.role !== 'party_time_series') fail(`parties_view.role is ${view.role}`);
+  if (view.vote_share_denominator !== 'all_nine_model_categories_including_rest') {
+    fail(`parties_view.vote_share_denominator is ${view.vote_share_denominator}`);
+  }
+  if (view.vote_share_definition !== 'national_vote_share') {
+    fail(`parties_view.vote_share_definition is ${view.vote_share_definition}`);
+  }
+  if (view.seat_definition !== 'statutory_mandate_allocation') {
+    fail(`parties_view.seat_definition is ${view.seat_definition}`);
+  }
+  if (view.rest_is_a_party !== false) fail('parties_view declares REST as a party');
+  if (view.intermediate_seat_trajectory !== false) {
+    fail('parties_view declares an intermediate seat trajectory');
+  }
+  if (view.national_threshold_pct !== 4) {
+    fail(`parties_view.national_threshold_pct is ${view.national_threshold_pct}`);
+  }
+  if (view.election_day_parity?.reconstructed_from_coalitions !== false) {
+    fail('parties_view does not disclaim reconstruction from coalition data');
+  }
+  if (JSON.stringify(view.party_order) !== JSON.stringify(PARTY_ORDER)) {
+    fail(`parties_view.party_order is ${JSON.stringify(view.party_order)}`);
+  }
+  if (JSON.stringify(Object.keys(view.party_names_sv || {})) !== JSON.stringify(PARTY_ORDER)) {
+    fail('parties_view.party_names_sv does not name the eight parties in order');
+  }
+
+  // Coverage over the *plotted* set. Archived prospective points are not
+  // drawn, so they are not required to carry the family -- which is also the
+  // boundary the consumer uses.
+  const series = Array.isArray(history.series) ? history.series : [];
+  const plotted = series.filter((point) => point?.provenance !== 'prospective_archived');
+  if (!plotted.length) fail('the history has no plotted points');
+  const missing = plotted.filter((point) => {
+    const parties = point?.parties;
+    if (!parties || typeof parties !== 'object') return true;
+    return !PARTY_ORDER.every((party) =>
+      orderedNumbers(parties[party]?.vote) && orderedNumbers(parties[party]?.seats) &&
+      QUANTILES.every((key) => Number.isInteger(parties[party].seats[key])));
+  });
+  if (missing.length) {
+    fail(`${missing.length} of ${plotted.length} plotted history points lack complete party ` +
+      `summaries (first: ${missing[0]?.date}, last: ${missing[missing.length - 1]?.date}). ` +
+      'A resumed generation cannot create them: it preserves reused points byte for byte.');
+  }
+
+  const current = plotted.filter((point) => point?.provenance === 'current_production');
+  if (current.length !== 1) {
+    fail(`expected exactly one current_production point, found ${current.length}`);
+  }
+
+  const paths = history.future_campaign_paths;
+  if (paths) {
+    const bands = Array.isArray(paths.bands) ? paths.bands : [];
+    if (bands.length !== paths.path_days + 1) {
+      fail(`campaign bands cover ${bands.length} days, expected ${paths.path_days + 1}`);
+    }
+    const badBands = bands.filter((band) => {
+      const parties = band?.parties;
+      if (!parties) return true;
+      return !PARTY_ORDER.every((party) => {
+        const entry = parties[party];
+        return entry && Object.keys(entry).length === 1 && orderedNumbers(entry.vote);
+      });
+    });
+    if (badBands.length) {
+      fail(`${badBands.length} campaign band(s) lack complete vote-only party bands`);
+    }
+    // No intermediate party mandate trajectory, asserted on the data and on
+    // both declarations.
+    const seatedBands = bands.filter((band) =>
+      PARTY_ORDER.some((party) => band?.parties?.[party]?.seats));
+    if (seatedBands.length) {
+      fail(`${seatedBands.length} campaign band(s) publish party seat quantiles`);
+    }
+    if (paths.rendering?.party_intermediate_seat_trajectory !== false) {
+      fail('rendering does not disclaim an intermediate party mandate trajectory');
+    }
+    if (JSON.stringify(paths.rendering?.party_units) !== JSON.stringify(['vote'])) {
+      fail(`rendering.party_units is ${JSON.stringify(paths.rendering?.party_units)}`);
+    }
+    if (paths.path_construction?.party_vote_share_denominator !==
+        'all_nine_model_categories_including_rest') {
+      fail('path_construction does not declare the nine-category party denominator');
+    }
+    const tracks = Array.isArray(paths.paths?.series) ? paths.paths.series : [];
+    if (!tracks.length) fail('no representative campaign trajectories are published');
+    const badTracks = tracks.filter((track) => !PARTY_ORDER.every((party) =>
+      Array.isArray(track?.party_values?.[party]) &&
+      track.party_values[party].length === paths.path_days + 1 &&
+      track.party_values[party].every((value) =>
+        typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100)));
+    if (badTracks.length) {
+      fail(`${badTracks.length} representative trajectory/ies lack complete party tracks`);
+    }
+    if (current.length === 1 &&
+        JSON.stringify(paths.election_day?.parties) !== JSON.stringify(current[0].parties)) {
+      fail('election_day.parties is not identical to the certified current_production point');
+    }
+    // The future region is simulated, not measured.
+    const origin = String(paths.origin_date || '');
+    const futurePolls = (history.polls || []).filter((poll) => poll.publication_date > origin);
+    const futurePop = (history.poll_of_polls || []).filter((item) => item.date > origin);
+    if (futurePolls.length || futurePop.length) {
+      fail(`${futurePolls.length} poll(s) and ${futurePop.length} Poll-of-Polls value(s) are ` +
+        `dated after the origin ${origin}`);
+    }
+    if (paths.endpoint_parity?.verified === true &&
+        paths.endpoint_parity.max_abs_vote_share_difference_pp !== 0) {
+      fail('endpoint parity is verified but reports a non-zero difference');
+    }
+  }
+
+  // The published party endpoint quantiles must be the certified forecast's
+  // own. History keeps six decimals and parties.json three, so votes are
+  // compared at the coarser published precision and seats exactly.
+  if (certified && current.length === 1) {
+    const generation = String(current[0].publication_generation || '');
+    if (generation && certified.generation && generation !== certified.generation) {
+      fail(`the history's certified point is generation ${generation} but the publication ` +
+        `pointer resolves ${certified.generation}: the artifact and the publication are out of step`);
+    }
+    PARTY_ORDER.forEach((party) => {
+      const row = certified.rows[party];
+      if (!row) {
+        fail(`${certified.path}/parties.json has no row for ${party}`);
+        return;
+      }
+      const entry = current[0].parties?.[party];
+      if (!entry) return;
+      QUANTILES.forEach((key, index) => {
+        const published = Number(row[VOTE_FIELDS[index]]);
+        const actual = Math.round(entry.vote[key] * 1000) / 1000;
+        if (Math.abs(actual - published) > 1e-9) {
+          fail(`${party} endpoint vote ${key} is ${actual}, published forecast says ${published}`);
+        }
+        const publishedSeats = Number(row[SEAT_FIELDS[index]]);
+        if (entry.seats[key] !== publishedSeats) {
+          fail(`${party} endpoint seats ${key} is ${entry.seats[key]}, ` +
+            `published forecast says ${publishedSeats}`);
+        }
+      });
+    });
+  }
+  return problems;
+}
+
+function runRealArtifact() {
+  return runRealArtifactAt(SITE, 'real-artifact mode');
+}
+
+async function runRealArtifactAt(root, label) {
+  console.log(`\n${label}: ${root}`);
+  const history = await readSiteHistory(root);
+  let certified = null;
+  try {
+    certified = await readCertifiedPartyRows(root);
+    console.log(`  publication pointer -> ${certified.path}`);
+  } catch (error) {
+    check(`the publication pointer resolves its parties.json (${error.message})`, false);
+  }
+  const problems = validateRealArtifact(history, certified);
+  problems.forEach((problem) => check(`artifact: ${problem}`, false));
+  check('the published history satisfies every party-view precondition',
+    problems.length === 0);
+  if (problems.length) {
+    console.log('\n  skipping the browser phase: the artifact is not fit to expose.');
+    return;
+  }
+  const plotted = history.series.filter((point) => point?.provenance !== 'prospective_archived');
+  console.log(`  ${plotted.length} plotted points, all eight parties, ` +
+    `election day verified against ${certified?.path}`);
+  // The identical browser checks fixture mode runs, against the real site.
+  // One happy path, not two: a second implementation would drift.
+  for (const viewport of VIEWPORTS) {
+    await runViewport(viewport, { root: root, history: history });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -646,7 +901,192 @@ async function runFailClosed(label, transform, options) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Proving real-artifact mode is not vacuous
+// ---------------------------------------------------------------------------
+
+// Seeds ONLY the history into a throwaway copy of the site, leaving the real
+// publication bundle untouched.
+//
+// It deliberately does not fabricate a matching parties.json: the bundle is
+// hash-validated end to end by the frozen publication subsystem, so a
+// hand-written version directory would be rejected, `renderVotes` would never
+// run, and the browser phase would be testing a broken page rather than the
+// party view. The parity comparator is proven separately, against certified
+// rows built in memory.
+async function seedRealHistory(history) {
+  const root = await mkdtemp(join(tmpdir(), 'party-real-site-'));
+  await cp(SITE, root, { recursive: true });
+  const historyPath = join(root, HISTORY_RELATIVE);
+  await mkdir(dirname(historyPath), { recursive: true });
+  await writeFile(historyPath, `${JSON.stringify(history)}\n`);
+  return { root, cleanup: () => rm(root, { recursive: true, force: true }) };
+}
+
+// The certified rows a coherent publication of this history would carry.
+function certifiedRowsFor(history, generation) {
+  const current = certifiedPoint(history);
+  const rows = {};
+  PARTY_ORDER.forEach((party) => {
+    const entry = current.parties[party];
+    const row = { party };
+    QUANTILES.forEach((key, index) => {
+      row[VOTE_FIELDS[index]] = Math.round(entry.vote[key] * 1000) / 1000;
+      row[SEAT_FIELDS[index]] = entry.seats[key];
+    });
+    rows[party] = row;
+  });
+  return { generation: generation, path: `versions/${generation}`, rows: rows };
+}
+
+async function selfTestRealArtifactMode() {
+  console.log('\nself-test: real-artifact mode');
+  const authentic = JSON.parse(
+    await readFile(join(HERE, 'fixtures', 'coalition-timeseries.json'), 'utf8'),
+  );
+  const GENERATION = '29990101T000000Z-selftest';
+  const complete = structuredClone(authentic);
+  certifiedPoint(complete).publication_generation = GENERATION;
+  const certified = certifiedRowsFor(complete, GENERATION);
+
+  // ---- the comparator, on its passing path --------------------------------
+  equal('a complete artifact passes with no findings',
+    validateRealArtifact(complete, certified), []);
+
+  // ---- every precondition, broken one at a time ---------------------------
+  // `expect` is a substring the finding must mention, so a mutation cannot be
+  // "caught" by an unrelated check firing.
+  const mutations = [
+    ['no party family at all', (h) => { delete h.parties_view; }, 'parties_view is absent'],
+    ['one plotted point missing its parties', (h) => {
+      delete h.series.find((point) =>
+        point.provenance === 'reconstructed_current_model' && point.parties).parties;
+    }, 'lack complete party summaries'],
+    ['every reconstructed point missing its parties', (h) => {
+      h.series.forEach((point) => {
+        if (point.provenance !== 'current_production') delete point.parties;
+      });
+    }, 'lack complete party summaries'],
+    ['a party seat quantile published as a non-integer', (h) => {
+      certifiedPoint(h).parties.M.seats.p50 = 66.5;
+    }, 'lack complete party summaries'],
+    ['a second certified point', (h) => {
+      const clone = structuredClone(certifiedPoint(h));
+      clone.date = '2026-09-04';
+      h.series.push(clone);
+    }, 'exactly one current_production'],
+    ['a campaign band without party bands', (h) => {
+      delete h.future_campaign_paths.bands[2].parties;
+    }, 'lack complete vote-only party bands'],
+    ['party seats inside a campaign band', (h) => {
+      h.future_campaign_paths.bands[1].parties.M.seats =
+        { p05: 1, p25: 2, p50: 3, p75: 4, p95: 5 };
+    }, 'publish party seat quantiles'],
+    ['a declared intermediate mandate trajectory', (h) => {
+      h.future_campaign_paths.rendering.party_intermediate_seat_trajectory = true;
+    }, 'intermediate party mandate trajectory'],
+    ['a representative trajectory without party tracks', (h) => {
+      delete h.future_campaign_paths.paths.series[0].party_values;
+    }, 'lack complete party tracks'],
+    ['a truncated campaign band range', (h) => { h.future_campaign_paths.bands.pop(); },
+      'campaign bands cover'],
+    ['an election-day party value that drifts from the certified point', (h) => {
+      h.future_campaign_paths.election_day.parties.M.vote.p50 += 0.5;
+    }, 'not identical to the certified'],
+    ['a renormalized denominator', (h) => {
+      h.parties_view.vote_share_denominator = 'eight_parliamentary_parties';
+    }, 'vote_share_denominator'],
+    ['REST declared as a party', (h) => { h.parties_view.rest_is_a_party = true; },
+      'declares REST as a party'],
+    ['uncertainty declared as reconstructed from coalitions', (h) => {
+      h.parties_view.election_day_parity.reconstructed_from_coalitions = true;
+    }, 'reconstruction from coalition data'],
+    ['a poll dated after the origin', (h) => {
+      const poll = structuredClone(h.polls[h.polls.length - 1]);
+      poll.poll_id = 'selftest-future';
+      poll.publication_date = h.election_date;
+      h.polls.push(poll);
+    }, 'dated after the origin'],
+    ['a non-zero verified endpoint parity difference', (h) => {
+      h.future_campaign_paths.endpoint_parity.max_abs_vote_share_difference_pp = 0.001;
+    }, 'non-zero difference'],
+    ['a history from a different generation than the pointer', (h) => {
+      certifiedPoint(h).publication_generation = '19990101T000000Z-elsewhere';
+    }, 'out of step'],
+    ['an endpoint vote quantile that disagrees with parties.json', (h) => {
+      certifiedPoint(h).parties.S.vote.p50 += 0.25;
+      h.future_campaign_paths.election_day.parties.S.vote.p50 += 0.25;
+    }, 'published forecast says'],
+    ['an endpoint seat quantile that disagrees with parties.json', (h) => {
+      certifiedPoint(h).parties.S.seats.p50 += 3;
+      h.future_campaign_paths.election_day.parties.S.seats.p50 += 3;
+    }, 'published forecast says'],
+  ];
+  for (const [label, mutate, expect] of mutations) {
+    const broken = structuredClone(complete);
+    mutate(broken);
+    const found = validateRealArtifact(broken, certified);
+    check(`real-artifact mode rejects ${label}`,
+      found.some((problem) => problem.includes(expect)), { expect, found });
+  }
+
+  // ---- the pointer resolution, including its refusal to fall back ---------
+  const real = await readCertifiedPartyRows(SITE);
+  check('the pointer resolves the real publication and yields all nine rows',
+    /^versions\//.test(real.path) &&
+    PARTY_ORDER.every((party) => Boolean(real.rows[party])) && Boolean(real.rows.REST),
+    { path: real.path, rows: Object.keys(real.rows) });
+  const pointerless = await seedRealHistory(complete);
+  try {
+    // The frozen flat parties.json at the publication root is a *different
+    // forecast*. Silently falling back to it is the exact false reassurance
+    // this mode exists to prevent, so its absence must be an error.
+    await rm(join(pointerless.root, POINTER_RELATIVE));
+    let threw = false;
+    try {
+      await readCertifiedPartyRows(pointerless.root);
+    } catch { threw = true; }
+    check('a missing pointer is an error, never a fall back to the frozen flat file', threw);
+    await writeFile(join(pointerless.root, POINTER_RELATIVE),
+      JSON.stringify({ publication_generation: 'x', path: '../escape' }));
+    let rejected = false;
+    try {
+      await readCertifiedPartyRows(pointerless.root);
+    } catch { rejected = true; }
+    check('a malformed pointer path is rejected', rejected);
+  } finally {
+    await pointerless.cleanup();
+  }
+
+  // ---- the plumbing and the browser phase, end to end --------------------
+  const marker = structuredClone(complete);
+  marker.model_commit = 'f'.repeat(40);
+  const site = await seedRealHistory(marker);
+  try {
+    const readBack = await readSiteHistory(site.root);
+    equal('the reader returns the site history, not the committed fixture',
+      readBack.model_commit, 'f'.repeat(40));
+    check('the committed fixture is a different artifact, so that check can fail',
+      authentic.model_commit !== 'f'.repeat(40));
+    equal('the site-read history validates structurally',
+      validateRealArtifact(readBack, null), []);
+    // The real browser happy path, driven from a site whose *genuine* history
+    // is a complete party artifact. Desktop only: the mobile pass is already
+    // covered above on the same content, and this is about the plumbing.
+    await runViewport(VIEWPORTS[0], { root: site.root, history: readBack });
+  } finally {
+    await site.cleanup();
+  }
+}
+
 async function main() {
+  if (REAL_ARTIFACT) {
+    await diagnostic(`real-artifact site=${SITE}`);
+    await runRealArtifact();
+    console.log(`\n${checks - failures}/${checks} checks passed`);
+    if (failures) process.exit(1);
+    return;
+  }
   await diagnostic(`site=${SITE}`);
   const site = await prepareSite();
   check('the fixture publishes the party family', Boolean(site.history.parties_view));
@@ -720,6 +1160,8 @@ async function main() {
       history.future_campaign_paths.path_construction.directional_momentum = true;
       return history;
     });
+
+  await selfTestRealArtifactMode();
 
   console.log(`\n${checks - failures}/${checks} checks passed`);
   if (failures) process.exit(1);
