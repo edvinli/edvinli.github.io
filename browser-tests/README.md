@@ -38,8 +38,6 @@ node browser-tests/histogram-copy.smoke.mjs
 node browser-tests/equations.smoke.mjs
 node browser-tests/party-timeseries.smoke.mjs              # fixture mode
 node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
-node browser-tests/campaign-paths.contract.mjs      # static, no browser
-node browser-tests/future-projection.contract.mjs   # static, no browser
 node browser-tests/party-timeseries.contract.mjs    # static, no browser
 ```
 
@@ -171,30 +169,27 @@ inspection, provenance copy, horizontal overflow, and browser errors. It uses
 the built history artifact when present and otherwise installs its dedicated
 fixture only in a temporary copy of `_site`.
 
-It also owns the **coherent campaign-path** future region
-(`future_campaign_paths`), the primary future view:
+It also owns the chart's single claim — **each point is the forecast as it was
+known on its date, and the last point is the forecast today**:
 
-- the distinctly shaded future region labelled **Möjliga opinionsbanor**, its
-  faint individual trajectories, its 50 % and 90 % predictive bands, and the
-  emphasized election-day distribution labelled **Valdagsprognos**;
-- the separate **Opinionsläge i dag** origin marker for path day 0. It is a
-  different quantity from the certified forecast point on the same date — the
-  latent opinion state, before ElectionNoise — so it is drawn as its own
-  interval and the fan emanates from it, never from the forecast dot;
-- `Sedan 2022` remains the opening range; `Visa kampanjperioden` is the
-  discoverability cue that switches to the election-relative window where the
-  future region is legible;
-- `Mandatandel` hides the future-view selector and draws **no** intermediate
-  opinion paths, bands or origin marker — only the election-day seat
-  distribution — and says why;
-- pointer, click, focus, `Enter` and `Space` on all three new mark kinds, with
-  the published Swedish copy in the detail panel;
-- the `Kvarvarande osäkerhet` control switching to the demoted
-  shrinking-horizon fan and back;
-- fail-safe scenarios: a missing object, an election-day distribution that
-  drifts from the certified production point, a declared intermediate seat
-  trajectory, a declared daily random walk, and a trajectory ending after the
-  origin all fall back to the historical chart with no campaign marks.
+- `assertNoForwardView` is run in both metrics and both ranges. It requires
+  that no forward-view control is in the page, that neither the section nor the
+  SVG carries a `data-future-*` / `data-campaign-*` attribute, that none of the
+  mark kinds the chart used to draw past today is present, that the x-axis ends
+  on a published date strictly before election day, and that no copy explains a
+  removed forward view;
+- `Sedan 2022` is the opening range and `Sista 30 dagarna` is the 30 days up
+  to the latest published forecast — not the 30 days before election day, which
+  would leave a third of the plot empty;
+- Röstandel gets a data-driven window in the short range
+  (`data-y-domain-mode="adaptive-short-window"`); Mandatandel stays anchored on
+  the 175-seat rule in both ranges;
+- `exerciseUnusedForwardArtifacts` is the load-bearing one. The publication
+  still carries `future_projection` and `future_campaign_paths` — dropping them
+  is a simulator change the website change deliberately did not make — so the
+  contract is not "the objects are gone" but "the page does not read them": a
+  publication carrying both must render an identical
+  `historicalFingerprint` to one carrying neither.
 
 ### 7. `party-timeseries.smoke.mjs` — the per-party view
 
@@ -210,15 +205,15 @@ and 360 px mobile widths:
 - party poll dots equal to the **published** party number, not a
   renormalization — the check that catches the ~2 % denominator error that
   would otherwise move every party away from the 4 % line;
-- the election-day party distribution equal to the certified `parties.json`
-  values that the artifact carries on its `current_production` point;
+- the last drawn party point being the certified `current_production` forecast,
+  value for value;
 - the adaptive party y-domain: tighter in `Sista 30 dagarna` than in
   `Sedan 2022`, readable tick counts, and every drawn forecast point and poll
   dot inside the visible domain;
 - the 4 %-spärr drawn for a threshold-near party and **absent** for a large
   one, with the scale not stretched to reach it;
-- `Mandatandel` drawing the election-day seat distribution and the future
-  shading but **no** intermediate party mandate paths, bands or origin marker;
+- `Mandatandel` drawing the historical party mandate series and nothing beyond
+  the latest forecast;
 - party selection surviving a metric change and a range change;
 - `Visa utveckling →` routing: scroll, switch to `Partier`, select that party,
   and land focus on the chart's own party pill;
@@ -255,11 +250,8 @@ It copies nothing and overwrites nothing. It reads the history the site ships,
 and refuses to drive the browser at all unless that artifact passes every
 precondition for exposing the party view: `parties_view` present and valid;
 **every plotted non-archived history point** carrying all eight parties with
-integral seats; exactly one certified `current_production` point; campaign
-bands daily, complete and vote-only; representative trajectories carrying all
-eight party tracks; no intermediate party mandate trajectory in the data or in
-either declaration; `election_day.parties` identical to the certified point; no
-poll or Poll-of-Polls value after the origin; and every published party
+integral seats; exactly one certified `current_production` point; no
+intermediate party mandate trajectory declared; and every published party
 endpoint quantile equal to the publication's own `parties.json`.
 
 That last check resolves `parties.json` **through `current.json`, with no
@@ -294,11 +286,12 @@ browser happy path from a site whose genuine history is a complete artifact.
 Fixture mode owns this. A publication with **no**
 party family renders exactly the old page with the switch absent and the
 `Visa utveckling` action hidden. A publication whose party family is declared
-but broken — an election-day party value drifting from the certified point, a
-seat quantile inside an opinion band, a declared intermediate mandate
-trajectory, a renormalized denominator, uncertainty declared as reconstructed
-from coalitions, or one campaign day missing its party bands — refuses party
-mode outright and leaves the coalition view untouched.
+but broken — a renormalized denominator, uncertainty declared as reconstructed
+from coalitions, or the plotted history not carrying the family end to end —
+refuses party mode outright and leaves the coalition view untouched. It also
+owns `runUnreadForwardArtifact`: a malformed or absent `future_campaign_paths`
+is inert, since the chart no longer reads it, so party mode stays available and
+no mark appears.
 
 ### 8. `party-timeseries.contract.mjs` — static per-party contract
 
@@ -307,25 +300,25 @@ Runs without a browser. Asserts that the fail-closed rules are present in
 to reconstruct party uncertainty from coalition data, the all-or-nothing party
 family, the bounded threshold nudge), that there is exactly **one** chart
 renderer and one definition namespace rather than a second pipeline, that the
-page markup puts the view switch first in the control order, and that the
-committed fixture publishes a well-formed party family whose party ids never
-leak into the coalition `groups`.
-
-### 9. `campaign-paths.contract.mjs` — static campaign-path contract
-
-Runs without a browser. It asserts that the *rules* the deployed consumer
-enforces are present in `assets/js/election-simulator.js` — bitwise endpoint
-parity, the leakage boundary, the rejected-alternative disclaimers, vote-only
-bands, the accessible mark kinds — so a refactor cannot quietly drop a
-fail-closed check and still pass a happy-path smoke test. It also validates the
-committed fixture.
+page markup puts the view switch first in the control order, that no
+forward-looking artifact is read and no forward view control remains in the
+markup, and that the committed fixture publishes a well-formed party family
+whose party ids never leak into the coalition `groups`.
 
 #### Regenerating the history fixture
 
 `fixtures/coalition-timeseries.json` is the real published artifact with a
 `future_campaign_paths` object built by the simulator repository, so the
-browser test consumes authentic 100 000-draw numbers. Regenerate it from an
-`edvinli/election-simulator` checkout:
+browser test consumes authentic 100 000-draw numbers.
+
+The chart no longer draws that object — the timeline ends at the latest
+certified forecast — and the fixture keeps it on purpose. It is what lets
+`exerciseUnusedForwardArtifacts` and `runUnreadForwardArtifact` prove the
+published-but-unread contract: a publication carrying both forward artifacts
+must render exactly what one carrying neither renders. Drop it from the fixture
+and those checks pass vacuously.
+
+Regenerate it from an `edvinli/election-simulator` checkout:
 
 ```python
 # run from the election-simulator repository root
@@ -356,8 +349,9 @@ is a fixture that passed the scientific gate.
 #### The party family in the fixture
 
 The same fixture carries the additive party family (`parties_view`,
-`series[].parties`, `bands[].parties`, `paths.series[].party_values`,
-`election_day.parties`). Backfilling party data into the historical points is
+`series[].parties`, and — inside the unread forward object —
+`bands[].parties`, `paths.series[].party_values`, `election_day.parties`).
+Only `parties_view` and `series[].parties` reach the chart. Backfilling party data into the historical points is
 a full `scripts.forecast_history.generate` run — the resume cache keeps old
 points byte-for-byte, party block or not — so regenerating it means:
 

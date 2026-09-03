@@ -825,480 +825,6 @@
     };
   }
 
-  function futureProjectionGroups(raw, definitions) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    var ids = definitions.map(function (definition) { return definition.id; });
-    function hasExactKeys(value, expected) {
-      var actual = value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
-      return actual.length === expected.length && expected.every(function (key) {
-        return Object.prototype.hasOwnProperty.call(value, key);
-      });
-    }
-    if (!hasExactKeys(raw, ids)) return null;
-    var normalized = {};
-    var quantileKeys = ["p05", "p25", "p50", "p75", "p95"];
-    var valid = ids.every(function (id) {
-      var group = raw[id];
-      if (!group || !hasExactKeys(group, ["vote", "seats"])) return false;
-      return ["vote", "seats"].every(function (metric) {
-        var values = group[metric];
-        if (!values || !hasExactKeys(values, quantileKeys)) return false;
-        var upper = metric === "seats" ? CHAMBER : 100;
-        var numbers = quantileKeys.map(function (key) { return values[key]; });
-        if (!numbers.every(function (value) {
-          return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= upper &&
-            (metric !== "seats" || Number.isInteger(value));
-        })) return false;
-        if (!numbers.every(function (value, index) { return index === 0 || value >= numbers[index - 1]; })) {
-          return false;
-        }
-        return true;
-      });
-    });
-    if (!valid) return null;
-    ids.forEach(function (id) {
-      normalized[id] = {
-        vote: historyQuantiles(raw[id].vote),
-        seats: historyQuantiles(raw[id].seats)
-      };
-    });
-    return normalized;
-  }
-
-  function normalizeFutureProjection(raw, payload, electionDate, definitions, points) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    var origin = historyDate(raw.origin_date);
-    var election = historyDate(raw.election_date);
-    if (!origin || !election || election.iso !== electionDate.iso || origin.time > election.time) return null;
-    if (raw.projection_type !== "conditional_forward_projection" ||
-        raw.assumption !== "frozen_opinion_state_shrinking_dynamics_horizon" ||
-        raw.state_cutoff_date !== origin.iso || raw.future_measurements_known !== false ||
-        raw.state_condition !== "underlying_opinion_unchanged_from_origin" ||
-        raw.dynamics_horizon_rule !== "election_date_minus_projection_date" ||
-        raw.election_noise !== "canonical_adopted_law" ||
-        raw.mandate_allocation !== "canonical_production_path" ||
-        typeof raw.tooltip_sv !== "string" || !raw.tooltip_sv.trim()) return null;
-
-    var rawSeries = Array.isArray(payload.series) ? payload.series : [];
-    var currentRaw = rawSeries.filter(function (point) {
-      return point && point.provenance === "current_production";
-    });
-    if (currentRaw.length !== 1 || currentRaw[0].date !== origin.iso) return null;
-    var anchor = raw.anchor;
-    if (!anchor || anchor.date !== origin.iso || anchor.provenance !== "current_production" ||
-        anchor.samples !== currentRaw[0].samples) return null;
-    var anchorGroups = futureProjectionGroups(anchor.groups, definitions);
-    var currentGroups = futureProjectionGroups(currentRaw[0].groups, definitions);
-    if (!anchorGroups || !currentGroups ||
-        JSON.stringify(anchorGroups) !== JSON.stringify(currentGroups)) return null;
-    var anchorPoint = points.filter(function (point) {
-      return point.date === origin.iso && point.provenance === "current_production";
-    })[0];
-    if (!anchorPoint || anchorPoint.samples !== anchor.samples) return null;
-
-    var rendering = raw.rendering;
-    var region = rendering && rendering.future_region;
-    if (!rendering || rendering.x_axis_max !== election.iso || !region ||
-        region.start !== origin.iso || region.end !== election.iso || region.background !== "light_neutral" ||
-        typeof rendering.latest_forecast_label !== "string" || !rendering.latest_forecast_label.trim() ||
-        typeof rendering.election_day_label !== "string" || !rendering.election_day_label.trim() ||
-        typeof rendering.legend_label !== "string" || !rendering.legend_label.trim() ||
-        rendering.median_line !== "dashed_lighter" ||
-        JSON.stringify(rendering.interval_bands) !== JSON.stringify(["p25_p75", "p05_p95"]) ||
-        JSON.stringify(rendering.units) !== JSON.stringify(["vote", "seats"]) ||
-        rendering.poll_observations_in_future !== false ||
-        rendering.poll_of_polls_observations_in_future !== false ||
-        rendering.connect_from_history_anchor !== true) return null;
-
-    var series = Array.isArray(raw.series) ? raw.series : null;
-    var expectedCount = Math.round((election.time - origin.time) / 86400000);
-    if (!series || series.length !== expectedCount) return null;
-    var historicalDates = {};
-    rawSeries.forEach(function (point) {
-      if (point && typeof point.date === "string") historicalDates[point.date] = true;
-    });
-    var normalizedSeries = [];
-    for (var index = 0; index < series.length; index += 1) {
-      var item = series[index];
-      var expectedTime = origin.time + (index + 1) * 86400000;
-      var expectedDate = new Date(expectedTime).toISOString().slice(0, 10);
-      var groups = item && futureProjectionGroups(item.groups, definitions);
-      if (!item || item.date !== expectedDate || historicalDates[item.date] ||
-          item.remaining_horizon_days !== expectedCount - index - 1 ||
-          !Number.isInteger(item.samples) || item.samples <= 0 || !groups) return null;
-      normalizedSeries.push({
-        date: expectedDate,
-        time: expectedTime,
-        samples: item.samples,
-        remainingHorizonDays: item.remaining_horizon_days,
-        groups: groups,
-        isFuture: true
-      });
-    }
-    if (normalizedSeries.length &&
-        (normalizedSeries[normalizedSeries.length - 1].date !== election.iso ||
-         normalizedSeries[normalizedSeries.length - 1].remainingHorizonDays !== 0)) return null;
-    return {
-      origin: origin,
-      election: election,
-      anchorPoint: anchorPoint,
-      points: normalizedSeries,
-      tooltip: raw.tooltip_sv,
-      rendering: rendering
-    };
-  }
-
-  // ------------------------------------------------------------------
-  // Coherent forward campaign paths (primary future view)
-  // ------------------------------------------------------------------
-  // Simulated *opinion* trajectories from the certified origin to election
-  // day, plus the emphasized election-day forecast distribution.  The
-  // intermediate days are the same quantity the Poll of Polls series
-  // measures; only the election-day object carries ElectionNoise, geography
-  // and mandates.  Every published invariant is re-checked here so a
-  // malformed artifact fails closed into "no future region" instead of
-  // rendering a claim the model never made.
-  var CAMPAIGN_PATH_TYPE = "coherent_campaign_paths";
-  var CAMPAIGN_PATH_MODEL_ID = "coherent_campaign_paths_v1";
-  var CAMPAIGN_PATH_PRIMARY_ROLE = "primary_future_view";
-  var CAMPAIGN_PATH_SECONDARY_ROLE = "secondary_analytical_view";
-  var CAMPAIGN_PATH_QUANTITY = "underlying_opinion_share";
-  // Path day 0 is the model's latent opinion state at the origin. The
-  // certified forecast point sits on the same calendar date but is a *wider,
-  // different* distribution -- it adds campaign dynamics and ElectionNoise --
-  // so the fan is drawn from its own origin marker, never from that dot.
-  var CAMPAIGN_PATH_ORIGIN_QUANTITY = "opinion_state_only";
-  var CAMPAIGN_PATH_CONTINUES_FROM = "current_opinion_state";
-
-  function campaignBandGroups(raw, definitions) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    var ids = definitions.map(function (definition) { return definition.id; });
-    var actual = Object.keys(raw);
-    if (actual.length !== ids.length) return null;
-    if (!ids.every(function (id) { return Object.prototype.hasOwnProperty.call(raw, id); })) return null;
-    var quantileKeys = ["p05", "p25", "p50", "p75", "p95"];
-    var normalized = {};
-    for (var index = 0; index < ids.length; index += 1) {
-      var group = raw[ids[index]];
-      if (!group || typeof group !== "object" || Array.isArray(group)) return null;
-      // Opinion bands publish vote shares only.  A seat quantile here would
-      // imply a future seat trajectory, which the model deliberately refuses.
-      if (Object.keys(group).length !== 1 || !Object.prototype.hasOwnProperty.call(group, "vote")) return null;
-      var values = group.vote;
-      if (!values || typeof values !== "object") return null;
-      if (Object.keys(values).length !== quantileKeys.length) return null;
-      var numbers = [];
-      for (var key = 0; key < quantileKeys.length; key += 1) {
-        var value = values[quantileKeys[key]];
-        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) return null;
-        if (key > 0 && value < numbers[key - 1]) return null;
-        numbers.push(value);
-      }
-      normalized[ids[index]] = { vote: historyQuantiles(values) };
-      if (!normalized[ids[index]].vote) return null;
-    }
-    return normalized;
-  }
-
-  // A vote-only party band. A seat quantile here would assert an intermediate
-  // future mandate trajectory, which the model refuses to publish: latent
-  // opinion has no seat allocation.
-  function campaignBandParties(raw, partyDefinitions) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    var ids = partyDefinitions.map(function (definition) { return definition.id; });
-    if (Object.keys(raw).length !== ids.length) return null;
-    var normalized = {};
-    for (var index = 0; index < ids.length; index += 1) {
-      var entry = raw[ids[index]];
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
-      if (Object.keys(entry).length !== 1 ||
-          !Object.prototype.hasOwnProperty.call(entry, "vote")) return null;
-      var quantiles = historyQuantiles(entry.vote);
-      if (!quantiles) return null;
-      normalized[ids[index]] = { vote: quantiles };
-    }
-    return normalized;
-  }
-
-  // A full party summary: vote and seats, as the certified election-day
-  // distribution and every historical point publish them.
-  function partySummaryGroups(raw, partyDefinitions) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    var ids = partyDefinitions.map(function (definition) { return definition.id; });
-    if (Object.keys(raw).length !== ids.length) return null;
-    var normalized = {};
-    for (var index = 0; index < ids.length; index += 1) {
-      var entry = raw[ids[index]];
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
-      if (Object.keys(entry).length !== 2 ||
-          !Object.prototype.hasOwnProperty.call(entry, "vote") ||
-          !Object.prototype.hasOwnProperty.call(entry, "seats")) return null;
-      var vote = historyQuantiles(entry.vote);
-      var seats = historyQuantiles(entry.seats);
-      if (!vote || !seats) return null;
-      var seatValues = ["p05", "p25", "p50", "p75", "p95"].map(function (key) { return seats[key]; });
-      if (!seatValues.every(function (value) {
-        return Number.isInteger(value) && value >= 0 && value <= CHAMBER;
-      })) return null;
-      normalized[ids[index]] = { vote: vote, seats: seats };
-    }
-    return normalized;
-  }
-
-  // Merge the published party family into the already-normalized campaign
-  // object. All or nothing: if any surface is missing or disagrees with the
-  // certified point, the whole party family is refused and the page keeps the
-  // coalition view exactly as it was.
-  function mergeCampaignPartyFamily(raw, normalized, partyDefinitions, certifiedRaw) {
-    var electionDayRaw = raw.election_day;
-    if (!electionDayRaw || !Object.prototype.hasOwnProperty.call(electionDayRaw, "parties")) {
-      return false;
-    }
-    var construction = raw.path_construction;
-    if (!construction || construction.party_vote_share_denominator !== PARTY_VOTE_DENOMINATOR) {
-      return false;
-    }
-    var rendering = raw.rendering;
-    if (!rendering ||
-        JSON.stringify(rendering.party_units) !== JSON.stringify(["vote"]) ||
-        JSON.stringify(rendering.party_election_day_units) !== JSON.stringify(["vote", "seats"]) ||
-        rendering.party_intermediate_seat_trajectory !== false ||
-        historyNumber(rendering.national_threshold_pct) !== NATIONAL_THRESHOLD_PCT) {
-      return false;
-    }
-    var electionParties = partySummaryGroups(electionDayRaw.parties, partyDefinitions);
-    var certifiedParties = partySummaryGroups(certifiedRaw && certifiedRaw.parties, partyDefinitions);
-    // The emphasized election-day party distribution must be the certified
-    // production one, value for value. Anything else would mean the chart had
-    // changed a published probability.
-    if (!electionParties || !certifiedParties ||
-        JSON.stringify(electionParties) !== JSON.stringify(certifiedParties)) return false;
-
-    var bands = Array.isArray(raw.bands) ? raw.bands : [];
-    if (bands.length !== normalized.bands.length) return false;
-    var bandParties = [];
-    for (var index = 0; index < bands.length; index += 1) {
-      var parsed = campaignBandParties(bands[index] && bands[index].parties, partyDefinitions);
-      if (!parsed) return false;
-      bandParties.push(parsed);
-    }
-
-    var series = raw.paths && Array.isArray(raw.paths.series) ? raw.paths.series : [];
-    if (series.length !== normalized.paths.length) return false;
-    var pathParties = [];
-    for (var track = 0; track < series.length; track += 1) {
-      var values = series[track] && series[track].party_values;
-      if (!values || typeof values !== "object") return false;
-      var normalizedValues = {};
-      var valid = partyDefinitions.every(function (definition) {
-        var line = values[definition.id];
-        if (!Array.isArray(line) || line.length !== normalized.bands.length) return false;
-        if (!line.every(function (value) {
-          return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
-        })) return false;
-        normalizedValues[definition.id] = line.slice();
-        return true;
-      });
-      if (!valid) return false;
-      pathParties.push(normalizedValues);
-    }
-
-    // Everything validated; commit into the shared definition namespace.
-    normalized.bands.forEach(function (band, bandIndex) {
-      partyDefinitions.forEach(function (definition) {
-        band.groups[definition.id] = bandParties[bandIndex][definition.id];
-      });
-    });
-    normalized.paths.forEach(function (track, trackIndex) {
-      partyDefinitions.forEach(function (definition) {
-        track.values[definition.id] = pathParties[trackIndex][definition.id];
-      });
-    });
-    partyDefinitions.forEach(function (definition) {
-      normalized.electionDay.groups[definition.id] = electionParties[definition.id];
-    });
-    return true;
-  }
-
-  function normalizeCampaignPaths(raw, payload, electionDate, definitions, partyDefinitions, points) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    var origin = historyDate(raw.origin_date);
-    var election = historyDate(raw.election_date);
-    if (!origin || !election || election.iso !== electionDate.iso || origin.time >= election.time) return null;
-    if (raw.projection_type !== CAMPAIGN_PATH_TYPE || raw.model_id !== CAMPAIGN_PATH_MODEL_ID ||
-        raw.role !== CAMPAIGN_PATH_PRIMARY_ROLE || raw.quantity !== CAMPAIGN_PATH_QUANTITY ||
-        raw.state_cutoff_date !== origin.iso || raw.future_measurements_known !== false ||
-        typeof raw.tooltip_sv !== "string" || !raw.tooltip_sv.trim()) return null;
-    var pathDays = Math.round((election.time - origin.time) / 86400000);
-    if (raw.path_days !== pathDays) return null;
-    if (!Number.isInteger(raw.samples) || raw.samples <= 0) return null;
-
-    var construction = raw.path_construction;
-    if (!construction || typeof construction !== "object" ||
-        construction.space !== "clr" || construction.categories !== 9 ||
-        construction.sign_policy !== "single_sign_per_whole_trajectory" ||
-        construction.transition_pool !== "all_history_leakage_safe" ||
-        construction.leakage_rule !== "trajectory_end_le_origin" ||
-        construction.synthesized_future_polls !== false ||
-        construction.daily_independent_random_walk !== false ||
-        construction.directional_momentum !== false ||
-        !Number.isInteger(construction.eligible_trajectories) || construction.eligible_trajectories < 30 ||
-        !Number.isInteger(construction.endpoint_horizon_days) || construction.endpoint_horizon_days < 1 ||
-        construction.origin_day_quantity !== CAMPAIGN_PATH_ORIGIN_QUANTITY ||
-        ["identity", "monotone_stretch"].indexOf(construction.time_warp) === -1) return null;
-    if (construction.time_warp === "identity" && construction.endpoint_horizon_days !== pathDays) return null;
-    var latestEnd = historyDate(construction.latest_trajectory_end);
-    if (!latestEnd || latestEnd.time > origin.time) return null;
-
-    var parity = raw.endpoint_parity;
-    if (!parity || typeof parity !== "object" ||
-        parity.guarantee !== "bitwise_identical_to_production_election_day_draws" ||
-        parity.election_day_summaries_source !== "certified_current_production_point" ||
-        ["generate_national_vote_shares", "certified_production_result"]
-          .indexOf(parity.reference) === -1) return null;
-    if (parity.verified === true && parity.max_abs_vote_share_difference_pp !== 0) return null;
-
-    var rawSeries = Array.isArray(payload.series) ? payload.series : [];
-    var currentRaw = rawSeries.filter(function (point) {
-      return point && point.provenance === "current_production";
-    });
-    if (currentRaw.length !== 1 || currentRaw[0].date !== origin.iso) return null;
-    var anchorPoint = points.filter(function (point) {
-      return point.date === origin.iso && point.provenance === "current_production";
-    })[0];
-    if (!anchorPoint) return null;
-
-    var bands = Array.isArray(raw.bands) ? raw.bands : null;
-    if (!bands || bands.length !== pathDays + 1) return null;
-    var historicalDates = {};
-    rawSeries.forEach(function (point) {
-      if (point && typeof point.date === "string") historicalDates[point.date] = true;
-    });
-    var normalizedBands = [];
-    for (var index = 0; index < bands.length; index += 1) {
-      var band = bands[index];
-      var expectedTime = origin.time + index * 86400000;
-      var expectedDate = new Date(expectedTime).toISOString().slice(0, 10);
-      var groups = band && campaignBandGroups(band.groups, definitions);
-      if (!band || band.date !== expectedDate || band.path_day !== index || !groups) return null;
-      // Day zero is the origin itself and legitimately shares that calendar
-      // date with the certified historical point; every later day must not.
-      if (index > 0 && historicalDates[band.date]) return null;
-      normalizedBands.push({
-        date: expectedDate,
-        time: expectedTime,
-        pathDay: index,
-        groups: groups,
-        provenance: CAMPAIGN_PATH_PRIMARY_ROLE,
-        isFuture: index > 0,
-        isCampaignBand: index > 0,
-        isOriginState: index === 0
-      });
-    }
-
-    var paths = raw.paths;
-    if (!paths || typeof paths !== "object" || !Array.isArray(paths.series) || !paths.series.length) return null;
-    if (paths.selection !== "evenly_spaced_draw_indices") return null;
-    if (paths.count !== paths.series.length) return null;
-    var indices = paths.sample_indices;
-    if (!Array.isArray(indices) || indices.length !== paths.series.length) return null;
-    var normalizedPaths = [];
-    for (var track = 0; track < paths.series.length; track += 1) {
-      var item = paths.series[track];
-      if (!item || typeof item !== "object" || item.sample_index !== indices[track]) return null;
-      if (!Number.isInteger(item.sample_index) || item.sample_index < 0 || item.sample_index >= raw.samples) return null;
-      if (track > 0 && !(indices[track] > indices[track - 1])) return null;
-      var values = item.values;
-      if (!values || typeof values !== "object") return null;
-      var normalizedValues = {};
-      var validTrack = definitions.every(function (definition) {
-        var line = values[definition.id];
-        if (!Array.isArray(line) || line.length !== pathDays + 1) return false;
-        if (!line.every(function (value) {
-          return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
-        })) return false;
-        normalizedValues[definition.id] = line.slice();
-        return true;
-      });
-      if (!validTrack) return null;
-      normalizedPaths.push({ sampleIndex: item.sample_index, values: normalizedValues });
-    }
-
-    var electionDayRaw = raw.election_day;
-    if (!electionDayRaw || typeof electionDayRaw !== "object" ||
-        electionDayRaw.date !== election.iso ||
-        electionDayRaw.includes_election_noise !== true ||
-        electionDayRaw.includes_geography_and_mandates !== true ||
-        electionDayRaw.provenance !== "current_production" ||
-        typeof electionDayRaw.label_sv !== "string" || !electionDayRaw.label_sv.trim() ||
-        typeof electionDayRaw.tooltip_sv !== "string" || !electionDayRaw.tooltip_sv.trim() ||
-        electionDayRaw.samples !== currentRaw[0].samples) return null;
-    var electionGroups = futureProjectionGroups(electionDayRaw.groups, definitions);
-    var certifiedGroups = futureProjectionGroups(currentRaw[0].groups, definitions);
-    // The emphasized election-day distribution must be the certified
-    // production one, value for value.  Anything else would mean the
-    // visualization had changed a published probability.
-    if (!electionGroups || !certifiedGroups ||
-        JSON.stringify(electionGroups) !== JSON.stringify(certifiedGroups)) return null;
-
-    var rendering = raw.rendering;
-    var region = rendering && rendering.future_region;
-    if (!rendering || rendering.x_axis_max !== election.iso || !region ||
-        region.start !== origin.iso || region.end !== election.iso ||
-        region.background !== "light_distinct" ||
-        typeof region.label !== "string" || !region.label.trim() ||
-        typeof rendering.origin_boundary_label !== "string" || !rendering.origin_boundary_label.trim() ||
-        typeof rendering.origin_state_label !== "string" || !rendering.origin_state_label.trim() ||
-        typeof rendering.origin_state_tooltip_sv !== "string" ||
-        !rendering.origin_state_tooltip_sv.trim() ||
-        typeof rendering.election_day_label !== "string" || !rendering.election_day_label.trim() ||
-        typeof rendering.election_day_distribution_label !== "string" ||
-        !rendering.election_day_distribution_label.trim() ||
-        typeof rendering.path_legend_label !== "string" || !rendering.path_legend_label.trim() ||
-        typeof rendering.band_legend_label !== "string" || !rendering.band_legend_label.trim() ||
-        JSON.stringify(rendering.interval_bands) !== JSON.stringify(["p25_p75", "p05_p95"]) ||
-        JSON.stringify(rendering.path_units) !== JSON.stringify(["vote"]) ||
-        JSON.stringify(rendering.election_day_units) !== JSON.stringify(["vote", "seats"]) ||
-        rendering.median_may_be_flat !== true ||
-        rendering.intermediate_seat_trajectory !== false ||
-        rendering.poll_observations_in_future !== false ||
-        rendering.poll_of_polls_observations_in_future !== false ||
-        rendering.continues_from !== CAMPAIGN_PATH_CONTINUES_FROM) return null;
-
-    var normalized = {
-      origin: origin,
-      election: election,
-      pathDays: pathDays,
-      samples: raw.samples,
-      anchorPoint: anchorPoint,
-      construction: construction,
-      parity: parity,
-      bands: normalizedBands,
-      paths: normalizedPaths,
-      electionDay: {
-        date: election.iso,
-        time: election.time,
-        samples: electionDayRaw.samples,
-        label: electionDayRaw.label_sv,
-        tooltip: electionDayRaw.tooltip_sv,
-        groups: electionGroups,
-        provenance: "current_production",
-        isFuture: true,
-        isElectionDay: true
-      },
-      tooltip: raw.tooltip_sv,
-      rendering: rendering
-    };
-    // The coalition object above is complete and correct on its own. The party
-    // family is merged in afterwards precisely so that its failure cannot cost
-    // the reader the coalition view.
-    normalized.partyFamily = Boolean(partyDefinitions) &&
-      mergeCampaignPartyFamily(raw, normalized, partyDefinitions, currentRaw[0]);
-    normalized.partyFamilyDeclared = Boolean(raw.election_day &&
-      Object.prototype.hasOwnProperty.call(raw.election_day, "parties"));
-    return normalized;
-  }
-
   function normalizeHistoryPayload(payload) {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
     var electionDate = historyDate(payload.election_date || payload.electionDate);
@@ -1350,23 +876,11 @@
     }).filter(function (poll) { return poll !== null; }).sort(function (a, b) {
       return a.time - b.time;
     });
-    var futureProjectionPresent = Object.prototype.hasOwnProperty.call(payload, "future_projection");
-    var futureProjection = futureProjectionPresent
-      ? normalizeFutureProjection(payload.future_projection, payload, electionDate, definitions, points)
-      : null;
-    var campaignPathsPresent = Object.prototype.hasOwnProperty.call(payload, "future_campaign_paths");
-    var campaignPaths = campaignPathsPresent
-      ? normalizeCampaignPaths(payload.future_campaign_paths, payload, electionDate, definitions,
-        partyDefinitions, points)
-      : null;
-    // The shrinking-horizon fan is a secondary analytical view once the
-    // campaign-path model is published, and it must say so itself.
-    var secondaryProjection = payload.future_projection &&
-      payload.future_projection.role === CAMPAIGN_PATH_SECONDARY_ROLE &&
-      payload.future_projection.primary === false &&
-      typeof payload.future_projection.description_sv === "string" &&
-      payload.future_projection.description_sv.trim()
-      ? payload.future_projection.description_sv : null;
+    // The chart ends at the latest certified forecast. Any forward-looking
+    // object the publication still carries (`future_projection`,
+    // `future_campaign_paths`) is deliberately not read: the page makes no
+    // claim about the road from today to election day.
+    //
     // Party mode is offered only when every surface it needs is present and
     // agrees.
     var pointsWithParties = partyDefinitions ? points.filter(function (point) {
@@ -1387,16 +901,8 @@
     // plotted, so this is exactly the set the chart would draw.
     var partyCoverageComplete = points.length > 0 &&
       pointsWithParties.length === points.length;
-    // A published campaign region disables party mode unless its own party
-    // family validated. `campaignPaths` is null both when the object is absent
-    // and when it is present but failed normalization, so presence has to be
-    // tested separately: otherwise an object malformed badly enough to be
-    // rejected wholesale would read as "no future region published" and let
-    // party mode through.
-    var campaignPathsUsable = !campaignPathsPresent ||
-      (Boolean(campaignPaths) && campaignPaths.partyFamily === true);
     var partyModeAvailable = Boolean(partyDefinitions) && partyCoverageComplete &&
-      certifiedPoints.length > 0 && campaignPathsUsable;
+      certifiedPoints.length > 0;
 
     return {
       partyView: partyModeAvailable ? partyView : null,
@@ -1404,9 +910,6 @@
       partyDefinitionsDeclared: Boolean(payload.parties_view),
       partyPointCount: pointsWithParties.length,
       partyCoverageComplete: partyCoverageComplete,
-      campaignPaths: campaignPaths,
-      campaignPathsPresent: campaignPathsPresent,
-      secondaryProjectionDescription: secondaryProjection,
       schemaVersion: String(payload.schema_version || "1.1"),
       electionDate: electionDate.iso,
       modelCommit: payload.model_commit || payload.model_revision || null,
@@ -1415,9 +918,7 @@
       points: points,
       archivedPoints: archived,
       pop: pop,
-      polls: polls,
-      futureProjection: futureProjection,
-      futureProjectionPresent: futureProjectionPresent
+      polls: polls
     };
   }
 
@@ -1500,27 +1001,28 @@
     return path;
   }
 
-  // The publication contains a broad, deterministic draw sample.  The chart
-  // keeps a small evenly spaced subset visible so the individual movement is
-  // legible without turning the fan into a dark block.  The complete sample
-  // remains available to the normalized publication and to the uncertainty
-  // bands; this is a presentation-only choice.
-  var CAMPAIGN_VISIBLE_PATH_COUNT = 8;
-  function representativeCampaignPaths(paths) {
-    if (!Array.isArray(paths) || paths.length <= CAMPAIGN_VISIBLE_PATH_COUNT) return paths || [];
-    var selected = [];
-    var count = CAMPAIGN_VISIBLE_PATH_COUNT;
-    for (var index = 0; index < count; index += 1) {
-      var sourceIndex = Math.round(index * (paths.length - 1) / (count - 1));
-      selected.push(paths[sourceIndex]);
-    }
-    return selected;
-  }
-
   function historyAxisTicks(minTime, maxTime) {
     var ticks = [];
     var firstYear = new Date(minTime).getUTCFullYear();
     var lastYear = new Date(maxTime).getUTCFullYear();
+    // A window shorter than a year gets dated ends. Year labels alone would
+    // print a single "2026" for a 30-day range, which orients nobody -- and
+    // the chart no longer carries a dated election-day landmark to lean on.
+    if (maxTime - minTime < 400 * 86400000) {
+      [minTime, maxTime].forEach(function (time) {
+        var iso = new Date(time).toISOString().slice(0, 10);
+        var parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+        ticks.push({
+          time: time,
+          iso: iso,
+          dated: true,
+          label: parts ? String(Number(parts[3])) + " " + MONTHS[Number(parts[2]) - 1] +
+            (firstYear === lastYear && time === maxTime ? " " + parts[1] : "")
+            : String(firstYear)
+        });
+      });
+      return ticks;
+    }
     var seenYears = {};
     for (var year = firstYear; year <= lastYear; year += 1) {
       var yearStart = Date.parse(String(year) + "-01-01T00:00:00Z");
@@ -1593,7 +1095,7 @@
   // A party moves far less than a coalition, so its domain is derived purely
   // from what is on screen. Two coalition-specific anchors are deliberately
   // absent: the 50 % vote line, which means nothing to a single party, and the
-  // 20 pp minimum span, which would flatten a real 0.4 pp campaign move into a
+  // 20 pp minimum span, which would flatten a real 0.4 pp opinion move into a
   // horizontal line.
   function historyPartyValueDomain(values, metric, range, thresholdPct) {
     if (!values.length) {
@@ -1660,26 +1162,10 @@
     var inDomain = function (point) {
       return point && (!domain || (point.time >= domain.minTime && point.time <= domain.maxTime));
     };
-    var futureOrigin = history.campaignPaths ? history.campaignPaths.origin
-      : (history.futureProjection ? history.futureProjection.origin : null);
-    var inHistoricalDomain = function (point) {
-      return inDomain(point) && (!futureOrigin || point.time <= futureOrigin.time);
-    };
-    // One renderer owns both regions, so the y-scale must cover whichever
-    // future view is on screen as well as the historical series.
-    var futureView = domain && domain.futureView ? domain.futureView : "paths";
-    // Mandatandel always uses the campaign-path container only as the
-    // election-day distribution host. The opinion fan and its paths remain
-    // vote-only, even if the secondary view was selected beforehand.
-    var showPaths = Boolean(history.campaignPaths) &&
-      (futureView === "paths" || metric === "seats");
-    var tightCampaignWindow = Boolean(domain && domain.range === "short" && showPaths && metric === "vote");
-    var projectionPoints = history.futureProjection && !showPaths && metric === "vote"
-      ? history.futureProjection.points.filter(inDomain) : [];
-    var bandPoints = showPaths && metric === "vote"
-      ? history.campaignPaths.bands.filter(inDomain) : [];
-    var electionDayPoints = showPaths && inDomain(history.campaignPaths.electionDay)
-      ? [history.campaignPaths.electionDay] : [];
+    // The election-relative window is where sub-percentage-point movement in
+    // the certified series has to stay legible, so it gets its own data-driven
+    // scale instead of the four-year ladder.
+    var tightWindow = Boolean(domain && domain.range === "short" && metric === "vote");
     definitions.forEach(function (definition) {
       history.points.filter(inDomain).forEach(function (point) {
         var group = point.groups && point.groups[definition.id];
@@ -1688,25 +1174,6 @@
         if (low !== null) values.push(low);
         if (high !== null) values.push(high);
       });
-      projectionPoints.concat(bandPoints).concat(electionDayPoints).forEach(function (point) {
-        var group = point.groups && point.groups[definition.id];
-        var low = historyMetricValue(group, metric, "p05");
-        var high = historyMetricValue(group, metric, "p95");
-        if (low !== null) values.push(low);
-        if (high !== null) values.push(high);
-      });
-      // Individual rendered trajectories must not be clipped by the frame.
-      if (showPaths && metric === "vote") {
-        representativeCampaignPaths(history.campaignPaths.paths).forEach(function (track) {
-          var line = track.values[definition.id];
-          if (!line) return;
-          history.campaignPaths.bands.forEach(function (band, index) {
-            if (!inDomain(band)) return;
-            var value = historyNumber(line[index]);
-            if (value !== null) values.push(value);
-          });
-        });
-      }
     });
     var partyMode = Boolean(domain && domain.viewMode === "parties");
     if (metric === "vote") {
@@ -1715,7 +1182,7 @@
       // cloud is wide relative to its own forecast band, and clipping it would
       // hide exactly the disagreement the dots are there to show.
       if (domain && (partyMode || domain.range === "short") && history.polls && history.polls.length) {
-        history.polls.filter(inHistoricalDomain).forEach(function (item) {
+        history.polls.filter(inDomain).forEach(function (item) {
           definitions.forEach(function (definition) {
             var value = item.values && historyNumber(item.values[definition.id]);
             if (value !== null) values.push(value);
@@ -1729,28 +1196,27 @@
     }
     var lower = values.length ? Math.min.apply(Math, values) : 0;
     var upper = values.length ? Math.max.apply(Math, values) : (metric === "seats" ? 100 : 50);
-    // The election-relative campaign window gets a data-driven scale.  It is
-    // deliberately based on the selected series, visible representative
-    // trajectories, their 90% bands, in-range observations, and the
-    // election-day distribution.  A small proportional pad keeps the ink off
-    // the frame without introducing a fixed visual zoom.
-    if (tightCampaignWindow) {
+    // The election-relative window gets a data-driven scale, based on the
+    // selected series, their 90 % bands and the in-range observations.  A small
+    // proportional pad keeps the ink off the frame without introducing a fixed
+    // visual zoom.
+    if (tightWindow) {
       var dataSpan = Math.max(0, upper - lower);
-      var campaignPadding = dataSpan > 0
+      var tightPadding = dataSpan > 0
         ? Math.max(0.4, Math.min(1.25, dataSpan * 0.08)) : 0.5;
-      lower = Math.max(0, Math.floor((lower - campaignPadding) * 2) / 2);
-      upper = Math.min(100, Math.ceil((upper + campaignPadding) * 2) / 2);
+      lower = Math.max(0, Math.floor((lower - tightPadding) * 2) / 2);
+      upper = Math.min(100, Math.ceil((upper + tightPadding) * 2) / 2);
       // A single selected coalition can have a very narrow visible envelope.
       // Four percentage points is only a guard against a hairline plot; the
       // actual values still determine the centre and both domain edges.
-      var minimumCampaignSpan = 4;
-      if (upper - lower < minimumCampaignSpan) {
-        var campaignMidpoint = (lower + upper) / 2;
-        lower = Math.max(0, Math.floor((campaignMidpoint - minimumCampaignSpan / 2) * 2) / 2);
-        upper = Math.min(100, Math.ceil((campaignMidpoint + minimumCampaignSpan / 2) * 2) / 2);
-        if (upper - lower < minimumCampaignSpan) {
-          if (lower === 0) upper = Math.min(100, lower + minimumCampaignSpan);
-          else lower = Math.max(0, upper - minimumCampaignSpan);
+      var minimumTightSpan = 4;
+      if (upper - lower < minimumTightSpan) {
+        var tightMidpoint = (lower + upper) / 2;
+        lower = Math.max(0, Math.floor((tightMidpoint - minimumTightSpan / 2) * 2) / 2);
+        upper = Math.min(100, Math.ceil((tightMidpoint + minimumTightSpan / 2) * 2) / 2);
+        if (upper - lower < minimumTightSpan) {
+          if (lower === 0) upper = Math.min(100, lower + minimumTightSpan);
+          else lower = Math.max(0, upper - minimumTightSpan);
         }
       }
       return {
@@ -1798,56 +1264,12 @@
     if (!section || !svg) return false;
     var history = normalizeHistoryPayload(payload);
     if (!history) return false;
-    var projection = history.futureProjection;
-    var campaignPaths = history.campaignPaths;
-    if (history.futureProjectionPresent && !projection) {
-      section.setAttribute("data-future-projection", "invalid");
-    } else if (projection) {
-      section.setAttribute("data-future-projection", projection.points.length ? "true" : "empty");
-      section.setAttribute("data-future-projection-point-count", String(projection.points.length));
-    } else {
-      section.removeAttribute("data-future-projection");
-      section.removeAttribute("data-future-projection-point-count");
-    }
-    if (history.campaignPathsPresent && !campaignPaths) {
-      section.setAttribute("data-campaign-paths", "invalid");
-      section.removeAttribute("data-campaign-path-count");
-      section.removeAttribute("data-campaign-path-days");
-    } else if (campaignPaths) {
-      section.setAttribute("data-campaign-paths", "true");
-      section.setAttribute("data-campaign-path-count", String(campaignPaths.paths.length));
-      section.setAttribute("data-campaign-path-days", String(campaignPaths.pathDays));
-      section.setAttribute("data-campaign-path-warp", String(campaignPaths.construction.time_warp));
-    } else {
-      section.removeAttribute("data-campaign-paths");
-      section.removeAttribute("data-campaign-path-count");
-      section.removeAttribute("data-campaign-path-days");
-      section.removeAttribute("data-campaign-path-warp");
-    }
-    // The primary future region is the campaign-path model whenever it is
-    // published and valid.  The shrinking-horizon fan is reachable only
-    // through the explicit secondary control.
-    var futureView = campaignPaths ? "paths" : "projection";
-    var futureOrigin = campaignPaths ? campaignPaths.origin : (projection ? projection.origin : null);
-    var futureElection = campaignPaths ? campaignPaths.election : (projection ? projection.election : null);
-    function pathsActive() {
-      return Boolean(campaignPaths) && (futureView === "paths" || selectedMetric === "seats");
-    }
-    function projectionActive() {
-      return Boolean(projection) && projection.points.length > 0 && !pathsActive();
-    }
-
     var liveStatus = byId("election-timeseries-status");
     var detailBody = byId("election-timeseries-detail-body");
-    var seatNote = byId("election-timeseries-seat-note");
     var modeVote = byId("election-timeseries-vote");
     var modeSeats = byId("election-timeseries-seats");
     var rangeFull = byId("election-timeseries-range-full");
     var rangeShort = byId("election-timeseries-range-short");
-    var campaignCue = byId("election-timeseries-campaign-cue");
-    var futureViewHost = byId("election-timeseries-future");
-    var futureViewPaths = byId("election-timeseries-future-paths");
-    var futureViewStability = byId("election-timeseries-future-stability");
     var coalitionHost = byId("election-timeseries-coalitions");
     var partyHost = byId("election-timeseries-parties");
     var viewHost = byId("election-timeseries-view");
@@ -1861,10 +1283,8 @@
     var selectedPartyId = null;
     var partyButtons = {};
     var selectedMetric = "vote";
-    // "Sedan 2022" stays the opening range.  A published campaign-path region
-    // is only a few pixels wide at that scale, but the fix for that is
-    // discoverability -- the "Visa kampanjperioden" cue below -- not silently
-    // changing which view the page opens on.
+    // "Sedan 2022" stays the opening range; "Sista 30 dagarna" is the
+    // election-relative zoom on the most recent movement.
     var selectedRange = "full";
     var selected = {};
     var selectedDate = null;
@@ -1885,27 +1305,30 @@
       : { left: 72, right: 880, top: 40, bottom: 360 };
     plot.width = plot.right - plot.left;
     plot.height = plot.bottom - plot.top;
-    var electionDate = historyDate(history.electionDate);
-    var shortRangeStart = historyDateOffset(history.electionDate, -30);
+    // The chart ends at the latest certified forecast, so "Sista 30 dagarna"
+    // is the last 30 days of published history rather than the 30 days before
+    // election day: otherwise a third of that window would be empty space to
+    // the right of the last point.
+    var latestPointIso = history.points[history.points.length - 1].date;
+    var shortRangeStart = historyDateOffset(latestPointIso, -30);
+    var shortRangeEnd = historyDate(latestPointIso);
     history.definitions.forEach(function (definition) {
       selected[definition.id] = Boolean(definition.defaultOn);
     });
 
     function activeTimeDomain() {
-      var shortRangeEnd = electionDate;
       var useShortRange = selectedRange === "short" && shortRangeStart && shortRangeEnd;
       // Sedan 2022 keeps the metric-specific published extent: vote share
       // includes the historical series and the individual polls drawn beside
       // it; seat share has no individual-poll values, so its extent is the
-      // series alone.  The future region always extends the right edge
-      // through election day.
+      // series alone.  Either way the right edge is the latest published
+      // forecast -- the chart never extrapolates towards election day.
       var fullTimes = history.points.map(function (point) { return point.time; });
       if (selectedMetric === "vote" && history.polls && history.polls.length) {
         history.polls.forEach(function (item) { fullTimes.push(item.time); });
       }
-      if (futureElection) fullTimes.push(futureElection.time);
       var fullMinTime = Math.min.apply(Math, fullTimes);
-      var fullMaxTime = futureElection ? futureElection.time : Math.max.apply(Math, fullTimes);
+      var fullMaxTime = Math.max.apply(Math, fullTimes);
       if (!Number.isFinite(fullMinTime)) fullMinTime = history.points[0].time;
       if (!Number.isFinite(fullMaxTime)) fullMaxTime = history.points[history.points.length - 1].time;
       var minTime = useShortRange ? shortRangeStart.time : fullMinTime;
@@ -1918,7 +1341,6 @@
         minIso: new Date(minTime).toISOString().slice(0, 10),
         maxIso: new Date(maxTime).toISOString().slice(0, 10),
         range: selectedRange,
-        futureView: futureView,
         viewMode: viewMode
       };
     }
@@ -1954,60 +1376,12 @@
       if (rangeShort) rangeShort.setAttribute("aria-pressed", selectedRange === "short" ? "true" : "false");
     }
 
-    function setCampaignCue() {
-      // The campaign region is a few pixels wide on the four-year scale.  The
-      // opening range stays "Sedan 2022"; this is the cue that the
-      // election-relative window exists, and it retires once you are in it.
-      if (!campaignCue) return;
-      campaignCue.hidden = !(campaignPaths && selectedRange !== "short");
-    }
-
-    function setFutureViewButtons() {
-      // The control only makes sense when both views exist.  A publication
-      // without campaign paths keeps exactly the previous behaviour.
-      //
-      // Party mode deliberately has one future interpretation -- campaign
-      // opinion paths meeting the election-day forecast -- so the secondary
-      // "Kvarvarande osäkerhet" fan is not offered there. The simulator does
-      // not publish a party version of it either, so offering the control
-      // would promise a view that has no data behind it.
-      var available = Boolean(campaignPaths) && Boolean(projection) && projection.points.length > 0;
-      if (futureViewHost) {
-        futureViewHost.hidden = !available || selectedMetric === "seats" || viewMode === "parties";
-      }
-      if (futureViewPaths) {
-        futureViewPaths.setAttribute("aria-pressed", futureView === "paths" ? "true" : "false");
-        if (campaignPaths) futureViewPaths.setAttribute("aria-label", campaignPaths.rendering.future_region.label);
-      }
-      if (futureViewStability) {
-        futureViewStability.setAttribute("aria-pressed", futureView === "projection" ? "true" : "false");
-      }
-      section.setAttribute("data-future-view", pathsActive() ? "campaign_paths"
-        : (projectionActive() ? "conditional_projection" : "none"));
-    }
-
     function setModeButtons() {
       if (modeVote) modeVote.setAttribute("aria-pressed", selectedMetric === "vote" ? "true" : "false");
       if (modeSeats) modeSeats.setAttribute("aria-pressed", selectedMetric === "seats" ? "true" : "false");
-      if (seatNote) seatNote.hidden = selectedMetric !== "seats";
       var pollsKey = byId("election-timeseries-key-polls");
       if (pollsKey) pollsKey.hidden = selectedMetric !== "vote";
-      // Only the active view's legend keys and disclosure are shown.  Both
-      // remain in the DOM so assistive technology and contract tests can see
-      // that the published copy is the copy the chart uses.
-      var paths = pathsActive();
-      [["election-timeseries-key-campaign-paths", paths && selectedMetric === "vote"],
-        ["election-timeseries-key-election-day", paths],
-        ["election-timeseries-campaign-note", paths && selectedMetric === "vote"],
-        ["election-timeseries-key-projection", projectionActive() && selectedMetric === "vote"],
-        ["election-timeseries-projection-note", projectionActive()]
-      ].forEach(function (entry) {
-        var element = byId(entry[0]);
-        if (element) element.hidden = !entry[1];
-      });
       setRangeButtons();
-      setFutureViewButtons();
-      setCampaignCue();
       setViewButtons();
     }
 
@@ -2085,21 +1459,8 @@
       return activeDomain.minTime + (activeDomain.maxTime - activeDomain.minTime) * ratio;
     }
 
-    // Which future marks a pointer or the keyboard may land on.  Opinion
-    // bands carry no seat distribution, so they are selectable in the vote
-    // view only; the election-day distribution is selectable in both.
-    function selectableFuturePoints() {
-      if (pathsActive()) {
-        // Opinion bands and the origin state carry no seat distribution, so
-        // they are selectable in the vote view only.
-        var marks = selectedMetric === "vote" ? campaignPaths.bands : [];
-        return marks.concat([campaignPaths.electionDay]);
-      }
-      return projectionActive() && selectedMetric === "vote" ? projection.points : [];
-    }
-
     function nearestPoint(time, direction) {
-      var candidates = history.points.concat(selectableFuturePoints()).filter(function (point) {
+      var candidates = history.points.filter(function (point) {
         if (!pointInActiveDomain(point)) return false;
         return activeDefinitions().some(function (definition) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
@@ -2121,7 +1482,7 @@
     }
 
     function defaultVisiblePoint() {
-      var candidates = history.points.concat(selectableFuturePoints()).filter(function (point) {
+      var candidates = history.points.filter(function (point) {
         return pointInActiveDomain(point) && activeDefinitions().some(function (definition) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
@@ -2207,121 +1568,6 @@
         "</dl>";
     }
 
-    function futureDetail(point) {
-      if (!point || !projection) return "";
-      var rows = activeDefinitions().map(function (definition) {
-        var group = point.groups && point.groups[definition.id];
-        var values = historyDisplayQuantiles(group, selectedMetric);
-        if (!values) return "";
-        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
-          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
-          "<dt>" + escapeHtml(projection.rendering.legend_label) + "</dt><dd>" +
-          escapeHtml(selectedMetric === "seats" ? seatMedianText(group) : percent(values.p50, 1)) + "</dd>" +
-          "<dt>50 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatRangeText(group, "p25", "p75") : rangeTextFor(values, "p25", "p75")) + "</dd>" +
-          "<dt>90 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatRangeText(group, "p05", "p95") : rangeTextFor(values, "p05", "p95")) + "</dd>" +
-          "</dl></section>";
-      }).filter(function (row) { return row; });
-      return "<h3 class=\"election-timeseries__detail-date\">" +
-        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
-        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
-        "<dl class=\"election-timeseries__detail-meta\">" +
-        "<div><dt>Simuleringar</dt><dd>" + escapeHtml(historyDaysText(point.samples)) + "</dd></div>" +
-        "<div><dt>Ursprung</dt><dd>" + escapeHtml(projection.rendering.legend_label) + "</dd></div>" +
-        "<div><dt>Rörelsedel</dt><dd>" + escapeHtml(historyDaysText(point.remainingHorizonDays)) +
-        " dagar kvar</dd></div></dl>" +
-        "<p class=\"election-timeseries__note election-muted\">" + escapeHtml(projection.tooltip) + "</p>";
-    }
-
-    function originStateDetail(point) {
-      if (!point || !campaignPaths) return "";
-      var rows = activeDefinitions().map(function (definition) {
-        var values = historyDisplayQuantiles(point.groups && point.groups[definition.id], "vote");
-        if (!values) return "";
-        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
-          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
-          "<dt>Opinionsläge</dt><dd>" + escapeHtml(percent(values.p50, 1)) + "</dd>" +
-          "<dt>50 % intervall</dt><dd>" + escapeHtml(rangeTextFor(values, "p25", "p75")) + "</dd>" +
-          "<dt>90 % intervall</dt><dd>" + escapeHtml(rangeTextFor(values, "p05", "p95")) + "</dd>" +
-          "</dl></section>";
-      }).filter(function (row) { return row; });
-      return "<h3 class=\"election-timeseries__detail-date\">" +
-        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
-        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
-        "<dl class=\"election-timeseries__detail-meta\">" +
-        "<div><dt>Vy</dt><dd>" + escapeHtml(campaignPaths.rendering.origin_state_label) +
-        "</dd></div>" +
-        "<div><dt>Storhet</dt><dd>Underliggande opinionsläge</dd></div>" +
-        "<div><dt>Simuleringar</dt><dd>" +
-        escapeHtml(historyDaysText(campaignPaths.samples)) + "</dd></div>" +
-        "</dl>" +
-        "<p class=\"election-timeseries__note election-muted\">" +
-        escapeHtml(campaignPaths.rendering.origin_state_tooltip_sv) + "</p>";
-    }
-
-    function campaignBandDetail(point) {
-      if (!point || !campaignPaths) return "";
-      var rows = activeDefinitions().map(function (definition) {
-        var values = historyDisplayQuantiles(point.groups && point.groups[definition.id], "vote");
-        if (!values) return "";
-        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
-          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
-          "<dt>Medianbana</dt><dd>" + escapeHtml(percent(values.p50, 1)) + "</dd>" +
-          "<dt>50 % av banorna</dt><dd>" + escapeHtml(rangeTextFor(values, "p25", "p75")) + "</dd>" +
-          "<dt>90 % av banorna</dt><dd>" + escapeHtml(rangeTextFor(values, "p05", "p95")) + "</dd>" +
-          "</dl></section>";
-      }).filter(function (row) { return row; });
-      return "<h3 class=\"election-timeseries__detail-date\">" +
-        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
-        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
-        "<dl class=\"election-timeseries__detail-meta\">" +
-        "<div><dt>Vy</dt><dd>" + escapeHtml(campaignPaths.rendering.future_region.label) + "</dd></div>" +
-        "<div><dt>Storhet</dt><dd>Underliggande opinionsläge</dd></div>" +
-        "<div><dt>Dag</dt><dd>" + escapeHtml(historyDaysText(point.pathDay)) +
-        " av " + escapeHtml(historyDaysText(campaignPaths.pathDays)) + "</dd></div>" +
-        "<div><dt>Simuleringar</dt><dd>" + escapeHtml(historyDaysText(campaignPaths.samples)) + "</dd></div>" +
-        "</dl>" +
-        "<p class=\"election-timeseries__note election-muted\">" + escapeHtml(campaignPaths.tooltip) + "</p>";
-    }
-
-    function electionDayDetail(point) {
-      if (!point || !campaignPaths) return "";
-      var rows = activeDefinitions().map(function (definition) {
-        var group = point.groups && point.groups[definition.id];
-        var values = historyDisplayQuantiles(group, selectedMetric);
-        if (!values) return "";
-        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
-          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
-          "<dt>Valdagsprognos</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatMedianText(group) : percent(values.p50, 1)) + "</dd>" +
-          "<dt>50 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatRangeText(group, "p25", "p75") : rangeTextFor(values, "p25", "p75")) + "</dd>" +
-          "<dt>90 % intervall</dt><dd>" + escapeHtml(selectedMetric === "seats"
-            ? seatRangeText(group, "p05", "p95") : rangeTextFor(values, "p05", "p95")) + "</dd>" +
-          "</dl></section>";
-      }).filter(function (row) { return row; });
-      return "<h3 class=\"election-timeseries__detail-date\">" +
-        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
-        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
-        "<dl class=\"election-timeseries__detail-meta\">" +
-        "<div><dt>Vy</dt><dd>" + escapeHtml(campaignPaths.electionDay.label) + "</dd></div>" +
-        "<div><dt>Simuleringar</dt><dd>" +
-        escapeHtml(historyDaysText(campaignPaths.electionDay.samples)) + "</dd></div>" +
-        "<div><dt>Ursprung</dt><dd>Officiell aktuell valprognos</dd></div>" +
-        "</dl>" +
-        "<p class=\"election-timeseries__note election-muted\">" +
-        escapeHtml(campaignPaths.electionDay.tooltip) + "</p>";
-    }
-
-    function futureMarkLabel(point) {
-      if (!point) return "";
-      if (point.isElectionDay && campaignPaths) return campaignPaths.electionDay.label;
-      if (point.isOriginState && campaignPaths) return campaignPaths.rendering.origin_state_label;
-      if (point.isCampaignBand && campaignPaths) return campaignPaths.rendering.future_region.label;
-      return projection ? projection.rendering.legend_label : "";
-    }
-
     function forecastStatus(point) {
       if (!point) return "Välj en punkt i diagrammet för detaljer.";
       var descriptions = activeDefinitions().map(function (definition) {
@@ -2332,8 +1578,7 @@
         return definition.label + ": vår simulering " + median;
       }).filter(function (value) { return value; });
       return (swedishDate(point.date) || point.date) + " · " + descriptions.join(", ") + ". " +
-        (point.isFuture || point.isOriginState
-          ? futureMarkLabel(point) : historyProvenanceLabel(point.provenance)) + ".";
+        historyProvenanceLabel(point.provenance) + ".";
     }
 
     renderDetail = function (point) {
@@ -2349,11 +1594,7 @@
         return;
       }
       if (detailBody) {
-        if (point.isElectionDay) detailBody.innerHTML = electionDayDetail(point);
-        else if (point.isOriginState) detailBody.innerHTML = originStateDetail(point);
-        else if (point.isCampaignBand) detailBody.innerHTML = campaignBandDetail(point);
-        else if (point.isFuture) detailBody.innerHTML = futureDetail(point);
-        else detailBody.innerHTML = forecastDetail(point);
+        detailBody.innerHTML = forecastDetail(point);
         detailBody.hidden = false;
       }
       if (liveStatus) {
@@ -2390,15 +1631,8 @@
       var minTime = activeDomain.minTime;
       var maxTime = activeDomain.maxTime;
       var visibleHistoryPoints = history.points.filter(pointInActiveDomain);
-      var futureActive = pathsActive() || projectionActive();
-      var visibleProjectionPoints = projectionActive() && selectedMetric === "vote"
-        ? projection.points.filter(pointInActiveDomain) : [];
-      var visibleBandPoints = pathsActive() ? campaignPaths.bands.filter(pointInActiveDomain) : [];
-      // No poll observation may ever appear after the forecast origin: the
-      // future region is simulated, not measured.
-      var visiblePollPoints = history.polls ? history.polls.filter(function (point) {
-        return pointInActiveDomain(point) && (!futureOrigin || point.time <= futureOrigin.time);
-      }) : [];
+      var visiblePollPoints = history.polls
+        ? history.polls.filter(pointInActiveDomain) : [];
       var span = activeDomain.maxTime - activeDomain.minTime;
       var xScale = function (time) {
         return plot.left + (time - activeDomain.minTime) / span * plot.width;
@@ -2415,36 +1649,6 @@
         // 1 would silently flatten it.
         return plot.bottom - (parsed - minValue) / Math.max(1e-6, maxValue - minValue) * plot.height;
       };
-      // Path day 0 shares its calendar date with the certified forecast point
-      // but is a different, much narrower distribution.  Shifting it a few
-      // pixels into the future region separates the two quantities and lets
-      // the fan visibly emanate from the opinion state, not from the forecast.
-      var originTime = campaignPaths ? campaignPaths.origin.time : null;
-      // Half a day where a day is wide enough to hold a marker, floored so the
-      // mark always clears the certified forecast dot on the same date, capped
-      // so it never reaches the first campaign day.
-      var originDayGap = campaignPaths
-        ? xScale(originTime + 86400000) - xScale(originTime) : 0;
-      var originShift = Math.max(
-        compactChart ? 7 : 8,
-        Math.min(compactChart ? 12 : 13, originDayGap * 0.55),
-      );
-      // Clamped so the marker cannot walk past the election-day glyph when the
-      // four-year scale squeezes the whole campaign into a few pixels; there it
-      // simply sits on the boundary, where a sliver cannot mislead anyone.
-      var originX = campaignPaths
-        ? Math.min(
-          xScale(originTime) + originShift,
-          // Never past the left edge of the election-day glyph; on the
-          // four-year scale that floor collapses onto the boundary itself.
-          Math.max(xScale(originTime),
-            xScale(campaignPaths.election.time) - (compactChart ? 10 : 13) / 2 - 3),
-        )
-        : null;
-      var campaignX = function (time) {
-        return time === originTime ? originX : xScale(time);
-      };
-
       svg.innerHTML = "";
       svg.setAttribute("viewBox", "0 0 " + width + " " + height);
       svg.setAttribute("data-metric", selectedMetric);
@@ -2453,8 +1657,8 @@
       svg.setAttribute("data-y-domain", String(minValue) + "–" + String(maxValue));
       svg.setAttribute("data-y-domain-mode", viewMode === "parties"
         ? "adaptive-party-window"
-        : (pathsActive() && selectedMetric === "vote" && activeDomain.range === "short"
-          ? "adaptive-campaign-window" : "published-history"));
+        : (selectedMetric === "vote" && activeDomain.range === "short"
+          ? "adaptive-short-window" : "published-history"));
       svg.setAttribute("data-view-mode", viewMode);
       svg.setAttribute("data-threshold-visible", yDomain.thresholdVisible ? "true" : "false");
       if (viewMode === "parties") {
@@ -2469,18 +1673,6 @@
       svg.setAttribute("data-range", activeDomain.range);
       svg.setAttribute("data-x-axis-min", activeDomain.minIso);
       svg.setAttribute("data-x-axis-max", activeDomain.maxIso);
-      if (projection) {
-        svg.setAttribute("data-future-projection-origin", projection.origin.iso);
-        svg.setAttribute("data-future-projection-election", projection.election.iso);
-      }
-      svg.setAttribute("data-future-view", pathsActive() ? "campaign_paths"
-        : (projectionActive() ? "conditional_projection" : "none"));
-      if (campaignPaths) {
-        svg.setAttribute("data-campaign-path-origin", campaignPaths.origin.iso);
-        svg.setAttribute("data-campaign-path-election", campaignPaths.election.iso);
-        svg.setAttribute("data-campaign-visible-path-count", String(
-          representativeCampaignPaths(campaignPaths.paths).length));
-      }
       svg.appendChild(svgNode("title", { id: "election-timeseries-title" },
         "Vägen till valdagen, " + historyMetricLabel(selectedMetric)));
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
@@ -2501,46 +1693,6 @@
       svg.appendChild(plotDefs);
 
       var background = svgNode("g", { class: "election-timeseries__background", "aria-hidden": "true" });
-      if (futureActive && futureOrigin && futureElection) {
-        var paths = pathsActive();
-        var futureStartX = xScale(futureOrigin.time);
-        var futureEndX = xScale(futureElection.time);
-        var boundaryLabel = paths ? campaignPaths.rendering.origin_boundary_label
-          : projection.rendering.latest_forecast_label;
-        var electionLabel = paths ? campaignPaths.rendering.election_day_label
-          : projection.rendering.election_day_label;
-        var regionWidth = Math.max(0, futureEndX - futureStartX);
-        background.appendChild(svgNode("rect", {
-          x: futureStartX, y: plot.top, width: regionWidth, height: plot.height,
-          fill: paths ? "#5b74a8" : "#777", opacity: paths ? "0.075" : "0.055",
-          "data-future-region": "true", "data-future-background": "true",
-          "data-future-view": paths ? "campaign_paths" : "conditional_projection",
-          "data-region-start": futureOrigin.iso, "data-region-end": futureElection.iso
-        }));
-        background.appendChild(svgNode("line", {
-          x1: futureStartX, y1: plot.top, x2: futureStartX, y2: plot.bottom,
-          stroke: "#777", "stroke-width": "1", "stroke-dasharray": "3 4",
-          "data-latest-forecast-boundary": "true", "data-date": futureOrigin.iso
-        }));
-        // Keep only the two dated landmarks inside the chart.  The future
-        // view's meaning is carried by the fan, paths and legend, so a large
-        // region caption would repeat the same phrase and compete with the
-        // plotted quantities.
-        background.appendChild(svgNode("text", {
-          x: futureStartX + 5, y: plot.top + 14, "text-anchor": "start",
-          class: "election-timeseries__future-label",
-          "data-latest-forecast-label": "true"
-        }, boundaryLabel));
-        background.appendChild(svgNode("line", {
-          x1: futureEndX, y1: plot.top, x2: futureEndX, y2: plot.bottom,
-          stroke: "#555", "stroke-width": "1.2", "data-election-day-boundary": "true",
-          "data-date": futureElection.iso
-        }));
-        background.appendChild(svgNode("text", {
-          x: futureEndX - 4, y: plot.bottom + 24, fill: "#666", "font-size": compactChart ? "11" : "12",
-          "text-anchor": "end", "data-election-day-label": "true", "data-date": futureElection.iso
-        }, electionLabel));
-      }
       // The tick ladder belongs to the domain that produced it, so a 0.6 pp
       // party window and a 60 pp coalition span are both readable without the
       // renderer keeping its own second copy of the rule.
@@ -2596,7 +1748,10 @@
         }, "175 mandat"));
       }
       var dateTicks = historyAxisTicks(minTime, maxTime);
-      if (compactChart && dateTicks.length > 1 &&
+      // On the four-year scale the first year label sits a few pixels from the
+      // second at 360px.  A dated short window has exactly two labels, one at
+      // each end, and both are load-bearing.
+      if (compactChart && dateTicks.length > 1 && !dateTicks[0].dated &&
           dateTicks[1].time - dateTicks[0].time < 180 * 86400000) {
         dateTicks.shift();
       }
@@ -2705,16 +1860,14 @@
           }
           group.appendChild(pointCircle);
           if (current && pointValues.p50 !== null) {
-            // The current-value label belongs to the last certified point.
-            // Once a future region exists to the right of it, printing the
-            // label there would read as a claim about the simulated paths, so
-            // it is flipped to the historical side of the boundary.
+            // The current-value label belongs to the last certified point, in
+            // the right-hand gutter the plot reserves for it.
             endpointLabels.push({
               definition: definition,
               value: pointValues.p50,
               text: selectedMetric === "seats" ? seatMedianText(point.groups[definition.id]) : percent(pointValues.p50, 1),
-              x: futureActive ? xScale(point.time) - 9 : xScale(point.time) + 9,
-              anchor: futureActive ? "end" : "start",
+              x: xScale(point.time) + 9,
+              anchor: "start",
               y: yScale(pointValues.p50)
             });
           }
@@ -2748,346 +1901,6 @@
       }
       svg.appendChild(seriesLayer);
 
-      if (projectionActive() && selectedMetric === "vote") {
-        var futureLayer = svgNode("g", {
-          class: "election-timeseries__future-series",
-          "aria-label": projection.rendering.legend_label,
-          "data-future-series": "true", "pointer-events": "none"
-        });
-        var projectedCurve = [projection.anchorPoint].concat(projection.points);
-        definitions.forEach(function (definition) {
-          var futureGroup = svgNode("g", {
-            class: "election-timeseries__future-series-group",
-            "data-coalition": definition.id,
-            "data-coalition-label": definition.label,
-            "data-color": definition.color,
-            "data-projection": "true",
-            "clip-path": "url(#election-timeseries-plot-clip)"
-          });
-          var futureNinety = historyAreaPath(projectedCurve, selectedMetric, definition.id,
-            xScale, yScale, "p95", "p05");
-          var futureFifty = historyAreaPath(projectedCurve, selectedMetric, definition.id,
-            xScale, yScale, "p75", "p25");
-          var futureMedian = historyAreaPath(projectedCurve, selectedMetric, definition.id,
-            xScale, yScale, "p50", "p50");
-          if (futureNinety) futureGroup.appendChild(svgNode("path", {
-            d: futureNinety, fill: definition.color, opacity: "0.06",
-            class: "election-timeseries__future-band election-timeseries__future-band--90",
-            "data-future-band": "90", "data-coalition": definition.id
-          }));
-          if (futureFifty) futureGroup.appendChild(svgNode("path", {
-            d: futureFifty, fill: definition.color, opacity: "0.15",
-            class: "election-timeseries__future-band election-timeseries__future-band--50",
-            "data-future-band": "50", "data-coalition": definition.id
-          }));
-          if (futureMedian) futureGroup.appendChild(svgNode("path", {
-            d: futureMedian, fill: "none", stroke: definition.color, opacity: "0.68",
-            "stroke-width": "2.2", "stroke-dasharray": "7 5", "vector-effect": "non-scaling-stroke",
-            class: "election-timeseries__future-median", "data-future-median": "true",
-            "data-coalition": definition.id
-          }));
-          visibleProjectionPoints.forEach(function (point) {
-            var group = point.groups && point.groups[definition.id];
-            var values = historyDisplayQuantiles(group, selectedMetric);
-            var rawValues = group && group[selectedMetric];
-            if (!values || !rawValues) return;
-            var futurePoint = svgNode("circle", {
-              cx: xScale(point.time), cy: yScale(values.p50), r: "3.1", fill: definition.color,
-              opacity: "0.72", "pointer-events": "all", tabindex: "0", role: "button",
-              class: "election-timeseries__future-point", "data-future-point": "true",
-              "data-projection": "true", "data-coalition": definition.id, "data-date": point.date,
-              "data-p05": values.p05, "data-p25": values.p25, "data-p50": values.p50,
-              "data-p75": values.p75, "data-p95": values.p95,
-              "data-seat-quantiles": selectedMetric === "seats" ? JSON.stringify(rawValues) : "",
-              "aria-label": definition.label + ", " + projection.rendering.legend_label.toLowerCase() + " " +
-                (swedishDate(point.date) || point.date) + ": median " +
-                (selectedMetric === "seats" ? grouped(rawValues.p50) + " mandat" : percent(values.p50, 1))
-            });
-            futurePoint.addEventListener("mouseenter", function (event) { chooseForecast(point, false, event); });
-            futurePoint.addEventListener("focus", function (event) { chooseForecast(point, false, event); });
-            futurePoint.addEventListener("mouseleave", hideInspection);
-            futurePoint.addEventListener("blur", hideInspection);
-            futurePoint.addEventListener("click", function (event) { chooseForecast(point, false, event); });
-            futurePoint.addEventListener("keydown", function (event) {
-              if (event.key === "Enter" || event.key === " ") {
-                if (event.preventDefault) event.preventDefault();
-                chooseForecast(point, false, event);
-              }
-            });
-            futureGroup.appendChild(futurePoint);
-          });
-          futureLayer.appendChild(futureGroup);
-        });
-        svg.appendChild(futureLayer);
-      }
-
-      if (pathsActive()) {
-        var pathLayer = svgNode("g", {
-          class: "election-timeseries__campaign",
-          "aria-label": campaignPaths.rendering.future_region.label,
-          "data-campaign-path-series": "true", "pointer-events": "none"
-        });
-        // The x-axis maximum *is* election day, so the distribution glyph is
-        // inset by its own half-width to stay inside the frame while keeping
-        // its published election-day date.
-        // Horizontal position encodes time, so the election-day glyph sits
-        // exactly on election day.  It is drawn in an un-clipped overlay below
-        // instead of being nudged inwards to avoid the plot clip: moving a
-        // dated mark to solve clipping puts it at the wrong date, and on the
-        // four-year scale it moved left of the "I dag" boundary entirely.
-        var glyphX = xScale(campaignPaths.election.time);
-        var boxWidth = compactChart ? 10 : 13;
-        var electionLayer = svgNode("g", {
-          class: "election-timeseries__election-day",
-          "aria-label": campaignPaths.electionDay.label,
-          "data-election-day-series": "true", "pointer-events": "none"
-        });
-        definitions.forEach(function (definition) {
-          var group = svgNode("g", {
-            class: "election-timeseries__campaign-group",
-            "data-coalition": definition.id,
-            "data-coalition-label": definition.label,
-            "data-color": definition.color,
-            "data-campaign-paths": "true",
-            "clip-path": "url(#election-timeseries-plot-clip)"
-          });
-          if (selectedMetric === "vote" && visibleBandPoints.length) {
-            var ninety = historyAreaPath(visibleBandPoints, "vote", definition.id, campaignX, yScale, "p95", "p05");
-            var fifty = historyAreaPath(visibleBandPoints, "vote", definition.id, campaignX, yScale, "p75", "p25");
-            if (ninety) group.appendChild(svgNode("path", {
-              d: ninety, fill: definition.color, opacity: "0.10",
-              class: "election-timeseries__campaign-band election-timeseries__campaign-band--90",
-              "data-campaign-band": "90", "data-coalition": definition.id
-            }));
-            if (fifty) group.appendChild(svgNode("path", {
-              d: fifty, fill: definition.color, opacity: "0.20",
-              class: "election-timeseries__campaign-band election-timeseries__campaign-band--50",
-              "data-campaign-band": "50", "data-coalition": definition.id
-            }));
-            // A limited, deterministically chosen set of faint individual
-            // trajectories.  They are the point of the view: they show that a
-            // flat median is an average over movement, not a prediction of
-            // stillness.
-            representativeCampaignPaths(campaignPaths.paths).forEach(function (track) {
-              var line = track.values[definition.id];
-              if (!line) return;
-              var commands = "";
-              var drawn = 0;
-              campaignPaths.bands.forEach(function (band, index) {
-                if (!pointInActiveDomain(band)) return;
-                var value = historyNumber(line[index]);
-                if (value === null) return;
-                commands += (drawn ? "L" : "M") + campaignX(band.time).toFixed(2) + "," +
-                  yScale(value).toFixed(2);
-                drawn += 1;
-              });
-              if (drawn < 2) return;
-              group.appendChild(svgNode("path", {
-                d: commands, fill: "none", stroke: definition.color, opacity: "0.22",
-                "stroke-width": "1", "vector-effect": "non-scaling-stroke",
-                class: "election-timeseries__campaign-path", "data-campaign-path": "true",
-                "data-coalition": definition.id, "data-sample-index": String(track.sampleIndex)
-              }));
-            });
-            var medianPath = historyAreaPath(visibleBandPoints, "vote", definition.id,
-              campaignX, yScale, "p50", "p50");
-            if (medianPath) group.appendChild(svgNode("path", {
-              d: medianPath, fill: "none", stroke: definition.color, opacity: "0.18",
-              "stroke-width": "1.2", "stroke-dasharray": "4 6", "vector-effect": "non-scaling-stroke",
-              class: "election-timeseries__campaign-median", "data-campaign-median": "true",
-              "data-coalition": definition.id
-            }));
-            var originBand = visibleBandPoints.filter(function (band) {
-              return band.pathDay === 0;
-            })[0];
-            visibleBandPoints.forEach(function (band) {
-              if (band.pathDay === 0) return;
-              var values = historyDisplayQuantiles(band.groups[definition.id], "vote");
-              if (!values || values.p50 === null) return;
-              var mark = svgNode("circle", {
-                cx: xScale(band.time), cy: yScale(values.p50), r: "9", fill: "transparent",
-                opacity: "0", stroke: "none", "pointer-events": "all", "aria-hidden": "true",
-                class: "election-timeseries__campaign-point", "data-campaign-point": "true",
-                "data-coalition": definition.id, "data-date": band.date,
-                "data-path-day": String(band.pathDay),
-                "data-p05": values.p05, "data-p25": values.p25, "data-p50": values.p50,
-                "data-p75": values.p75, "data-p95": values.p95,
-              });
-              mark.addEventListener("mouseenter", function (event) { chooseForecast(band, false, event); });
-              mark.addEventListener("mouseleave", hideInspection);
-              mark.addEventListener("click", function (event) { chooseForecast(band, false, event); });
-              group.appendChild(mark);
-            });
-            // Painted after the daily marks so a pointer at its centre resolves
-            // to the origin state rather than to the neighbouring first day.
-            if (originBand) {
-              var originValues = historyDisplayQuantiles(originBand.groups[definition.id], "vote");
-              if (originValues && originValues.p50 !== null) {
-                var tickWidth = compactChart ? 8 : 9;
-                group.appendChild(svgNode("line", {
-                  x1: originX, y1: yScale(originValues.p95), x2: originX,
-                  y2: yScale(originValues.p05),
-                  stroke: definition.color, "stroke-width": "1.5", opacity: "0.65",
-                  "stroke-linecap": "round", "vector-effect": "non-scaling-stroke",
-                  class: "election-timeseries__origin-state-whisker",
-                  "data-origin-state-interval": "90", "data-coalition": definition.id
-                }));
-                group.appendChild(svgNode("line", {
-                  x1: originX, y1: yScale(originValues.p75), x2: originX,
-                  y2: yScale(originValues.p25),
-                  stroke: definition.color, "stroke-width": "4.5", opacity: "0.4",
-                  "vector-effect": "non-scaling-stroke",
-                  class: "election-timeseries__origin-state-box",
-                  "data-origin-state-interval": "50", "data-coalition": definition.id
-                }));
-                group.appendChild(svgNode("line", {
-                  x1: originX - tickWidth / 2, y1: yScale(originValues.p50),
-                  x2: originX + tickWidth / 2, y2: yScale(originValues.p50),
-                  stroke: definition.color, "stroke-width": "2.4",
-                  "vector-effect": "non-scaling-stroke",
-                  class: "election-timeseries__origin-state-median",
-                  "data-origin-state-median": "true", "data-coalition": definition.id
-                }));
-                // A square, so it cannot be mistaken for the round certified
-                // forecast point a few pixels to its left.
-                var originSize = compactChart ? 5.2 : 5.6;
-                var originMark = svgNode("rect", {
-                  x: originX - originSize / 2, y: yScale(originValues.p50) - originSize / 2,
-                  width: originSize, height: originSize, rx: "1",
-                  fill: definition.color, stroke: "#fff", "stroke-width": "1.2",
-                  "pointer-events": "all", tabindex: "0", role: "button",
-                  class: "election-timeseries__origin-state-point",
-                  "data-origin-state-point": "true", "data-coalition": definition.id,
-                  "data-date": originBand.date, "data-path-day": "0",
-                  "data-origin-state-label": campaignPaths.rendering.origin_state_label,
-                  "data-p05": originValues.p05, "data-p25": originValues.p25,
-                  "data-p50": originValues.p50, "data-p75": originValues.p75,
-                  "data-p95": originValues.p95,
-                  "aria-label": definition.label + ", " +
-                    campaignPaths.rendering.origin_state_label.toLowerCase() + " " +
-                    (swedishDate(originBand.date) || originBand.date) + ": median " +
-                    percent(originValues.p50, 1)
-                });
-                originMark.addEventListener("mouseenter", function (event) {
-                  chooseForecast(originBand, false, event);
-                });
-                originMark.addEventListener("focus", function (event) {
-                  chooseForecast(originBand, false, event);
-                });
-                originMark.addEventListener("mouseleave", hideInspection);
-                originMark.addEventListener("blur", hideInspection);
-                originMark.addEventListener("click", function (event) {
-                  chooseForecast(originBand, false, event);
-                });
-                originMark.addEventListener("keydown", function (event) {
-                  if (event.key === "Enter" || event.key === " ") {
-                    if (event.preventDefault) event.preventDefault();
-                    chooseForecast(originBand, false, event);
-                  } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-                    if (event.preventDefault) event.preventDefault();
-                    chooseForecast(nearestPoint(originBand.time,
-                      event.key === "ArrowRight" ? 1 : -1), false, event);
-                  }
-                });
-                group.appendChild(originMark);
-              }
-            }
-          }
-
-          pathLayer.appendChild(group);
-
-          // The emphasized election-day forecast distribution.  Unlike the
-          // opinion bands it carries ElectionNoise, geography and mandates,
-          // and it is the certified production distribution value for value.
-          // It lives outside the plot clip so it can straddle election day at
-          // the frame's right edge without being cut in half.
-          var electionDayGroup = svgNode("g", {
-            class: "election-timeseries__election-day-group",
-            "data-coalition": definition.id,
-            "data-coalition-label": definition.label,
-            "data-color": definition.color,
-            "data-election-day": "true"
-          });
-          var electionGroup = campaignPaths.electionDay.groups[definition.id];
-          var electionValues = historyDisplayQuantiles(electionGroup, selectedMetric);
-          var electionRaw = electionGroup && electionGroup[selectedMetric];
-          if (electionValues && electionValues.p50 !== null && electionValues.p05 !== null &&
-              electionValues.p95 !== null) {
-            electionDayGroup.appendChild(svgNode("line", {
-              x1: glyphX, y1: yScale(electionValues.p95), x2: glyphX, y2: yScale(electionValues.p05),
-              stroke: definition.color, "stroke-width": "2", opacity: "0.55",
-              "stroke-linecap": "round", "vector-effect": "non-scaling-stroke",
-              class: "election-timeseries__election-day-whisker",
-              "data-election-day-interval": "90", "data-coalition": definition.id
-            }));
-            electionDayGroup.appendChild(svgNode("rect", {
-              x: glyphX - boxWidth / 2, y: yScale(electionValues.p75),
-              width: boxWidth,
-              height: Math.max(1.5, yScale(electionValues.p25) - yScale(electionValues.p75)),
-              fill: definition.color, opacity: "0.42", rx: "1.5",
-              class: "election-timeseries__election-day-box",
-              "data-election-day-interval": "50", "data-coalition": definition.id
-            }));
-            electionDayGroup.appendChild(svgNode("line", {
-              x1: glyphX - boxWidth / 2 - 2, y1: yScale(electionValues.p50),
-              x2: glyphX + boxWidth / 2 + 2, y2: yScale(electionValues.p50),
-              stroke: definition.color, "stroke-width": "2.6",
-              "vector-effect": "non-scaling-stroke",
-              class: "election-timeseries__election-day-median",
-              "data-election-day-median": "true", "data-coalition": definition.id
-            }));
-            var electionMark = svgNode("circle", {
-              cx: glyphX, cy: yScale(electionValues.p50), r: compactChart ? "4.6" : "5",
-              fill: definition.color, stroke: "#fff", "stroke-width": "1.2",
-              "pointer-events": "all", tabindex: "0", role: "button",
-              class: "election-timeseries__election-day-point",
-              "data-election-day-point": "true", "data-coalition": definition.id,
-              "data-date": campaignPaths.electionDay.date, "data-metric": selectedMetric,
-              "data-p05": electionValues.p05, "data-p25": electionValues.p25,
-              "data-p50": electionValues.p50, "data-p75": electionValues.p75,
-              "data-p95": electionValues.p95,
-              "data-seat-quantiles": selectedMetric === "seats" ? JSON.stringify(electionRaw) : "",
-              "aria-label": definition.label + ", " + campaignPaths.electionDay.label.toLowerCase() +
-                " " + (swedishDate(campaignPaths.electionDay.date) || campaignPaths.electionDay.date) +
-                ": median " + (selectedMetric === "seats"
-                  ? grouped(electionRaw.p50) + " mandat" : percent(electionValues.p50, 1))
-            });
-            var electionPoint = campaignPaths.electionDay;
-            electionMark.addEventListener("mouseenter", function (event) {
-              chooseForecast(electionPoint, false, event);
-            });
-            electionMark.addEventListener("focus", function (event) {
-              chooseForecast(electionPoint, false, event);
-            });
-            electionMark.addEventListener("mouseleave", hideInspection);
-            electionMark.addEventListener("blur", hideInspection);
-            electionMark.addEventListener("click", function (event) {
-              chooseForecast(electionPoint, false, event);
-            });
-            electionMark.addEventListener("keydown", function (event) {
-              if (event.key === "Enter" || event.key === " ") {
-                if (event.preventDefault) event.preventDefault();
-                chooseForecast(electionPoint, false, event);
-              } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-                if (event.preventDefault) event.preventDefault();
-                chooseForecast(nearestPoint(electionPoint.time,
-                  event.key === "ArrowRight" ? 1 : -1), false, event);
-              }
-            });
-            electionDayGroup.appendChild(electionMark);
-          }
-          electionLayer.appendChild(electionDayGroup);
-        });
-        svg.appendChild(pathLayer);
-        svg.appendChild(electionLayer);
-        background.appendChild(svgNode("text", {
-          x: glyphX + boxWidth / 2 + 2, y: plot.top + (compactChart ? 34 : 31),
-          "text-anchor": "end",
-          class: "election-timeseries__future-label election-timeseries__future-label--election",
-          "data-election-day-distribution-label": "true"
-        }, campaignPaths.rendering.election_day_distribution_label));
-      }
-
       if (selectedMetric === "vote" && visiblePollPoints.length) {
         var scatterLayer = svgNode("g", {
           class: "election-timeseries__polls", "aria-hidden": "true",
@@ -3120,7 +1933,7 @@
           return;
         }
         var iso = point.date;
-        var x = point.isOriginState ? originX : xScale(point.time);
+        var x = xScale(point.time);
         selectionLayer.appendChild(svgNode("line", {
           x1: x, y1: plot.top, x2: x, y2: plot.bottom,
           class: "election-timeseries__crosshair", "data-timeseries-crosshair": "true",
@@ -3161,9 +1974,7 @@
         renderDetail(null);
       }
 
-      var interactionMaxTime = futureOrigin
-        ? Math.max(minTime, Math.min(futureOrigin.time, maxTime)) : maxTime;
-      var hitRight = xScale(interactionMaxTime);
+      var hitRight = xScale(maxTime);
       var hit = svgNode("rect", {
         class: "election-timeseries__hit", x: plot.left, y: plot.top,
         width: Math.max(0, hitRight - plot.left), height: plot.height, tabindex: "0", role: "button",
@@ -3171,7 +1982,7 @@
       });
       function chooseByEvent(event, persistent) {
         var time = dateForEvent(event);
-        var point = nearestPoint(time === null ? interactionMaxTime : Math.min(interactionMaxTime, time));
+        var point = nearestPoint(time === null ? maxTime : Math.min(maxTime, time));
         chooseForecast(point, persistent, event);
       }
       if (hit.addEventListener) {
@@ -3191,10 +2002,10 @@
         if (event && event.target !== svg && event.target !== hit) return;
         if (event && (event.key === "Enter" || event.key === " ")) {
           if (event.preventDefault) event.preventDefault();
-          chooseForecast(nearestPoint(interactionMaxTime), false, event);
+          chooseForecast(nearestPoint(maxTime), false, event);
         } else if (event && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
           if (event.preventDefault) event.preventDefault();
-          chooseForecast(nearestPoint(selectedDate === null ? interactionMaxTime : selectedDate,
+          chooseForecast(nearestPoint(selectedDate === null ? maxTime : selectedDate,
             event.key === "ArrowRight" ? 1 : -1), false, event);
         }
       };
@@ -3279,9 +2090,6 @@
         return;
       }
       viewMode = next;
-      // The secondary fan has no party counterpart, so entering party mode
-      // returns the future region to the primary campaign-path view.
-      if (viewMode === "parties" && campaignPaths) futureView = "paths";
       renderChart();
     }
 
@@ -3299,22 +2107,6 @@
     if (modeSeats) modeSeats.addEventListener("click", function () {
       selectedMetric = "seats";
       renderChart();
-    });
-    if (futureViewPaths) futureViewPaths.addEventListener("click", function () {
-      if (!campaignPaths) return;
-      futureView = "paths";
-      renderChart();
-    });
-    if (futureViewStability) futureViewStability.addEventListener("click", function () {
-      if (!projection || !projection.points.length) return;
-      futureView = "projection";
-      renderChart();
-    });
-    if (campaignCue) campaignCue.addEventListener("click", function () {
-      selectedRange = "short";
-      renderChart();
-      var shortButton = byId("election-timeseries-range-short");
-      if (shortButton && shortButton.focus) shortButton.focus();
     });
     if (rangeFull) rangeFull.addEventListener("click", function () {
       selectedRange = "full";
@@ -3391,77 +2183,6 @@
     } else {
       enablePartyTimelineLinks([]);
       showPartyTimeline = null;
-    }
-    ["election-timeseries-key-projection", "election-timeseries-key-campaign-paths",
-      "election-timeseries-key-election-day", "election-timeseries-projection-note",
-      "election-timeseries-campaign-note"
-    ].forEach(function (id) {
-      var previous = byId(id);
-      if (previous && previous.parentNode) previous.parentNode.removeChild(previous);
-    });
-    var keyList = section.querySelector(".election-timeseries__key");
-    var provenanceAnchor = byId("election-timeseries-provenance-note");
-    function appendNote(id, text) {
-      if (!provenanceAnchor || !provenanceAnchor.parentNode) return;
-      var note = document.createElement("p");
-      note.id = id;
-      note.className = "election-timeseries__note election-muted";
-      note.textContent = text;
-      provenanceAnchor.parentNode.insertBefore(note, provenanceAnchor);
-      return note;
-    }
-    // Both future views publish their own Swedish copy.  Create every legend
-    // key and note that the payload supports, then let setModeButtons show
-    // only the copy that belongs to the view actually on screen.
-    if (campaignPaths) {
-      if (keyList) {
-        var pathKey = document.createElement("span");
-        pathKey.id = "election-timeseries-key-campaign-paths";
-        pathKey.className = "election-timeseries__key-item";
-        pathKey.innerHTML = "<span aria-hidden=\"true\" style=\"display:inline-block;width:1.5rem;" +
-          "border-top:1px solid currentColor;vertical-align:middle;margin-right:.35rem;opacity:.4\"></span>" +
-          escapeHtml(campaignPaths.rendering.path_legend_label);
-        keyList.appendChild(pathKey);
-        var electionKey = document.createElement("span");
-        electionKey.id = "election-timeseries-key-election-day";
-        electionKey.className = "election-timeseries__key-item";
-        electionKey.innerHTML = "<span aria-hidden=\"true\" style=\"display:inline-block;width:.5rem;" +
-          "height:1rem;border-radius:2px;background:currentColor;vertical-align:middle;" +
-          "margin-right:.35rem;opacity:.5\"></span>" +
-          escapeHtml(campaignPaths.rendering.election_day_distribution_label);
-        keyList.appendChild(electionKey);
-      }
-      appendNote("election-timeseries-campaign-note",
-        "Fanan börjar i opinionsläget i dag. Valdagsprognosen är bredare eftersom den också " +
-        "inkluderar osäkerheten mellan dagens opinion och det faktiska valresultatet.");
-    }
-    if (projection && projection.points.length) {
-      if (keyList) {
-        var projectionKey = document.createElement("span");
-        projectionKey.id = "election-timeseries-key-projection";
-        projectionKey.className = "election-timeseries__key-item";
-        projectionKey.innerHTML = "<span aria-hidden=\"true\" style=\"display:inline-block;width:1.5rem;" +
-          "border-top:2px dashed currentColor;vertical-align:middle;margin-right:.35rem;opacity:.65\"></span>" +
-          escapeHtml(projection.rendering.legend_label);
-        keyList.appendChild(projectionKey);
-      }
-      // The concrete conditional disclosure, plus the demotion sentence when
-      // the publication carries one.
-      appendNote("election-timeseries-projection-note",
-        (history.secondaryProjectionDescription
-          ? history.secondaryProjectionDescription + " "
-          : "") + projection.tooltip);
-    }
-    if (campaignPaths) {
-      setText("election-timeseries-intro",
-        "Historisk prognos fram till i dag. Därefter visas möjliga opinionsbanor fram till valdagen. " +
-        "Valdagsprognosen är bredare eftersom den också inkluderar osäkerheten mellan dagens " +
-        "opinion och det faktiska valresultatet.");
-    } else {
-      setText("election-timeseries-intro", projection && projection.points.length
-        ? "Historisk prognos fram till i dag. Därefter visas en villkorad projektion till valdagen. " +
-          "Enskilda mätningar visas i den historiska röstandelsdelen."
-        : "Historisk prognos med enskilda mätningar som jämförelse i röstandelsvyn.");
     }
     setViewButtons();
     renderChart();

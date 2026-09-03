@@ -135,7 +135,6 @@ function readState(browser) {
     const partyHost = document.getElementById('election-timeseries-parties');
     const coalitionHost = document.getElementById('election-timeseries-coalitions');
     const viewHost = document.getElementById('election-timeseries-view');
-    const futureHost = document.getElementById('election-timeseries-future');
     const partyNote = document.getElementById('election-timeseries-party-note');
     // getComputedStyle reports an element's *own* display, so a child of a
     // display:none parent still answers "inline". getClientRects() is empty
@@ -160,11 +159,9 @@ function readState(browser) {
       yMax: Number(svg?.getAttribute('data-y-max')),
       yDomainMode: svg?.getAttribute('data-y-domain-mode') || null,
       thresholdVisible: svg?.getAttribute('data-threshold-visible') || null,
-      futureView: svg?.getAttribute('data-future-view') || null,
       viewSwitchVisible: visible(viewHost),
       partyHostVisible: visible(partyHost),
       coalitionHostVisible: visible(coalitionHost),
-      futureHostVisible: visible(futureHost),
       partyNoteVisible: visible(partyNote),
       partyButtons: Array.from(partyHost ? partyHost.querySelectorAll('button') : [])
         .map((button) => ({
@@ -183,18 +180,20 @@ function readState(browser) {
         value: Number(node.getAttribute('data-value')),
         cy: Number(node.getAttribute('cy')),
       })),
-      campaignPathCount: marks('[data-campaign-path]').length,
-      campaignBands: marks('[data-campaign-band]').map((node) => node.getAttribute('data-campaign-band')),
-      originStatePoints: marks('[data-origin-state-point]')
-        .map((node) => node.getAttribute('data-coalition')),
-      electionDayPoints: marks('[data-election-day-point]').map((node) => ({
-        definition: node.getAttribute('data-coalition'),
-        metric: node.getAttribute('data-metric'),
-        p05: Number(node.getAttribute('data-p05')),
-        p50: Number(node.getAttribute('data-p50')),
-        p95: Number(node.getAttribute('data-p95')),
-        seats: node.getAttribute('data-seat-quantiles'),
-      })),
+      // The chart ends at the latest certified forecast, so every mark kind
+      // that used to live to the right of it must be absent in both modes.
+      forwardMarkCount: marks(
+        '[data-future-region],[data-future-series="true"],[data-future-point="true"],'
+        + '[data-future-band],[data-future-median="true"],[data-campaign-path],'
+        + '[data-campaign-band],[data-campaign-point],[data-origin-state-point],'
+        + '[data-origin-state-interval],[data-election-day-point],'
+        + '[data-election-day-interval],[data-election-day-boundary],'
+        + '[data-latest-forecast-boundary]',
+      ).length,
+      forwardControlIds: [
+        'election-timeseries-future', 'election-timeseries-future-paths',
+        'election-timeseries-future-stability', 'election-timeseries-campaign-cue',
+      ].filter((id) => Boolean(document.getElementById(id))),
       forecastPoints: marks('[data-forecast-point]').map((node) => ({
         definition: node.getAttribute('data-coalition'),
         date: node.getAttribute('data-date'),
@@ -208,7 +207,6 @@ function readState(browser) {
       })),
       thresholdLabel: marks('[data-threshold-label]').map((node) => (node.textContent || '').trim()),
       majorityLines: marks('[data-majority]').length,
-      futureRegion: marks('[data-future-region]').length,
       plot: (() => {
         const grid = svg?.querySelector('.election-timeseries__grid-line');
         return grid ? { top: Number(grid.getAttribute('y1')) } : null;
@@ -402,68 +400,6 @@ function validateRealArtifact(history, certified) {
     fail(`expected exactly one current_production point, found ${current.length}`);
   }
 
-  const paths = history.future_campaign_paths;
-  if (paths) {
-    const bands = Array.isArray(paths.bands) ? paths.bands : [];
-    if (bands.length !== paths.path_days + 1) {
-      fail(`campaign bands cover ${bands.length} days, expected ${paths.path_days + 1}`);
-    }
-    const badBands = bands.filter((band) => {
-      const parties = band?.parties;
-      if (!parties) return true;
-      return !PARTY_ORDER.every((party) => {
-        const entry = parties[party];
-        return entry && Object.keys(entry).length === 1 && orderedNumbers(entry.vote);
-      });
-    });
-    if (badBands.length) {
-      fail(`${badBands.length} campaign band(s) lack complete vote-only party bands`);
-    }
-    // No intermediate party mandate trajectory, asserted on the data and on
-    // both declarations.
-    const seatedBands = bands.filter((band) =>
-      PARTY_ORDER.some((party) => band?.parties?.[party]?.seats));
-    if (seatedBands.length) {
-      fail(`${seatedBands.length} campaign band(s) publish party seat quantiles`);
-    }
-    if (paths.rendering?.party_intermediate_seat_trajectory !== false) {
-      fail('rendering does not disclaim an intermediate party mandate trajectory');
-    }
-    if (JSON.stringify(paths.rendering?.party_units) !== JSON.stringify(['vote'])) {
-      fail(`rendering.party_units is ${JSON.stringify(paths.rendering?.party_units)}`);
-    }
-    if (paths.path_construction?.party_vote_share_denominator !==
-        'all_nine_model_categories_including_rest') {
-      fail('path_construction does not declare the nine-category party denominator');
-    }
-    const tracks = Array.isArray(paths.paths?.series) ? paths.paths.series : [];
-    if (!tracks.length) fail('no representative campaign trajectories are published');
-    const badTracks = tracks.filter((track) => !PARTY_ORDER.every((party) =>
-      Array.isArray(track?.party_values?.[party]) &&
-      track.party_values[party].length === paths.path_days + 1 &&
-      track.party_values[party].every((value) =>
-        typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100)));
-    if (badTracks.length) {
-      fail(`${badTracks.length} representative trajectory/ies lack complete party tracks`);
-    }
-    if (current.length === 1 &&
-        JSON.stringify(paths.election_day?.parties) !== JSON.stringify(current[0].parties)) {
-      fail('election_day.parties is not identical to the certified current_production point');
-    }
-    // The future region is simulated, not measured.
-    const origin = String(paths.origin_date || '');
-    const futurePolls = (history.polls || []).filter((poll) => poll.publication_date > origin);
-    const futurePop = (history.poll_of_polls || []).filter((item) => item.date > origin);
-    if (futurePolls.length || futurePop.length) {
-      fail(`${futurePolls.length} poll(s) and ${futurePop.length} Poll-of-Polls value(s) are ` +
-        `dated after the origin ${origin}`);
-    }
-    if (paths.endpoint_parity?.verified === true &&
-        paths.endpoint_parity.max_abs_vote_share_difference_pp !== 0) {
-      fail('endpoint parity is verified but reports a non-zero difference');
-    }
-  }
-
   // The published party endpoint quantiles must be the certified forecast's
   // own. History keeps six decimals and parties.json three, so votes are
   // compared at the coarser published precision and seats exactly.
@@ -583,12 +519,9 @@ async function runViewport(viewport, site) {
     check('exactly one series is drawn', state.seriesDefinitions.length === 1, state.seriesDefinitions);
     equal('the drawn series is the selected party', state.seriesDefinitions, [state.selectedParty]);
     check('no coalition quantity is drawn in party mode',
-      state.pollDefinitions.every((id) => PARTY_ORDER.includes(id)) &&
-      state.electionDayPoints.every((point) => PARTY_ORDER.includes(point.definition)) &&
-      state.originStatePoints.every((id) => PARTY_ORDER.includes(id)),
-      { polls: state.pollDefinitions, election: state.electionDayPoints.map((p) => p.definition) });
-    check('the secondary uncertainty view is not offered in party mode', !state.futureHostVisible);
-    equal('the future region stays the campaign-path view', state.futureView, 'campaign_paths');
+      state.pollDefinitions.every((id) => PARTY_ORDER.includes(id)), state.pollDefinitions);
+    equal('party mode draws nothing beyond the latest forecast', state.forwardMarkCount, 0);
+    equal('party mode offers no forward-view control', state.forwardControlIds, []);
     check('the party domain differs from the coalition one',
       state.yMin !== coalitionDomain.min || state.yMax !== coalitionDomain.max,
       { party: [state.yMin, state.yMax], coalition: [coalitionDomain.min, coalitionDomain.max] });
@@ -624,23 +557,17 @@ async function runViewport(viewport, site) {
       { min: state.yMin, max: state.yMax,
         outside: drawnPolls.filter((poll) => poll.value < state.yMin || poll.value > state.yMax) });
 
-    // ---- election-day distribution is the certified party forecast -------
-    const electionParty = state.electionDayPoints.find((point) => point.definition === state.selectedParty);
+    // ---- the last drawn point is the certified party forecast ------------
+    // The chart's closing claim: its rightmost mark is today's published
+    // forecast for the selected party, value for value.
     const certifiedParty = certified.parties[state.selectedParty].vote;
-    check('the election-day party distribution is the certified forecast',
-      Boolean(electionParty) &&
-      Math.abs(electionParty.p50 - certifiedParty.p50) < 1e-9 &&
-      Math.abs(electionParty.p05 - certifiedParty.p05) < 1e-9 &&
-      Math.abs(electionParty.p95 - certifiedParty.p95) < 1e-9,
-    { drawn: electionParty, certified: certifiedParty });
-
-    // ---- the campaign region ---------------------------------------------
-    check('the future region is shaded', state.futureRegion > 0);
-    check('both party opinion bands are drawn',
-      state.campaignBands.includes('50') && state.campaignBands.includes('90'), state.campaignBands);
-    check('a limited set of representative party trajectories is drawn',
-      state.campaignPathCount > 0 && state.campaignPathCount <= 8, state.campaignPathCount);
-    equal('the origin opinion state is drawn for the party', state.originStatePoints, [state.selectedParty]);
+    const lastDrawn = state.forecastPoints
+      .filter((point) => point.definition === state.selectedParty)
+      .sort((left, right) => (left.date < right.date ? -1 : 1)).at(-1);
+    check('the last drawn party point is the certified forecast for today',
+      Boolean(lastDrawn) && lastDrawn.date === certified.date &&
+      Math.abs(lastDrawn.p50 - certifiedParty.p50) < 1e-9,
+    { drawn: lastDrawn, certified: { date: certified.date, p50: certifiedParty.p50 } });
     check('every historical forecast point is inside the visible domain',
       state.forecastPoints.every((point) => point.p50 >= state.yMin - 1e-9 && point.p50 <= state.yMax + 1e-9),
       { min: state.yMin, max: state.yMax });
@@ -654,8 +581,12 @@ async function runViewport(viewport, site) {
     check('the short-range party window is tighter than the four-year one',
       (short.yMax - short.yMin) <= (state.yMax - state.yMin),
       { short: short.yMax - short.yMin, full: state.yMax - state.yMin });
+    // The bound guards against the four-year coalition ladder (20 pp minimum
+    // span) leaking into the party window, not against the data itself. The
+    // 30 days up to the latest forecast span about 7 pp of poll scatter for
+    // the largest party, which snaps to a 10 pp tick domain.
     check('the short-range window is fine enough for sub-point movement',
-      (short.yMax - short.yMin) <= 8, short.yMax - short.yMin);
+      (short.yMax - short.yMin) <= 12, short.yMax - short.yMin);
     check('the short-range axis has readable ticks',
       short.yTicks.length >= 3 && short.yTicks.length <= 9, short.yTicks);
 
@@ -664,21 +595,16 @@ async function runViewport(viewport, site) {
     let seats = await readState(browser);
     equal('the party selection survives a metric change', seats.selectedParty, state.selectedParty);
     equal('the chart is still in party mode', seats.viewMode, 'parties');
-    check('no intermediate party mandate path is drawn',
-      seats.campaignPathCount === 0 && seats.campaignBands.length === 0 &&
-      seats.originStatePoints.length === 0,
-      { paths: seats.campaignPathCount, bands: seats.campaignBands,
-        origin: seats.originStatePoints });
-    check('the future period is still shaded in mandate mode', seats.futureRegion > 0);
-    check('the election-day mandate distribution is drawn',
-      seats.electionDayPoints.some((point) => point.definition === seats.selectedParty &&
-        point.metric === 'seats' && Boolean(point.seats)),
-      seats.electionDayPoints);
+    equal('the mandate view draws nothing beyond the latest forecast',
+      seats.forwardMarkCount, 0);
+    check('the mandate view draws the historical party mandate series',
+      seats.metric === 'seats' && seats.seriesDefinitions.length === 1 &&
+      seats.forecastPoints.some((point) => point.definition === seats.selectedParty),
+      { series: seats.seriesDefinitions, points: seats.forecastPoints.length });
     check('no 4 % threshold line in the mandate view', seats.thresholdLine.length === 0);
     // The 175-seat rule is a question about a government, not about a party.
     check('no 175-mandate majority rule is drawn for a single party',
       seats.majorityLines === 0, seats.majorityLines);
-    check('the secondary uncertainty view stays hidden in mandate mode', !seats.futureHostVisible);
     // It explains the vote-share denominator, which is not what is on screen.
     check('the vote-denominator note is withdrawn in the mandate view', !seats.partyNoteVisible);
 
@@ -832,16 +758,6 @@ async function runFallback() {
   const site = await prepareSite((history) => {
     delete history.parties_view;
     (history.series || []).forEach((point) => { delete point.parties; });
-    const paths = history.future_campaign_paths;
-    if (paths) {
-      (paths.bands || []).forEach((band) => { delete band.parties; });
-      (paths.paths?.series || []).forEach((track) => { delete track.party_values; });
-      delete paths.election_day.parties;
-      delete paths.path_construction.party_vote_share_denominator;
-      ['party_units', 'party_election_day_units', 'party_intermediate_seat_trajectory',
-        'national_threshold_pct', 'national_threshold_label_sv']
-        .forEach((key) => { delete paths.rendering[key]; });
-    }
     return history;
   });
   const { server, browser } = await open(VIEWPORTS[0], site.root);
@@ -853,7 +769,8 @@ async function runFallback() {
     check('the party selector is not shown', !state.partyHostVisible);
     check('the coalition chart still renders', state.seriesDefinitions.length === 2,
       state.seriesDefinitions);
-    check('the campaign region still renders', state.campaignPathCount > 0 && state.futureRegion > 0);
+    equal('the fallback chart draws nothing beyond the latest forecast',
+      state.forwardMarkCount, 0);
     const link = await browser.evaluate(() => {
       const rows = Array.from(document.querySelectorAll('#election-party-cards .ev-head'));
       const target = rows.find((node) => (node.getAttribute('aria-label') || '').includes('Moderaterna'));
@@ -871,6 +788,26 @@ async function runFallback() {
 }
 
 // A declared-but-broken party family must not be half-rendered.
+// A forward-looking artifact the chart no longer reads must not be able to
+// change anything: neither the party view's availability nor a single mark.
+async function runUnreadForwardArtifact(label, transform) {
+  console.log(`\nunread forward artifact: ${label}`);
+  const site = await prepareSite(transform);
+  const { server, browser } = await open(VIEWPORTS[0], site.root);
+  try {
+    const state = await readState(browser);
+    equal('party mode is still offered', state.partyViewState, 'ready');
+    check('the view switch is still offered', state.viewSwitchVisible);
+    check('the coalition chart is unaffected', state.seriesDefinitions.length === 2,
+      state.seriesDefinitions);
+    equal('nothing is drawn beyond the latest forecast', state.forwardMarkCount, 0);
+    equal('no console errors', appErrors(browser).map((entry) => entry.text), []);
+  } finally {
+    await closeBrowser(browser, server);
+    await site.cleanup();
+  }
+}
+
 async function runFailClosed(label, transform, options) {
   console.log(`\nfail-closed: ${label}`);
   const site = await prepareSite(transform);
@@ -975,24 +912,6 @@ async function selfTestRealArtifactMode() {
       clone.date = '2026-09-04';
       h.series.push(clone);
     }, 'exactly one current_production'],
-    ['a campaign band without party bands', (h) => {
-      delete h.future_campaign_paths.bands[2].parties;
-    }, 'lack complete vote-only party bands'],
-    ['party seats inside a campaign band', (h) => {
-      h.future_campaign_paths.bands[1].parties.M.seats =
-        { p05: 1, p25: 2, p50: 3, p75: 4, p95: 5 };
-    }, 'publish party seat quantiles'],
-    ['a declared intermediate mandate trajectory', (h) => {
-      h.future_campaign_paths.rendering.party_intermediate_seat_trajectory = true;
-    }, 'intermediate party mandate trajectory'],
-    ['a representative trajectory without party tracks', (h) => {
-      delete h.future_campaign_paths.paths.series[0].party_values;
-    }, 'lack complete party tracks'],
-    ['a truncated campaign band range', (h) => { h.future_campaign_paths.bands.pop(); },
-      'campaign bands cover'],
-    ['an election-day party value that drifts from the certified point', (h) => {
-      h.future_campaign_paths.election_day.parties.M.vote.p50 += 0.5;
-    }, 'not identical to the certified'],
     ['a renormalized denominator', (h) => {
       h.parties_view.vote_share_denominator = 'eight_parliamentary_parties';
     }, 'vote_share_denominator'],
@@ -1001,25 +920,14 @@ async function selfTestRealArtifactMode() {
     ['uncertainty declared as reconstructed from coalitions', (h) => {
       h.parties_view.election_day_parity.reconstructed_from_coalitions = true;
     }, 'reconstruction from coalition data'],
-    ['a poll dated after the origin', (h) => {
-      const poll = structuredClone(h.polls[h.polls.length - 1]);
-      poll.poll_id = 'selftest-future';
-      poll.publication_date = h.election_date;
-      h.polls.push(poll);
-    }, 'dated after the origin'],
-    ['a non-zero verified endpoint parity difference', (h) => {
-      h.future_campaign_paths.endpoint_parity.max_abs_vote_share_difference_pp = 0.001;
-    }, 'non-zero difference'],
     ['a history from a different generation than the pointer', (h) => {
       certifiedPoint(h).publication_generation = '19990101T000000Z-elsewhere';
     }, 'out of step'],
     ['an endpoint vote quantile that disagrees with parties.json', (h) => {
       certifiedPoint(h).parties.S.vote.p50 += 0.25;
-      h.future_campaign_paths.election_day.parties.S.vote.p50 += 0.25;
     }, 'published forecast says'],
     ['an endpoint seat quantile that disagrees with parties.json', (h) => {
       certifiedPoint(h).parties.S.seats.p50 += 3;
-      h.future_campaign_paths.election_day.parties.S.seats.p50 += 3;
     }, 'published forecast says'],
   ];
   for (const [label, mutate, expect] of mutations) {
@@ -1102,30 +1010,12 @@ async function main() {
 
   await runFallback();
 
-  await runFailClosed('an election-day party value that drifts from the certified point',
-    (history) => {
-      history.future_campaign_paths.election_day.parties.M.vote.p50 += 0.5;
-      return history;
-    });
-  await runFailClosed('a party opinion band that also declares seats', (history) => {
-    history.future_campaign_paths.bands[1].parties.M.seats =
-      { p05: 50, p25: 55, p50: 60, p75: 65, p95: 70 };
-    return history;
-  });
-  await runFailClosed('a declared intermediate party mandate trajectory', (history) => {
-    history.future_campaign_paths.rendering.party_intermediate_seat_trajectory = true;
-    return history;
-  });
   await runFailClosed('a renormalized party denominator', (history) => {
     history.parties_view.vote_share_denominator = 'eight_parliamentary_parties';
     return history;
   });
   await runFailClosed('party uncertainty declared as reconstructed from coalitions', (history) => {
     history.parties_view.election_day_parity.reconstructed_from_coalitions = true;
-    return history;
-  });
-  await runFailClosed('a party band missing from one campaign day', (history) => {
-    delete history.future_campaign_paths.bands[2].parties;
     return history;
   });
   // The shape a normal incremental publication produces before a full history
@@ -1147,19 +1037,18 @@ async function main() {
       });
       return history;
     }, { expectState: 'incomplete-history' });
-  // Not merely one party sub-block: the whole future object fails
-  // normalization, so `campaignPaths` is null exactly as it is when nothing was
-  // published. Presence has to be what closes the gate.
-  await runFailClosed('a campaign-path object that fails normalization entirely',
+  // The forward-looking artifacts are published but unread, so a broken one
+  // must be inert rather than able to close the party view or leave a mark.
+  await runUnreadForwardArtifact('a campaign-path object that fails normalization',
     (history) => {
       history.future_campaign_paths.model_id = 'not_the_published_model';
       return history;
     });
-  await runFailClosed('a campaign-path object rejected for a coalition-side rule',
-    (history) => {
-      history.future_campaign_paths.path_construction.directional_momentum = true;
-      return history;
-    });
+  await runUnreadForwardArtifact('both forward artifacts removed entirely', (history) => {
+    delete history.future_campaign_paths;
+    delete history.future_projection;
+    return history;
+  });
 
   await selfTestRealArtifactMode();
 
