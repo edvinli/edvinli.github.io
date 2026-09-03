@@ -356,6 +356,15 @@ canvas {
   overflow: hidden;
 }
 
+// The campaign-path view is the primary choice.  The older conditional view
+// remains available, but it should read as an analytical link rather than a
+// co-equal mode switch.
+.election-timeseries__future {
+  border: 0;
+  gap: 0.35rem;
+  overflow: visible;
+}
+
 .election-timeseries__control {
   background: transparent;
   border: 0;
@@ -393,6 +402,29 @@ canvas {
   font-weight: 500;
 }
 
+.election-timeseries__future-button--secondary {
+  border-radius: 0;
+  color: var(--el-muted);
+  font-weight: 400;
+  padding-left: 0.15rem;
+  padding-right: 0.15rem;
+  text-decoration: underline;
+  text-decoration-color: var(--el-rule-strong);
+  text-underline-offset: 0.2em;
+}
+
+.election-timeseries__future-button--secondary[aria-pressed="true"] {
+  background: transparent;
+  color: var(--el-ink);
+  font-weight: 600;
+}
+
+.election-timeseries__future-button--secondary:hover,
+.election-timeseries__future-button--secondary[aria-pressed="true"]:hover {
+  background: transparent;
+  color: var(--el-ink);
+}
+
 // Individual simulated trajectories must never compete with the historical
 // median for attention, and they are decorative: pointer targets are the
 // band and election-day marks.
@@ -419,11 +451,16 @@ canvas {
   color: var(--el-ink);
 }
 
-.election-timeseries__campaign-point:focus-visible,
 .election-timeseries__origin-state-point:focus-visible,
 .election-timeseries__election-day-point:focus-visible {
   outline: 2px solid var(--el-ink);
   outline-offset: 2px;
+}
+
+// Daily campaign marks retain pointer/touch hit geometry, but stay hidden from
+// the accessibility tree; keyboard users use the chart-level focus target.
+.election-timeseries__campaign-point {
+  opacity: 0 !important;
 }
 
 .election-timeseries__coalitions {
@@ -718,6 +755,20 @@ canvas {
   height: 0.38rem;
   opacity: 0.55;
   width: 0.38rem;
+}
+
+.election-timeseries__key-mark--forecast {
+  background: linear-gradient(to right,
+    rgba(44, 42, 37, 0.18) 0 42%,
+    rgba(44, 42, 37, 0.48) 42% 72%,
+    var(--el-ink) 72% 76%,
+    transparent 76% 100%);
+  height: 0.78rem;
+}
+
+.election-timeseries__campaign-median {
+  opacity: 0.18 !important;
+  stroke-width: 1.2px !important;
 }
 
 /* --- National vote forecast --------------------------------------------- */
