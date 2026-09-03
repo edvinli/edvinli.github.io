@@ -182,6 +182,101 @@ function validateFutureProjection(history) {
       typeof rendering?.[key] === 'string' && rendering[key].length > 0), rendering);
 }
 
+function validateCampaignPaths(history) {
+  const paths = history?.future_campaign_paths;
+  const current = (history?.series || []).filter((point) => point?.provenance === 'current_production');
+  check('fixture publishes the primary campaign-path object',
+    paths?.projection_type === 'coherent_campaign_paths' &&
+    paths?.model_id === 'coherent_campaign_paths_v1' &&
+    paths?.role === 'primary_future_view' &&
+    paths?.quantity === 'underlying_opinion_share' &&
+    paths?.future_measurements_known === false,
+  { type: paths?.projection_type, role: paths?.role, quantity: paths?.quantity });
+  const origin = Date.parse(`${paths?.origin_date}T00:00:00Z`);
+  const election = Date.parse(`${paths?.election_date}T00:00:00Z`);
+  const days = Math.round((election - origin) / 86400000);
+  check('fixture campaign paths run from the certified origin to election day',
+    paths?.election_date === history?.election_date && paths?.state_cutoff_date === paths?.origin_date &&
+    paths?.path_days === days && current.length === 1 && current[0].date === paths?.origin_date,
+  { origin: paths?.origin_date, election: paths?.election_date, pathDays: paths?.path_days });
+  check('fixture campaign construction is joint CLR with one whole-path sign',
+    paths?.path_construction?.space === 'clr' && paths.path_construction.categories === 9 &&
+    paths.path_construction.sign_policy === 'single_sign_per_whole_trajectory' &&
+    paths.path_construction.transition_pool === 'all_history_leakage_safe' &&
+    paths.path_construction.leakage_rule === 'trajectory_end_le_origin',
+  paths?.path_construction);
+  check('fixture campaign construction disclaims polls, random walk and momentum',
+    paths?.path_construction?.synthesized_future_polls === false &&
+    paths.path_construction.daily_independent_random_walk === false &&
+    paths.path_construction.directional_momentum === false,
+  paths?.path_construction);
+  check('fixture campaign trajectories never end after the origin',
+    paths?.path_construction?.latest_trajectory_end <= paths?.origin_date,
+  paths?.path_construction?.latest_trajectory_end);
+  check('fixture endpoint parity with production is verified and exactly zero',
+    paths?.endpoint_parity?.guarantee === 'bitwise_identical_to_production_election_day_draws' &&
+    paths.endpoint_parity.verified === true &&
+    paths.endpoint_parity.max_abs_vote_share_difference_pp === 0 &&
+    paths.endpoint_parity.election_day_summaries_source === 'certified_current_production_point',
+  paths?.endpoint_parity);
+  check('fixture election-day distribution is the certified production one',
+    current.length === 1 && paths?.election_day?.samples === current[0].samples &&
+    JSON.stringify(paths.election_day.groups) === JSON.stringify(current[0].groups) &&
+    paths.election_day.includes_election_noise === true &&
+    paths.election_day.includes_geography_and_mandates === true,
+  { samples: paths?.election_day?.samples, expected: current[0]?.samples });
+  const bands = Array.isArray(paths?.bands) ? paths.bands : [];
+  check('fixture bands are daily from the origin through election day',
+    bands.length === days + 1 && bands.every((band, index) => band.path_day === index &&
+      band.date === new Date(origin + index * 86400000).toISOString().slice(0, 10)),
+  bands.map((band) => band.date));
+  check('fixture bands publish ordered vote quantiles and no seats',
+    bands.every((band) => ALL_COALITIONS.every((parties) => {
+      const key = coalitionKey(history, parties);
+      const group = band?.groups?.[key];
+      return group && Object.keys(group).length === 1 &&
+        !validateQuantiles(group.vote, `${band.date} ${key} vote`);
+    })), bands.length);
+  check('fixture uncertainty widens from the origin to election day',
+    (() => {
+      const key = coalitionKey(history, DEFAULT_COALITIONS[0]);
+      const width = (band) => band.groups[key].vote.p95 - band.groups[key].vote.p05;
+      return bands.length > 1 && width(bands.at(-1)) > width(bands[0]);
+    })(), bands.length);
+  check('fixture median path stays approximately flat under sign symmetry',
+    (() => {
+      const key = coalitionKey(history, DEFAULT_COALITIONS[0]);
+      const first = bands[0].groups[key].vote.p50;
+      return bands.every((band) => Math.abs(band.groups[key].vote.p50 - first) < 0.5);
+    })(), bands.length);
+  check('fixture publishes a limited number of complete trajectories',
+    paths?.paths?.selection === 'evenly_spaced_draw_indices' &&
+    paths.paths.count === paths.paths.series.length && paths.paths.count > 1 &&
+    paths.paths.count <= 64 &&
+    paths.paths.series.every((track) => ALL_COALITIONS.every((parties) =>
+      track.values[coalitionKey(history, parties)]?.length === days + 1)),
+  { count: paths?.paths?.count, selection: paths?.paths?.selection });
+  check('fixture rendering forbids future observations and future seat paths',
+    paths?.rendering?.x_axis_max === history?.election_date &&
+    paths.rendering.future_region.start === paths.origin_date &&
+    paths.rendering.future_region.end === paths.election_date &&
+    paths.rendering.future_region.background === 'light_distinct' &&
+    JSON.stringify(paths.rendering.path_units) === JSON.stringify(['vote']) &&
+    JSON.stringify(paths.rendering.election_day_units) === JSON.stringify(['vote', 'seats']) &&
+    paths.rendering.intermediate_seat_trajectory === false &&
+    paths.rendering.median_may_be_flat === true &&
+    paths.rendering.poll_observations_in_future === false &&
+    paths.rendering.poll_of_polls_observations_in_future === false &&
+    paths.rendering.continues_from === 'poll_of_polls_opinion_series',
+  paths?.rendering);
+  check('fixture demotes the shrinking-horizon fan to a secondary view',
+    history?.future_projection?.role === 'secondary_analytical_view' &&
+    history.future_projection.primary === false &&
+    typeof history.future_projection.description_sv === 'string' &&
+    history.future_projection.description_sv.length > 0,
+  { role: history?.future_projection?.role, primary: history?.future_projection?.primary });
+}
+
 function validateHistory(history) {
   check('history JSON has schema 1.1', history && history.schema_version === '1.1', history?.schema_version);
   equal('history party order is the eight parliamentary parties', history?.party_order, PARTY_ORDER);
@@ -256,6 +351,7 @@ function validateHistory(history) {
 
   const polls = Array.isArray(history?.polls) ? history.polls : [];
   validateFutureProjection(history);
+  validateCampaignPaths(history);
   return { series, pop, polls };
 }
 
@@ -355,6 +451,14 @@ const SELECTORS = {
   crosshair: '[data-timeseries-crosshair], .election-timeseries__crosshair, .et-crosshair, .eht-crosshair',
   inspection: '[data-inspection-marker], .election-timeseries__inspection-point, .election-timeseries__selected-point',
   endpoint: '[data-endpoint-label], .election-timeseries__endpoint-label',
+  campaignSeries: '[data-campaign-path-series="true"]',
+  campaignPaths: '[data-campaign-path="true"]',
+  campaignBands: '[data-campaign-band]',
+  campaignMedians: '[data-campaign-median="true"]',
+  campaignPoints: '[data-campaign-point="true"]',
+  electionDayPoints: '[data-election-day-point="true"]',
+  electionDayIntervals: '[data-election-day-interval]',
+  electionDayMedians: '[data-election-day-median="true"]',
   futureSeries: '[data-future-series="true"]',
   futurePoints: '[data-future-point="true"]',
   futureBands: '[data-future-band]',
@@ -425,6 +529,11 @@ function readPage(browser) {
     const electionBoundary = svg?.querySelector('[data-election-day-boundary="true"]');
     const futurePoints = svg ? Array.from(svg.querySelectorAll(selectors.futurePoints)) : [];
     const futureMedians = svg ? Array.from(svg.querySelectorAll(selectors.futureMedians)) : [];
+    const campaignPathLines = svg ? Array.from(svg.querySelectorAll(selectors.campaignPaths)) : [];
+    const campaignPointMarks = svg ? Array.from(svg.querySelectorAll(selectors.campaignPoints)) : [];
+    const electionDayMarks = svg ? Array.from(svg.querySelectorAll(selectors.electionDayPoints)) : [];
+    const regionLabel = svg?.querySelector('[data-future-region-label="true"]');
+    const electionDayLabel = svg?.querySelector('[data-election-day-distribution-label="true"]');
     const plotClip = svg?.querySelector('#election-timeseries-plot-clip rect');
     const majority = svg?.querySelector('[data-majority="175"]');
     return {
@@ -435,6 +544,11 @@ function readPage(browser) {
         box: box(section),
         futureState: section.getAttribute('data-future-projection') || '',
         futurePointCount: Number(section.getAttribute('data-future-projection-point-count')),
+        campaignState: section.getAttribute('data-campaign-paths') || '',
+        campaignPathCount: Number(section.getAttribute('data-campaign-path-count')),
+        campaignPathDays: Number(section.getAttribute('data-campaign-path-days')),
+        campaignWarp: section.getAttribute('data-campaign-path-warp') || '',
+        futureView: section.getAttribute('data-future-view') || '',
         range: section.getAttribute('data-time-range') || section.getAttribute('data-range') || '',
         rangeStart: section.getAttribute('data-time-range-start') || '',
         rangeEnd: section.getAttribute('data-time-range-end') || '',
@@ -454,6 +568,9 @@ function readPage(browser) {
         xMax: svg.getAttribute('data-x-axis-max') || '',
         futureOrigin: svg.getAttribute('data-future-projection-origin') || '',
         futureElection: svg.getAttribute('data-future-projection-election') || '',
+        futureView: svg.getAttribute('data-future-view') || '',
+        campaignOrigin: svg.getAttribute('data-campaign-path-origin') || '',
+        campaignElection: svg.getAttribute('data-campaign-path-election') || '',
         box: box(svg),
       } : null,
       views: views.map((button) => ({
@@ -501,6 +618,28 @@ function readPage(browser) {
       crosshairCount: svg ? Array.from(svg.querySelectorAll(selectors.crosshair)).filter(visible).length : 0,
       inspectionCount: svg ? Array.from(svg.querySelectorAll(selectors.inspection)).filter(visible).length : 0,
       endpointCount: svg ? Array.from(svg.querySelectorAll(selectors.endpoint)).filter(visible).length : 0,
+      campaign: svg ? {
+        seriesCount: Array.from(svg.querySelectorAll(selectors.campaignSeries)).filter(visible).length,
+        pathCount: campaignPathLines.filter(visible).length,
+        pathSampleIndices: [...new Set(campaignPathLines
+          .map((line) => Number(line.getAttribute('data-sample-index'))))].sort((a, b) => a - b),
+        bandCount: Array.from(svg.querySelectorAll(selectors.campaignBands)).filter(visible).length,
+        medianCount: Array.from(svg.querySelectorAll(selectors.campaignMedians)).filter(visible).length,
+        pointCount: campaignPointMarks.filter(visible).length,
+        pointRoles: [...new Set(campaignPointMarks.map((mark) => mark.getAttribute('role')))],
+        pointDates: [...new Set(campaignPointMarks.map((mark) => mark.getAttribute('data-date')))].sort(),
+        pathDays: [...new Set(campaignPointMarks.map((mark) => Number(mark.getAttribute('data-path-day'))))]
+          .sort((a, b) => a - b),
+        regionLabel: regionLabel?.textContent?.trim() || '',
+        electionDayLabel: electionDayLabel?.textContent?.trim() || '',
+        electionDayPointCount: electionDayMarks.filter(visible).length,
+        electionDayRoles: [...new Set(electionDayMarks.map((mark) => mark.getAttribute('role')))],
+        electionDayDates: [...new Set(electionDayMarks.map((mark) => mark.getAttribute('data-date')))],
+        electionDayIntervals: [...new Set(Array.from(svg.querySelectorAll(selectors.electionDayIntervals))
+          .filter(visible).map((mark) => mark.getAttribute('data-election-day-interval')))].sort(),
+        electionDayMedianCount: Array.from(svg.querySelectorAll(selectors.electionDayMedians))
+          .filter(visible).length,
+      } : null,
       future: svg ? {
         seriesCount: Array.from(svg.querySelectorAll(selectors.futureSeries)).filter(visible).length,
         bandCount: Array.from(svg.querySelectorAll(selectors.futureBands)).filter(visible).length,
@@ -656,6 +795,40 @@ async function futurePointCoordinates(browser, date) {
   }, date);
 }
 
+async function markCoordinates(browser, attribute, date) {
+  return browser.evaluate(({ selector }) => {
+    const point = document.querySelector(selector);
+    if (!point) return null;
+    point.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const rect = point.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, { selector: `[${attribute}="true"][data-date="${date}"]` });
+}
+
+async function focusMark(browser, attribute, date) {
+  return browser.evaluate(({ selector }) => {
+    const point = document.querySelector(selector);
+    if (!point) return null;
+    point.focus();
+    const active = document.activeElement;
+    if (active !== point) return null;
+    return { role: point.getAttribute('role'), date: point.getAttribute('data-date') };
+  }, { selector: `[${attribute}="true"][data-date="${date}"]` });
+}
+
+// The future-view control is only present when both views are published.
+async function switchFutureView(browser, view, label) {
+  const clicked = await clickButton(browser, label);
+  const state = await browser.evaluate(() => ({
+    section: document.getElementById('election-timeseries')?.getAttribute('data-future-view') || '',
+    paths: document.getElementById('election-timeseries-future-paths')?.getAttribute('aria-pressed'),
+    stability: document.getElementById('election-timeseries-future-stability')?.getAttribute('aria-pressed'),
+  }));
+  check(`future view switches to ${view}`, clicked === true && state.section === view,
+    { clicked, state, expected: view });
+  return state;
+}
+
 async function focusFuturePoint(browser, date) {
   return browser.evaluate((wantedDate) => {
     const point = document.querySelector(`[data-future-point="true"][data-date="${wantedDate}"]`);
@@ -801,6 +974,95 @@ function assertStructure(view, history) {
   check('the page explains actual and dynamics horizons',
     /faktisk.*tid|faktiska.*dag|horizon|rörelsedel|dynamik/i.test(view.section?.text || '') &&
     /112/.test(view.section?.text || ''), view.section?.text);
+}
+
+function assertCampaignPathStructure(view, history, metric = 'vote') {
+  const paths = history.future_campaign_paths;
+  const rendering = paths.rendering;
+  const visibleKeys = DEFAULT_COALITIONS.map((parties) => coalitionKey(history, parties));
+  const interior = paths.bands.slice(1);
+  check('the campaign-path view is the default primary future region',
+    view.section?.campaignState === 'true' && view.section?.futureView === 'campaign_paths' &&
+    view.svg?.futureView === 'campaign_paths' && view.svg?.campaignOrigin === paths.origin_date &&
+    view.svg?.campaignElection === paths.election_date && view.svg?.xMax === paths.election_date,
+  { section: view.section, svg: view.svg });
+  check('the published path count and length reach the DOM',
+    view.section?.campaignPathCount === paths.paths.count &&
+    view.section?.campaignPathDays === paths.path_days &&
+    view.section?.campaignWarp === paths.path_construction.time_warp, view.section);
+  check('the future region is shaded from the origin to election day',
+    view.future?.region?.start === paths.origin_date &&
+    view.future?.region?.end === paths.election_date &&
+    view.future?.region?.width > 0 &&
+    view.future?.electionBoundary?.date === paths.election_date, view.future);
+  // The in-chart caption is skipped when the shaded region is too narrow to
+  // hold it without overlapping the boundary annotations; the published label
+  // still has to reach the reader through the control, legend and note.
+  check('the future region caption is the published label whenever it is drawn',
+    view.campaign?.regionLabel === rendering.future_region.label ||
+    view.campaign?.regionLabel === '', view.campaign?.regionLabel);
+  check('the published region label always reaches the reader',
+    (view.section?.text || '').includes(rendering.future_region.label), view.section?.text);
+  equal('the election-day distribution carries its published Swedish label',
+    view.campaign?.electionDayLabel, rendering.election_day_distribution_label);
+  equal('no poll or Poll of Polls dot enters the future region',
+    view.future?.pollsAfterOrigin, 0);
+  equal('the shrinking-horizon fan is not drawn in the primary view',
+    [view.future?.bandCount, view.future?.medianCount, view.future?.pointCount], [0, 0, 0]);
+
+  // The emphasized election-day distribution is present in both metrics: it
+  // is the only future object that has a seat distribution at all.
+  check('the election-day distribution is emphasized with box, whisker and median',
+    view.campaign?.electionDayPointCount === DEFAULT_COALITIONS.length &&
+    view.campaign?.electionDayMedianCount === DEFAULT_COALITIONS.length &&
+    JSON.stringify(view.campaign?.electionDayIntervals) === JSON.stringify(['50', '90']) &&
+    JSON.stringify(view.campaign?.electionDayDates) === JSON.stringify([paths.election_date]),
+  view.campaign);
+  equal('election-day marks are accessible buttons', view.campaign?.electionDayRoles, ['button']);
+
+  if (metric === 'vote') {
+    check('faint individual trajectories are drawn for every visible coalition',
+      view.campaign?.pathCount === paths.paths.count * DEFAULT_COALITIONS.length &&
+      JSON.stringify(view.campaign?.pathSampleIndices) ===
+        JSON.stringify(paths.paths.sample_indices), view.campaign);
+    check('50 % and 90 % predictive bands and a median are drawn',
+      view.campaign?.bandCount === DEFAULT_COALITIONS.length * 2 &&
+      view.campaign?.medianCount === DEFAULT_COALITIONS.length, view.campaign);
+    check('one selectable mark per campaign day, excluding the origin',
+      view.campaign?.pointCount === interior.length * DEFAULT_COALITIONS.length &&
+      JSON.stringify(view.campaign?.pointDates) ===
+        JSON.stringify(interior.map((band) => band.date)) &&
+      view.campaign?.pathDays[0] === 1 &&
+      view.campaign?.pathDays.at(-1) === paths.path_days, view.campaign);
+    equal('campaign band marks are accessible buttons', view.campaign?.pointRoles, ['button']);
+    const values = paths.bands.flatMap((band) => visibleKeys.flatMap((key) =>
+      [band.groups[key].vote.p05, band.groups[key].vote.p95]));
+    const trajectories = paths.paths.series.flatMap((track) =>
+      visibleKeys.flatMap((key) => track.values[key]));
+    check('the y-domain contains every visible band edge and trajectory value',
+      view.svg?.yMin <= Math.min(...values, ...trajectories) &&
+      view.svg?.yMax >= Math.max(...values, ...trajectories),
+    { domain: [view.svg?.yMin, view.svg?.yMax],
+      min: Math.min(...values, ...trajectories), max: Math.max(...values, ...trajectories) });
+  } else {
+    check('Mandatandel draws no opinion paths, bands or intermediate seat marks',
+      view.campaign?.pathCount === 0 && view.campaign?.bandCount === 0 &&
+      view.campaign?.medianCount === 0 && view.campaign?.pointCount === 0, view.campaign);
+    check('Mandatandel explains why opinion paths carry no seats',
+      /Opinionsbanor redovisas inte som mandat/i.test(view.section?.text || ''), view.section?.text);
+    const seatValues = visibleKeys.flatMap((key) =>
+      [100 * paths.election_day.groups[key].seats.p05 / 349,
+        100 * paths.election_day.groups[key].seats.p95 / 349]);
+    check('the seat y-domain contains the election-day seat distribution',
+      view.svg?.yMin <= Math.min(...seatValues) && view.svg?.yMax >= Math.max(...seatValues),
+    { domain: [view.svg?.yMin, view.svg?.yMax], seatValues });
+  }
+  check('the campaign-path disclosure and election-day disclosure are published copy',
+    (view.section?.text || '').includes(paths.tooltip_sv) &&
+    (view.section?.text || '').includes(paths.election_day.tooltip_sv), view.section?.text);
+  check('the secondary view is described as conditional, not as the prognosis',
+    (view.section?.text || '').includes(history.future_projection.description_sv),
+  view.section?.text);
 }
 
 function assertFutureStructure(view, history, metric = 'vote') {
@@ -950,8 +1212,49 @@ async function exercise(viewport, history, siteRoot) {
   const assertionsStarted = Date.now();
   await diagnostic(`${viewport.diagnostic} assertions START`);
   try {
-    let view = readPage(browser);
-    assertStructure(await view, history);
+    // ---- primary view: the coherent campaign-path region -----------------
+    // A published campaign-path region makes the election-relative range the
+    // default, because the four-year view compresses the remaining campaign
+    // into a few pixels.
+    let view = await readPage(browser);
+    const paths = history.future_campaign_paths;
+    equal('the campaign window is the default range',
+      [view.svg?.range, view.svg?.xMin, view.svg?.xMax],
+      ['short', shortRangeStart(history), history.election_date]);
+    equal('the future-view control offers the primary and secondary views',
+      view.ranges.length >= 2 && await browser.evaluate(() => {
+        const host = document.getElementById('election-timeseries-future');
+        if (!host || host.hidden) return null;
+        return Array.from(host.querySelectorAll('button')).map((button) => ({
+          text: button.textContent.replace(/[\t\n\r ]+/g, ' ').trim(),
+          pressed: button.getAttribute('aria-pressed'),
+        }));
+      }), [
+        { text: paths.rendering.future_region.label, pressed: 'true' },
+        { text: 'Kvarvarande osäkerhet', pressed: 'false' },
+      ]);
+    assertCampaignPathStructure(view, history, 'vote');
+
+    // ---- secondary view: the shrinking-horizon fan ------------------------
+    await switchFutureView(browser, 'conditional_projection', 'Kvarvarande osäkerhet');
+    await settle();
+    view = await readPage(browser);
+    check('the secondary view replaces the campaign region rather than stacking on it',
+      view.campaign?.pathCount === 0 && view.campaign?.bandCount === 0 &&
+      view.campaign?.electionDayPointCount === 0 && view.future?.bandCount > 0, view);
+    await switchFutureView(browser, 'campaign_paths', paths.rendering.future_region.label);
+    await settle();
+    view = await readPage(browser);
+    check('switching back restores the campaign region', view.campaign?.bandCount > 0, view.campaign);
+
+    // ---- the remaining assertions exercise the historical chart and the
+    // secondary fan, so open the full range and keep that fan active.
+    equal('open the full history range', await clickButton(browser, 'Sedan 2022'), true);
+    await settle();
+    await switchFutureView(browser, 'conditional_projection', 'Kvarvarande osäkerhet');
+    await settle();
+    view = await readPage(browser);
+    assertStructure(view, history);
     view = await readPage(browser);
     const fullVoteView = structuredClone(view);
     assertFutureStructure(view, history, 'vote');
@@ -1270,6 +1573,71 @@ async function exercise(viewport, history, siteRoot) {
         Boolean(tapped.svg?.selectedDate), tapped.svg);
     }
 
+    // ---- back to the primary view for its own interaction contract -------
+    // Run these last: the historical assertions above require a pristine
+    // inspection layer, which any pointer interaction would dirty.
+    await switchFutureView(browser, 'campaign_paths', paths.rendering.future_region.label);
+    equal('return to the campaign window', await clickButton(browser, 'Sista 30 dagarna'), true);
+    await settle();
+    view = await readPage(browser);
+    assertCampaignPathStructure(view, history, 'vote');
+
+    // Pointer, keyboard and focus interaction on the two new mark kinds.
+    const bandDate = paths.bands[Math.floor(paths.bands.length / 2)].date;
+    await clickAt(browser, await markCoordinates(browser, 'data-campaign-point', bandDate));
+    let campaignView = await readPage(browser);
+    check('clicking an opinion-band mark opens its detail',
+      campaignView.svg?.selectedDate === bandDate && campaignView.detail?.visible === true &&
+      (campaignView.detail?.text || '').includes(paths.rendering.future_region.label) &&
+      !/Poll of Polls/i.test(campaignView.detail?.text || ''), campaignView.detail);
+    check('an opinion-band detail reports opinion, not seats or a horizon',
+      /Underliggande opinionsläge/i.test(campaignView.detail?.text || '') &&
+      !/mandat/i.test(campaignView.detail?.text || ''), campaignView.detail);
+    equal('an opinion-band mark receives keyboard focus as a button',
+      await focusMark(browser, 'data-campaign-point', bandDate), { role: 'button', date: bandDate });
+    await pressKey(browser, 'Enter', 'Enter');
+    campaignView = await readPage(browser);
+    check('Enter opens the focused opinion-band detail',
+      campaignView.svg?.selectedDate === bandDate && campaignView.detail?.visible === true,
+    campaignView.detail);
+    equal('the election-day mark receives keyboard focus as a button',
+      await focusMark(browser, 'data-election-day-point', history.election_date),
+      { role: 'button', date: history.election_date });
+    await pressKey(browser, 'Enter', 'Enter');
+    campaignView = await readPage(browser);
+    const electionKey = coalitionKey(history, DEFAULT_COALITIONS[0]);
+    check('Enter opens the certified election-day distribution',
+      campaignView.svg?.selectedDate === history.election_date &&
+      campaignView.detail?.visible === true &&
+      (campaignView.detail?.text || '').includes(paths.election_day.label_sv) &&
+      numberInText(campaignView.detail?.text || '',
+        paths.election_day.groups[electionKey].vote.p50) &&
+      numberInText(campaignView.detail?.text || '', paths.election_day.samples),
+    campaignView.detail);
+    await pressKey(browser, ' ', 'Space');
+    campaignView = await readPage(browser);
+    check('Space preserves the election-day distribution detail',
+      campaignView.svg?.selectedDate === history.election_date &&
+      campaignView.detail?.visible === true, campaignView.detail);
+    check('the primary view has no horizontal overflow', campaignView.overflow <= 0,
+      campaignView.overflow);
+
+    // The same primary view under Mandatandel: seats exist only on election day.
+    equal('primary view switches to Mandatandel', await clickButton(browser, 'Mandatandel'), true);
+    await settle();
+    campaignView = await readPage(browser);
+    assertCampaignPathStructure(campaignView, history, 'seats');
+    await clickAt(browser, await markCoordinates(browser, 'data-election-day-point',
+      history.election_date));
+    campaignView = await readPage(browser);
+    check('the election-day seat distribution is the certified seat distribution',
+      numberInText(campaignView.detail?.text || '',
+        paths.election_day.groups[electionKey].seats.p50) &&
+      /mandat/i.test(campaignView.detail?.text || ''), campaignView.detail);
+    equal('primary view returns to Röstandel', await clickButton(browser, 'Röstandel'), true);
+    await settle();
+
+
     view = await readPage(browser);
     check('no page-level horizontal overflow', view.overflow <= 0, view.overflow);
     equal('no console errors', appErrors(browser), []);
@@ -1336,6 +1704,11 @@ async function exerciseMetricSpecificFullDomain(siteRoot = SITE) {
   const viewport = { ...VIEWPORTS[0], diagnostic: 'metric-domain' };
   const { server, browser } = await open(viewport, prepared.root || siteRoot);
   try {
+    // A published campaign-path region defaults the chart to the campaign
+    // window, so the full-history domain has to be requested explicitly.
+    equal('metric-domain opens the full history range',
+      await clickButton(browser, 'Sedan 2022'), true);
+    await settle();
     let view = await readPage(browser);
     const voteMin = fullRangeStart(prepared.history, 'vote');
     const seatsMin = fullRangeStart(prepared.history, 'seats');
@@ -1398,7 +1771,67 @@ async function exerciseFallbackScenarios() {
   equal('missing and malformed projections have the same historical rendering',
     historicalFingerprint(malformedView), historicalFingerprint(missingView));
 
+  // ---- campaign-path fail-safe scenarios --------------------------------
+  const noPaths = await prepareSite((history) => {
+    delete history.future_campaign_paths;
+    return history;
+  }, false);
+  const noPathsView = await scenarioView(noPaths, 'missing-campaign-paths');
+  check('missing future_campaign_paths falls back to the secondary fan and the full range',
+    noPathsView.section?.campaignState === '' && noPathsView.campaign?.pathCount === 0 &&
+    noPathsView.campaign?.electionDayPointCount === 0 &&
+    noPathsView.svg?.range === 'full' && noPathsView.future?.bandCount > 0 &&
+    noPathsView.svg?.xMax === ELECTION_DATE, noPathsView);
+
+  const malformedPaths = await prepareSite((history) => {
+    // The published election-day distribution no longer matches the certified
+    // production point.  That is exactly the drift the consumer must refuse.
+    const key = Object.keys(history.future_campaign_paths.election_day.groups)[0];
+    history.future_campaign_paths.election_day.groups[key].seats.p50 += 1;
+    return history;
+  }, false);
+  const malformedPathsView = await scenarioView(malformedPaths, 'malformed-campaign-paths');
+  check('campaign paths whose election day drifts from production fail safely',
+    malformedPathsView.section?.campaignState === 'invalid' &&
+    malformedPathsView.campaign?.pathCount === 0 &&
+    malformedPathsView.campaign?.bandCount === 0 &&
+    malformedPathsView.campaign?.electionDayPointCount === 0 &&
+    malformedPathsView.svg?.range === 'full', malformedPathsView);
+  equal('missing and malformed campaign paths render the same history',
+    historicalFingerprint(malformedPathsView), historicalFingerprint(noPathsView));
+
+  const seatPathClaim = await prepareSite((history) => {
+    history.future_campaign_paths.rendering.intermediate_seat_trajectory = true;
+    return history;
+  }, false);
+  const seatPathClaimView = await scenarioView(seatPathClaim, 'campaign-paths-seat-claim');
+  check('an implied intermediate seat trajectory is refused outright',
+    seatPathClaimView.section?.campaignState === 'invalid' &&
+    seatPathClaimView.campaign?.pathCount === 0, seatPathClaimView);
+
+  const walkClaim = await prepareSite((history) => {
+    history.future_campaign_paths.path_construction.daily_independent_random_walk = true;
+    return history;
+  }, false);
+  const walkClaimView = await scenarioView(walkClaim, 'campaign-paths-random-walk');
+  check('a declared daily independent random walk is refused outright',
+    walkClaimView.section?.campaignState === 'invalid' &&
+    walkClaimView.campaign?.pathCount === 0, walkClaimView);
+
+  const leaked = await prepareSite((history) => {
+    history.future_campaign_paths.path_construction.latest_trajectory_end =
+      history.election_date;
+    return history;
+  }, false);
+  const leakedView = await scenarioView(leaked, 'campaign-paths-leakage');
+  check('a trajectory ending after the origin is refused outright',
+    leakedView.section?.campaignState === 'invalid' && leakedView.campaign?.pathCount === 0,
+  leakedView);
+
   const electionDay = await prepareSite((history) => {
+    // On election day there is no remaining campaign, so the publisher drops
+    // the primary object entirely.
+    delete history.future_campaign_paths;
     const current = history.series.find((point) => point.provenance === 'current_production');
     current.date = history.election_date;
     current.horizon_days = 0;
@@ -1413,12 +1846,13 @@ async function exerciseFallbackScenarios() {
     projection.rendering.future_region.start = history.election_date;
     projection.rendering.future_region.end = history.election_date;
     return history;
-  });
+  }, false);
   const electionDayView = await scenarioView(electionDay, 'election-day-projection');
   check('election-day origin accepts an empty series without rendering a fan',
     electionDayView.section?.futureState === 'empty' && electionDayView.future?.seriesCount === 0 &&
-    electionDayView.future?.pointCount === 0 && electionDayView.svg?.xMax === ELECTION_DATE,
-  electionDayView);
+    electionDayView.future?.pointCount === 0 && electionDayView.svg?.xMax === ELECTION_DATE &&
+    electionDayView.section?.campaignState === '' &&
+    electionDayView.campaign?.electionDayPointCount === 0, electionDayView);
 }
 
 async function main() {

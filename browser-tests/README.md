@@ -36,6 +36,8 @@ node browser-tests/alternatives.smoke.mjs
 node browser-tests/forecast-timeseries.smoke.mjs
 node browser-tests/histogram-copy.smoke.mjs
 node browser-tests/equations.smoke.mjs
+node browser-tests/campaign-paths.contract.mjs      # static, no browser
+node browser-tests/future-projection.contract.mjs   # static, no browser
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -164,6 +166,72 @@ points, the 112-day marker, the 175-seat reference, pointer/touch/keyboard
 inspection, provenance copy, horizontal overflow, and browser errors. It uses
 the built history artifact when present and otherwise installs its dedicated
 fixture only in a temporary copy of `_site`.
+
+It also owns the **coherent campaign-path** future region
+(`future_campaign_paths`), the primary future view:
+
+- the distinctly shaded future region labelled **Möjliga opinionsbanor**, its
+  faint individual trajectories, its 50 % and 90 % predictive bands, and the
+  emphasized election-day distribution labelled **Valdagsprognos**;
+- the separate **Opinionsläge i dag** origin marker for path day 0. It is a
+  different quantity from the certified forecast point on the same date — the
+  latent opinion state, before ElectionNoise — so it is drawn as its own
+  interval and the fan emanates from it, never from the forecast dot;
+- `Sedan 2022` remains the opening range; `Visa kampanjperioden` is the
+  discoverability cue that switches to the election-relative window where the
+  future region is legible;
+- `Mandatandel` draws **no** intermediate opinion paths, bands or origin
+  marker — only the election-day seat distribution — and says why;
+- pointer, click, focus, `Enter` and `Space` on all three new mark kinds, with
+  the published Swedish copy in the detail panel;
+- the `Kvarvarande osäkerhet` control switching to the demoted
+  shrinking-horizon fan and back;
+- fail-safe scenarios: a missing object, an election-day distribution that
+  drifts from the certified production point, a declared intermediate seat
+  trajectory, a declared daily random walk, and a trajectory ending after the
+  origin all fall back to the historical chart with no campaign marks.
+
+### 7. `campaign-paths.contract.mjs` — static campaign-path contract
+
+Runs without a browser. It asserts that the *rules* the deployed consumer
+enforces are present in `assets/js/election-simulator.js` — bitwise endpoint
+parity, the leakage boundary, the rejected-alternative disclaimers, vote-only
+bands, the accessible mark kinds — so a refactor cannot quietly drop a
+fail-closed check and still pass a happy-path smoke test. It also validates the
+committed fixture.
+
+#### Regenerating the history fixture
+
+`fixtures/coalition-timeseries.json` is the real published artifact with a
+`future_campaign_paths` object built by the simulator repository, so the
+browser test consumes authentic 100 000-draw numbers. Regenerate it from an
+`edvinli/election-simulator` checkout:
+
+```python
+# run from the election-simulator repository root
+import json
+from pathlib import Path
+from scripts.forecast_history.campaign_paths_contract import (
+    build_future_campaign_paths, mark_secondary_projection,
+)
+from scripts.forecast_history.contract import deterministic_history_sha256
+
+FIX = Path("../edvinli.github.io/browser-tests/fixtures/coalition-timeseries.json")
+history = json.loads(FIX.read_text())
+anchor = next(p for p in history["series"] if p["provenance"] == "current_production")
+history["future_campaign_paths"] = build_future_campaign_paths(
+    origin_date=anchor["date"], election_date=history["election_date"],
+    anchor_point=anchor, seed=12345, data_dir=Path("data/processed"),
+    coalitions={k: tuple(v) for k, v in history["coalitions"].items()},
+)
+history["future_projection"] = mark_secondary_projection(history["future_projection"])
+history["deterministic_content_sha256"] = deterministic_history_sha256(history)
+FIX.write_text(json.dumps(history, ensure_ascii=False, separators=(",", ":")) + "\n")
+```
+
+The builder refuses to produce an object whose election-day endpoint is not
+bitwise identical to the canonical production draws, so a fixture that exists
+is a fixture that passed the scientific gate.
 
 ## Determinism: pin the generation you assert against
 

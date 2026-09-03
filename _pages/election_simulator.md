@@ -46,6 +46,10 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-full" data-range="full" aria-pressed="true" aria-controls="election-timeseries-svg">Sedan 2022</button>
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Sista 30 dagarna</button>
       </div>
+      <div class="election-timeseries__future" id="election-timeseries-future" role="group" aria-label="Vy för tiden fram till valet" hidden>
+        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-paths" data-future-view="paths" aria-pressed="true" aria-controls="election-timeseries-svg">Möjliga opinionsbanor</button>
+        <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-stability" data-future-view="projection" aria-pressed="false" aria-controls="election-timeseries-svg">Kvarvarande osäkerhet</button>
+      </div>
       <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
     </div>
     <div class="election-timeseries__frame" id="election-timeseries-frame">

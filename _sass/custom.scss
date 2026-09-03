@@ -347,7 +347,8 @@ canvas {
 }
 
 .election-timeseries__mode,
-.election-timeseries__range {
+.election-timeseries__range,
+.election-timeseries__future {
   border: 1px solid var(--el-rule);
   border-radius: 999px;
   display: inline-flex;
@@ -380,8 +381,29 @@ canvas {
   background: var(--el-ink-soft);
 }
 
-.election-timeseries__range-button {
+.election-timeseries__range-button,
+.election-timeseries__future-button {
   white-space: nowrap;
+}
+
+// The primary future view is the coherent campaign-path model; the
+// shrinking-horizon fan sits behind the second control and is deliberately
+// styled as the quieter of the two.
+.election-timeseries__future-button[data-future-view="projection"] {
+  font-weight: 500;
+}
+
+// Individual simulated trajectories must never compete with the historical
+// median for attention, and they are decorative: pointer targets are the
+// band and election-day marks.
+.election-timeseries__campaign-path {
+  pointer-events: none;
+}
+
+.election-timeseries__campaign-point:focus-visible,
+.election-timeseries__election-day-point:focus-visible {
+  outline: 2px solid var(--el-ink);
+  outline-offset: 2px;
 }
 
 .election-timeseries__coalitions {
@@ -458,6 +480,19 @@ canvas {
 .election-timeseries__svg .election-timeseries__axis-label {
   fill: var(--el-ink-soft);
   font-size: 12px;
+}
+
+// Future-region annotations sit inside a shaded band that can be only a
+// couple of hundred SVG units wide, so they need their own size rather than
+// the general chart text size the mobile breakpoint enlarges.
+.election-timeseries__svg .election-timeseries__future-label {
+  fill: var(--el-muted);
+  font-size: 12px;
+}
+
+.election-timeseries__svg .election-timeseries__future-label--region,
+.election-timeseries__svg .election-timeseries__future-label--election {
+  fill: var(--el-ink-soft);
 }
 
 .election-timeseries__grid-line {
@@ -2268,7 +2303,8 @@ canvas {
     gap: 0.55rem;
   }
 
-  .election-timeseries__range {
+  .election-timeseries__range,
+  .election-timeseries__future {
     max-width: 100%;
   }
 
@@ -2291,6 +2327,10 @@ canvas {
 
   .election-timeseries__svg .election-timeseries__axis-label {
     font-size: 16px;
+  }
+
+  .election-timeseries__svg .election-timeseries__future-label {
+    font-size: 15px;
   }
 
   .election-timeseries__endpoint-label {
