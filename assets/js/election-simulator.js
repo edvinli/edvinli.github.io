@@ -1265,6 +1265,7 @@
     var history = normalizeHistoryPayload(payload);
     if (!history) return false;
     var liveStatus = byId("election-timeseries-status");
+    var readout = byId("election-timeseries-readout");
     var modeVote = byId("election-timeseries-vote");
     var modeSeats = byId("election-timeseries-seats");
     var rangeFull = byId("election-timeseries-range-full");
@@ -1308,7 +1309,8 @@
     // is the last 30 days of published history rather than the 30 days before
     // election day: otherwise a third of that window would be empty space to
     // the right of the last point.
-    var latestPointIso = history.points[history.points.length - 1].date;
+    var latestPoint = history.points[history.points.length - 1];
+    var latestPointIso = latestPoint.date;
     var shortRangeStart = historyDateOffset(latestPointIso, -30);
     var shortRangeEnd = historyDate(latestPointIso);
     history.definitions.forEach(function (definition) {
@@ -1317,17 +1319,22 @@
 
     function activeTimeDomain() {
       var useShortRange = selectedRange === "short" && shortRangeStart && shortRangeEnd;
-      // Sedan 2022 keeps the metric-specific published extent: vote share
-      // includes the historical series and the individual polls drawn beside
-      // it; seat share has no individual-poll values, so its extent is the
-      // series alone.  Either way the right edge is the latest published
-      // forecast -- the chart never extrapolates towards election day.
+      // The left edge is metric-specific: vote share includes the individual
+      // polls drawn beside the series, and one can predate the first forecast;
+      // seat share has no individual-poll values, so its extent is the series
+      // alone.
       var fullTimes = history.points.map(function (point) { return point.time; });
       if (selectedMetric === "vote" && history.polls && history.polls.length) {
         history.polls.forEach(function (item) { fullTimes.push(item.time); });
       }
       var fullMinTime = Math.min.apply(Math, fullTimes);
-      var fullMaxTime = Math.max.apply(Math, fullTimes);
+      // The right edge is the latest published forecast, full stop -- not the
+      // latest observation of any kind. A poll that lands after the most
+      // recent generation would otherwise carry the axis past the end of the
+      // forecast line, and a dot out there on its own is exactly the
+      // extrapolation this chart stopped inviting. It comes into view with the
+      // next publication, which is hours away on a daily cadence.
+      var fullMaxTime = latestPoint.time;
       if (!Number.isFinite(fullMinTime)) fullMinTime = history.points[0].time;
       if (!Number.isFinite(fullMaxTime)) fullMaxTime = history.points[history.points.length - 1].time;
       var minTime = useShortRange ? shortRangeStart.time : fullMinTime;
@@ -1507,6 +1514,33 @@
       return median === null ? "—" : grouped(median) + NBSP + "mandat";
     }
 
+    function seatRangeText(group, low, high) {
+      var seats = group && group.seats;
+      var lower = seats && historyNumber(seats[low]);
+      var upper = seats && historyNumber(seats[high]);
+      return lower !== null && upper !== null
+        ? grouped(lower) + EN_DASH + grouped(upper) + NBSP + "mandat" : "—";
+    }
+
+    // The uncertainty a sighted reader takes off the bands, in words.
+    //
+    // The crosshair readout is one median per series and its labels sit inside
+    // an aria-hidden layer, so without this the 50/90 % intervals -- the whole
+    // point of the chart -- would be available to sighted readers only. It is
+    // attached to each plotted point, where focus and browse mode both land on
+    // it, rather than announced: the live region stays a short navigation
+    // cue instead of reciting four numbers per series on every arrow press.
+    function pointIntervalSummary(group) {
+      var values = historyDisplayQuantiles(group, selectedMetric);
+      if (!values || values.p50 === null) return "";
+      var seats = selectedMetric === "seats";
+      return "median " + (seats ? seatMedianText(group) : percent(values.p50, 1)) +
+        ", 50 % intervall " + (seats ? seatRangeText(group, "p25", "p75")
+          : percentRange(values.p25, values.p75, 1)) +
+        ", 90 % intervall " + (seats ? seatRangeText(group, "p05", "p95")
+          : percentRange(values.p05, values.p95, 1));
+    }
+
     function forecastStatus(point) {
       if (!point) return "Välj en punkt i diagrammet för detaljer.";
       var descriptions = activeDefinitions().map(function (definition) {
@@ -1520,13 +1554,34 @@
         historyProvenanceLabel(point.provenance) + ".";
     }
 
-    // The medians are drawn at the crosshair, which a screen reader cannot
-    // see. This element is visually hidden and carries the same reading, so
-    // dropping the detail panel does not drop the announcement with it.
+    // The crosshair readout sits in an aria-hidden layer, so these two
+    // elements are the whole accessible surface for an inspected date. Both
+    // are visually hidden; nothing is added under the chart.
+    //
+    // The status line is announced and stays short -- a navigation cue. The
+    // readout is not announced and carries the full 50/90 % intervals, so a
+    // reader who wants the numbers can go and get them without hearing four
+    // per series on every arrow press.
     renderDetail = function (point) {
-      if (!liveStatus) return;
-      liveStatus.textContent = point
-        ? forecastStatus(point) : "Välj en punkt i diagrammet för detaljer.";
+      if (liveStatus) {
+        liveStatus.textContent = point
+          ? forecastStatus(point) : "Välj en punkt i diagrammet för detaljer.";
+      }
+      if (!readout) return;
+      if (!point) {
+        readout.textContent = "";
+        readout.removeAttribute("data-readout-date");
+        return;
+      }
+      var rows = activeDefinitions().map(function (definition) {
+        var summary = pointIntervalSummary(point.groups && point.groups[definition.id]);
+        return summary
+          ? "<dt>" + escapeHtml(definition.label) + "</dt><dd>" + escapeHtml(summary) + "</dd>"
+          : "";
+      }).filter(function (row) { return row; });
+      readout.innerHTML = "<p>" + escapeHtml(swedishDate(point.date) || point.date) + " · " +
+        escapeHtml(historyProvenanceLabel(point.provenance)) + "</p><dl>" + rows.join("") + "</dl>";
+      readout.setAttribute("data-readout-date", point.date);
     };
 
     function clearSelection() {
@@ -1772,7 +1827,7 @@
             "data-current": current ? "true" : "false", "data-forecast-point": "true",
             "pointer-events": "all", tabindex: "0", role: "img",
             "aria-label": definition.label + ", " + (swedishDate(point.date) || point.date) +
-              ": median " + percent(pointValues.p50, 1)
+              ": " + pointIntervalSummary(point.groups[definition.id])
           });
           if (pointCircle.addEventListener) {
             pointCircle.addEventListener("mouseenter", function (event) { chooseForecast(point, false, event); });

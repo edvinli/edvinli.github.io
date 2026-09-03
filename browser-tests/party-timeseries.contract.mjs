@@ -133,8 +133,7 @@ const checks = [
   ['no forward view controls remain in the markup',
     !page.includes('election-timeseries-future') &&
     !page.includes('election-timeseries-campaign-cue')],
-  ['the time domain ends at the latest published point',
-    source.includes('var fullMaxTime = Math.max.apply(Math, fullTimes);') &&
+  ['no forward-looking date reaches the time domain',
     !/futureElection/.test(source)],
 
   // ---- markup, order and direct navigation -------------------------------
@@ -195,6 +194,25 @@ const checks = [
   ['the readout stays announced for screen readers',
     /id="election-timeseries-status"[^>]*class="visually-hidden"/.test(page) &&
     source.includes('liveStatus.textContent = point')],
+  // The crosshair labels sit in an aria-hidden layer, so without these the
+  // 50/90 % intervals would be available to sighted readers only.
+  ['the 50/90 % intervals reach the accessibility tree',
+    source.includes('function pointIntervalSummary') &&
+    source.includes('", 50 % intervall "') && source.includes('", 90 % intervall "') &&
+    source.includes('pointIntervalSummary(point.groups[definition.id])')],
+  ['the interval readout is a hidden, unannounced region',
+    /id="election-timeseries-readout"[^>]*class="visually-hidden"/.test(page) &&
+    /id="election-timeseries-readout"[^>]*aria-live="off"/.test(page) &&
+    source.includes('readout.setAttribute("data-readout-date", point.date)')],
+  // The plotted history is reconstructed with today's model, and the on-page
+  // provenance note is hidden at runtime by election-latest-poll.js, so the
+  // intro is the only place that can carry the qualification.
+  ['the intro does not present the reconstruction as prospective',
+    /id="election-timeseries-intro"[^>]*>[^<]*rekonstruerad i efterhand/i.test(page) &&
+    !/varje punkt är prognosen som den såg ut/i.test(page)],
+  ['the right edge is the latest forecast, not the latest observation',
+    source.includes('var fullMaxTime = latestPoint.time;') &&
+    !source.includes('var fullMaxTime = Math.max.apply(Math, fullTimes);')],
   ['only one set of medians is on screen at a time',
     source.includes('endpointLayer.setAttribute("display", point ? "none" : "inline")')],
   ['the party pills carry their abbreviation, so colour is not the sole encoding',

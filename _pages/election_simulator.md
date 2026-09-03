@@ -35,7 +35,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   <section id="election-timeseries" class="election-panel election-timeseries" hidden>
     <div class="election-panel__head">
       <h2>Vägen till valdagen</h2>
-      <p class="election-muted" id="election-timeseries-intro">Så har valprognosen förändrats. Varje punkt är prognosen som den såg ut det datumet, och den sista punkten är prognosen i dag.</p>
+      <p class="election-muted" id="election-timeseries-intro">Så skulle dagens modell ha bedömt läget vid olika tidpunkter. Historiken är rekonstruerad i efterhand; den sista punkten är den aktuella publicerade prognosen.</p>
     </div>
     <div class="election-timeseries__controls">
       <div class="election-timeseries__view" id="election-timeseries-view" role="group" aria-label="Vad diagrammet visar" hidden>
@@ -60,6 +60,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       </svg>
     </div>
     <p id="election-timeseries-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
+    <div id="election-timeseries-readout" class="visually-hidden" role="region" aria-live="off" aria-label="Prognosintervall för valt datum"></div>
     <p class="election-timeseries__key election-muted">
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>

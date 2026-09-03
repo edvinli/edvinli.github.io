@@ -91,8 +91,10 @@ function fullRangeStart(history, metric) {
   return fullRangeDates(history, metric)[0] || null;
 }
 
-function fullRangeEnd(history, metric) {
-  return fullRangeDates(history, metric).at(-1) || null;
+// Not the latest observation of any kind: a poll that post-dates the most
+// recent generation must not carry the axis past the end of the forecast line.
+function fullRangeEnd(history) {
+  return latestPlottedDate(history);
 }
 
 let failures = 0;
@@ -404,6 +406,16 @@ function readPage(browser) {
     // The status line survives as a visually hidden aria-live announcement, so
     // it is read for its text, never for its visibility.
     const status = section?.querySelector('#election-timeseries-status') || null;
+    const readout = section?.querySelector('#election-timeseries-readout') || null;
+    // Screen readers reach an inspected date through these two elements, never
+    // through the crosshair labels: those live in an aria-hidden layer.
+    const hiddenBox = (element) => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      const geometry = element.getBoundingClientRect();
+      return style.display !== 'none' && style.position === 'absolute' &&
+        geometry.width <= 1.5 && geometry.height <= 1.5;
+    };
     const box = (element) => element ? (() => {
       const rect = element.getBoundingClientRect();
       return { left: rect.left, right: rect.right, top: rect.top, width: rect.width, height: rect.height };
@@ -567,6 +579,21 @@ function readPage(browser) {
       },
       // Retired with the panel: none of these nodes may come back.
       retiredDetailCount: section ? section.querySelectorAll(selectors.retiredDetail).length : 0,
+      // The crosshair labels are inside an aria-hidden group, so they are not
+      // an accessible surface at all -- asserted, not assumed.
+      crosshairLabelsAriaHidden: (() => {
+        const label = svg?.querySelector(selectors.crosshairLabels);
+        return label ? Boolean(label.closest('[aria-hidden="true"]')) : null;
+      })(),
+      forecastPointLabels: [...new Set(forecastPoints
+        .map((point) => point.getAttribute('aria-label') || ''))].slice(0, 3),
+      readout: readout ? {
+        date: readout.getAttribute('data-readout-date'),
+        live: readout.getAttribute('aria-live'),
+        role: readout.getAttribute('role'),
+        visuallyHidden: hiddenBox(readout),
+        text: readout.textContent.replace(/[\t\n\r ]+/g, ' ').trim(),
+      } : null,
       // Visually hidden, but it must still announce what the crosshair shows.
       status: status ? (() => {
         // "Visually hidden" is a 1x1 clipped box, not display:none -- it must
@@ -869,14 +896,14 @@ function assertNoForwardView(view, history, label) {
     view.svg?.forwardDataAttributes, []);
   equal(`${label}: nothing is drawn beyond the latest forecast`,
     [view.forward?.markCount, view.forward?.markSelectors], [0, []]);
-  // The right edge is a published observation date, never election day: the
-  // chart stops where the data stops instead of reserving room for a campaign
-  // it does not forecast.
-  const lastPublished = [latest, ...(history.polls || []).map(publishedDate)]
-    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date || '')).sort().at(-1);
-  check(`${label}: the x-axis ends at a published date, before election day`,
-    view.svg?.xMax <= lastPublished && view.svg?.xMax < history.election_date,
-  { xMax: view.svg?.xMax, lastPublished, election: history.election_date });
+  // Equality, not an upper bound over "forecast or poll": the chart's claim is
+  // that its last point is the latest published forecast, so the axis has to
+  // end exactly there even when a newer poll exists.
+  equal(`${label}: the x-axis ends exactly at the latest published forecast`,
+    view.svg?.xMax, view.svg?.range === 'short' ? view.svg?.xMax : latest);
+  check(`${label}: the right edge is before election day`,
+    view.svg?.xMax < history.election_date,
+  { xMax: view.svg?.xMax, election: history.election_date });
   check(`${label}: the last drawn mark is no later than the right edge`,
     view.forward?.lastDrawnDate !== '' && view.forward?.lastDrawnDate <= view.svg?.xMax,
   { drawn: view.forward?.lastDrawnDate, xMax: view.svg?.xMax });
@@ -1010,9 +1037,21 @@ async function exercise(viewport, history, siteRoot) {
     equal('the range buttons open on Sedan 2022',
       view.ranges.map((button) => button.pressed), ['true', 'false']);
     assertNoForwardView(view, history, 'full range, vote');
-    check('the intro frames the chart as history ending today',
-      /förändrats/i.test(view.section?.intro || '') && /i dag/i.test(view.section?.intro || ''),
+    // The plotted history is reconstructed with today's model, not what was
+    // published on each date -- the consumer says so itself by dropping
+    // prospective_archived points and labelling the rest "Rekonstruerad med
+    // dagens modell". The most-read sentence on the section must not claim
+    // otherwise, especially with the on-page provenance note hidden at runtime
+    // by election-latest-poll.js.
+    check('the intro says the history is reconstructed, not prospective',
+      /rekonstruerad/i.test(view.section?.intro || '') &&
+      /i efterhand/i.test(view.section?.intro || ''), view.section?.intro);
+    check('the intro does not claim each point was the forecast on its date',
+      !/varje punkt är prognosen som den såg ut/i.test(view.section?.intro || ''),
     view.section?.intro);
+    check('the intro still names the last point as the current forecast',
+      /sista punkten/i.test(view.section?.intro || '') &&
+      /aktuella publicerade prognosen/i.test(view.section?.intro || ''), view.section?.intro);
     equal('full range switches to Mandatandel', await clickButton(browser, 'Mandatandel'), true);
     await settle();
     assertNoForwardView(await readPage(browser), history, 'full range, seats');
@@ -1273,6 +1312,27 @@ async function exercise(viewport, history, siteRoot) {
     check('the announcement does not expose internal provenance enum strings',
       !/reconstructed_current_model|prospective_archived|current_production/.test(view.status?.text || ''),
       view.status?.text);
+    // The crosshair readout is drawn inside an aria-hidden layer, so a screen
+    // reader reaches an inspected date only through the two hidden elements.
+    // Without the interval readout the 50/90 % numbers would be sighted-only,
+    // which is exactly the asymmetry the visible panel used to prevent.
+    equal('the crosshair labels are not an accessible surface',
+      view.crosshairLabelsAriaHidden, true);
+    check('the hidden readout carries the full 50/90 % intervals for that date',
+      view.readout?.visuallyHidden === true && view.readout?.date === point.date &&
+      numberInText(view.readout?.text || '', expected.group.vote.p25) &&
+      numberInText(view.readout?.text || '', expected.group.vote.p75) &&
+      numberInText(view.readout?.text || '', expected.group.vote.p05) &&
+      numberInText(view.readout?.text || '', expected.group.vote.p95), view.readout);
+    equal('the interval readout is not announced, so arrowing stays quiet',
+      view.readout?.live, 'off');
+    check('the announcement itself stays a short navigation cue',
+      !/intervall/i.test(view.status?.text || ''), view.status?.text);
+    check('every plotted point carries its own intervals for focus and browse mode',
+      (view.forecastPointLabels || []).length > 0 &&
+      view.forecastPointLabels.every((text) =>
+        /median/i.test(text) && /50 % intervall/i.test(text) && /90 % intervall/i.test(text)),
+    view.forecastPointLabels);
     await clickAt(browser, coordinates);
     view = await readPage(browser);
     check('clicking a forecast point keeps its readout visible', view.crosshair?.count > 0,
@@ -1456,6 +1516,41 @@ async function exerciseUnusedForwardArtifacts() {
   shortView.svg);
 }
 
+// A poll published after the most recent forecast generation. This is the
+// normal state of the artifact for the hours between a poll landing and the
+// next publication, and it used to carry the x-axis past the end of the
+// forecast line: the full-range domain took its maximum over forecasts *and*
+// polls. The nearest guard -- the real-artifact precondition that refused a
+// poll dated after the origin -- lived in the campaign-path block and was
+// removed with it, so nothing caught the drift.
+async function exercisePollAfterLatestForecast() {
+  const prepared = await prepareSite((history) => {
+    const latest = history.series
+      .filter((point) => point.provenance !== 'prospective_archived')
+      .map((point) => point.date).sort().at(-1);
+    const late = calendarDateOffset(latest, 3);
+    const poll = structuredClone(history.polls.at(-1));
+    poll.poll_id = `${poll.poll_id || 'late'}-after-latest-forecast`;
+    poll.publication_date = late;
+    poll.fieldwork_start = late;
+    poll.fieldwork_end = late;
+    history.polls = [...history.polls, poll];
+    return history;
+  }, false);
+  const latest = latestPlottedDate(prepared.history);
+  const late = calendarDateOffset(latest, 3);
+  const view = await scenarioView(prepared, 'poll-after-latest-forecast');
+  equal('a poll newer than the forecast does not move the right edge',
+    view.svg?.xMax, latest);
+  check('the late poll is fixture-side, so the check is not vacuous',
+    (prepared.history.polls || []).some((poll) => publishedDate(poll) === late),
+  { late, latest });
+  check('the late poll is not drawn',
+    view.pollDates.length > 0 && view.pollDates.every((date) => date <= latest),
+  { drawn: view.pollDates.at(-1), latest });
+  assertNoForwardView(view, prepared.history, 'poll after latest forecast');
+}
+
 async function main() {
   const prepared = await prepareSite();
   try {
@@ -1464,6 +1559,7 @@ async function main() {
     await prepared.cleanup();
   }
   await exerciseUnusedForwardArtifacts();
+  await exercisePollAfterLatestForecast();
   await exerciseMetricSpecificFullDomain();
   console.log(`\n${checks - failures}/${checks} checks passed`);
   if (failures) {
