@@ -2000,13 +2000,13 @@
       }
       if (coalitionHost) coalitionHost.hidden = parties;
       if (partyHost) partyHost.hidden = !parties;
+      // Party mode's one standing note. It exists because the switch changes
+      // what the y-axis measures -- a party share has a different denominator
+      // from a coalition share -- and nothing else on the page says so at the
+      // moment the reader makes that switch. It is not a return of the
+      // methodology paragraphs the page deliberately retired: those describe
+      // the model, this describes the scale currently on screen.
       if (partyNote) partyNote.hidden = !parties;
-      // The reconstruction sentence applies to both families and stays. Only
-      // the denominator clause is family-specific, and printing the coalition
-      // one next to a party series would state the wrong denominator for what
-      // is on screen.
-      var coalitionDenominator = byId("election-timeseries-coalition-denominator");
-      if (coalitionDenominator) coalitionDenominator.hidden = parties;
       section.setAttribute("data-view-mode", viewMode);
       section.setAttribute("data-party-view", partyModeAvailable ? "available" : "unavailable");
       if (parties) {

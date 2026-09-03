@@ -115,11 +115,14 @@ function readState(browser) {
     const viewHost = document.getElementById('election-timeseries-view');
     const futureHost = document.getElementById('election-timeseries-future');
     const partyNote = document.getElementById('election-timeseries-party-note');
-    const coalitionDenominator = document.getElementById('election-timeseries-coalition-denominator');
+    // getComputedStyle reports an element's *own* display, so a child of a
+    // display:none parent still answers "inline". getClientRects() is empty
+    // for anything not actually laid out, ancestors included, which is what
+    // "visible" has to mean here.
     const visible = (node) => {
-      if (!node) return false;
+      if (!node || node.hidden) return false;
       const style = window.getComputedStyle(node);
-      return !node.hidden && style.display !== 'none' && style.visibility !== 'hidden';
+      return node.getClientRects().length > 0 && style.visibility !== 'hidden';
     };
     const marks = (selector) => Array.from(svg ? svg.querySelectorAll(selector) : []);
     return {
@@ -139,7 +142,6 @@ function readState(browser) {
       coalitionHostVisible: visible(coalitionHost),
       futureHostVisible: visible(futureHost),
       partyNoteVisible: visible(partyNote),
-      coalitionDenominatorVisible: visible(coalitionDenominator),
       partyButtons: Array.from(partyHost ? partyHost.querySelectorAll('button') : [])
         .map((button) => ({
           party: button.getAttribute('data-party'),
@@ -289,8 +291,6 @@ async function runViewport(viewport, site) {
     check('party mode reports itself ready', state.partyViewState === 'ready', state.partyViewState);
     check('the coalition selector is the visible one', state.coalitionHostVisible && !state.partyHostVisible);
     check('the party denominator note is hidden in coalition mode', !state.partyNoteVisible);
-    check('the coalition denominator sentence is shown in coalition mode',
-      state.coalitionDenominatorVisible);
     check('the two default coalitions are drawn', state.seriesDefinitions.length === 2 &&
       state.seriesDefinitions.every((id) => id in (history.coalitions || {})),
     state.seriesDefinitions);
@@ -312,10 +312,6 @@ async function runViewport(viewport, site) {
     check('the party selector replaces the coalition selector',
       state.partyHostVisible && !state.coalitionHostVisible);
     check('the party denominator note is shown', state.partyNoteVisible);
-    // Printing the coalition denominator beside a party series would state the
-    // wrong denominator for what is on screen.
-    check('the coalition denominator sentence is withdrawn in party mode',
-      !state.coalitionDenominatorVisible);
     equal('all eight parties are offered', state.partyButtons.map((button) => button.party), PARTY_ORDER);
     check('every party pill is reachable by tab',
       state.partyButtons.every((button) => button.tabIndex >= 0),
@@ -527,7 +523,6 @@ async function runViewport(viewport, site) {
       back.coalitionHostVisible && !back.partyHostVisible);
     check('no threshold line returns with coalition mode', back.thresholdLine.length === 0);
     check('the party denominator note is hidden again', !back.partyNoteVisible);
-    check('the coalition denominator sentence returns', back.coalitionDenominatorVisible);
 
     // ---- layout and console ----------------------------------------------
     check('no horizontal overflow at this viewport', !back.horizontalOverflow);

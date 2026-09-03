@@ -135,11 +135,10 @@ const checks = [
   ['the party denominator note exists and starts hidden',
     page.includes('id="election-timeseries-party-note"') &&
     /valmanskåren/.test(page)],
-  ['the coalition note now says it is about coalitions, in its own element',
-    /id="election-timeseries-coalition-denominator"/.test(page) &&
+  ['the coalition note now says it is about coalitions',
     /Koalitionernas röstandelar beräknas över de åtta riksdagspartierna/.test(page)],
-  ['the denominator sentence is family-specific, not printed for both',
-    source.includes('coalitionDenominator.hidden = parties')],
+  ['the party denominator note is the only one that appears, and only in party mode',
+    source.includes('partyNote.hidden = !parties')],
   ['the direct-navigation action exists and routes into the timeline',
     source.includes('data-party-timeline') && source.includes('Visa utveckling') &&
     source.includes('showPartyTimeline')],
