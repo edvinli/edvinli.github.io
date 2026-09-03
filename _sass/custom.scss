@@ -2538,13 +2538,3 @@ canvas {
     opacity: 1;
   }
 }
-
-// Archived prospective forecasts are observations of what was published on a
-// given date, not vertices of the reconstructed current-model curve. They are
-// drawn hollow so a reader can tell at a glance that they belong to a different
-// series than the continuous line and its bands.
-.election-timeseries__archived {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6px;
-}

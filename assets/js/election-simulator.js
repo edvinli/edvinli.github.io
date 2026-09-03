@@ -1058,6 +1058,16 @@
     points = Object.keys(byDate).map(function (date) { return byDate[date]; }).sort(function (a, b) {
       return a.time - b.time;
     });
+    // Archived prospective forecasts are kept in the payload but are not
+    // charted: they belong to whichever model was current on their date, not
+    // to the reconstructed curve, and an undrawn mark must not stay a pointer
+    // or keyboard target.
+    var archived = points.filter(function (point) {
+      return point.provenance === "prospective_archived";
+    });
+    points = points.filter(function (point) {
+      return point.provenance !== "prospective_archived";
+    });
     if (!points.length) return null;
     var rawPop = Array.isArray(payload.poll_of_polls) ? payload.poll_of_polls
       : (Array.isArray(payload.pollofpolls) ? payload.pollofpolls : []);
@@ -1099,6 +1109,7 @@
       pollSourceSha256: payload.poll_source_sha256 || null,
       definitions: definitions,
       points: points,
+      archivedPoints: archived,
       pop: pop,
       polls: polls,
       futureProjection: futureProjection,
@@ -1155,20 +1166,6 @@
     var count = 0;
     points.forEach(function (point) {
       var value = historyMetricValue(point.groups && point.groups[point._definitionId], metric, key);
-      if (value === null) return;
-      var x = xScale(point.time);
-      var y = yScale(value);
-      path += (count ? "L" : "M") + x.toFixed(2) + "," + y.toFixed(2);
-      count += 1;
-    });
-    return path;
-  }
-
-  function historyPopLinePath(points, definitionId, xScale, yScale) {
-    var path = "";
-    var count = 0;
-    points.forEach(function (point) {
-      var value = point.values && historyNumber(point.values[definitionId]);
       if (value === null) return;
       var x = xScale(point.time);
       var y = yScale(value);
@@ -1274,12 +1271,6 @@
       }
     });
     if (metric === "vote") {
-      if (history.pop && history.pop.length) history.pop.filter(inHistoricalDomain).forEach(function (item) {
-        definitions.forEach(function (definition) {
-          var value = item.values && historyNumber(item.values[definition.id]);
-          if (value !== null) values.push(value);
-        });
-      });
       if (domain && domain.range === "short" && history.polls && history.polls.length) {
         history.polls.filter(inHistoricalDomain).forEach(function (item) {
           definitions.forEach(function (definition) {
@@ -1409,14 +1400,11 @@
       var shortRangeEnd = electionDate;
       var useShortRange = selectedRange === "short" && shortRangeStart && shortRangeEnd;
       // Sedan 2022 keeps the metric-specific published extent: vote share
-      // includes the historical series, Poll of Polls and individual polls;
-      // seat share has no individual-poll values, so its extent stops at the
-      // series plus Poll of Polls.  The projection always extends the right
-      // edge through election day.
+      // includes the historical series and the individual polls drawn beside
+      // it; seat share has no individual-poll values, so its extent is the
+      // series alone.  The future region always extends the right edge
+      // through election day.
       var fullTimes = history.points.map(function (point) { return point.time; });
-      if (history.pop && history.pop.length) {
-        history.pop.forEach(function (item) { fullTimes.push(item.time); });
-      }
       if (selectedMetric === "vote" && history.polls && history.polls.length) {
         history.polls.forEach(function (item) { fullTimes.push(item.time); });
       }
@@ -1794,11 +1782,8 @@
       var futureActive = pathsActive() || projectionActive();
       var visibleProjectionPoints = projectionActive() ? projection.points.filter(pointInActiveDomain) : [];
       var visibleBandPoints = pathsActive() ? campaignPaths.bands.filter(pointInActiveDomain) : [];
-      // No poll or Poll of Polls observation may ever appear after the
-      // forecast origin: the future region is simulated, not measured.
-      var visiblePopPoints = history.pop ? history.pop.filter(function (point) {
-        return pointInActiveDomain(point) && (!futureOrigin || point.time <= futureOrigin.time);
-      }) : [];
+      // No poll observation may ever appear after the forecast origin: the
+      // future region is simulated, not measured.
       var visiblePollPoints = history.polls ? history.polls.filter(function (point) {
         return pointInActiveDomain(point) && (!futureOrigin || point.time <= futureOrigin.time);
       }) : [];
@@ -1844,11 +1829,7 @@
         (swedishDate(activeDomain.minIso) || activeDomain.minIso) + " till " +
         (swedishDate(activeDomain.maxIso) || activeDomain.maxIso) +
         ". Skalan är anpassad efter de valda serierna." +
-        (selectedMetric === "vote"
-          ? (selectedRange === "short"
-            ? " Poll of Polls och enskilda mätningar visas som jämförelse."
-            : " Enskilda mätningar visas som jämförelse.")
-          : "")));
+        (selectedMetric === "vote" ? " Enskilda mätningar visas som jämförelse." : "")));
 
       var plotDefs = svgNode("defs");
       var plotClip = svgNode("clipPath", { id: "election-timeseries-plot-clip" });
@@ -1969,18 +1950,13 @@
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
         if (!validPoints.length) return;
-        // The continuous line and bands answer "what would the CURRENT model have
-        // forecast through time".  A prospective_archived point answers a different
-        // question -- "what was actually published that day", under whatever model
-        // was current then.  Threading the two into one polyline would render a
-        // model revision as a movement in voter opinion, so archived points are
-        // drawn as separate markers and are never vertices of the curve.
-        var curvePoints = validPoints.filter(function (point) {
-          return point.provenance !== "prospective_archived";
-        });
-        var archivedPoints = validPoints.filter(function (point) {
-          return point.provenance === "prospective_archived";
-        });
+        // The continuous line and bands answer "what would the CURRENT model
+        // have forecast through time".  A prospective_archived point answers a
+        // different question -- "what was actually published that day", under
+        // whatever model was current then -- so it is never a vertex of this
+        // curve.  Those points are filtered out of the chart entirely in
+        // normalizeHistoryPayload; the payload still carries them.
+        var curvePoints = validPoints;
         if (!curvePoints.length) return;
         var group = svgNode("g", {
           class: "election-timeseries__series-group" + (definition.defaultOn ? " is-primary" : ""),
@@ -2010,18 +1986,14 @@
           return point.provenance === "current_production";
         });
         var latest = currentPoints.length ? currentPoints[currentPoints.length - 1] : curvePoints[curvePoints.length - 1];
-        // Paint archived markers first so the official current production
-        // remains the topmost pointer target when dates are only a pixel apart.
-        archivedPoints.concat(curvePoints).forEach(function (point) {
+        curvePoints.forEach(function (point) {
           var rawPointValues = point.groups[definition.id][selectedMetric];
           var pointValues = historyDisplayQuantiles(point.groups[definition.id], selectedMetric);
           var current = point === latest;
-          var archived = point.provenance === "prospective_archived";
           var pointCircle = svgNode("circle", {
             class: "election-timeseries__forecast-point"
-              + (current ? " election-timeseries__current" : "")
-              + (archived ? " election-timeseries__archived" : ""),
-            cx: xScale(point.time), cy: yScale(pointValues.p50), r: current ? 5 : (archived ? 4 : 2.7),
+              + (current ? " election-timeseries__current" : ""),
+            cx: xScale(point.time), cy: yScale(pointValues.p50), r: current ? 5 : 2.7,
             fill: definition.color, "data-coalition": definition.id, "data-date": point.date,
             "data-provenance": point.provenance,
             "data-metric": selectedMetric, "data-p05": pointValues.p05,
@@ -2357,34 +2329,6 @@
           class: "election-timeseries__future-label election-timeseries__future-label--election",
           "data-election-day-distribution-label": "true"
         }, campaignPaths.rendering.election_day_distribution_label));
-      }
-
-      if (selectedRange === "short" && selectedMetric === "vote" && visiblePopPoints.length) {
-        var popLayer = svgNode("g", {
-          class: "election-timeseries__pop", "aria-hidden": "true",
-          "clip-path": "url(#election-timeseries-plot-clip)", "pointer-events": "none"
-        });
-        definitions.forEach(function (definition) {
-          var popPath = historyPopLinePath(visiblePopPoints, definition.id, xScale, yScale);
-          if (popPath) popLayer.appendChild(svgNode("path", {
-            class: "election-timeseries__pop-line", d: popPath, fill: "none",
-            stroke: definition.color, "stroke-width": "1.6", opacity: "0.62",
-            "data-series": "poll_of_polls", "data-coalition": definition.id,
-            "data-date-start": visiblePopPoints[0].date,
-            "data-date-end": visiblePopPoints[visiblePopPoints.length - 1].date
-          }));
-          visiblePopPoints.forEach(function (point) {
-            var popValue = point.values && historyNumber(point.values[definition.id]);
-            if (popValue === null) return;
-            popLayer.appendChild(svgNode("circle", {
-              class: "election-timeseries__pop-point", cx: xScale(point.time), cy: yScale(popValue),
-              r: compactChart ? 1.8 : 2.1, fill: definition.color, opacity: "0.62",
-              "data-pop-point": "true",
-              "data-coalition": definition.id, "data-date": point.date, "data-value": popValue
-            }));
-          });
-        });
-        svg.appendChild(popLayer);
       }
 
       if (selectedMetric === "vote" && visiblePollPoints.length) {

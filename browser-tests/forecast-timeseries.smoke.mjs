@@ -67,8 +67,11 @@ function inDateRange(iso, start, end) {
   return typeof iso === 'string' && iso >= start && iso <= end;
 }
 
+// The chart draws the historical series and, for vote share, the individual
+// polls beside it.  The aggregate Poll of Polls series is published but no
+// longer plotted, so it does not take part in either extent.
 function fullRangeStart(history, metric) {
-  const collections = [history?.series || [], history?.poll_of_polls || []];
+  const collections = [history?.series || []];
   if (metric === 'vote') collections.push(history?.polls || []);
   return collections.flatMap((items) => items.map(publishedDate))
     .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date || ''))
@@ -604,6 +607,10 @@ function readPage(browser) {
         className: String(element.className?.baseVal || element.className || ''),
       })),
       medianCount: svg ? Array.from(svg.querySelectorAll(selectors.median)).filter(visible).length : 0,
+      archivedCount: svg
+        ? Array.from(svg.querySelectorAll('.election-timeseries__archived, [data-provenance="prospective_archived"]'))
+          .filter(visible).length
+        : 0,
       popLineCount: popLines.filter(visible).length,
       popPointCount: popPoints.filter(visible).length,
       popDates: [...new Set(popPoints.filter(visible).map((point) => point.getAttribute('data-date')))].sort(),
@@ -947,8 +954,18 @@ function assertStructure(view, history) {
   check('the chart has both 50% and 90% forecast bands', view.band90Count >= 2 && view.band50Count >= 2,
     { band90: view.band90Count, band50: view.band50Count });
   check('median forecast lines are visible', view.medianCount >= 2, view.medianCount);
-  equal('Poll of Polls line is absent from vote mode', view.popLineCount, 0);
-  equal('Poll of Polls line is absent from the legend', view.popLegendCount, 0);
+  // The aggregate Poll of Polls series is not charted at all any more: no
+  // line, no vertex dots, no legend key, in either metric or range.
+  equal('the aggregate Poll of Polls line is not drawn', view.popLineCount, 0);
+  equal('the aggregate Poll of Polls points are not drawn', view.popPointCount, 0);
+  equal('Poll of Polls has no legend key', view.popLegendCount, 0);
+  // Archived prospective forecasts are published but not charted, so no
+  // hollow marker is drawn and no undrawn mark stays selectable.
+  equal('archived prospective forecasts are not drawn', view.archivedCount, 0);
+  check('no archived date is a rendered forecast point',
+    (history.series || []).filter((point) => point.provenance === 'prospective_archived')
+      .every((point) => !view.forecastDates.includes(point.date)),
+  view.forecastDates);
   check('individual poll observations are visible in vote mode', view.pollCount >= history.polls.length * 2,
     { rendered: view.pollCount, polls: history.polls.length });
   check('the latest forecast value is visibly marked', view.currentCount >= 2, view.currentCount);
@@ -1141,7 +1158,7 @@ function visibleRangeExtremes(history, metric, start, end) {
     if (inDateRange(point?.date, start, end)) addQuantiles(point);
   }
   if (metric === 'vote') {
-    for (const collection of [history.poll_of_polls || [], history.polls || []]) {
+    for (const collection of [history.polls || []]) {
       for (const point of collection) {
         const date = publishedDate(point);
         if (!inDateRange(date, start, history.future_projection.origin_date)) continue;
@@ -1173,19 +1190,16 @@ function assertShortRange(view, history, fullView, metric = 'vote') {
   view.forecastDates);
   const expectedPollDates = [...new Set((history.polls || []).map(publishedDate)
     .filter((date) => inDateRange(date, start, origin)))].sort();
-  const expectedPopDates = [...new Set((history.poll_of_polls || []).map(publishedDate)
-    .filter((date) => inDateRange(date, start, origin)))].sort();
   if (metric === 'vote') {
     equal('all in-range individual poll observations remain visible', view.pollDates, expectedPollDates);
-    equal('all in-range Poll of Polls observations remain visible', view.popDates, expectedPopDates);
-    check('poll and Poll of Polls observations never enter the future region',
-      view.pollDates.every((date) => date <= origin) && view.popDates.every((date) => date <= origin),
-    { polls: view.pollDates, pop: view.popDates, origin });
+    check('individual poll observations never enter the future region',
+      view.pollDates.every((date) => date <= origin), { polls: view.pollDates, origin });
   } else {
-    check('Mandatandel keeps poll and Poll of Polls observations hidden',
-      view.pollDates.length === 0 && view.popDates.length === 0,
-    { polls: view.pollDates, pop: view.popDates });
+    check('Mandatandel keeps individual poll observations hidden',
+      view.pollDates.length === 0, view.pollDates);
   }
+  equal('the short range does not reintroduce the Poll of Polls overlay',
+    [view.popLineCount, view.popPointCount], [0, 0]);
   check('short range keeps the complete future projection shaded and dashed',
     view.future?.pointCount === history.future_projection.series.length * DEFAULT_COALITIONS.length &&
     view.future?.bandCount >= DEFAULT_COALITIONS.length * 2 &&
@@ -1281,9 +1295,10 @@ async function exercise(viewport, history, siteRoot) {
       view.series.filter((series) => series.visible).length === beforeVisible &&
       view.future?.medianCount === beforeFutureMedians, { series: view.series, future: view.future });
 
-    // Both the aggregate Poll of Polls and faded individual observations are
-    // visible in vote-share mode.
-    equal('Poll of Polls line remains absent in vote-share mode', view.popLineCount, 0);
+    // Faded individual observations are visible in vote-share mode; the
+    // aggregate Poll of Polls series is not.
+    equal('the Poll of Polls overlay stays absent in vote-share mode',
+      view.popLineCount + view.popPointCount, 0);
     check('individual poll dots appear for both default coalitions', view.pollCount >= history.polls.length * 2,
       { rendered: view.pollCount, polls: history.polls.length });
 
@@ -1296,11 +1311,14 @@ async function exercise(viewport, history, siteRoot) {
       view.svg?.metric === 'seats' && finite(view.svg.yMin) && finite(view.svg.yMax) &&
       view.svg.yMin > 0 && view.svg.yMin <= (175 / 349 * 100) &&
       view.svg.yMax >= (175 / 349 * 100), view.svg);
-    equal('seat-share mode has no Poll of Polls lines', view.popLineCount, 0);
+    equal('seat-share mode has no Poll of Polls overlay',
+      view.popLineCount + view.popPointCount, 0);
     equal('seat-share mode has no raw poll dots', view.pollCount, 0);
     check('seat-share mode shows the 175 mandate majority rule', /175\s*mandat/i.test(view.section?.text || '') &&
       /175\s*mandat/i.test(`${view.marker?.text || ''} ${view.section?.text || ''}`), view.section?.text);
-    check('seat-share mode explains why Poll of Polls is omitted', /poll.*visas.*röstandel|röstandelsläget/i.test(view.section?.text || ''), view.section?.text);
+    check('seat-share mode explains why individual measurements are omitted',
+      /Enskilda mätningar visas bara för röstandel/i.test(view.section?.text || ''),
+    view.section?.text);
     assertFutureStructure(view, history, 'seats');
     const seatPoint = history.series[0];
     const seatCoordinates = await historicalPointCoordinates(browser, seatPoint.date);
@@ -1341,7 +1359,8 @@ async function exercise(viewport, history, siteRoot) {
     await settle();
     view = await readPage(browser);
     check('Röstandel is pressed', findLabel(view.views, ['Röstandel'])?.pressed === 'true', view.views);
-    equal('vote-share mode does not restore the Poll of Polls line', view.popLineCount, 0);
+    equal('vote-share mode does not restore the Poll of Polls overlay',
+      view.popLineCount + view.popPointCount, 0);
     check('vote-share mode restores individual poll dots', view.pollCount >= history.polls.length * 2,
       { rendered: view.pollCount, polls: history.polls.length });
 
