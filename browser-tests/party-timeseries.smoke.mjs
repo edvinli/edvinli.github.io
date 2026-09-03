@@ -422,6 +422,8 @@ async function runViewport(viewport, site) {
     check('no 175-mandate majority rule is drawn for a single party',
       seats.majorityLines === 0, seats.majorityLines);
     check('the secondary uncertainty view stays hidden in mandate mode', !seats.futureHostVisible);
+    // It explains the vote-share denominator, which is not what is on screen.
+    check('the vote-denominator note is withdrawn in the mandate view', !seats.partyNoteVisible);
 
     await clickId(browser, 'election-timeseries-vote');
     await clickId(browser, 'election-timeseries-range-full');

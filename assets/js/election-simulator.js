@@ -2006,7 +2006,10 @@
       // moment the reader makes that switch. It is not a return of the
       // methodology paragraphs the page deliberately retired: those describe
       // the model, this describes the scale currently on screen.
-      if (partyNote) partyNote.hidden = !parties;
+      // Only in the vote view: it is a statement about the vote-share
+      // denominator, and printing it under a mandate chart would explain
+      // something that is not on screen.
+      if (partyNote) partyNote.hidden = !(parties && selectedMetric === "vote");
       section.setAttribute("data-view-mode", viewMode);
       section.setAttribute("data-party-view", partyModeAvailable ? "available" : "unavailable");
       if (parties) {

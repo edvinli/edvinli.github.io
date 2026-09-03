@@ -139,8 +139,8 @@ const checks = [
     /valmanskåren/.test(page)],
   ['the coalition note now says it is about coalitions',
     /Koalitionernas röstandelar beräknas över de åtta riksdagspartierna/.test(page)],
-  ['the party denominator note is the only one that appears, and only in party mode',
-    source.includes('partyNote.hidden = !parties')],
+  ['the party denominator note appears only in party mode, and only for votes',
+    source.includes('partyNote.hidden = !(parties && selectedMetric === "vote")')],
   ['the direct-navigation action exists and routes into the timeline',
     source.includes('data-party-timeline') && source.includes('Visa utveckling') &&
     source.includes('showPartyTimeline')],
