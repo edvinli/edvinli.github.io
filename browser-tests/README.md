@@ -36,8 +36,10 @@ node browser-tests/alternatives.smoke.mjs
 node browser-tests/forecast-timeseries.smoke.mjs
 node browser-tests/histogram-copy.smoke.mjs
 node browser-tests/equations.smoke.mjs
+node browser-tests/party-timeseries.smoke.mjs
 node browser-tests/campaign-paths.contract.mjs      # static, no browser
 node browser-tests/future-projection.contract.mjs   # static, no browser
+node browser-tests/party-timeseries.contract.mjs    # static, no browser
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -193,7 +195,57 @@ It also owns the **coherent campaign-path** future region
   trajectory, a declared daily random walk, and a trajectory ending after the
   origin all fall back to the historical chart with no campaign marks.
 
-### 7. `campaign-paths.contract.mjs` — static campaign-path contract
+### 7. `party-timeseries.smoke.mjs` — the per-party view
+
+Owns the `Koalitioner | Partier` switch and everything behind it, at desktop
+and 360 px mobile widths:
+
+- coalition mode is the default and is asserted **unchanged** — same series,
+  same y-domain, same poll cloud — before and after a round trip through party
+  mode. The switch is only worth having if the default experience did not move;
+- one party at a time, every pill tab-reachable, exactly one `aria-pressed`,
+  and the deterministic default being the largest party in the certified
+  forecast;
+- party poll dots equal to the **published** party number, not a
+  renormalization — the check that catches the ~2 % denominator error that
+  would otherwise move every party away from the 4 % line;
+- the election-day party distribution equal to the certified `parties.json`
+  values that the artifact carries on its `current_production` point;
+- the adaptive party y-domain: tighter in `Sista 30 dagarna` than in
+  `Sedan 2022`, readable tick counts, and every drawn forecast point and poll
+  dot inside the visible domain;
+- the 4 %-spärr drawn for a threshold-near party and **absent** for a large
+  one, with the scale not stretched to reach it;
+- `Mandatandel` drawing the election-day seat distribution and the future
+  shading but **no** intermediate party mandate paths, bands or origin marker;
+- party selection surviving a metric change and a range change;
+- `Visa utveckling →` routing: scroll, switch to `Partier`, select that party,
+  and land focus on the chart's own party pill;
+- pointer, touch and chart-level arrow-key inspection naming the selected
+  party;
+- no horizontal overflow and zero console errors in both modes.
+
+It also owns the fallback and fail-closed matrix. A publication with **no**
+party family renders exactly the old page with the switch absent and the
+`Visa utveckling` action hidden. A publication whose party family is declared
+but broken — an election-day party value drifting from the certified point, a
+seat quantile inside an opinion band, a declared intermediate mandate
+trajectory, a renormalized denominator, uncertainty declared as reconstructed
+from coalitions, or one campaign day missing its party bands — refuses party
+mode outright and leaves the coalition view untouched.
+
+### 8. `party-timeseries.contract.mjs` — static per-party contract
+
+Runs without a browser. Asserts that the fail-closed rules are present in
+`assets/js/election-simulator.js` (the nine-category denominator, the refusal
+to reconstruct party uncertainty from coalition data, the all-or-nothing party
+family, the bounded threshold nudge), that there is exactly **one** chart
+renderer and one definition namespace rather than a second pipeline, that the
+page markup puts the view switch first in the control order, and that the
+committed fixture publishes a well-formed party family whose party ids never
+leak into the coalition `groups`.
+
+### 9. `campaign-paths.contract.mjs` — static campaign-path contract
 
 Runs without a browser. It asserts that the *rules* the deployed consumer
 enforces are present in `assets/js/election-simulator.js` — bitwise endpoint
@@ -234,6 +286,27 @@ FIX.write_text(json.dumps(history, ensure_ascii=False, separators=(",", ":")) + 
 The builder refuses to produce an object whose election-day endpoint is not
 bitwise identical to the canonical production draws, so a fixture that exists
 is a fixture that passed the scientific gate.
+
+#### The party family in the fixture
+
+The same fixture carries the additive party family (`parties_view`,
+`series[].parties`, `bands[].parties`, `paths.series[].party_values`,
+`election_day.parties`). Backfilling party data into the historical points is
+a full `scripts.forecast_history.generate` run — the resume cache keeps old
+points byte-for-byte, party block or not — so regenerating it means:
+
+```bash
+# from the election-simulator repository root, about 15 minutes on 9 workers
+uv run python -m scripts.forecast_history.generate --output /tmp/history.json --workers 9
+```
+
+then rolling one certified 100 000-draw production result into it with
+`scripts.forecast_history.future_projection.update_history_with_production_result`,
+exactly as the publication automation does. The party quantiles at the
+certified point are asserted against that run's own `parties.json` values by
+`scripts.forecast_history.party_contract.assert_election_day_party_parity`, so
+a fixture that exists is one whose party election-day values are the published
+forecast.
 
 ## Determinism: pin the generation you assert against
 
