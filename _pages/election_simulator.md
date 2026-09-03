@@ -50,6 +50,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-paths" data-future-view="paths" aria-pressed="true" aria-controls="election-timeseries-svg">Möjliga opinionsbanor</button>
         <button type="button" class="election-timeseries__control election-timeseries__future-button" id="election-timeseries-future-stability" data-future-view="projection" aria-pressed="false" aria-controls="election-timeseries-svg">Kvarvarande osäkerhet</button>
       </div>
+      <button type="button" class="election-timeseries__campaign-cue" id="election-timeseries-campaign-cue" aria-controls="election-timeseries-svg" hidden>Visa kampanjperioden <span aria-hidden="true">→</span></button>
       <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
     </div>
     <div class="election-timeseries__frame" id="election-timeseries-frame">

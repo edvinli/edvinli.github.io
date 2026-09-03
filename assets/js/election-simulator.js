@@ -842,6 +842,12 @@
   var CAMPAIGN_PATH_PRIMARY_ROLE = "primary_future_view";
   var CAMPAIGN_PATH_SECONDARY_ROLE = "secondary_analytical_view";
   var CAMPAIGN_PATH_QUANTITY = "underlying_opinion_share";
+  // Path day 0 is the model's latent opinion state at the origin. The
+  // certified forecast point sits on the same calendar date but is a *wider,
+  // different* distribution -- it adds campaign dynamics and ElectionNoise --
+  // so the fan is drawn from its own origin marker, never from that dot.
+  var CAMPAIGN_PATH_ORIGIN_QUANTITY = "opinion_state_only";
+  var CAMPAIGN_PATH_CONTINUES_FROM = "current_opinion_state";
 
   function campaignBandGroups(raw, definitions) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -897,6 +903,7 @@
         construction.directional_momentum !== false ||
         !Number.isInteger(construction.eligible_trajectories) || construction.eligible_trajectories < 30 ||
         !Number.isInteger(construction.endpoint_horizon_days) || construction.endpoint_horizon_days < 1 ||
+        construction.origin_day_quantity !== CAMPAIGN_PATH_ORIGIN_QUANTITY ||
         ["identity", "monotone_stretch"].indexOf(construction.time_warp) === -1) return null;
     if (construction.time_warp === "identity" && construction.endpoint_horizon_days !== pathDays) return null;
     var latestEnd = historyDate(construction.latest_trajectory_end);
@@ -940,8 +947,9 @@
         pathDay: index,
         groups: groups,
         provenance: CAMPAIGN_PATH_PRIMARY_ROLE,
-        isFuture: true,
-        isCampaignBand: true
+        isFuture: index > 0,
+        isCampaignBand: index > 0,
+        isOriginState: index === 0
       });
     }
 
@@ -997,6 +1005,9 @@
         region.background !== "light_distinct" ||
         typeof region.label !== "string" || !region.label.trim() ||
         typeof rendering.origin_boundary_label !== "string" || !rendering.origin_boundary_label.trim() ||
+        typeof rendering.origin_state_label !== "string" || !rendering.origin_state_label.trim() ||
+        typeof rendering.origin_state_tooltip_sv !== "string" ||
+        !rendering.origin_state_tooltip_sv.trim() ||
         typeof rendering.election_day_label !== "string" || !rendering.election_day_label.trim() ||
         typeof rendering.election_day_distribution_label !== "string" ||
         !rendering.election_day_distribution_label.trim() ||
@@ -1009,7 +1020,7 @@
         rendering.intermediate_seat_trajectory !== false ||
         rendering.poll_observations_in_future !== false ||
         rendering.poll_of_polls_observations_in_future !== false ||
-        rendering.continues_from !== "poll_of_polls_opinion_series") return null;
+        rendering.continues_from !== CAMPAIGN_PATH_CONTINUES_FROM) return null;
 
     return {
       origin: origin,
@@ -1359,18 +1370,17 @@
     var modeSeats = byId("election-timeseries-seats");
     var rangeFull = byId("election-timeseries-range-full");
     var rangeShort = byId("election-timeseries-range-short");
+    var campaignCue = byId("election-timeseries-campaign-cue");
     var futureViewHost = byId("election-timeseries-future");
     var futureViewPaths = byId("election-timeseries-future-paths");
     var futureViewStability = byId("election-timeseries-future-stability");
     var coalitionHost = byId("election-timeseries-coalitions");
     var selectedMetric = "vote";
-    // With a campaign-path region published, the four-year view compresses the
-    // remaining campaign into a handful of pixels.  The election-relative
-    // range *is* the campaign window, and it is also the range that shows the
-    // Poll of Polls opinion line the simulated paths continue, so it is the
-    // honest default while that region exists.  "Sedan 2022" stays one click
-    // away and the renderer is unchanged.
-    var selectedRange = history.campaignPaths ? "short" : "full";
+    // "Sedan 2022" stays the opening range.  A published campaign-path region
+    // is only a few pixels wide at that scale, but the fix for that is
+    // discoverability -- the "Visa kampanjperioden" cue below -- not silently
+    // changing which view the page opens on.
+    var selectedRange = "full";
     var selected = {};
     var selectedDate = null;
     var selectedPoint = null;
@@ -1443,6 +1453,14 @@
       if (rangeShort) rangeShort.setAttribute("aria-pressed", selectedRange === "short" ? "true" : "false");
     }
 
+    function setCampaignCue() {
+      // The campaign region is a few pixels wide on the four-year scale.  The
+      // opening range stays "Sedan 2022"; this is the cue that the
+      // election-relative window exists, and it retires once you are in it.
+      if (!campaignCue) return;
+      campaignCue.hidden = !(campaignPaths && selectedRange !== "short");
+    }
+
     function setFutureViewButtons() {
       // The control only makes sense when both views exist.  A publication
       // without campaign paths keeps exactly the previous behaviour.
@@ -1472,6 +1490,7 @@
       // that the published copy is the copy the chart uses.
       var paths = pathsActive();
       [["election-timeseries-key-campaign-paths", paths && selectedMetric === "vote"],
+        ["election-timeseries-key-origin-state", paths && selectedMetric === "vote"],
         ["election-timeseries-key-election-day", paths],
         ["election-timeseries-campaign-note", paths],
         ["election-timeseries-key-projection", projectionActive()],
@@ -1482,6 +1501,7 @@
       });
       setRangeButtons();
       setFutureViewButtons();
+      setCampaignCue();
     }
 
     function dateForEvent(event) {
@@ -1510,7 +1530,9 @@
     // view only; the election-day distribution is selectable in both.
     function selectableFuturePoints() {
       if (pathsActive()) {
-        var marks = selectedMetric === "vote" ? campaignPaths.bands.slice(1) : [];
+        // Opinion bands and the origin state carry no seat distribution, so
+        // they are selectable in the vote view only.
+        var marks = selectedMetric === "vote" ? campaignPaths.bands : [];
         return marks.concat([campaignPaths.electionDay]);
       }
       return projectionActive() ? projection.points : [];
@@ -1652,6 +1674,32 @@
         "<p class=\"election-timeseries__note election-muted\">" + escapeHtml(projection.tooltip) + "</p>";
     }
 
+    function originStateDetail(point) {
+      if (!point || !campaignPaths) return "";
+      var rows = activeDefinitions().map(function (definition) {
+        var values = historyDisplayQuantiles(point.groups && point.groups[definition.id], "vote");
+        if (!values) return "";
+        return "<section class=\"election-timeseries__detail-group\" data-coalition=\"" +
+          escapeHtml(definition.id) + "\"><h4>" + escapeHtml(definition.label) + "</h4><dl>" +
+          "<dt>Opinionsläge</dt><dd>" + escapeHtml(percent(values.p50, 1)) + "</dd>" +
+          "<dt>50 % intervall</dt><dd>" + escapeHtml(rangeTextFor(values, "p25", "p75")) + "</dd>" +
+          "<dt>90 % intervall</dt><dd>" + escapeHtml(rangeTextFor(values, "p05", "p95")) + "</dd>" +
+          "</dl></section>";
+      }).filter(function (row) { return row; });
+      return "<h3 class=\"election-timeseries__detail-date\">" +
+        escapeHtml(swedishDate(point.date) || point.date) + "</h3>" +
+        "<div class=\"election-timeseries__detail-groups\">" + rows.join("") + "</div>" +
+        "<dl class=\"election-timeseries__detail-meta\">" +
+        "<div><dt>Vy</dt><dd>" + escapeHtml(campaignPaths.rendering.origin_state_label) +
+        "</dd></div>" +
+        "<div><dt>Storhet</dt><dd>Underliggande opinionsläge</dd></div>" +
+        "<div><dt>Simuleringar</dt><dd>" +
+        escapeHtml(historyDaysText(campaignPaths.samples)) + "</dd></div>" +
+        "</dl>" +
+        "<p class=\"election-timeseries__note election-muted\">" +
+        escapeHtml(campaignPaths.rendering.origin_state_tooltip_sv) + "</p>";
+    }
+
     function campaignBandDetail(point) {
       if (!point || !campaignPaths) return "";
       var rows = activeDefinitions().map(function (definition) {
@@ -1709,6 +1757,7 @@
     function futureMarkLabel(point) {
       if (!point) return "";
       if (point.isElectionDay && campaignPaths) return campaignPaths.electionDay.label;
+      if (point.isOriginState && campaignPaths) return campaignPaths.rendering.origin_state_label;
       if (point.isCampaignBand && campaignPaths) return campaignPaths.rendering.future_region.label;
       return projection ? projection.rendering.legend_label : "";
     }
@@ -1723,7 +1772,8 @@
         return definition.label + ": vår simulering " + median;
       }).filter(function (value) { return value; });
       return (swedishDate(point.date) || point.date) + " · " + descriptions.join(", ") + ". " +
-        (point.isFuture ? futureMarkLabel(point) : historyProvenanceLabel(point.provenance)) + ".";
+        (point.isFuture || point.isOriginState
+          ? futureMarkLabel(point) : historyProvenanceLabel(point.provenance)) + ".";
     }
 
     renderDetail = function (point) {
@@ -1740,6 +1790,7 @@
       }
       if (detailBody) {
         if (point.isElectionDay) detailBody.innerHTML = electionDayDetail(point);
+        else if (point.isOriginState) detailBody.innerHTML = originStateDetail(point);
         else if (point.isCampaignBand) detailBody.innerHTML = campaignBandDetail(point);
         else if (point.isFuture) detailBody.innerHTML = futureDetail(point);
         else detailBody.innerHTML = forecastDetail(point);
@@ -1798,6 +1849,34 @@
         var parsed = historyNumber(value);
         if (parsed === null) return plot.bottom;
         return plot.bottom - (parsed - minValue) / Math.max(1, maxValue - minValue) * plot.height;
+      };
+      // Path day 0 shares its calendar date with the certified forecast point
+      // but is a different, much narrower distribution.  Shifting it a few
+      // pixels into the future region separates the two quantities and lets
+      // the fan visibly emanate from the opinion state, not from the forecast.
+      var originTime = campaignPaths ? campaignPaths.origin.time : null;
+      // Half a day where a day is wide enough to hold a marker, floored so the
+      // mark always clears the certified forecast dot on the same date, capped
+      // so it never reaches the first campaign day.
+      var originDayGap = campaignPaths
+        ? xScale(originTime + 86400000) - xScale(originTime) : 0;
+      var originShift = Math.max(
+        compactChart ? 7 : 8,
+        Math.min(compactChart ? 12 : 13, originDayGap * 0.55),
+      );
+      // Clamped so the marker cannot walk past the election-day glyph when the
+      // four-year scale squeezes the whole campaign into a few pixels; there it
+      // simply sits on the boundary, where a sliver cannot mislead anyone.
+      var originX = campaignPaths
+        ? Math.min(
+          xScale(originTime) + originShift,
+          Math.max(xScale(originTime),
+            Math.min(xScale(campaignPaths.election.time), plot.right) -
+              (compactChart ? 8 : 10) - (compactChart ? 10 : 13) / 2 - 3),
+        )
+        : null;
+      var campaignX = function (time) {
+        return time === originTime ? originX : xScale(time);
       };
 
       svg.innerHTML = "";
@@ -2167,8 +2246,8 @@
             "clip-path": "url(#election-timeseries-plot-clip)"
           });
           if (selectedMetric === "vote" && visibleBandPoints.length) {
-            var ninety = historyAreaPath(visibleBandPoints, "vote", definition.id, xScale, yScale, "p95", "p05");
-            var fifty = historyAreaPath(visibleBandPoints, "vote", definition.id, xScale, yScale, "p75", "p25");
+            var ninety = historyAreaPath(visibleBandPoints, "vote", definition.id, campaignX, yScale, "p95", "p05");
+            var fifty = historyAreaPath(visibleBandPoints, "vote", definition.id, campaignX, yScale, "p75", "p25");
             if (ninety) group.appendChild(svgNode("path", {
               d: ninety, fill: definition.color, opacity: "0.10",
               class: "election-timeseries__campaign-band election-timeseries__campaign-band--90",
@@ -2192,7 +2271,7 @@
                 if (!pointInActiveDomain(band)) return;
                 var value = historyNumber(line[index]);
                 if (value === null) return;
-                commands += (drawn ? "L" : "M") + xScale(band.time).toFixed(2) + "," +
+                commands += (drawn ? "L" : "M") + campaignX(band.time).toFixed(2) + "," +
                   yScale(value).toFixed(2);
                 drawn += 1;
               });
@@ -2205,22 +2284,22 @@
               }));
             });
             var medianPath = historyAreaPath(visibleBandPoints, "vote", definition.id,
-              xScale, yScale, "p50", "p50");
+              campaignX, yScale, "p50", "p50");
             if (medianPath) group.appendChild(svgNode("path", {
               d: medianPath, fill: "none", stroke: definition.color, opacity: "0.7",
               "stroke-width": "1.8", "stroke-dasharray": "6 4", "vector-effect": "non-scaling-stroke",
               class: "election-timeseries__campaign-median", "data-campaign-median": "true",
               "data-coalition": definition.id
             }));
+            var originBand = visibleBandPoints.filter(function (band) {
+              return band.pathDay === 0;
+            })[0];
             visibleBandPoints.forEach(function (band) {
-              // Day zero is the origin, already owned by the certified
-              // historical point; a second mark there would read as a
-              // separate forecast for the same day.
               if (band.pathDay === 0) return;
               var values = historyDisplayQuantiles(band.groups[definition.id], "vote");
               if (!values || values.p50 === null) return;
               var mark = svgNode("circle", {
-                cx: xScale(band.time), cy: yScale(values.p50), r: "2.8", fill: definition.color,
+                cx: xScale(band.time), cy: yScale(values.p50), r: "2.4", fill: definition.color,
                 opacity: "0.7", "pointer-events": "all", tabindex: "0", role: "button",
                 class: "election-timeseries__campaign-point", "data-campaign-point": "true",
                 "data-coalition": definition.id, "data-date": band.date,
@@ -2247,6 +2326,80 @@
               });
               group.appendChild(mark);
             });
+            // Painted after the daily marks so a pointer at its centre resolves
+            // to the origin state rather than to the neighbouring first day.
+            if (originBand) {
+              var originValues = historyDisplayQuantiles(originBand.groups[definition.id], "vote");
+              if (originValues && originValues.p50 !== null) {
+                var tickWidth = compactChart ? 8 : 9;
+                group.appendChild(svgNode("line", {
+                  x1: originX, y1: yScale(originValues.p95), x2: originX,
+                  y2: yScale(originValues.p05),
+                  stroke: definition.color, "stroke-width": "1.5", opacity: "0.65",
+                  "stroke-linecap": "round", "vector-effect": "non-scaling-stroke",
+                  class: "election-timeseries__origin-state-whisker",
+                  "data-origin-state-interval": "90", "data-coalition": definition.id
+                }));
+                group.appendChild(svgNode("line", {
+                  x1: originX, y1: yScale(originValues.p75), x2: originX,
+                  y2: yScale(originValues.p25),
+                  stroke: definition.color, "stroke-width": "4.5", opacity: "0.4",
+                  "vector-effect": "non-scaling-stroke",
+                  class: "election-timeseries__origin-state-box",
+                  "data-origin-state-interval": "50", "data-coalition": definition.id
+                }));
+                group.appendChild(svgNode("line", {
+                  x1: originX - tickWidth / 2, y1: yScale(originValues.p50),
+                  x2: originX + tickWidth / 2, y2: yScale(originValues.p50),
+                  stroke: definition.color, "stroke-width": "2.4",
+                  "vector-effect": "non-scaling-stroke",
+                  class: "election-timeseries__origin-state-median",
+                  "data-origin-state-median": "true", "data-coalition": definition.id
+                }));
+                // A square, so it cannot be mistaken for the round certified
+                // forecast point a few pixels to its left.
+                var originSize = compactChart ? 5.2 : 5.6;
+                var originMark = svgNode("rect", {
+                  x: originX - originSize / 2, y: yScale(originValues.p50) - originSize / 2,
+                  width: originSize, height: originSize, rx: "1",
+                  fill: definition.color, stroke: "#fff", "stroke-width": "1.2",
+                  "pointer-events": "all", tabindex: "0", role: "button",
+                  class: "election-timeseries__origin-state-point",
+                  "data-origin-state-point": "true", "data-coalition": definition.id,
+                  "data-date": originBand.date, "data-path-day": "0",
+                  "data-origin-state-label": campaignPaths.rendering.origin_state_label,
+                  "data-p05": originValues.p05, "data-p25": originValues.p25,
+                  "data-p50": originValues.p50, "data-p75": originValues.p75,
+                  "data-p95": originValues.p95,
+                  "aria-label": definition.label + ", " +
+                    campaignPaths.rendering.origin_state_label.toLowerCase() + " " +
+                    (swedishDate(originBand.date) || originBand.date) + ": median " +
+                    percent(originValues.p50, 1)
+                });
+                originMark.addEventListener("mouseenter", function (event) {
+                  chooseForecast(originBand, false, event);
+                });
+                originMark.addEventListener("focus", function (event) {
+                  chooseForecast(originBand, false, event);
+                });
+                originMark.addEventListener("mouseleave", hideInspection);
+                originMark.addEventListener("blur", hideInspection);
+                originMark.addEventListener("click", function (event) {
+                  chooseForecast(originBand, false, event);
+                });
+                originMark.addEventListener("keydown", function (event) {
+                  if (event.key === "Enter" || event.key === " ") {
+                    if (event.preventDefault) event.preventDefault();
+                    chooseForecast(originBand, false, event);
+                  } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                    if (event.preventDefault) event.preventDefault();
+                    chooseForecast(nearestPoint(originBand.time,
+                      event.key === "ArrowRight" ? 1 : -1), false, event);
+                  }
+                });
+                group.appendChild(originMark);
+              }
+            }
           }
 
           // The emphasized election-day forecast distribution.  Unlike the
@@ -2363,7 +2516,7 @@
           return;
         }
         var iso = point.date;
-        var x = xScale(point.time);
+        var x = point.isOriginState ? originX : xScale(point.time);
         selectionLayer.appendChild(svgNode("line", {
           x1: x, y1: plot.top, x2: x, y2: plot.bottom,
           class: "election-timeseries__crosshair", "data-timeseries-crosshair": "true",
@@ -2511,6 +2664,12 @@
       futureView = "projection";
       renderChart();
     });
+    if (campaignCue) campaignCue.addEventListener("click", function () {
+      selectedRange = "short";
+      renderChart();
+      var shortButton = byId("election-timeseries-range-short");
+      if (shortButton && shortButton.focus) shortButton.focus();
+    });
     if (rangeFull) rangeFull.addEventListener("click", function () {
       selectedRange = "full";
       renderChart();
@@ -2523,8 +2682,9 @@
     section.setAttribute("data-history-point-count", String(history.points.length));
     section.setAttribute("data-history-poll-count", String(history.polls.length));
     ["election-timeseries-key-projection", "election-timeseries-key-campaign-paths",
-      "election-timeseries-key-election-day", "election-timeseries-projection-note",
-      "election-timeseries-campaign-note", "election-timeseries-campaign-seat-note"
+      "election-timeseries-key-origin-state", "election-timeseries-key-election-day",
+      "election-timeseries-projection-note", "election-timeseries-campaign-note",
+      "election-timeseries-campaign-seat-note"
     ].forEach(function (id) {
       var previous = byId(id);
       if (previous && previous.parentNode) previous.parentNode.removeChild(previous);
@@ -2545,6 +2705,13 @@
     // only the copy that belongs to the view actually on screen.
     if (campaignPaths) {
       if (keyList) {
+        var originKey = document.createElement("span");
+        originKey.id = "election-timeseries-key-origin-state";
+        originKey.className = "election-timeseries__key-item";
+        originKey.innerHTML = "<span aria-hidden=\"true\" style=\"display:inline-block;width:.42rem;" +
+          "height:.42rem;background:currentColor;vertical-align:middle;margin-right:.45rem;" +
+          "opacity:.55\"></span>" + escapeHtml(campaignPaths.rendering.origin_state_label);
+        keyList.appendChild(originKey);
         var pathKey = document.createElement("span");
         pathKey.id = "election-timeseries-key-campaign-paths";
         pathKey.className = "election-timeseries__key-item";
@@ -2562,7 +2729,9 @@
         keyList.appendChild(electionKey);
       }
       appendNote("election-timeseries-campaign-note",
-        campaignPaths.tooltip + " " + campaignPaths.electionDay.tooltip);
+        campaignPaths.tooltip + " " +
+        campaignPaths.rendering.origin_state_tooltip_sv + " " +
+        campaignPaths.electionDay.tooltip);
       var seatPathNote = appendNote("election-timeseries-campaign-seat-note",
         "Mandat visas som historisk prognos till och med " +
         (swedishDate(campaignPaths.origin.iso) || campaignPaths.origin.iso) +
@@ -2592,9 +2761,10 @@
     if (campaignPaths) {
       setText("election-timeseries-intro",
         "Historisk prognos " + (swedishDate(firstDate) || firstDate) + " till " +
-        (swedishDate(lastDate) || lastDate) + ", följd av simulerade opinionsbanor fram till " +
+        (swedishDate(lastDate) || lastDate) + ", följd av simulerade opinionsbanor från " +
+        campaignPaths.rendering.origin_state_label.toLowerCase() + " fram till " +
         (swedishDate(campaignPaths.election.iso) || campaignPaths.election.iso) +
-        " och en framhävd valdagsprognos. Välj mått och koalitioner. " +
+        " och en framhävd valdagsprognos. Välj mått, tidsintervall och koalitioner. " +
         "Enskilda mätningar visas bara i den historiska röstandelsdelen.");
     } else {
       setText("election-timeseries-intro", projection && projection.points.length

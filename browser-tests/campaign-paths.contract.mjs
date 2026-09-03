@@ -83,6 +83,33 @@ const checks = [
   ['the future region carries its published label',
     source.includes('data-future-region-label') &&
     source.includes('campaignPaths.rendering.future_region.label')],
+
+  // ---- the origin quantity ----------------------------------------------
+  // Path day 0 is the latent opinion state. The certified forecast point on
+  // the same date is a wider, different distribution, so the fan must not be
+  // drawn out of it.
+  ['day zero must be published as state-only',
+    source.includes('CAMPAIGN_PATH_ORIGIN_QUANTITY') &&
+    source.includes('opinion_state_only') &&
+    source.includes('construction.origin_day_quantity !== CAMPAIGN_PATH_ORIGIN_QUANTITY')],
+  ['the fan continues the current opinion state, not the Poll of Polls series',
+    source.includes('CAMPAIGN_PATH_CONTINUES_FROM') &&
+    source.includes('current_opinion_state') &&
+    !source.includes('poll_of_polls_opinion_series')],
+  ['the origin state label and disclosure are required',
+    source.includes('rendering.origin_state_label') &&
+    source.includes('rendering.origin_state_tooltip_sv')],
+  ['the origin state is drawn as its own interval and median',
+    source.includes('data-origin-state-interval": "90"') &&
+    source.includes('data-origin-state-interval": "50"') &&
+    source.includes('data-origin-state-median')],
+  ['the origin mark is a rect, so it cannot read as the round forecast dot',
+    /svgNode\("rect", \{[^}]*data-origin-state-point/s.test(source)],
+  ['the origin mark is an accessible button with its own detail',
+    source.includes('data-origin-state-point') && source.includes('originStateDetail') &&
+    source.includes('isOriginState')],
+  ['the fan is offset from the forecast dot rather than sharing its position',
+    source.includes('originShift') && source.includes('campaignX')],
   ['faint individual paths are drawn',
     source.includes('data-campaign-path": "true"') || source.includes('"data-campaign-path": "true"')],
   ['50 % and 90 % predictive bands are drawn separately',
@@ -111,13 +138,24 @@ const checks = [
   ['band and election-day marks are accessible buttons',
     source.includes('data-campaign-point') && source.includes('data-election-day-point') &&
     source.includes('event.key === "Enter"')],
-  ['focus is visible on both new mark kinds',
+  ['focus is visible on all three new mark kinds',
     styles.includes('.election-timeseries__campaign-point:focus-visible') &&
+    styles.includes('.election-timeseries__origin-state-point:focus-visible') &&
     styles.includes('.election-timeseries__election-day-point:focus-visible')],
   ['decorative trajectories are not pointer targets',
     styles.includes('.election-timeseries__campaign-path') && styles.includes('pointer-events: none')],
 
   // ---- the secondary view -----------------------------------------------
+  // ---- the opening range is not changed silently -------------------------
+  ['a published campaign region does not change the default range',
+    source.includes('var selectedRange = "full";') &&
+    !source.includes('history.campaignPaths ? "short" : "full"')],
+  ['the campaign window has a discoverability cue instead',
+    page.includes('election-timeseries-campaign-cue') &&
+    page.includes('Visa kampanjperioden') &&
+    source.includes('setCampaignCue') &&
+    source.includes('campaignCue.hidden = !(campaignPaths && selectedRange !== "short")')],
+
   ['the shrinking-horizon fan is only reachable as a secondary view',
     source.includes('CAMPAIGN_PATH_SECONDARY_ROLE') &&
     source.includes('secondaryProjectionDescription') &&
@@ -127,6 +165,9 @@ const checks = [
     page.includes('election-timeseries-future-stability')],
   ['the future-view control is a labelled button group',
     page.includes('id="election-timeseries-future"') && page.includes('aria-pressed')],
+  ['the new suite is registered with the CI selector',
+    (await readFile(join(HERE, 'select-suites.mjs'), 'utf8'))
+      .includes("'campaign-paths.contract.mjs':")],
   ['the control is hidden unless both views are published',
     source.includes('futureViewHost.hidden = !available')],
 
@@ -134,6 +175,23 @@ const checks = [
   ['fixture publishes the primary campaign-path object',
     paths?.projection_type === 'coherent_campaign_paths' &&
     paths?.model_id === 'coherent_campaign_paths_v1' && paths?.role === 'primary_future_view'],
+  ['fixture publishes day zero as state-only and names it',
+    paths?.path_construction?.origin_day_quantity === 'opinion_state_only' &&
+    paths?.rendering?.continues_from === 'current_opinion_state' &&
+    typeof paths?.rendering?.origin_state_label === 'string' &&
+    paths.rendering.origin_state_label.length > 0 &&
+    /inte valdagsprognosen/.test(paths?.rendering?.origin_state_tooltip_sv || '')],
+  ['fixture day zero is narrower than the certified election-day forecast',
+    (() => {
+      const key = Object.keys(paths?.bands?.[0]?.groups || {})[0];
+      const state = paths.bands[0].groups[key].vote;
+      const forecast = paths.election_day.groups[key].vote;
+      return (state.p95 - state.p05) < (forecast.p95 - forecast.p05);
+    })()],
+  ['fixture disclosure matches its published day map',
+    paths?.path_construction?.time_warp === 'identity'
+      ? /av samma längd/.test(paths.tooltip_sv)
+      : /tidsutsträckt/.test(paths.tooltip_sv)],
   ['fixture endpoint parity is verified and exactly zero',
     paths?.endpoint_parity?.verified === true &&
     paths.endpoint_parity.max_abs_vote_share_difference_pp === 0],
