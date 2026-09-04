@@ -29,6 +29,7 @@ export const SUITES = {
   'party-timeseries.smoke.mjs': { seconds: 24, area: 'forecast' },
   'party-timeseries.contract.mjs': { seconds: 1, area: 'forecast' },
   'equations.smoke.mjs': { seconds: 7, area: 'equations' },
+  'changes-baseline.smoke.mjs': { seconds: 14, area: 'provenance' },
 };
 
 const ALL = Object.keys(SUITES);
@@ -48,10 +49,18 @@ const RULES = [
   // The forecast app powers every election view.
   { prefix: 'assets/js/election-simulator.js', suites: null },
   { prefix: 'assets/js/election-latest-poll.js', suites: byArea('forecast') },
-  { prefix: 'assets/js/election-seat-opacity.js', suites: byArea('builder') },
+  // Reorders the election sections and rebuilds the hero's section nav, whose
+  // label for the change table has to track that section's own heading.
+  { prefix: 'assets/js/election-seat-opacity.js',
+    suites: [...byArea('builder'), ...byArea('provenance')] },
 
-  // Published forecast artifacts: the data every election view renders.
-  { prefix: 'files/election-simulator/', suites: [...byArea('builder'), ...byArea('forecast')] },
+  // Published forecast artifacts: the data every election view renders. The
+  // provenance suite belongs here for a reason of its own -- it asserts
+  // published instants and the resolved comparison baseline, so a sync that
+  // adds a generation directory can move its expectations even when no
+  // rendered number changes.
+  { prefix: 'files/election-simulator/', suites: [
+    ...byArea('builder'), ...byArea('forecast'), ...byArea('provenance')] },
 
   // Layout and markup: the suites assert computed style and box geometry, so a
   // stylesheet or include change can break any of them. This is the rule that
@@ -194,6 +203,12 @@ function selfTest() {
     published.includes('government-builder.smoke.mjs')
     && published.includes('forecast-timeseries.smoke.mjs')
     && !published.includes('equations.smoke.mjs'), published);
+
+  // A forecast sync adds a generation directory, which is what the provenance
+  // suite resolves the comparison baseline against.
+  check('published forecast data selects the provenance suite',
+    selectSuites(['files/election-simulator/versions/x/manifest.json']).suites
+      .includes('changes-baseline.smoke.mjs'));
 
   const forecastOnly = selectSuites(['browser-tests/forecast-timeseries.smoke.mjs']).suites;
   check('a forecast suite edit does not drag in builder suites',

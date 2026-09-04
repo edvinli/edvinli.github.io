@@ -262,6 +262,16 @@ canvas {
   margin: 0.15rem 0 0;
 }
 
+/* The publication instant sits between the facts and the lede: provenance
+   rather than a forecast quantity, so it takes the muted mono treatment of
+   the kicker instead of a fourth column in the three-column facts grid. */
+.election-hero__updated {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.78rem;
+  margin: -0.35rem 0 0.9rem;
+}
+
 .election-hero__lede {
   margin: 0 0 1rem;
   max-width: 62ch;
@@ -2025,11 +2035,17 @@ canvas {
   margin-top: 0.6rem;
 }
 
-/* --- Change since prior forecast ---------------------------------------- */
+/* --- Change since the comparison forecast -------------------------------- */
 
 .election-changes-table {
   margin-top: 0.9rem;
   overflow-x: auto;
+}
+
+/* Sits under the table it qualifies, so it takes the leading the table head
+   does not give it. */
+#election-changes-note {
+  margin-top: 0.7rem;
 }
 
 .ec-table {

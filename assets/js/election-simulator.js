@@ -337,6 +337,76 @@
     return String(Number(parts[3])) + " " + month + " " + parts[1];
   }
 
+  // Publication instants are ISO-8601 in UTC and may carry sub-millisecond
+  // precision, which Date.parse is only obliged to accept to three digits.
+  function parseInstant(iso) {
+    if (typeof iso !== "string") return null;
+    var parsed = Date.parse(iso.replace(/(\.\d{3})\d+/, "$1"));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  // The publication clock.  A forecast records the instant it was generated in
+  // UTC, and a Swedish reader expects the Stockholm wall clock it was
+  // published for.  The conversion is delegated to the browser's own zone
+  // database rather than a hardcoded +1/+2 offset, which would be wrong on
+  // one side of every daylight-saving change.
+  var STOCKHOLM_TIME_ZONE = "Europe/Stockholm";
+  var stockholmClock;
+
+  function stockholmFormatter() {
+    if (stockholmClock !== undefined) return stockholmClock;
+    stockholmClock = null;
+    try {
+      if (typeof Intl !== "undefined" && typeof Intl.DateTimeFormat === "function") {
+        var formatter = new Intl.DateTimeFormat("sv-SE", {
+          timeZone: STOCKHOLM_TIME_ZONE,
+          year: "numeric", month: "numeric", day: "numeric",
+          hour: "2-digit", minute: "2-digit", hour12: false
+        });
+        if (typeof formatter.formatToParts === "function") stockholmClock = formatter;
+      }
+    } catch (error) {
+      stockholmClock = null;
+    }
+    return stockholmClock;
+  }
+
+  // "4 sep 13:08" — the day and the wall-clock minute a forecast was
+  // published, in the timezone it was published for.  Returns null rather than
+  // an approximation when the instant or the zone database is unusable, so a
+  // caller can fall back to the date alone instead of printing a wrong time.
+  function stockholmDateTime(iso) {
+    var instant = parseInstant(iso);
+    var formatter = stockholmFormatter();
+    if (instant === null || !formatter) return null;
+    var fields = {};
+    formatter.formatToParts(new Date(instant)).forEach(function (part) {
+      if (part.type !== "literal") fields[part.type] = part.value;
+    });
+    var day = Number(fields.day);
+    var month = MONTHS[Number(fields.month) - 1];
+    if (!month || !Number.isFinite(day) || !fields.hour || !fields.minute) return null;
+    // Some engines resolve an hour12:false request to the h24 cycle, which
+    // writes midnight as 24:00.
+    var hour = fields.hour === "24" ? "00" : fields.hour;
+    return { instant: instant, text: String(day) + " " + month + " " + hour + ":" + fields.minute };
+  }
+
+  // Derived from the reader's own clock, so it is never the authoritative
+  // statement: the absolute Stockholm timestamp it follows is.
+  function relativeAge(instant) {
+    var now = Date.now();
+    if (!Number.isFinite(instant) || !Number.isFinite(now)) return null;
+    var seconds = Math.floor((now - instant) / 1000);
+    if (seconds < 0) return null;
+    if (seconds < 60) return "nyss";
+    var minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return "f\u00f6r " + minutes + (minutes === 1 ? " minut sedan" : " minuter sedan");
+    var hours = Math.floor(minutes / 60);
+    if (hours < 48) return "f\u00f6r " + hours + (hours === 1 ? " timme sedan" : " timmar sedan");
+    return "f\u00f6r " + Math.floor(hours / 24) + " dagar sedan";
+  }
+
   // Probabilities are empirical frequencies over the published draws.  Show
   // the published value, but never round a strictly interior probability to
   // a flat 0% or 100%.
@@ -480,6 +550,31 @@
         countdown.textContent = "Valdagen \u00e4r i dag";
       } else {
         countdown.textContent = "Valet \u00e4r genomf\u00f6rt";
+      }
+    }
+
+    // When this forecast was published, not merely which day its inputs run
+    // to: two publications on the same day are two different forecasts, and
+    // "Underlag t.o.m." cannot tell them apart.  generated_at_utc is the
+    // publication's own instant and stays the authoritative statement; the
+    // relative age after it is a reader-clock convenience and is dropped
+    // whenever the instant itself cannot be read.
+    var generatedAt = metadata.generated_at_utc ||
+      (manifest && manifest.generated_at_utc) || null;
+    var updated = byId("election-hero-updated");
+    if (updated) {
+      var stamp = stockholmDateTime(generatedAt);
+      var printed = stamp ? stamp.text : swedishDate(generatedAt);
+      if (printed) {
+        var age = stamp ? relativeAge(stamp.instant) : null;
+        updated.innerHTML = "Uppdaterad <time id=\"election-hero-updated-time\" datetime=\"" +
+          escapeHtml(generatedAt) + "\">" + escapeHtml(printed) + "</time>" +
+          (age ? "<span class=\"election-hero__age\" id=\"election-hero-updated-age\"> \u00b7 " +
+            escapeHtml(age) + "</span>" : "");
+        updated.hidden = false;
+      } else {
+        updated.textContent = "";
+        updated.hidden = true;
       }
     }
 
@@ -3975,40 +4070,151 @@
   }
 
   // ---------------------------------------------------------------------
-  // 5. Change since prior forecast
+  // 5. Change since the comparison forecast
+  //
+  // change_since_prior names its baseline by identity -- a snapshot id and
+  // that snapshot's deterministic payload hash -- never by position.  The
+  // baseline is therefore not reliably the publication that came out just
+  // before this one: an intraday re-run can compare against the previous
+  // evening's snapshot with a later publication sitting in between, which is
+  // exactly what "föregående prognos" would misreport.  So the page resolves
+  // the named snapshot against the generations this build ships, verifies the
+  // payload hash before believing it, and prints that snapshot's own
+  // generated_at_utc.  When it cannot be resolved the wording falls back to
+  // the published prior_as_of date rather than inventing an ordering.
   // ---------------------------------------------------------------------
-  function renderChanges(forecast, parties) {
+  var GENERATION_PATTERN = /^\d{8}T\d{6}Z-[A-Za-z0-9_-]+$/;
+
+  // The publication generations this build ships, enumerated into the page at
+  // build time from the published directory itself.  A static site has no
+  // directory listing to ask, and no generation is written by hand here.
+  function publishedGenerations() {
+    var node = byId("election-publication-generations");
+    if (!node) return [];
+    var parsed;
+    try {
+      parsed = JSON.parse(node.textContent || "[]");
+    } catch (error) {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(function (value) {
+      return typeof value === "string" && GENERATION_PATTERN.test(value);
+    });
+  }
+
+  function generationSuffix(generation) {
+    var dash = generation.indexOf("-");
+    return dash === -1 ? "" : generation.slice(dash + 1);
+  }
+
+  // Which generations could be the named baseline, most likely first: the one
+  // whose directory suffix carries the snapshot id, then anything published on
+  // the baseline's own as_of date.  Every candidate is still verified against
+  // the payload hash before it is used, so this ordering only decides how few
+  // manifests have to be fetched -- normally one.
+  function priorCandidates(change) {
+    var generations = publishedGenerations().sort().reverse();
+    var snapshotPrefix = typeof change.prior_snapshot_id === "string"
+      ? change.prior_snapshot_id.slice(0, 8) : "";
+    var asOfCompact = typeof change.prior_as_of === "string"
+      ? change.prior_as_of.replace(/-/g, "") : "";
+    var named = generations.filter(function (generation) {
+      return snapshotPrefix !== "" && generationSuffix(generation) === snapshotPrefix;
+    });
+    var sameDay = generations.filter(function (generation) {
+      return asOfCompact !== "" && generation.slice(0, 8) === asOfCompact &&
+        named.indexOf(generation) === -1;
+    });
+    return named.concat(sameDay).slice(0, 4);
+  }
+
+  function resolvePriorPublication(forecast) {
+    var change = (forecast && forecast.change_since_prior) || {};
+    var expected = change.prior_deterministic_payload_sha256;
+    if (change.status !== "AVAILABLE" || typeof expected !== "string") {
+      return Promise.resolve(null);
+    }
+    // Sequential on purpose: the first candidate is the snapshot the payload
+    // names, so the usual cost is a single extra manifest fetch.  A miss --
+    // an archived generation this build no longer ships, a candidate whose
+    // payload hash disagrees -- resolves to null and the label degrades.
+    return priorCandidates(change).reduce(function (chain, generation) {
+      return chain.then(function (found) {
+        if (found) return found;
+        return getJson("manifest.json", base + "/versions/" + generation).then(function (manifest) {
+          if (!manifest || manifest.deterministic_payload_sha256 !== expected) return null;
+          var stamp = stockholmDateTime(manifest.generated_at_utc);
+          if (!stamp) return null;
+          return {
+            generation: generation,
+            generated_at_utc: manifest.generated_at_utc,
+            text: stamp.text
+          };
+        }, function () {
+          return null;
+        });
+      });
+    }, Promise.resolve(null));
+  }
+
+  // Name the baseline as precisely as it can be named, and no more precisely.
+  function priorLabel(prior, change) {
+    if (prior && prior.text) return "prognosen " + prior.text;
+    var day = swedishDate(change.prior_as_of);
+    return day ? "prognosen " + day : "en tidigare prognos";
+  }
+
+  function renderChanges(forecast, parties, prior) {
     reveal("election-changes");
     var change = forecast.change_since_prior || {};
+    var note = byId("election-changes-note");
+    if (note) note.hidden = true;
     if (change.status !== "AVAILABLE") {
       setText("election-changes-status", "Det finns ingen tidigare prognos att j\u00e4mf\u00f6ra med.");
       setHtml("election-changes-content", "");
       return;
     }
-    setText("election-changes-status", "Skillnad mellan medianerna j\u00e4mf\u00f6rt med f\u00f6reg\u00e5ende prognos. " +
-      "Sm\u00e5 skillnader beh\u00f6ver inte betyda en verklig f\u00f6r\u00e4ndring.");
+    var baseline = priorLabel(prior, change);
+    setText("election-changes-status", "J\u00e4mf\u00f6rt med " + baseline +
+      ". Skillnaden \u00e4r mellan medianerna; sm\u00e5 skillnader beh\u00f6ver inte betyda en verklig f\u00f6r\u00e4ndring.");
 
     var vote = change.vote_share_median_change_pp || {};
     var seats = change.seat_median_change || {};
     var hasSeats = Object.keys(seats).length > 0;
     var order = parties.party_order || Object.keys(vote);
+    // "Övr." is a published vote-share change like any other and belongs in
+    // the table; leaving it out made the column look like it should add up.
+    if (vote.REST !== undefined && order.indexOf("REST") === -1) {
+      order = order.concat(["REST"]);
+    }
 
     var rows = order.map(function (name) {
-      if (name === "REST") return "";
-      var voteValue = vote[name];
-      var seatValue = seats[name];
+      if (vote[name] === undefined && seats[name] === undefined) return "";
+      // REST is the aggregate vote mass of the parties modelled as
+      // ineligible: it cannot qualify for or receive a seat, so there is no
+      // seat median to have changed.  A dash says that; a 0 would claim the
+      // seat count held steady.
+      var seatCell = name === "REST"
+        ? "<span class=\"ec-delta ec-delta--none\">\u2014" +
+          "<span class=\"visually-hidden\"> (kan inte f\u00e5 mandat)</span></span>"
+        : deltaCell(seats[name], 0, "", 0.5);
       return "<tr>" +
         "<th scope=\"row\"><span class=\"ev-swatch\" style=\"background:" + (partyColors[name] || "#777") + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</th>" +
-        "<td>" + deltaCell(voteValue, 2, PP, 0.05) + "</td>" +
-        (hasSeats ? "<td>" + deltaCell(seatValue, 0, "", 0.5) + "</td>" : "") +
+        "<td>" + deltaCell(vote[name], 2, PP, 0.05) + "</td>" +
+        (hasSeats ? "<td>" + seatCell + "</td>" : "") +
         "</tr>";
     }).join("");
 
     setHtml("election-changes-content",
       "<table class=\"ec-table\"><caption class=\"visually-hidden\">F\u00f6r\u00e4ndring i median r\u00f6standel" +
-      (hasSeats ? " och medianmandat" : "") + " sedan f\u00f6reg\u00e5ende publicerade prognos</caption>" +
+      (hasSeats ? " och medianmandat" : "") + " sedan " + escapeHtml(baseline) + "</caption>" +
       "<thead><tr><th scope=\"col\">Parti</th><th scope=\"col\">R\u00f6standel</th>" +
-      (hasSeats ? "<th scope=\"col\">Mandat</th>" : "") + "</tr></thead><tbody>" + rows + "</tbody></table>");
+      (hasSeats ? "<th scope=\"col\">Medianmandat</th>" : "") + "</tr></thead><tbody>" + rows + "</tbody></table>");
+
+    // The note only makes a claim about the seat column, so it appears only
+    // when that column does.
+    if (note) note.hidden = !hasSeats;
   }
 
   function deltaCell(value, digits, suffix, noiseFloor) {
@@ -4127,13 +4333,22 @@
       var coalitionTable = validatedCoalitionBuilder(data[3], data[0] && data[0].total_samples);
       renderGovernmentBuilder(coalitionTable, data[0] && data[0].total_samples);
       renderAlternatives(coalitionTable);
-      renderChanges(data[0], data[1]);
       renderValidation(data[4]);
       var certified = renderMetadata(data[5], data[6]);
-      // The status strings stay in the DOM as the published load contract,
-      // but a successful load has no news for the reader, so it is hidden.
-      status.textContent = certified ? "Certified forecast loaded." : "Forecast loaded, but it is not certified.";
-      status.hidden = true;
+      // Resolving the comparison baseline needs one lookup against an earlier
+      // publication's manifest, so this is the one section that renders on a
+      // promise.  It renders exactly once, with the best label available, and
+      // a failed lookup only costs precision in that label -- never the
+      // table.  Hiding the load status last keeps "loaded" honest.
+      return resolvePriorPublication(data[0])
+        .catch(function () { return null; })
+        .then(function (prior) {
+          renderChanges(data[0], data[1], prior);
+          // The status strings stay in the DOM as the published load contract,
+          // but a successful load has no news for the reader, so it is hidden.
+          status.textContent = certified ? "Certified forecast loaded." : "Forecast loaded, but it is not certified.";
+          status.hidden = true;
+        });
     })
     .catch(function (error) {
       status.hidden = false;

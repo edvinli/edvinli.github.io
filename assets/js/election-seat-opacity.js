@@ -63,7 +63,10 @@
       ["election-headline", "Röstandelar på valdagen"],
       ["election-seats", "Mandat på valdagen"],
       ["election-latest-poll", "Senaste mätningarna"],
-      ["election-changes", "Förändring sedan föregående prognos"],
+      // Tracks the section's own <h2>. The change table compares against the
+      // snapshot change_since_prior names, which is not reliably the previous
+      // publication, so neither the heading nor this link may say it is.
+      ["election-changes", "Förändring sedan jämförelseprognosen"],
       ["election-model", "Så fungerar modellen"],
       ["election-methodology", "Metod och utvärdering"],
       ["election-technical", "Teknisk information"]
