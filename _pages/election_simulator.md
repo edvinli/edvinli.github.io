@@ -156,6 +156,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <div class="election-panel__head">
       <h2>Röstandelar på valdagen</h2>
       <p class="election-muted">Median röstandel med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Klicka på ett parti för mer information.</p>
+      <p class="election-muted" id="election-vote-change-note" hidden></p>
     </div>
     <div id="election-party-cards" class="election-vote-rows"></div>
     <div id="election-vote-axis" class="ev-axis"></div>

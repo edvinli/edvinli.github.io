@@ -10,6 +10,11 @@
 // later one sits in between. This suite asserts the page prints the instants
 // the payload actually carries.
 //
+// It also owns the inline change chip in "Röstandelar på valdagen", which is
+// the same published number in a second place: one formatter, one noise floor,
+// one baseline, and a caption that names the baseline once so nine chips do
+// not each imply a different "since when".
+//
 // Every expectation is derived from the pinned generation's own artifacts on
 // disk, so a transcription slip fails here rather than being asserted into
 // existence.
@@ -120,6 +125,21 @@ function deltaValue(change) {
 const deltaDirection = (change) =>
   Math.abs(change) < 0.05 ? 'flat' : (change > 0 ? 'up' : 'down');
 
+// The inline chip: one decimal to match the level it sits beside, and no
+// number at all below the noise floor, where "+0,0" would look like a
+// measurement the publication does not claim.
+const inlineDeltaValue = (change) => deltaDirection(change) === 'flat'
+  ? '' : `${change > 0 ? '+' : ''}${change.toFixed(1).replace('.', ',')}`;
+
+const inlineDeltaSpoken = (change) => deltaDirection(change) === 'flat'
+  ? 'ingen tydlig förändring sedan jämförelseprognosen'
+  : `${change > 0 ? 'upp' : 'ner'} ` +
+    `${Math.abs(change).toFixed(1).replace('.', ',')} procentenheter sedan jämförelseprognosen`;
+
+const voteChangeNote = (baseline) =>
+  `Efter varje median visas förändringen i procentenheter jämfört med ${baselineLabel(baseline)}. ` +
+  'En punkt betyder ingen tydlig förändring.';
+
 // --- the page --------------------------------------------------------------
 
 async function waitForApp(browser) {
@@ -149,6 +169,7 @@ const readProvenance = (browser) => browser.evaluate(() => {
   const stampNode = document.getElementById('election-hero-updated-time');
   const ageNode = document.getElementById('election-hero-updated-age');
   const note = document.getElementById('election-changes-note');
+  const voteNote = document.getElementById('election-vote-change-note');
   const table = document.querySelector('#election-changes-content .ec-table');
   const swatches = Array.from(document.querySelectorAll('#election-changes-content .ev-swatch'));
   return {
@@ -160,6 +181,33 @@ const readProvenance = (browser) => browser.evaluate(() => {
     stampTag: stampNode ? stampNode.tagName : null,
     stampDatetime: stampNode ? stampNode.getAttribute('datetime') : null,
     age: ageNode ? flat(ageNode.textContent) : null,
+
+    voteNoteHidden: voteNote ? voteNote.hidden : null,
+    voteNoteText: voteNote ? flat(voteNote.textContent) : null,
+    voteRows: Array.from(document.querySelectorAll('#election-party-cards .ev-head'))
+      .map((head) => {
+        const median = head.querySelector('.ev-median__value');
+        const chip = head.querySelector('.ev-delta');
+        const value = chip ? chip.querySelector('.ec-delta__value') : null;
+        const medianBox = median.getBoundingClientRect();
+        const chipBox = chip ? chip.getBoundingClientRect() : null;
+        return {
+          party: flat(head.querySelector('.ev-abbr').textContent),
+          median: flat(median.textContent),
+          hasChip: Boolean(chip),
+          chipValue: value ? flat(value.textContent) : '',
+          chipGlyph: chip ? flat(chip.querySelector('.ec-delta__glyph').textContent) : null,
+          chipDirection: chip
+            ? (chip.className.match(/ec-delta--([a-z]+)/) || [])[1] || null : null,
+          chipHidden: chip ? chip.getAttribute('aria-hidden') : null,
+          chipDisplay: chip ? getComputedStyle(chip).display : null,
+          // Stacked when the chip starts below the median's box, beside it
+          // when the two share a line.
+          stacked: chipBox ? chipBox.top >= medianBox.bottom - 1 : null,
+          label: head.getAttribute('aria-label'),
+          rowHeight: Math.round(head.getBoundingClientRect().height),
+        };
+      }),
 
     changesHeading: text('#election-changes h2'),
     heroNav: Array.from(document.querySelectorAll('.election-hero__links a'))
@@ -295,6 +343,63 @@ async function target() {
     equal('the page enumerates the generations it ships',
       page.generationIndex, generations);
 
+    // --- the inline chip in the vote rows ---
+    const voteChange = forecast.change_since_prior.vote_share_median_change_pp;
+    equal('every vote row carries the published change',
+      page.voteRows.map((row) => row.party),
+      Object.keys(voteChange).map((name) => (name === 'REST' ? 'Övr.' : name)));
+    equal('each chip prints the published change at one decimal',
+      page.voteRows.map((row) => [row.party, row.chipValue]),
+      Object.keys(voteChange).map((name) =>
+        [name === 'REST' ? 'Övr.' : name, inlineDeltaValue(voteChange[name])]));
+    equal('each chip carries the direction the table gives it',
+      page.voteRows.map((row) => row.chipDirection),
+      Object.keys(voteChange).map((name) => deltaDirection(voteChange[name])));
+    // The reason not to print a bare parenthesised number: at one decimal
+    // three of this publication's nine changes round to a signed zero, which
+    // would read as a measurement rather than as "below what we can resolve".
+    const flat = page.voteRows.filter((row) => row.chipDirection === 'flat');
+    check('a sub-threshold change is a glyph, never a signed zero',
+      flat.length > 0 && flat.every((row) => row.chipValue === '' && row.chipGlyph === '·'),
+      flat.map((row) => [row.party, row.chipValue, row.chipGlyph]));
+    check('the rows that do move print a signed number',
+      page.voteRows.filter((row) => row.chipDirection !== 'flat')
+        .every((row) => /^[+-]\d+,\d$/.test(row.chipValue)),
+      page.voteRows.map((row) => [row.party, row.chipValue]));
+
+    // The row is one button with its own aria-label, so the chip's own markup
+    // is never announced. The change has to be spoken in that label, with the
+    // unit written out -- the chip cannot print "procentenheter" and a bare
+    // "-0,7" under "27,7 %" would read as percent.
+    equal('the chip is decorative', page.voteRows.map((row) => row.chipHidden),
+      page.voteRows.map(() => 'true'));
+    check('every row speaks its change with the unit in full',
+      page.voteRows.every((row, index) =>
+        row.label.includes(inlineDeltaSpoken(voteChange[Object.keys(voteChange)[index]]))),
+      page.voteRows.map((row) => row.label));
+    check('no chip prints the unit it cannot fit',
+      page.voteRows.every((row) => !row.chipValue.includes('procentenheter')));
+
+    // The vote rows, the seat rows and both axes are sized from one
+    // --ev-cols, so the chip stacks inside the median cell rather than
+    // widening it.
+    check('the chip stacks under the median on wide screens',
+      page.voteRows.every((row) => row.stacked === true && row.chipDisplay === 'flex'),
+      page.voteRows.map((row) => [row.party, row.stacked, row.chipDisplay]));
+    // A chip that flowed onto the median's line would wrap inside the 4.6rem
+    // column, making rows with a number taller than rows without one.
+    equal('every row keeps the same height whether it moved or not',
+      Array.from(new Set(page.voteRows.map((row) => row.rowHeight))).length, 1);
+
+    // Nine chips would otherwise each imply their own "since when".
+    equal('the caption names the unit and the baseline once',
+      page.voteNoteText, voteChangeNote(baseline));
+    equal('the caption is shown', page.voteNoteHidden, false);
+    check('the rows and the table cite the same baseline',
+      page.voteNoteText.includes(baselineLabel(baseline)) &&
+      page.changesStatus.includes(baselineLabel(baseline)),
+      { rows: page.voteNoteText, table: page.changesStatus });
+
     // --- the table ---
     equal('the seat column is named for what it holds',
       page.headers, ['Parti', 'Röstandel', 'Medianmandat']);
@@ -378,6 +483,19 @@ async function unresolvable() {
     check('an unresolvable baseline still avoids the ordering claim',
       !page.changesStatus.includes('föregående'), page.changesStatus);
 
+    equal('the vote-row caption degrades with the same label',
+      page.voteNoteText, voteChangeNote(baseline));
+    check('the inline caption invents no time either',
+      !/\d{1,2}:\d{2}/.test(page.voteNoteText), page.voteNoteText);
+    check('the chips still render against an unresolvable baseline',
+      page.voteRows.length > 0 && page.voteRows.every((row) => row.hasChip),
+      page.voteRows.map((row) => [row.party, row.chipValue]));
+    equal('the chips use this generation\'s own published changes',
+      page.voteRows.map((row) => row.chipValue),
+      Object.keys(forecast.change_since_prior.vote_share_median_change_pp)
+        .map((name) => inlineDeltaValue(
+          forecast.change_since_prior.vote_share_median_change_pp[name])));
+
     // The table is never the casualty of a label that could not be resolved.
     equal('the seat column is still named Medianmandat',
       page.headers, ['Parti', 'Röstandel', 'Medianmandat']);
@@ -408,6 +526,11 @@ async function unresolvable() {
 async function mobile() {
   console.log(`\nmobile provenance (${TARGET_GENERATION})`);
   const baseline = await resolveBaseline(TARGET_GENERATION);
+  const forecast = await readJson(SITE, VERSIONS, TARGET_GENERATION, 'forecast.json');
+  const desktopChipValues =
+    Object.keys(forecast.change_since_prior.vote_share_median_change_pp)
+      .map((name) => inlineDeltaValue(
+        forecast.change_since_prior.vote_share_median_change_pp[name]));
   const { server, browser } = await open(MOBILE, await pointerFor(SITE, TARGET_GENERATION));
   try {
     const page = await readProvenance(browser);
@@ -420,6 +543,17 @@ async function mobile() {
     equal('Övr. is present on mobile',
       page.rows[page.rows.length - 1].party, 'Övr.');
     equal('the note is present on mobile', page.noteHidden, false);
+    // The narrow layout gives the median a flexible column, so the chip fits
+    // on its line -- which is where it belongs when vertical space, not
+    // horizontal, is the scarce thing.
+    check('the chip sits beside the median on narrow screens',
+      page.voteRows.every((row) => row.stacked === false && row.chipDisplay === 'inline-flex'),
+      page.voteRows.map((row) => [row.party, row.stacked, row.chipDisplay]));
+    equal('the mobile caption names the baseline too',
+      page.voteNoteText, voteChangeNote(baseline));
+    equal('the mobile chips print the same published changes',
+      page.voteRows.map((row) => row.chipValue),
+      desktopChipValues);
     check('the mobile page has no horizontal overflow', page.overflow <= 0, page.overflow);
     // The table is the one wide block in this section; it must scroll inside
     // its own box rather than pushing the page sideways.
@@ -448,6 +582,13 @@ async function sourceGuard() {
     source.includes('"Europe/Stockholm"') && !/\+0?2:00|utcOffset|\+ 2 \* 3600/.test(source));
   check('the baseline is verified by payload hash before it is believed',
     source.includes('manifest.deterministic_payload_sha256 !== expected'));
+  check('the table and the rows share one noise floor and one glyph vocabulary',
+    (source.match(/function deltaShape/g) || []).length === 1 &&
+    source.includes('deltaShape(value, 0.05)') &&
+    (source.match(/ec-delta__glyph/g) || []).length === 2);
+  check('the chips are gated on the payload having a baseline at all',
+    source.includes('change.status === "AVAILABLE"') &&
+    source.includes('? (change.vote_share_median_change_pp || {}) : {}'));
   check('the hero reads the publication instant, not the input date',
     source.includes('var generatedAt = metadata.generated_at_utc ||'));
   check('no reader-facing copy asserts the previous forecast',

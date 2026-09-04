@@ -399,6 +399,46 @@ explanation instead of a `0` seat change REST cannot have), the
 `Medianmandat` column name, and the non-additivity note — asserted against a
 publication whose own `seat_median_change` really does not sum to zero.
 
+**The inline chip in `Röstandelar på valdagen`.** The same published change
+appears a second time, beside the level it describes, and the suite pins the
+three decisions that keep the two consistent:
+
+- **One decimal, and no number below the noise floor.** Three of this
+  publication's nine changes round to a signed zero at one decimal, so a
+  parenthesised `(+0,0)` would read as a measurement rather than as "smaller
+  than this publication can resolve". Below `0,05` pp the chip is the `·`
+  glyph alone. `deltaShape` is the single source of the floor, the glyph
+  vocabulary and the accessible wording for both the chip and the table, and
+  the suite asserts there is exactly one of it.
+- **The chip is decorative; the change is spoken in the row's `aria-label`.**
+  `.ev-head` is one button carrying its own full `aria-label`, so nothing
+  inside it is announced — a `visually-hidden` unit in the chip would be
+  silently dropped. The label speaks `ner 0,7 procentenheter sedan
+  jämförelseprognosen`; the chip prints no unit, because the row has no width
+  for `procentenheter`, the page does not abbreviate it, and a bare `-0,7`
+  under `27,7 %` would read as percent rather than percentage points.
+- **Two arrangements, one for each layout.** `.ev-head`, `.es-row`, `.ev-axis`
+  and `.es-axis` are all sized from one `--ev-cols`, so widening the median
+  column — or adding one — would move the seat rows and pull the axis ticks
+  off the chart track. Wide screens therefore stack the chip inside the
+  existing 4.6rem cell (`display: flex`, below the median's box); below 46em
+  the median gets a flexible column and the chip sits beside it
+  (`inline-flex`), which is where it belongs when vertical space is the scarce
+  thing. The suite asserts both, and asserts that every row has the *same*
+  height whether it moved or not — the regression it was written for is a
+  chip that flows onto the median's line and wraps inside the narrow column,
+  making rows with a number taller than rows without one.
+
+The caption above the rows names the unit and the baseline once, resolved from
+the same snapshot lookup the table uses, so nine chips cannot each imply a
+different "since when" and the two sections cannot disagree about what they
+compare against. The suite asserts they cite the same label.
+
+The seat rows deliberately get **no** inline chip. That is where the interval
+parentheses live (`Medianmandat 102 (95–109)`) and where non-additivity bites:
+the seat medians are taken separately and do not sum to zero, which needs the
+one place under a single column where that note can sit.
+
 Two generations are pinned, because the fallback is half the contract:
 
 - `20260904T110809Z-2edab481`, whose baseline resolves to an instant;

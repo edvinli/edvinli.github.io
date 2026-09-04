@@ -2323,6 +2323,13 @@
     if (!host) return;
     host.innerHTML = "";
 
+    // Read the published changes only when the payload says it has a
+    // baseline.  A publication with no comparison renders the rows exactly as
+    // before, with no chips and nothing added to any aria-label.
+    var change = forecast.change_since_prior || {};
+    var voteChange = change.status === "AVAILABLE"
+      ? (change.vote_share_median_change_pp || {}) : {};
+
     var order = parties.party_order || Object.keys(forecast.parties);
     var top = 0;
     order.forEach(function (name) {
@@ -2355,13 +2362,15 @@
         " procent, 90-procentigt prognosintervall " + format(party.vote_share_p05, 1) + " till " +
         format(party.vote_share_p95, 1) + " procent" +
         (thresholdKnown ? ", sannolikhet att n\u00e5 fyraprocentssp\u00e4rren " + thresholdLabel : "") +
+        inlineDeltaLabel(voteChange[name]) +
         ". \u00d6ppna f\u00f6r samtliga intervall.";
 
       row.innerHTML =
         "<button type=\"button\" class=\"ev-head\" aria-expanded=\"false\"" +
         " aria-controls=\"" + detailId + "\" aria-label=\"" + escapeHtml(label) + "\">" +
           "<span class=\"ev-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
-          "<span class=\"ev-median\"><span class=\"ev-median__value\">" + format(party.vote_share_median, 1) + "</span><span class=\"ev-unit\">" + NBSP + "%</span></span>" +
+          "<span class=\"ev-median\"><span class=\"ev-median__value\">" + format(party.vote_share_median, 1) + "</span><span class=\"ev-unit\">" + NBSP + "%</span>" +
+            inlineDelta(voteChange[name]) + "</span>" +
           "<span class=\"ev-chart\" aria-hidden=\"true\">" +
             "<span class=\"ev-track\">" +
               "<span class=\"ev-threshold\" style=\"left:" + thresholdLeft.toFixed(3) + "%\"></span>" +
@@ -4165,6 +4174,27 @@
     return day ? "prognosen " + day : "en tidigare prognos";
   }
 
+  // The vote rows' chips each imply a "since when?", and answering it nine
+  // times over would be noise.  This names the baseline and the unit once,
+  // above the rows, from the same resolved snapshot the table uses -- so the
+  // two can never disagree about what they are comparing against.
+  function renderVoteChangeBaseline(forecast, prior) {
+    var node = byId("election-vote-change-note");
+    if (!node) return;
+    var change = forecast.change_since_prior || {};
+    if (change.status !== "AVAILABLE" || !change.vote_share_median_change_pp) {
+      node.textContent = "";
+      node.hidden = true;
+      return;
+    }
+    // "Efter", not "under": the chip stacks below the median on wide screens
+    // and sits beside it on narrow ones, and reading order is the one thing
+    // both layouts share.
+    node.textContent = "Efter varje median visas f\u00f6r\u00e4ndringen i procentenheter j\u00e4mf\u00f6rt med " +
+      priorLabel(prior, change) + ". En punkt betyder ingen tydlig f\u00f6r\u00e4ndring.";
+    node.hidden = false;
+  }
+
   function renderChanges(forecast, parties, prior) {
     reveal("election-changes");
     var change = forecast.change_since_prior || {};
@@ -4217,17 +4247,65 @@
     if (note) note.hidden = !hasSeats;
   }
 
-  function deltaCell(value, digits, suffix, noiseFloor) {
+  // One noise-floor rule, one glyph vocabulary and one accessible wording for
+  // every change the page prints, in the table and inline in the vote rows.
+  // The floor is what keeps a movement smaller than the publication can
+  // resolve from reading as news.
+  function deltaShape(value, noiseFloor) {
     var parsed = num(value);
-    if (parsed === null) return "<span class=\"ec-delta ec-delta--none\">\u2014</span>";
+    if (parsed === null) return null;
     var direction = Math.abs(parsed) < noiseFloor ? "flat" : (parsed > 0 ? "up" : "down");
-    var glyph = direction === "up" ? "\u2191" : direction === "down" ? "\u2193" : "\u00b7";
-    var word = direction === "up" ? "upp" : direction === "down" ? "ner" : "ingen tydlig f\u00f6r\u00e4ndring";
-    var sign = parsed > 0 ? "+" : "";
-    return "<span class=\"ec-delta ec-delta--" + direction + "\">" +
-      "<span class=\"ec-delta__glyph\" aria-hidden=\"true\">" + glyph + "</span>" +
-      "<span class=\"ec-delta__value\">" + sign + format(parsed, digits) + suffix + "</span>" +
-      "<span class=\"visually-hidden\"> (" + word + ")</span></span>";
+    return {
+      value: parsed,
+      direction: direction,
+      glyph: direction === "up" ? "\u2191" : direction === "down" ? "\u2193" : "\u00b7",
+      word: direction === "up" ? "upp" : direction === "down" ? "ner" : "ingen tydlig f\u00f6r\u00e4ndring",
+      sign: parsed > 0 ? "+" : ""
+    };
+  }
+
+  function deltaCell(value, digits, suffix, noiseFloor) {
+    var shape = deltaShape(value, noiseFloor);
+    if (!shape) return "<span class=\"ec-delta ec-delta--none\">\u2014</span>";
+    return "<span class=\"ec-delta ec-delta--" + shape.direction + "\">" +
+      "<span class=\"ec-delta__glyph\" aria-hidden=\"true\">" + shape.glyph + "</span>" +
+      "<span class=\"ec-delta__value\">" + shape.sign + format(shape.value, digits) + suffix + "</span>" +
+      "<span class=\"visually-hidden\"> (" + shape.word + ")</span></span>";
+  }
+
+  // The chip under a vote row's median.  It answers "which way, and roughly
+  // how far" inside the median column, which the vote rows, the seat rows and
+  // both axes all size from the same --ev-cols: a wider or extra column here
+  // would move all of them, so the chip stacks instead of sitting beside.
+  //
+  // One decimal, to match the level it sits under.  No number at all below the
+  // noise floor, where a one-decimal "+0,0" would look like a measurement the
+  // publication does not claim -- the glyph alone carries "no clear change".
+  // The unit is not printed: the row has no space for "procentenheter", the
+  // page does not abbreviate it, and a bare "-0,7" under "27,7 %" would read
+  // as percent rather than percentage points.  The caption above the rows
+  // names the unit once, and the row's aria-label speaks it in full.
+  function inlineDelta(value) {
+    var shape = deltaShape(value, 0.05);
+    if (!shape) return "";
+    return "<span class=\"ev-delta ec-delta ec-delta--" + shape.direction + "\" aria-hidden=\"true\">" +
+      "<span class=\"ec-delta__glyph\">" + shape.glyph + "</span>" +
+      (shape.direction === "flat" ? ""
+        : "<span class=\"ec-delta__value\">" + shape.sign + format(shape.value, 1) + "</span>") +
+      "</span>";
+  }
+
+  // The row is a single button carrying its own aria-label, so that label --
+  // not the chip's markup -- is what a screen reader reads.  The chip is
+  // decorative; the change is spoken here, with its unit, in full.
+  function inlineDeltaLabel(value) {
+    var shape = deltaShape(value, 0.05);
+    if (!shape) return "";
+    if (shape.direction === "flat") {
+      return ", ingen tydlig f\u00f6r\u00e4ndring sedan j\u00e4mf\u00f6relseprognosen";
+    }
+    return ", " + shape.word + " " + format(Math.abs(shape.value), 1) +
+      " procentenheter sedan j\u00e4mf\u00f6relseprognosen";
   }
 
   // ---------------------------------------------------------------------
@@ -4344,6 +4422,7 @@
         .catch(function () { return null; })
         .then(function (prior) {
           renderChanges(data[0], data[1], prior);
+          renderVoteChangeBaseline(data[0], prior);
           // The status strings stay in the DOM as the published load contract,
           // but a successful load has no news for the reader, so it is hidden.
           status.textContent = certified ? "Certified forecast loaded." : "Forecast loaded, but it is not certified.";

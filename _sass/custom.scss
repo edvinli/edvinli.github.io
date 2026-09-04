@@ -765,6 +765,24 @@ canvas {
   margin-left: 0.1rem;
 }
 
+/* The change stacks under the median it modifies rather than sitting beside
+   it. The vote rows, the seat rows and both axes are all sized from the same
+   --ev-cols, so widening the median column -- or adding one -- would move the
+   seat rows and pull the axis ticks off the chart track. Stacking inside the
+   existing cell costs no width, and the row's 2.9rem min-height absorbs the
+   second line. Colour and glyph come from .ec-delta, so the table and the
+   rows cannot drift apart. */
+/* Scoped to .ev-median on purpose, not written as a bare .ev-delta: .ec-delta
+   is `inline-flex` and is declared further down this file, so an equally
+   specific rule here loses and the chip flows onto the median's own line and
+   wraps inside the 4.6rem column. */
+.ev-median .ev-delta {
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 400;
+  margin-top: 0;
+}
+
 .ev-chart {
   grid-area: chart;
   min-width: 0;
@@ -2369,6 +2387,16 @@ canvas {
 
   .ev-median {
     text-align: left;
+  }
+
+  /* The narrow layout gives the median a flexible column instead of a 4.6rem
+     one, so the change fits on the median's own line -- which is where it
+     belongs when vertical space is the scarce thing. Left-aligned to follow
+     the median above, which this breakpoint also unpins from the right. */
+  .ev-median .ev-delta {
+    display: inline-flex;
+    justify-content: flex-start;
+    margin-left: 0.55rem;
   }
 
   .es-row {
