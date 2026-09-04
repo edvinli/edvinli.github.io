@@ -63,10 +63,6 @@
       ["election-headline", "Röstandelar på valdagen"],
       ["election-seats", "Mandat på valdagen"],
       ["election-latest-poll", "Senaste mätningarna"],
-      // Tracks the section's own <h2>. The change table compares against the
-      // snapshot change_since_prior names, which is not reliably the previous
-      // publication, so neither the heading nor this link may say it is.
-      ["election-changes", "Förändring sedan jämförelseprognosen"],
       ["election-model", "Så fungerar modellen"],
       ["election-methodology", "Metod och utvärdering"],
       ["election-technical", "Teknisk information"]
@@ -92,9 +88,12 @@
   placeParliamentAfterBuilder();
   updateHeroLinks();
 
-  var intro = root.querySelector(".election-panel__head .election-muted");
+  // Addressed by id, not by ".election-panel__head .election-muted": that
+  // selector took whichever muted paragraph came first after the sections were
+  // reordered, and each panel head now holds more than one.
+  var intro = document.getElementById("election-seats-intro");
   if (intro) {
-    intro.textContent = "Median mandat med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Riksdagen har 349 mandat och 175 krävs för majoritet. Medianerna beräknas var för sig och behöver därför inte summera till 349.";
+    intro.textContent = "Median mandat med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Riksdagen har 349 mandat och 175 krävs för majoritet. Medianerna beräknas var för sig och behöver därför inte summera till 349, och förändringarna inte till 0. Varje simulerat valresultat innehåller ändå exakt 349 mandat.";
   }
 
   var style = document.createElement("style");

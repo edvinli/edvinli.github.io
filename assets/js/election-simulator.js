@@ -2362,7 +2362,7 @@
         " procent, 90-procentigt prognosintervall " + format(party.vote_share_p05, 1) + " till " +
         format(party.vote_share_p95, 1) + " procent" +
         (thresholdKnown ? ", sannolikhet att n\u00e5 fyraprocentssp\u00e4rren " + thresholdLabel : "") +
-        inlineDeltaLabel(voteChange[name]) +
+        inlineDeltaLabel(voteChange[name], 0.05, 1, "procentenheter") +
         ". \u00d6ppna f\u00f6r samtliga intervall.";
 
       row.innerHTML =
@@ -2370,7 +2370,7 @@
         " aria-controls=\"" + detailId + "\" aria-label=\"" + escapeHtml(label) + "\">" +
           "<span class=\"ev-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
           "<span class=\"ev-median\"><span class=\"ev-median__value\">" + format(party.vote_share_median, 1) + "</span><span class=\"ev-unit\">" + NBSP + "%</span>" +
-            inlineDelta(voteChange[name]) + "</span>" +
+            inlineDelta(voteChange[name], 0.05, 1) + "</span>" +
           "<span class=\"ev-chart\" aria-hidden=\"true\">" +
             "<span class=\"ev-track\">" +
               "<span class=\"ev-threshold\" style=\"left:" + thresholdLeft.toFixed(3) + "%\"></span>" +
@@ -2447,9 +2447,17 @@
   // ---------------------------------------------------------------------
   // 3. Seats
   // ---------------------------------------------------------------------
-  function renderSeats(seats, requireRepresentative) {
+  function renderSeats(seats, requireRepresentative, forecast) {
     reveal("election-seats");
     var order = seats.party_order || Object.keys(seats.seat_summary);
+
+    // The seat change is published beside the vote change, on the forecast
+    // rather than the seat contract.  The seat contract's party_order carries
+    // no REST, so unlike the vote rows there is no ineligible aggregate here
+    // to explain away: every row that exists can hold a seat median.
+    var change = (forecast && forecast.change_since_prior) || {};
+    var seatChange = change.status === "AVAILABLE"
+      ? (change.seat_median_change || {}) : {};
 
     var top = 0;
     order.forEach(function (name) {
@@ -2473,7 +2481,8 @@
         var row = document.createElement("div");
         row.innerHTML =
           "<span class=\"es-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
-          "<span class=\"es-median\">" + format(summary.median, 0) + "</span>" +
+          "<span class=\"es-median\"><span class=\"es-median__value\">" + format(summary.median, 0) + "</span>" +
+            inlineDelta(seatChange[name], 0.5, 0) + "</span>" +
           "<span class=\"es-chart\" aria-hidden=\"true\">" +
             "<span class=\"es-track\">" +
               "<span class=\"es-majority\" style=\"left:" + majorityLeft.toFixed(3) + "%\"></span>" +
@@ -2485,7 +2494,8 @@
         row.setAttribute("role", "listitem");
         row.setAttribute("aria-label", (partyNames[name] || name) + " (" + abbr(name) + "): median " +
           format(summary.median, 0) + " mandat, 90-procentigt prognosintervall " +
-          format(summary.p05, 0) + " till " + format(summary.p95, 0) + " mandat.");
+          format(summary.p05, 0) + " till " + format(summary.p95, 0) + " mandat" +
+          inlineDeltaLabel(seatChange[name], 0.5, 0, "mandat") + ".");
         track(name, row, "es-row");
         bars.appendChild(row);
       });
@@ -4079,7 +4089,7 @@
   }
 
   // ---------------------------------------------------------------------
-  // 5. Change since the comparison forecast
+  // 5. The comparison baseline
   //
   // change_since_prior names its baseline by identity -- a snapshot id and
   // that snapshot's deterministic payload hash -- never by position.  The
@@ -4091,6 +4101,8 @@
   // payload hash before believing it, and prints that snapshot's own
   // generated_at_utc.  When it cannot be resolved the wording falls back to
   // the published prior_as_of date rather than inventing an ordering.
+  //
+  // The resolved snapshot names the baseline in both change captions.
   // ---------------------------------------------------------------------
   var GENERATION_PATTERN = /^\d{8}T\d{6}Z-[A-Za-z0-9_-]+$/;
 
@@ -4174,79 +4186,37 @@
     return day ? "prognosen " + day : "en tidigare prognos";
   }
 
-  // The vote rows' chips each imply a "since when?", and answering it nine
-  // times over would be noise.  This names the baseline and the unit once,
-  // above the rows, from the same resolved snapshot the table uses -- so the
-  // two can never disagree about what they are comparing against.
-  function renderVoteChangeBaseline(forecast, prior) {
-    var node = byId("election-vote-change-note");
+  // A section's chips each imply a "since when?", and answering it beside
+  // every median would be noise.  Each section names its own unit and the
+  // baseline once, both from the same resolved snapshot, so the two sections
+  // cannot disagree about what they are comparing against.
+  //
+  // "Efter", not "under": the chip stacks below the median on wide screens and
+  // sits beside it on narrow ones, and reading order is what both layouts
+  // share.
+  function renderChangeCaption(id, forecast, prior, unit, field) {
+    var node = byId(id);
     if (!node) return;
     var change = forecast.change_since_prior || {};
-    if (change.status !== "AVAILABLE" || !change.vote_share_median_change_pp) {
+    if (change.status !== "AVAILABLE" || !change[field]) {
       node.textContent = "";
       node.hidden = true;
       return;
     }
-    // "Efter", not "under": the chip stacks below the median on wide screens
-    // and sits beside it on narrow ones, and reading order is the one thing
-    // both layouts share.
-    node.textContent = "Efter varje median visas f\u00f6r\u00e4ndringen i procentenheter j\u00e4mf\u00f6rt med " +
-      priorLabel(prior, change) + ". En punkt betyder ingen tydlig f\u00f6r\u00e4ndring.";
+    node.textContent = "Efter varje median visas f\u00f6r\u00e4ndringen " + unit +
+      " j\u00e4mf\u00f6rt med " + priorLabel(prior, change) +
+      ". En punkt betyder ingen tydlig f\u00f6r\u00e4ndring.";
     node.hidden = false;
   }
 
-  function renderChanges(forecast, parties, prior) {
-    reveal("election-changes");
-    var change = forecast.change_since_prior || {};
-    var note = byId("election-changes-note");
-    if (note) note.hidden = true;
-    if (change.status !== "AVAILABLE") {
-      setText("election-changes-status", "Det finns ingen tidigare prognos att j\u00e4mf\u00f6ra med.");
-      setHtml("election-changes-content", "");
-      return;
-    }
-    var baseline = priorLabel(prior, change);
-    setText("election-changes-status", "J\u00e4mf\u00f6rt med " + baseline +
-      ". Skillnaden \u00e4r mellan medianerna; sm\u00e5 skillnader beh\u00f6ver inte betyda en verklig f\u00f6r\u00e4ndring.");
-
-    var vote = change.vote_share_median_change_pp || {};
-    var seats = change.seat_median_change || {};
-    var hasSeats = Object.keys(seats).length > 0;
-    var order = parties.party_order || Object.keys(vote);
-    // "Övr." is a published vote-share change like any other and belongs in
-    // the table; leaving it out made the column look like it should add up.
-    if (vote.REST !== undefined && order.indexOf("REST") === -1) {
-      order = order.concat(["REST"]);
-    }
-
-    var rows = order.map(function (name) {
-      if (vote[name] === undefined && seats[name] === undefined) return "";
-      // REST is the aggregate vote mass of the parties modelled as
-      // ineligible: it cannot qualify for or receive a seat, so there is no
-      // seat median to have changed.  A dash says that; a 0 would claim the
-      // seat count held steady.
-      var seatCell = name === "REST"
-        ? "<span class=\"ec-delta ec-delta--none\">\u2014" +
-          "<span class=\"visually-hidden\"> (kan inte f\u00e5 mandat)</span></span>"
-        : deltaCell(seats[name], 0, "", 0.5);
-      return "<tr>" +
-        "<th scope=\"row\"><span class=\"ev-swatch\" style=\"background:" + (partyColors[name] || "#777") + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</th>" +
-        "<td>" + deltaCell(vote[name], 2, PP, 0.05) + "</td>" +
-        (hasSeats ? "<td>" + seatCell + "</td>" : "") +
-        "</tr>";
-    }).join("");
-
-    setHtml("election-changes-content",
-      "<table class=\"ec-table\"><caption class=\"visually-hidden\">F\u00f6r\u00e4ndring i median r\u00f6standel" +
-      (hasSeats ? " och medianmandat" : "") + " sedan " + escapeHtml(baseline) + "</caption>" +
-      "<thead><tr><th scope=\"col\">Parti</th><th scope=\"col\">R\u00f6standel</th>" +
-      (hasSeats ? "<th scope=\"col\">Medianmandat</th>" : "") + "</tr></thead><tbody>" + rows + "</tbody></table>");
-
-    // The note only makes a claim about the seat column, so it appears only
-    // when that column does.
-    if (note) note.hidden = !hasSeats;
-  }
-
+  // ---------------------------------------------------------------------
+  // The change chip
+  //
+  // One rendering, used beside the medians in sections 2 and 3.  It replaced a
+  // separate change table: the same numbers read better next to the level they
+  // describe than in a panel three screens away, and one renderer cannot
+  // disagree with itself about a noise floor.
+  // ---------------------------------------------------------------------
   // One noise-floor rule, one glyph vocabulary and one accessible wording for
   // every change the page prints, in the table and inline in the vote rows.
   // The floor is what keeps a movement smaller than the publication can
@@ -4264,48 +4234,39 @@
     };
   }
 
-  function deltaCell(value, digits, suffix, noiseFloor) {
-    var shape = deltaShape(value, noiseFloor);
-    if (!shape) return "<span class=\"ec-delta ec-delta--none\">\u2014</span>";
-    return "<span class=\"ec-delta ec-delta--" + shape.direction + "\">" +
-      "<span class=\"ec-delta__glyph\" aria-hidden=\"true\">" + shape.glyph + "</span>" +
-      "<span class=\"ec-delta__value\">" + shape.sign + format(shape.value, digits) + suffix + "</span>" +
-      "<span class=\"visually-hidden\"> (" + shape.word + ")</span></span>";
-  }
-
-  // The chip under a vote row's median.  It answers "which way, and roughly
-  // how far" inside the median column, which the vote rows, the seat rows and
-  // both axes all size from the same --ev-cols: a wider or extra column here
-  // would move all of them, so the chip stacks instead of sitting beside.
+  // The chip beside a median, in the vote rows and the seat rows alike.  It
+  // answers "which way, and roughly how far" inside the median column, which
+  // both row kinds and both axes size from the same --ev-cols: a wider or
+  // extra column would move all four, so the chip shares the existing cell.
   //
-  // One decimal, to match the level it sits under.  No number at all below the
-  // noise floor, where a one-decimal "+0,0" would look like a measurement the
-  // publication does not claim -- the glyph alone carries "no clear change".
-  // The unit is not printed: the row has no space for "procentenheter", the
-  // page does not abbreviate it, and a bare "-0,7" under "27,7 %" would read
-  // as percent rather than percentage points.  The caption above the rows
-  // names the unit once, and the row's aria-label speaks it in full.
-  function inlineDelta(value) {
-    var shape = deltaShape(value, 0.05);
+  // The digits match the level it sits beside.  Below the noise floor there is
+  // no number at all -- a rounded "+0,0" or "0" would look like a measurement
+  // the publication does not claim, and the glyph alone carries "no clear
+  // change".  No unit is printed either: the row has no space for
+  // "procentenheter", the page does not abbreviate it, and a bare "-0,7" under
+  // "27,7 %" would read as percent rather than percentage points.  Each
+  // section's caption names the unit once, and the row's own label speaks it.
+  function inlineDelta(value, noiseFloor, digits) {
+    var shape = deltaShape(value, noiseFloor);
     if (!shape) return "";
-    return "<span class=\"ev-delta ec-delta ec-delta--" + shape.direction + "\" aria-hidden=\"true\">" +
-      "<span class=\"ec-delta__glyph\">" + shape.glyph + "</span>" +
+    return "<span class=\"ed-delta ed-delta--" + shape.direction + "\" aria-hidden=\"true\">" +
+      "<span class=\"ed-delta__glyph\">" + shape.glyph + "</span>" +
       (shape.direction === "flat" ? ""
-        : "<span class=\"ec-delta__value\">" + shape.sign + format(shape.value, 1) + "</span>") +
+        : "<span class=\"ed-delta__value\">" + shape.sign + format(shape.value, digits) + "</span>") +
       "</span>";
   }
 
-  // The row is a single button carrying its own aria-label, so that label --
+  // Each row is a single element carrying its own aria-label, so that label --
   // not the chip's markup -- is what a screen reader reads.  The chip is
   // decorative; the change is spoken here, with its unit, in full.
-  function inlineDeltaLabel(value) {
-    var shape = deltaShape(value, 0.05);
+  function inlineDeltaLabel(value, noiseFloor, digits, unit) {
+    var shape = deltaShape(value, noiseFloor);
     if (!shape) return "";
     if (shape.direction === "flat") {
       return ", ingen tydlig f\u00f6r\u00e4ndring sedan j\u00e4mf\u00f6relseprognosen";
     }
-    return ", " + shape.word + " " + format(Math.abs(shape.value), 1) +
-      " procentenheter sedan j\u00e4mf\u00f6relseprognosen";
+    return ", " + shape.word + " " + format(Math.abs(shape.value), digits) +
+      " " + unit + " sedan j\u00e4mf\u00f6relseprognosen";
   }
 
   // ---------------------------------------------------------------------
@@ -4407,22 +4368,24 @@
       validatePublicationBundle(data, publication.pointer, publication.manifest_sha256);
       renderHeader(data[0], data[5], data[6], publication.pointer);
       renderVotes(data[0], data[1]);
-      renderSeats(data[2], Boolean(publication.pointer));
+      renderSeats(data[2], Boolean(publication.pointer), data[0]);
       var coalitionTable = validatedCoalitionBuilder(data[3], data[0] && data[0].total_samples);
       renderGovernmentBuilder(coalitionTable, data[0] && data[0].total_samples);
       renderAlternatives(coalitionTable);
       renderValidation(data[4]);
       var certified = renderMetadata(data[5], data[6]);
-      // Resolving the comparison baseline needs one lookup against an earlier
-      // publication's manifest, so this is the one section that renders on a
-      // promise.  It renders exactly once, with the best label available, and
-      // a failed lookup only costs precision in that label -- never the
-      // table.  Hiding the load status last keeps "loaded" honest.
+      // The chips are drawn straight from the payload; only the two captions
+      // that name the baseline need a lookup against an earlier publication's
+      // manifest, so they alone land on a promise.  A failed lookup costs
+      // precision in those two sentences and nothing else.  Hiding the load
+      // status last keeps "loaded" honest.
       return resolvePriorPublication(data[0])
         .catch(function () { return null; })
         .then(function (prior) {
-          renderChanges(data[0], data[1], prior);
-          renderVoteChangeBaseline(data[0], prior);
+          renderChangeCaption("election-vote-change-note", data[0], prior,
+            "i procentenheter", "vote_share_median_change_pp");
+          renderChangeCaption("election-seat-change-note", data[0], prior,
+            "i mandat", "seat_median_change");
           // The status strings stay in the DOM as the published load contract,
           // but a successful load has no news for the reader, so it is hidden.
           status.textContent = certified ? "Certified forecast loaded." : "Forecast loaded, but it is not certified.";
