@@ -197,6 +197,30 @@ function validateHistory(history) {
     index === 0 || date >= dates[index - 1]), dates.slice(0, 4));
   check('history starts no later than the 2022 election month',
     dates.length > 0 && dates[0] <= '2022-09-30', dates[0]);
+  // The line is drawn only through the non-archived points, so a date that
+  // carries nothing but an archived prospective point is a hole in it. Inside
+  // the daily part of the schedule the drawn dates must therefore step one day
+  // at a time: each publication relabels the previous official point
+  // `prospective_archived`, and when nothing refills the date the final
+  // segment silently spans a gap that widens by a day per publication.
+  const dailyFrom = typeof history?.schedule?.daily_from === 'string'
+    ? history.schedule.daily_from : null;
+  const curveDates = series
+    .filter((point) => point?.provenance !== 'prospective_archived')
+    .map((point) => point?.date)
+    .filter((date) => typeof date === 'string')
+    .sort();
+  const dailyGaps = [];
+  for (let index = 1; index < curveDates.length; index += 1) {
+    const previous = curveDates[index - 1];
+    const current = curveDates[index];
+    if (dailyFrom === null || previous < dailyFrom) continue;
+    const days = Math.round(
+      (Date.parse(`${current}T00:00:00Z`) - Date.parse(`${previous}T00:00:00Z`)) / 86400000);
+    if (days !== 1) dailyGaps.push(`${previous} → ${current} (${days} days)`);
+  }
+  check('the drawn curve steps one day at a time after the dynamics cap',
+    dailyFrom !== null && dailyGaps.length === 0, dailyGaps.slice(0, 5));
 
   const allowedProvenance = new Set(['reconstructed_current_model', 'prospective_archived', 'current_production']);
   const pointIssues = [];
@@ -847,8 +871,16 @@ function assertStructure(view, history) {
   // Archived prospective forecasts are published but not charted, so no
   // hollow marker is drawn and no undrawn mark stays selectable.
   equal('archived prospective forecasts are not drawn', view.archivedCount, 0);
-  check('no archived date is a rendered forecast point',
-    (history.series || []).filter((point) => point.provenance === 'prospective_archived')
+  // A date that also carries a reconstructed point is rendered -- that mark is
+  // the curve point, not the archived one, which is why this looks only at
+  // dates the curve does not cover.
+  const curveDatesInView = new Set((history.series || [])
+    .filter((point) => point.provenance !== 'prospective_archived')
+    .map((point) => point.date));
+  check('an archive-only date is never a rendered forecast point',
+    (history.series || [])
+      .filter((point) => point.provenance === 'prospective_archived')
+      .filter((point) => !curveDatesInView.has(point.date))
       .every((point) => !view.forecastDates.includes(point.date)),
   view.forecastDates);
   check('individual poll observations are visible in vote mode', view.pollCount >= history.polls.length * 2,
@@ -976,7 +1008,7 @@ function assertShortRange(view, history, fullView, metric = 'vote') {
   const end = latestPlottedDate(history);
   const origin = end;
   equal('fixture short-range dates are the 30 days up to the latest forecast',
-    [start, end], ['2026-08-04', '2026-09-03']);
+    [start, end], ['2026-08-05', '2026-09-04']);
   check('Sista 30 dagarna exposes the exact active x-domain',
     view.section?.range === 'short' && view.section?.rangeStart === start && view.section?.rangeEnd === end &&
     view.svg?.range === 'short' && view.svg?.xMin === start && view.svg?.xMax === end,
