@@ -12,8 +12,8 @@ main:
   - title: "Students"
     url: /students/
 
-  - title: "Asteroids"
-    url: /asteroids/
+  - title: "Valprognos 2026"
+    url: /election-simulator/
 
   - title: "Göteborgsvarvet"
     url: /gbgvarv/
