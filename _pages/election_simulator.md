@@ -11,6 +11,15 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   <noscript>
     <p class="notice--warning">Prognosen behöver JavaScript för att läsa in sina data. JSON-filerna finns kvar för nedladdning i publiceringskatalogen.</p>
   </noscript>
+  <!-- Which publication generations this build actually ships, enumerated at
+       build time from the published directory itself. The page needs it to
+       resolve the comparison baseline named in change_since_prior: that
+       baseline is identified by snapshot, not by position, so its own
+       publication timestamp has to be looked up rather than guessed from the
+       ordering. Nothing here is a forecast value, and no generation is
+       written by hand -- a forecast sync that adds a directory changes this
+       list on the next build. -->
+  <script type="application/json" id="election-publication-generations">{% assign election_version_root = '/files/election-simulator/versions/' %}{% assign election_generations = '' %}{% for election_file in site.static_files %}{% if election_file.name == 'manifest.json' and election_file.path contains election_version_root %}{% assign election_tail = election_file.path | split: election_version_root | last %}{% assign election_generation = election_tail | split: '/' | first %}{% if election_generations == '' %}{% assign election_generations = election_generation %}{% else %}{% assign election_generations = election_generations | append: ',' | append: election_generation %}{% endif %}{% endif %}{% endfor %}{{ election_generations | split: ',' | sort | jsonify }}</script>
   <header class="election-hero" id="election-hero">
     <p class="election-hero__kicker">Sverige · Riksdagen · valprognos 2026</p>
     <dl class="election-hero__facts">
@@ -27,6 +36,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
         <dd id="election-hero-countdown">—</dd>
       </div>
     </dl>
+    <p class="election-hero__updated" id="election-hero-updated" hidden></p>
     <p class="election-hero__lede" id="election-hero-lede">Läser in den publicerade simuleringen…</p>
     <p class="election-status" id="election-app-status" role="status" aria-live="polite">Läser in den senaste prognosen…</p>
     <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
@@ -168,10 +178,11 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   </section>
   <section id="election-changes" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Förändring sedan föregående prognos</h2>
+      <h2>Förändring sedan jämförelseprognosen</h2>
       <p class="election-muted" id="election-changes-status"></p>
     </div>
     <div id="election-changes-content" class="election-changes-table"></div>
+    <p class="election-muted" id="election-changes-note" hidden>Mandatförändringarna avser partiernas separata medianer och behöver därför inte summera till 0. Varje simulerat valresultat innehåller exakt 349 mandat.</p>
   </section>
   <section id="election-how-it-works" class="election-panel election-disclosure">
     <details id="election-model">

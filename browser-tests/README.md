@@ -39,6 +39,7 @@ node browser-tests/equations.smoke.mjs
 node browser-tests/party-timeseries.smoke.mjs              # fixture mode
 node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
 node browser-tests/party-timeseries.contract.mjs    # static, no browser
+node browser-tests/changes-baseline.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -368,6 +369,59 @@ certified point are asserted against that run's own `parties.json` values by
 a fixture that exists is one whose party election-day values are the published
 forecast.
 
+### 9. `changes-baseline.smoke.mjs` — publication provenance in the copy
+
+Owns the two provenance claims the page makes in prose, both of which were
+previously vague in a way no layout assertion could catch:
+
+- **The hero's publication instant.** `Underlag t.o.m.` is a date, and two
+  forecasts published five hours apart share it. The hero now also prints
+  `generated_at_utc` converted to `Europe/Stockholm` — `Uppdaterad 4 sep
+  13:08` — inside a `<time datetime>` carrying the published instant verbatim.
+  The suite checks the rendered wall clock against the pinned generation's own
+  `metadata.json`, that the conversion goes through the zone database rather
+  than a fixed `+02:00`, and that any relative age is an addition to the
+  absolute timestamp rather than a replacement for it.
+- **The comparison baseline.** `change_since_prior` names its baseline by
+  snapshot id and deterministic payload hash, never by position, so
+  *föregående prognos* was a claim the payload does not make. On the pinned
+  generation it is a false one: the baseline is `20260903T163419Z-fe0d69d8`
+  and `20260904T082721Z-af776460` was published in between. The page resolves
+  the named snapshot against the generations the build ships, verifies the
+  payload hash, and prints that snapshot's own `generated_at_utc` —
+  `Jämfört med prognosen 3 sep 18:34`. The suite asserts the resolved label,
+  and separately asserts that the intervening publication's instant appears
+  nowhere in the copy.
+
+It also covers the table itself: the `Övr.` row (published
+`vote_share_median_change_pp.REST`, with an em dash and a screen-reader
+explanation instead of a `0` seat change REST cannot have), the
+`Medianmandat` column name, and the non-additivity note — asserted against a
+publication whose own `seat_median_change` really does not sum to zero.
+
+Two generations are pinned, because the fallback is half the contract:
+
+- `20260904T110809Z-2edab481`, whose baseline resolves to an instant;
+- `20260831T170410Z-1f5e0506`, whose baseline snapshot predates the versioned
+  publication directory and cannot be resolved at all. There the label must
+  degrade to the published `prior_as_of` date and invent no time, while the
+  table renders unchanged.
+
+Every expectation is derived from the pinned generations' artifacts on disk
+rather than typed out, so a re-pin fails loudly instead of asserting a
+transcription into existence. Two of them are additionally pinned to the
+literal strings above, which is what makes a wrong-field regression — reading
+`as_of` where `generated_at_utc` was meant — fail rather than pass on a
+plausible-looking date.
+
+**Where the generation list comes from.** A static site has no directory
+listing to ask, so `_pages/election_simulator.md` enumerates the shipped
+`files/election-simulator/versions/` directories from `site.static_files` at
+build time into a `<script type="application/json">` block. It is
+build-generated, never hand-written: the suite checks that no generation id
+appears literally in the page source, and that the block matches the
+directories the built site actually ships.
+
 ## Determinism: pin the generation you assert against
 
 A suite that asserts published numbers — a median, a majority probability, an
@@ -387,8 +441,8 @@ const TARGET_POINTER = await pointerFor(SITE, TARGET_GENERATION);
 const server = await serve(SITE, { port: 4000, pointer: TARGET_POINTER });
 ```
 
-`builder-blocks`, `histogram-copy`, `government-builder` and `alternatives` all
-do this. `forecast-timeseries` uses the built history artifact when present and
+`builder-blocks`, `histogram-copy`, `government-builder`, `alternatives` and
+`changes-baseline` all do this. `forecast-timeseries` uses the built history artifact when present and
 its own committed fixture otherwise.
 
 **Also assert that the pointer took effect.** `histogram-copy` previously
@@ -424,7 +478,10 @@ node browser-tests/select-suites.mjs --changed assets/js/election-simulator.js
 The rules fail toward running more. A change to a single suite file selects
 that suite; a change to `cdp.mjs`, `server.mjs`, `_sass/**`, `_includes/**`,
 `_data/**`, `.github/workflows/**` or `election-simulator.js` selects every
-suite; an unrecognised path selects every suite. Adding a suite means adding it
+suite; a change under `files/election-simulator/` selects every suite that
+reads published artifacts, `changes-baseline` included — a sync that only adds
+a generation directory moves that suite's baseline resolution even when no
+rendered number changes; an unrecognised path selects every suite. Adding a suite means adding it
 to `SUITES` — the self-test compares that table against the directory, so a
 suite present on disk but missing from the table fails rather than quietly
 never running.
