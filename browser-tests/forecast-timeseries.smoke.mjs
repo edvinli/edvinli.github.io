@@ -809,11 +809,6 @@ function assertStructure(view, history) {
       { href: '#election-headline', text: 'Röstandelar på valdagen' },
       { href: '#election-seats', text: 'Mandat på valdagen' },
       { href: '#election-latest-poll', text: 'Senaste mätningarna' },
-      // The change table compares against the snapshot change_since_prior
-      // names, which is not reliably the previous publication, so neither its
-      // heading nor this link claims it is. changes-baseline.smoke.mjs owns
-      // that contract; this suite only pins the nav order and labels.
-      { href: '#election-changes', text: 'Förändring sedan jämförelseprognosen' },
       { href: '#election-model', text: 'Så fungerar modellen' },
       { href: '#election-methodology', text: 'Metod och utvärdering' },
       { href: '#election-technical', text: 'Teknisk information' },

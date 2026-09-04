@@ -10,10 +10,10 @@
 // later one sits in between. This suite asserts the page prints the instants
 // the payload actually carries.
 //
-// It also owns the inline change chip in "Röstandelar på valdagen", which is
-// the same published number in a second place: one formatter, one noise floor,
-// one baseline, and a caption that names the baseline once so nine chips do
-// not each imply a different "since when".
+// It also owns the change chip, which is where those changes are now read:
+// beside the vote medians and beside the seat medians, instead of in a
+// separate table three screens away. One renderer, one noise floor, one
+// resolved baseline named once per section.
 //
 // Every expectation is derived from the pinned generation's own artifacts on
 // disk, so a transcription slip fails here rather than being asserted into
@@ -113,32 +113,56 @@ const baselineLabel = (baseline) => baseline.generatedAt
   ? `prognosen ${stockholmStamp(baseline.generatedAt)}`
   : `prognosen ${swedishDay(baseline.change.prior_as_of)}`;
 
-const statusLine = (baseline) => `Jämfört med ${baselineLabel(baseline)}. ` +
-  'Skillnaden är mellan medianerna; små skillnader behöver inte betyda en verklig förändring.';
-
 // The page's own delta formatting, so the Övr. row is checked against the
 // published number rather than against a copied string.
 function deltaValue(change) {
   const rounded = change.toFixed(2).replace('.', ',');
   return `${change > 0 ? '+' : ''}${rounded} procentenheter`;
 }
-const deltaDirection = (change) =>
-  Math.abs(change) < 0.05 ? 'flat' : (change > 0 ? 'up' : 'down');
+// Percentage points resolve to 0,05; a seat median moves in whole seats, so
+// its floor is half a seat.
+const VOTE = { floor: 0.05, digits: 1, unit: 'procentenheter' };
+const SEAT = { floor: 0.5, digits: 0, unit: 'mandat' };
 
-// The inline chip: one decimal to match the level it sits beside, and no
-// number at all below the noise floor, where "+0,0" would look like a
+const deltaDirection = (change, kind = VOTE) =>
+  Math.abs(change) < kind.floor ? 'flat' : (change > 0 ? 'up' : 'down');
+
+// The chip: digits matching the level it sits beside, and no number at all
+// below the noise floor, where a rounded "+0,0" or "0" would look like a
 // measurement the publication does not claim.
-const inlineDeltaValue = (change) => deltaDirection(change) === 'flat'
-  ? '' : `${change > 0 ? '+' : ''}${change.toFixed(1).replace('.', ',')}`;
+const inlineDeltaValue = (change, kind = VOTE) => deltaDirection(change, kind) === 'flat'
+  ? '' : `${change > 0 ? '+' : ''}${change.toFixed(kind.digits).replace('.', ',')}`;
 
-const inlineDeltaSpoken = (change) => deltaDirection(change) === 'flat'
+const inlineDeltaSpoken = (change, kind = VOTE) => deltaDirection(change, kind) === 'flat'
   ? 'ingen tydlig förändring sedan jämförelseprognosen'
   : `${change > 0 ? 'upp' : 'ner'} ` +
-    `${Math.abs(change).toFixed(1).replace('.', ',')} procentenheter sedan jämförelseprognosen`;
+    `${Math.abs(change).toFixed(kind.digits).replace('.', ',')} ${kind.unit} ` +
+    'sedan jämförelseprognosen';
 
-const voteChangeNote = (baseline) =>
-  `Efter varje median visas förändringen i procentenheter jämfört med ${baselineLabel(baseline)}. ` +
+const changeNote = (baseline, unit) =>
+  `Efter varje median visas förändringen ${unit} jämfört med ${baselineLabel(baseline)}. ` +
   'En punkt betyder ingen tydlig förändring.';
+
+// The seat medians are taken separately, so neither the levels nor the changes
+// add up -- which is why this sentence has to sit with the seat column.
+const SEATS_NON_ADDITIVITY =
+  'Medianerna beräknas var för sig och behöver därför inte summera till 349, ' +
+  'och förändringarna inte till 0. Varje simulerat valresultat innehåller ändå exakt 349 mandat.';
+
+// A chip must never make its row taller than a row with no number to show.
+// Stated as "the tallest unmoved row is no taller than the shortest moved
+// one", which is exactly the regression -- a chip that wraps inside the narrow
+// median column -- while tolerating a row that is tall for an unrelated
+// reason, such as Övr.'s wrapping "gäller inte" threshold label.
+function chipCostsNoHeight(rows) {
+  const heights = (direction) => rows
+    .filter((row) => (direction === 'flat') === (row.chipDirection === 'flat'))
+    .map((row) => row.rowHeight);
+  const flat = heights('flat');
+  const moved = heights('moved');
+  if (flat.length === 0 || moved.length === 0) return null;
+  return Math.max(...flat) <= Math.min(...moved);
+}
 
 // --- the page --------------------------------------------------------------
 
@@ -168,10 +192,35 @@ const readProvenance = (browser) => browser.evaluate(() => {
   const updated = document.getElementById('election-hero-updated');
   const stampNode = document.getElementById('election-hero-updated-time');
   const ageNode = document.getElementById('election-hero-updated-age');
-  const note = document.getElementById('election-changes-note');
+
+  // One reader for both row kinds: the chip is the same rendering in both, and
+  // the assertions differ only in the published field it comes from.
+  const readRows = (rowSelector, abbrSelector, medianSelector) =>
+    Array.from(document.querySelectorAll(rowSelector)).map((row) => {
+      const median = row.querySelector(medianSelector);
+      const chip = row.querySelector('.ed-delta');
+      const value = chip ? chip.querySelector('.ed-delta__value') : null;
+      const medianBox = median.getBoundingClientRect();
+      const chipBox = chip ? chip.getBoundingClientRect() : null;
+      return {
+        party: flat(row.querySelector(abbrSelector).textContent),
+        hasChip: Boolean(chip),
+        chipValue: value ? flat(value.textContent) : '',
+        chipGlyph: chip ? flat(chip.querySelector('.ed-delta__glyph').textContent) : null,
+        chipDirection: chip
+          ? (chip.className.match(/ed-delta--([a-z]+)/) || [])[1] || null : null,
+        chipHidden: chip ? chip.getAttribute('aria-hidden') : null,
+        chipDisplay: chip ? getComputedStyle(chip).display : null,
+        // Stacked when the chip starts below the median's box, beside it when
+        // the two share a line.
+        stacked: chipBox ? chipBox.top >= medianBox.bottom - 1 : null,
+        label: row.getAttribute('aria-label'),
+        rowHeight: Math.round(row.getBoundingClientRect().height),
+      };
+    });
+
   const voteNote = document.getElementById('election-vote-change-note');
-  const table = document.querySelector('#election-changes-content .ec-table');
-  const swatches = Array.from(document.querySelectorAll('#election-changes-content .ev-swatch'));
+  const seatNote = document.getElementById('election-seat-change-note');
   return {
     heroAsOf: text('#election-hero-asof'),
     updatedHidden: updated ? updated.hidden : null,
@@ -182,71 +231,20 @@ const readProvenance = (browser) => browser.evaluate(() => {
     stampDatetime: stampNode ? stampNode.getAttribute('datetime') : null,
     age: ageNode ? flat(ageNode.textContent) : null,
 
-    voteNoteHidden: voteNote ? voteNote.hidden : null,
-    voteNoteText: voteNote ? flat(voteNote.textContent) : null,
-    voteRows: Array.from(document.querySelectorAll('#election-party-cards .ev-head'))
-      .map((head) => {
-        const median = head.querySelector('.ev-median__value');
-        const chip = head.querySelector('.ev-delta');
-        const value = chip ? chip.querySelector('.ec-delta__value') : null;
-        const medianBox = median.getBoundingClientRect();
-        const chipBox = chip ? chip.getBoundingClientRect() : null;
-        return {
-          party: flat(head.querySelector('.ev-abbr').textContent),
-          median: flat(median.textContent),
-          hasChip: Boolean(chip),
-          chipValue: value ? flat(value.textContent) : '',
-          chipGlyph: chip ? flat(chip.querySelector('.ec-delta__glyph').textContent) : null,
-          chipDirection: chip
-            ? (chip.className.match(/ec-delta--([a-z]+)/) || [])[1] || null : null,
-          chipHidden: chip ? chip.getAttribute('aria-hidden') : null,
-          chipDisplay: chip ? getComputedStyle(chip).display : null,
-          // Stacked when the chip starts below the median's box, beside it
-          // when the two share a line.
-          stacked: chipBox ? chipBox.top >= medianBox.bottom - 1 : null,
-          label: head.getAttribute('aria-label'),
-          rowHeight: Math.round(head.getBoundingClientRect().height),
-        };
-      }),
-
-    changesHeading: text('#election-changes h2'),
     heroNav: Array.from(document.querySelectorAll('.election-hero__links a'))
       .map((link) => `${link.getAttribute('href')} ${link.textContent.trim()}`),
-    changesStatus: text('#election-changes-status'),
-    caption: text('#election-changes-content caption'),
-    captionClass: table && table.querySelector('caption')
-      ? table.querySelector('caption').className : null,
-    headers: Array.from(document.querySelectorAll('#election-changes-content thead th'))
-      .map((cell) => flat(cell.textContent)),
-    scopes: Array.from(document.querySelectorAll('#election-changes-content thead th'))
-      .map((cell) => cell.getAttribute('scope')),
-    rows: Array.from(document.querySelectorAll('#election-changes-content tbody tr'))
-      .map((row) => {
-        const cells = Array.from(row.querySelectorAll('td'));
-        const readCell = (cell) => {
-          if (!cell) return null;
-          const delta = cell.querySelector('.ec-delta');
-          return {
-            deltaText: delta ? flat(delta.textContent) : null,
-            value: flat((cell.querySelector('.ec-delta__value') || {}).textContent),
-            direction: delta
-              ? (delta.className.match(/ec-delta--([a-z]+)/) || [])[1] || null
-              : null,
-            hiddenText: flat((cell.querySelector('.visually-hidden') || {}).textContent),
-            glyphHidden: cell.querySelector('.ec-delta__glyph')
-              ? cell.querySelector('.ec-delta__glyph').getAttribute('aria-hidden') : null,
-          };
-        };
-        return {
-          party: flat(row.querySelector('th').textContent),
-          rowScope: row.querySelector('th').getAttribute('scope'),
-          vote: readCell(cells[0]),
-          seats: readCell(cells[1]),
-        };
-      }),
-    noteHidden: note ? note.hidden : null,
-    noteText: note ? flat(note.textContent) : null,
-    swatchesHidden: swatches.map((node) => node.getAttribute('aria-hidden')),
+    // The separate change table is gone: its numbers are in the rows now.
+    changesSection: Boolean(document.getElementById('election-changes')),
+    changeTables: document.querySelectorAll('.ec-table').length,
+
+    voteNoteHidden: voteNote ? voteNote.hidden : null,
+    voteNoteText: voteNote ? flat(voteNote.textContent) : null,
+    voteRows: readRows('#election-party-cards .ev-head', '.ev-abbr', '.ev-median__value'),
+
+    seatsIntro: text('#election-seats-intro'),
+    seatNoteHidden: seatNote ? seatNote.hidden : null,
+    seatNoteText: seatNote ? flat(seatNote.textContent) : null,
+    seatRows: readRows('#election-seat-bars .es-row', '.es-abbr', '.es-median__value'),
 
     liveRegions: Array.from(document.querySelectorAll('[aria-live]'))
       .map((node) => `${node.id || node.tagName}:${node.getAttribute('aria-live')}` +
@@ -315,143 +313,116 @@ async function target() {
 
     // --- the comparison baseline ---
     equal('the baseline is named by its own publication instant',
-      page.changesStatus, statusLine(baseline));
+      page.voteNoteText, changeNote(baseline, 'i procentenheter'));
     equal('the documented baseline instant is the previous evening',
       baselineLabel(baseline), 'prognosen 3 sep 18:34');
     check('no copy claims the baseline is the previous forecast',
-      !page.changesStatus.includes('föregående') &&
-      !page.changesHeading.includes('föregående') &&
-      !page.caption.includes('föregående'), page);
-    equal('the heading no longer asserts an ordering',
-      page.changesHeading, 'Förändring sedan jämförelseprognosen');
-    // The hero's section nav is rebuilt by election-seat-opacity.js from its
-    // own label table, so it can drift away from the heading it points at.
-    check('the section nav names the change table by its heading',
-      page.heroNav.includes(`#election-changes ${page.changesHeading}`), page.heroNav);
-    check('no section nav label asserts the previous forecast',
-      page.heroNav.every((entry) => !entry.includes('föregående')), page.heroNav);
-    equal('the accessible caption names the same baseline', page.caption,
-      `Förändring i median röstandel och medianmandat sedan ${baselineLabel(baseline)}`);
-    equal('the caption stays visually hidden', page.captionClass, 'visually-hidden');
+      !page.voteNoteText.includes('föregående') &&
+      !page.seatNoteText.includes('föregående') &&
+      page.heroNav.every((entry) => !entry.includes('föregående')), page);
     for (const name of intervening) {
       const manifest = await readJson(SITE, VERSIONS, name, 'manifest.json');
       const stamp = stockholmStamp(manifest.generated_at_utc);
       check(`the baseline is not the intervening publication (${stamp})`,
-        !page.changesStatus.includes(stamp) && !page.caption.includes(stamp),
-        { stamp, status: page.changesStatus });
+        !page.voteNoteText.includes(stamp) && !page.seatNoteText.includes(stamp),
+        { stamp, note: page.voteNoteText });
     }
     equal('the page enumerates the generations it ships',
       page.generationIndex, generations);
 
-    // --- the inline chip in the vote rows ---
-    const voteChange = forecast.change_since_prior.vote_share_median_change_pp;
-    equal('every vote row carries the published change',
-      page.voteRows.map((row) => row.party),
-      Object.keys(voteChange).map((name) => (name === 'REST' ? 'Övr.' : name)));
-    equal('each chip prints the published change at one decimal',
-      page.voteRows.map((row) => [row.party, row.chipValue]),
-      Object.keys(voteChange).map((name) =>
-        [name === 'REST' ? 'Övr.' : name, inlineDeltaValue(voteChange[name])]));
-    equal('each chip carries the direction the table gives it',
-      page.voteRows.map((row) => row.chipDirection),
-      Object.keys(voteChange).map((name) => deltaDirection(voteChange[name])));
-    // The reason not to print a bare parenthesised number: at one decimal
-    // three of this publication's nine changes round to a signed zero, which
-    // would read as a measurement rather than as "below what we can resolve".
-    const flat = page.voteRows.filter((row) => row.chipDirection === 'flat');
-    check('a sub-threshold change is a glyph, never a signed zero',
-      flat.length > 0 && flat.every((row) => row.chipValue === '' && row.chipGlyph === '·'),
-      flat.map((row) => [row.party, row.chipValue, row.chipGlyph]));
-    check('the rows that do move print a signed number',
-      page.voteRows.filter((row) => row.chipDirection !== 'flat')
-        .every((row) => /^[+-]\d+,\d$/.test(row.chipValue)),
-      page.voteRows.map((row) => [row.party, row.chipValue]));
-
-    // The row is one button with its own aria-label, so the chip's own markup
-    // is never announced. The change has to be spoken in that label, with the
-    // unit written out -- the chip cannot print "procentenheter" and a bare
-    // "-0,7" under "27,7 %" would read as percent.
-    equal('the chip is decorative', page.voteRows.map((row) => row.chipHidden),
-      page.voteRows.map(() => 'true'));
-    check('every row speaks its change with the unit in full',
-      page.voteRows.every((row, index) =>
-        row.label.includes(inlineDeltaSpoken(voteChange[Object.keys(voteChange)[index]]))),
-      page.voteRows.map((row) => row.label));
-    check('no chip prints the unit it cannot fit',
-      page.voteRows.every((row) => !row.chipValue.includes('procentenheter')));
-
-    // The vote rows, the seat rows and both axes are sized from one
-    // --ev-cols, so the chip stacks inside the median cell rather than
-    // widening it.
-    check('the chip stacks under the median on wide screens',
-      page.voteRows.every((row) => row.stacked === true && row.chipDisplay === 'flex'),
-      page.voteRows.map((row) => [row.party, row.stacked, row.chipDisplay]));
-    // A chip that flowed onto the median's line would wrap inside the 4.6rem
-    // column, making rows with a number taller than rows without one.
-    equal('every row keeps the same height whether it moved or not',
-      Array.from(new Set(page.voteRows.map((row) => row.rowHeight))).length, 1);
-
-    // Nine chips would otherwise each imply their own "since when".
-    equal('the caption names the unit and the baseline once',
-      page.voteNoteText, voteChangeNote(baseline));
-    equal('the caption is shown', page.voteNoteHidden, false);
-    check('the rows and the table cite the same baseline',
-      page.voteNoteText.includes(baselineLabel(baseline)) &&
-      page.changesStatus.includes(baselineLabel(baseline)),
-      { rows: page.voteNoteText, table: page.changesStatus });
-
-    // --- the table ---
-    equal('the seat column is named for what it holds',
-      page.headers, ['Parti', 'Röstandel', 'Medianmandat']);
-    equal('every column header is a column scope', page.scopes,
-      ['col', 'col', 'col']);
-    equal('every published party has a row', page.rows.length,
-      Object.keys(forecast.change_since_prior.vote_share_median_change_pp).length);
-    equal('Övr. is the last row', page.rows[page.rows.length - 1].party, 'Övr.');
-
-    const rest = page.rows[page.rows.length - 1];
-    const restChange = forecast.change_since_prior.vote_share_median_change_pp.REST;
-    equal('Övr. shows its published vote-share change',
-      rest.vote.value, deltaValue(restChange));
-    equal('Övr. carries the published direction',
-      rest.vote.direction, deltaDirection(restChange));
-    equal('Övr. has no seat delta to format', rest.seats.value, '');
-    equal('Övr. reads as an em dash rather than a zero',
-      rest.seats.deltaText, '— (kan inte få mandat)');
-    equal('the dash uses the no-value styling', rest.seats.direction, 'none');
-    check('no seat cell shows Övr. as unchanged',
-      !/(^|[^\d])0([^,\d]|$)/.test(rest.seats.deltaText), rest.seats.deltaText);
-    equal('the dash is explained to a screen reader',
-      rest.seats.hiddenText, '(kan inte få mandat)');
-    check('Övr. publishes no seat median to change',
-      forecast.change_since_prior.seat_median_change.REST === undefined,
-      forecast.change_since_prior.seat_median_change);
-    equal('parties keep their row scope',
-      page.rows.map((row) => row.rowScope),
-      page.rows.map(() => 'row'));
-    equal('the colour swatches stay decorative', page.swatchesHidden,
-      page.rows.map(() => 'true'));
-    check('a seated party still reports a seat change',
-      page.rows.some((row) => row.party === 'S' && row.seats.value === '-2'),
-      page.rows.map((row) => [row.party, row.seats.value]));
-
-    // --- the non-additivity note ---
-    equal('the note is shown with the seat column', page.noteHidden, false);
-    equal('the note states why the seat column does not sum to zero',
-      page.noteText,
-      'Mandatförändringarna avser partiernas separata medianer och behöver därför inte ' +
-      'summera till 0. Varje simulerat valresultat innehåller exakt 349 mandat.');
+    // --- the change table is gone, and nothing it carried was dropped ---
+    equal('the separate change section is gone', page.changesSection, false);
+    equal('no change table is rendered anywhere', page.changeTables, 0);
+    check('the section nav no longer points at it',
+      page.heroNav.every((entry) => !entry.startsWith('#election-changes')), page.heroNav);
+    equal('the vote rows and the seat rows cite one baseline',
+      [page.voteNoteText, page.seatNoteText],
+      [changeNote(baseline, 'i procentenheter'), changeNote(baseline, 'i mandat')]);
+    equal('both captions are shown',
+      [page.voteNoteHidden, page.seatNoteHidden], [false, false]);
+    // The table's own note moved into the sentence the seats section already
+    // had about medians not summing to 349.
+    check('non-additivity is stated with the seat column',
+      page.seatsIntro.endsWith(SEATS_NON_ADDITIVITY), page.seatsIntro);
     const seatSum = Object.values(forecast.change_since_prior.seat_median_change)
       .reduce((total, value) => total + value, 0);
-    check('the note is a live claim about this publication', seatSum !== 0, seatSum);
+    check('that is a live claim about this publication', seatSum !== 0, seatSum);
+
+    // --- the chip, in both row kinds ---
+    for (const [kindName, kind, rows, published, order] of [
+      ['vote', VOTE, page.voteRows,
+        forecast.change_since_prior.vote_share_median_change_pp,
+        Object.keys(forecast.change_since_prior.vote_share_median_change_pp)],
+      ['seat', SEAT, page.seatRows,
+        forecast.change_since_prior.seat_median_change,
+        (await readJson(SITE, VERSIONS, TARGET_GENERATION, 'seats.json')).party_order],
+    ]) {
+      const label = (name) => (name === 'REST' ? 'Övr.' : name);
+      equal(`every ${kindName} row is a published party`,
+        rows.map((row) => row.party), order.map(label));
+      equal(`every ${kindName} row carries a chip`,
+        rows.map((row) => row.hasChip), order.map(() => true));
+      equal(`each ${kindName} chip prints the published change`,
+        rows.map((row) => [row.party, row.chipValue]),
+        order.map((name) => [label(name), inlineDeltaValue(published[name], kind)]));
+      equal(`each ${kindName} chip carries the matching direction`,
+        rows.map((row) => row.chipDirection),
+        order.map((name) => deltaDirection(published[name], kind)));
+      // Why not a parenthesised number: at this precision the unmoved rows
+      // round to a signed zero, which would read as a measurement rather than
+      // as "below what this publication can resolve".
+      const flatRows = rows.filter((row) => row.chipDirection === 'flat');
+      check(`a sub-threshold ${kindName} change is a glyph, never a signed zero`,
+        flatRows.length > 0 &&
+        flatRows.every((row) => row.chipValue === '' && row.chipGlyph === '·'),
+        flatRows.map((row) => [row.party, row.chipValue, row.chipGlyph]));
+      check(`the ${kindName} rows that moved print a signed number`,
+        rows.filter((row) => row.chipDirection !== 'flat')
+          .every((row) => new RegExp(`^[+-]\\d+${kind.digits ? ',\\d' : ''}$`).test(row.chipValue)),
+        rows.map((row) => [row.party, row.chipValue]));
+
+      // Each row carries its own aria-label, so nothing inside it is
+      // announced. The chip is decorative and the change is spoken there,
+      // with the unit written out.
+      equal(`the ${kindName} chip is decorative`,
+        rows.map((row) => row.chipHidden), rows.map(() => 'true'));
+      check(`every ${kindName} row speaks its change with the unit in full`,
+        rows.every((row, index) =>
+          row.label.includes(inlineDeltaSpoken(published[order[index]], kind))),
+        rows.map((row) => row.label));
+      check(`no ${kindName} chip prints the unit it cannot fit`,
+        rows.every((row) => !row.chipValue.includes(kind.unit)));
+
+      // .ev-head, .es-row, .ev-axis and .es-axis are sized from one
+      // --ev-cols, so the chip shares the median cell rather than widening it.
+      check(`the ${kindName} chip stacks under the median on wide screens`,
+        rows.every((row) => row.stacked === true && row.chipDisplay === 'flex'),
+        rows.map((row) => [row.party, row.stacked, row.chipDisplay]));
+      check(`the ${kindName} chip costs its row no height`,
+        chipCostsNoHeight(rows) === true,
+        rows.map((row) => [row.party, row.chipDirection, row.rowHeight]));
+    }
+
+    // Övr. is aggregate vote mass for parties modelled as ineligible. It has a
+    // published vote change and no seat median at all -- and because the seat
+    // contract's own party_order omits it, there is no seat row to explain.
+    check('Övr. shows its vote change', page.voteRows.some((row) =>
+      row.party === 'Övr.' && row.chipValue ===
+      inlineDeltaValue(forecast.change_since_prior.vote_share_median_change_pp.REST)),
+      page.voteRows.map((row) => [row.party, row.chipValue]));
+    check('Övr. has no seat row to claim a seat change in',
+      page.seatRows.every((row) => row.party !== 'Övr.') &&
+      forecast.change_since_prior.seat_median_change.REST === undefined,
+      page.seatRows.map((row) => row.party));
 
     // --- preserved behaviour ---
     check('the load status is still a polite status region',
       page.liveRegions.includes('election-app-status:polite:status'), page.liveRegions);
     check('the cross-view selection note is still a polite status region',
       page.liveRegions.includes('election-selection-note:polite:status'), page.liveRegions);
-    check('the new timestamp line introduced no competing live region',
-      page.liveRegions.filter((entry) => entry.startsWith('election-hero')).length === 0,
+    check('the timestamp line and the captions introduced no live regions',
+      page.liveRegions.filter((entry) =>
+        /^election-(hero|vote-change|seat-change)/.test(entry)).length === 0,
       page.liveRegions);
     equal('desktop has no horizontal overflow', page.overflow, 0);
     equal('desktop has no console errors', appErrors(browser), []);
@@ -465,6 +436,8 @@ async function target() {
 async function unresolvable() {
   console.log(`\nunresolvable baseline (${UNRESOLVABLE_GENERATION})`);
   const forecast = await readJson(SITE, VERSIONS, UNRESOLVABLE_GENERATION, 'forecast.json');
+  const seatOrder =
+    (await readJson(SITE, VERSIONS, UNRESOLVABLE_GENERATION, 'seats.json')).party_order;
   const baseline = await resolveBaseline(UNRESOLVABLE_GENERATION);
   check('the pinned baseline is genuinely not shipped', baseline.generation === null,
     baseline.generation);
@@ -474,43 +447,36 @@ async function unresolvable() {
   try {
     await assertServedGeneration(browser, UNRESOLVABLE_GENERATION);
     const page = await readProvenance(browser);
-    equal('the label degrades to the published baseline date',
-      page.changesStatus, statusLine(baseline));
+    equal('both captions degrade to the published baseline date',
+      [page.voteNoteText, page.seatNoteText],
+      [changeNote(baseline, 'i procentenheter'), changeNote(baseline, 'i mandat')]);
     equal('the documented fallback is the published prior_as_of',
       baselineLabel(baseline), 'prognosen 23 aug 2026');
     check('an unresolvable baseline invents no time',
-      !/\d{1,2}:\d{2}/.test(page.changesStatus), page.changesStatus);
+      !/\d{1,2}:\d{2}/.test(page.voteNoteText + page.seatNoteText),
+      [page.voteNoteText, page.seatNoteText]);
     check('an unresolvable baseline still avoids the ordering claim',
-      !page.changesStatus.includes('föregående'), page.changesStatus);
+      !page.voteNoteText.includes('föregående') &&
+      !page.seatNoteText.includes('föregående'), page.voteNoteText);
 
-    equal('the vote-row caption degrades with the same label',
-      page.voteNoteText, voteChangeNote(baseline));
-    check('the inline caption invents no time either',
-      !/\d{1,2}:\d{2}/.test(page.voteNoteText), page.voteNoteText);
-    check('the chips still render against an unresolvable baseline',
-      page.voteRows.length > 0 && page.voteRows.every((row) => row.hasChip),
-      page.voteRows.map((row) => [row.party, row.chipValue]));
-    equal('the chips use this generation\'s own published changes',
+    // The chips are never the casualty of a label that could not be resolved:
+    // they come straight from the payload.
+    equal('the vote chips use this generation\'s own published changes',
       page.voteRows.map((row) => row.chipValue),
       Object.keys(forecast.change_since_prior.vote_share_median_change_pp)
         .map((name) => inlineDeltaValue(
           forecast.change_since_prior.vote_share_median_change_pp[name])));
-
-    // The table is never the casualty of a label that could not be resolved.
-    equal('the seat column is still named Medianmandat',
-      page.headers, ['Parti', 'Röstandel', 'Medianmandat']);
-    equal('Övr. is still the last row',
-      page.rows[page.rows.length - 1].party, 'Övr.');
-    const rest = page.rows[page.rows.length - 1];
-    const restChange = forecast.change_since_prior.vote_share_median_change_pp.REST;
-    equal('a sub-threshold Övr. change is still printed',
-      rest.vote.value, deltaValue(restChange));
-    equal('a sub-threshold Övr. change reads as flat',
-      rest.vote.direction, deltaDirection(restChange));
-    equal('Övr. still has no seat change', rest.seats.direction, 'none');
-    equal('Övr. still reads as an em dash',
-      rest.seats.deltaText, '— (kan inte få mandat)');
-    equal('the note is still shown', page.noteHidden, false);
+    equal('the seat chips use this generation\'s own published changes',
+      page.seatRows.map((row) => row.chipValue),
+      seatOrder.map((name) => inlineDeltaValue(
+        forecast.change_since_prior.seat_median_change[name], SEAT)));
+    // This generation moved two seat medians, so the fallback run also proves
+    // a signed seat chip renders, not only the flat glyph.
+    check('a moved seat median still prints a signed number',
+      page.seatRows.filter((row) => row.chipDirection !== 'flat').length > 0,
+      page.seatRows.map((row) => [row.party, row.chipValue]));
+    check('non-additivity is still stated with the seat column',
+      page.seatsIntro.endsWith(SEATS_NON_ADDITIVITY), page.seatsIntro);
     equal('this generation also publishes its own instant',
       page.stamp,
       stockholmStamp((await readJson(SITE, VERSIONS, UNRESOLVABLE_GENERATION,
@@ -527,41 +493,36 @@ async function mobile() {
   console.log(`\nmobile provenance (${TARGET_GENERATION})`);
   const baseline = await resolveBaseline(TARGET_GENERATION);
   const forecast = await readJson(SITE, VERSIONS, TARGET_GENERATION, 'forecast.json');
-  const desktopChipValues =
-    Object.keys(forecast.change_since_prior.vote_share_median_change_pp)
-      .map((name) => inlineDeltaValue(
-        forecast.change_since_prior.vote_share_median_change_pp[name]));
+  const seatOrder = (await readJson(SITE, VERSIONS, TARGET_GENERATION, 'seats.json')).party_order;
   const { server, browser } = await open(MOBILE, await pointerFor(SITE, TARGET_GENERATION));
   try {
     const page = await readProvenance(browser);
     equal('the timestamp line survives the narrow layout', page.updatedHidden, false);
     check('the timestamp line is painted on mobile',
       page.updatedDisplay !== 'none', page.updatedDisplay);
-    equal('the baseline is named on mobile too', page.changesStatus, statusLine(baseline));
-    equal('the seat column keeps its name on mobile',
-      page.headers, ['Parti', 'Röstandel', 'Medianmandat']);
-    equal('Övr. is present on mobile',
-      page.rows[page.rows.length - 1].party, 'Övr.');
-    equal('the note is present on mobile', page.noteHidden, false);
+    equal('both captions name the baseline on mobile too',
+      [page.voteNoteText, page.seatNoteText],
+      [changeNote(baseline, 'i procentenheter'), changeNote(baseline, 'i mandat')]);
+
     // The narrow layout gives the median a flexible column, so the chip fits
     // on its line -- which is where it belongs when vertical space, not
     // horizontal, is the scarce thing.
-    check('the chip sits beside the median on narrow screens',
-      page.voteRows.every((row) => row.stacked === false && row.chipDisplay === 'inline-flex'),
-      page.voteRows.map((row) => [row.party, row.stacked, row.chipDisplay]));
-    equal('the mobile caption names the baseline too',
-      page.voteNoteText, voteChangeNote(baseline));
+    for (const [kindName, rows] of [['vote', page.voteRows], ['seat', page.seatRows]]) {
+      check(`the ${kindName} chip sits beside the median on narrow screens`,
+        rows.every((row) => row.stacked === false && row.chipDisplay === 'inline-flex'),
+        rows.map((row) => [row.party, row.stacked, row.chipDisplay]));
+      check(`the ${kindName} chip still costs its row no height`,
+        chipCostsNoHeight(rows) === true,
+        rows.map((row) => [row.party, row.chipDirection, row.rowHeight]));
+    }
     equal('the mobile chips print the same published changes',
-      page.voteRows.map((row) => row.chipValue),
-      desktopChipValues);
+      [page.voteRows.map((row) => row.chipValue), page.seatRows.map((row) => row.chipValue)],
+      [Object.keys(forecast.change_since_prior.vote_share_median_change_pp)
+        .map((name) => inlineDeltaValue(
+          forecast.change_since_prior.vote_share_median_change_pp[name])),
+      seatOrder.map((name) => inlineDeltaValue(
+        forecast.change_since_prior.seat_median_change[name], SEAT))]);
     check('the mobile page has no horizontal overflow', page.overflow <= 0, page.overflow);
-    // The table is the one wide block in this section; it must scroll inside
-    // its own box rather than pushing the page sideways.
-    const scroller = await browser.evaluate(() => {
-      const box = document.querySelector('.election-changes-table');
-      return box ? getComputedStyle(box).overflowX : null;
-    });
-    equal('the change table scrolls inside its own box', scroller, 'auto');
     equal('mobile has no console errors', appErrors(browser), []);
     equal('mobile has no uncaught exceptions', browser.exceptions, []);
   } finally {
@@ -578,29 +539,34 @@ async function sourceGuard() {
     new URL('../assets/js/election-simulator.js', import.meta.url), 'utf8');
   const page = await readFile(
     new URL('../_pages/election_simulator.md', import.meta.url), 'utf8');
+  const seatOpacity = await readFile(
+    new URL('../assets/js/election-seat-opacity.js', import.meta.url), 'utf8');
   check('the conversion goes through the zone database, not a fixed offset',
     source.includes('"Europe/Stockholm"') && !/\+0?2:00|utcOffset|\+ 2 \* 3600/.test(source));
   check('the baseline is verified by payload hash before it is believed',
     source.includes('manifest.deterministic_payload_sha256 !== expected'));
-  check('the table and the rows share one noise floor and one glyph vocabulary',
+  check('one noise-floor rule and one chip renderer serve both row kinds',
     (source.match(/function deltaShape/g) || []).length === 1 &&
-    source.includes('deltaShape(value, 0.05)') &&
-    (source.match(/ec-delta__glyph/g) || []).length === 2);
+    (source.match(/function inlineDelta\b/g) || []).length === 1 &&
+    source.includes('inlineDelta(voteChange[name], 0.05, 1)') &&
+    source.includes('inlineDelta(seatChange[name], 0.5, 0)'));
   check('the chips are gated on the payload having a baseline at all',
-    source.includes('change.status === "AVAILABLE"') &&
-    source.includes('? (change.vote_share_median_change_pp || {}) : {}'));
+    (source.match(/change\.status === "AVAILABLE"/g) || []).length === 2 &&
+    source.includes('? (change.vote_share_median_change_pp || {}) : {}') &&
+    source.includes('? (change.seat_median_change || {}) : {}'));
+  check('the change table left nothing behind',
+    !/renderChanges|deltaCell|ec-table|ec-delta/.test(source));
   check('the hero reads the publication instant, not the input date',
     source.includes('var generatedAt = metadata.generated_at_utc ||'));
   check('no reader-facing copy asserts the previous forecast',
     !page.includes('föregående prognos') && !source.includes('f\\u00f6reg\\u00e5ende prognos'));
   check('the generation list is enumerated at build time, not written by hand',
     page.includes('site.static_files') && !/2026\d{4}T\d{6}Z/.test(page));
-  // "Medianmandat" is the word the party cards and the coalition summary
-  // already use for a separately taken median, so the change table now agrees
-  // with them instead of calling the same quantity "Mandat".
-  check('the bare Mandat column header is gone',
-    !source.includes('<th scope=\\"col\\">Mandat</th>') &&
-    source.includes('<th scope=\\"col\\">Medianmandat</th>'));
+  check('the seats intro is addressed by id, not by query order',
+    source.includes('getElementById("election-seats-intro")') ||
+    seatOpacity.includes('getElementById("election-seats-intro")'));
+  check('the change section is gone from the markup and the nav',
+    !page.includes('election-changes') && !seatOpacity.includes('election-changes'));
 }
 
 await sourceGuard();

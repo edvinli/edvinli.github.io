@@ -393,7 +393,6 @@ async function testSchema12(viewport, pointer, expected) {
       'election-government-builder',
       'election-headline',
       'election-seats',
-      'election-changes',
       'election-how-it-works',
       'election-validation',
       'election-meta',

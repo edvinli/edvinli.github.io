@@ -393,51 +393,62 @@ previously vague in a way no layout assertion could catch:
   and separately asserts that the intervening publication's instant appears
   nowhere in the copy.
 
-It also covers the table itself: the `Övr.` row (published
-`vote_share_median_change_pp.REST`, with an em dash and a screen-reader
-explanation instead of a `0` seat change REST cannot have), the
-`Medianmandat` column name, and the non-additivity note — asserted against a
-publication whose own `seat_median_change` really does not sum to zero.
+**The change chip.** The separate `Förändring` table is gone; its numbers are
+read beside the medians they describe, in `Röstandelar på valdagen` and
+`Mandat på valdagen`. The suite pins the four decisions that make that work:
 
-**The inline chip in `Röstandelar på valdagen`.** The same published change
-appears a second time, beside the level it describes, and the suite pins the
-three decisions that keep the two consistent:
+- **Digits matching the level, and no number below the noise floor.** At one
+  decimal three of this publication's nine vote changes round to a signed
+  zero, and six of eight seat changes are exactly `0`, so a parenthesised
+  `(+0,0)` or `(0)` would read as a measurement rather than as "smaller than
+  this publication can resolve". Below the floor — `0,05` pp, half a seat —
+  the chip is the `·` glyph alone. `deltaShape` is the single source of the
+  floor, the glyph vocabulary and the accessible wording for both row kinds,
+  and `inlineDelta` is the single renderer; the suite asserts there is one of
+  each and that the two callers differ only in floor and precision.
+- **The chip is decorative; the change is spoken in the row's own label.**
+  Both `.ev-head` and `.es-row` carry a full `aria-label`, so nothing inside
+  them is announced — a `visually-hidden` unit in the chip would be silently
+  dropped. The label speaks `ner 0,7 procentenheter` / `ner 2 mandat`
+  `sedan jämförelseprognosen`; the chip prints no unit, because the row has no
+  width for it, the page does not abbreviate `procentenheter`, and a bare
+  `-0,7` under `27,7 %` would read as percent rather than percentage points.
+- **Two arrangements, one for each layout.** `.ev-head`, `.es-row`,
+  `.ev-axis` and `.es-axis` are all sized from one `--ev-cols`, so widening a
+  median column — or adding one — would move the other row kind and pull the
+  axis ticks off the chart track. Wide screens stack the chip inside the
+  existing 4.6rem cell (`display: flex`, below the median's own box); below
+  46em the median gets a flexible column and the chip sits beside it
+  (`inline-flex`), which is where it belongs when vertical space is the
+  scarce thing. The suite measures both from bounding boxes.
+- **The chip costs its row no height.** Stated as "the tallest unmoved row is
+  no taller than the shortest moved one", which is exactly the regression it
+  was written for — `.ed-delta` is `inline-flex`, so an override that loses on
+  source order puts the chip on the median's line, where it wraps inside the
+  narrow column and makes rows that moved taller than rows that did not. The
+  formulation also tolerates a row that is tall for an unrelated reason, such
+  as `Övr.`'s wrapping `gäller inte` threshold label.
 
-- **One decimal, and no number below the noise floor.** Three of this
-  publication's nine changes round to a signed zero at one decimal, so a
-  parenthesised `(+0,0)` would read as a measurement rather than as "smaller
-  than this publication can resolve". Below `0,05` pp the chip is the `·`
-  glyph alone. `deltaShape` is the single source of the floor, the glyph
-  vocabulary and the accessible wording for both the chip and the table, and
-  the suite asserts there is exactly one of it.
-- **The chip is decorative; the change is spoken in the row's `aria-label`.**
-  `.ev-head` is one button carrying its own full `aria-label`, so nothing
-  inside it is announced — a `visually-hidden` unit in the chip would be
-  silently dropped. The label speaks `ner 0,7 procentenheter sedan
-  jämförelseprognosen`; the chip prints no unit, because the row has no width
-  for `procentenheter`, the page does not abbreviate it, and a bare `-0,7`
-  under `27,7 %` would read as percent rather than percentage points.
-- **Two arrangements, one for each layout.** `.ev-head`, `.es-row`, `.ev-axis`
-  and `.es-axis` are all sized from one `--ev-cols`, so widening the median
-  column — or adding one — would move the seat rows and pull the axis ticks
-  off the chart track. Wide screens therefore stack the chip inside the
-  existing 4.6rem cell (`display: flex`, below the median's box); below 46em
-  the median gets a flexible column and the chip sits beside it
-  (`inline-flex`), which is where it belongs when vertical space is the scarce
-  thing. The suite asserts both, and asserts that every row has the *same*
-  height whether it moved or not — the regression it was written for is a
-  chip that flows onto the median's line and wraps inside the narrow column,
-  making rows with a number taller than rows without one.
-
-The caption above the rows names the unit and the baseline once, resolved from
-the same snapshot lookup the table uses, so nine chips cannot each imply a
+Each section's caption names its unit and the baseline once, both resolved
+from the same snapshot lookup, so seventeen chips cannot each imply a
 different "since when" and the two sections cannot disagree about what they
-compare against. The suite asserts they cite the same label.
+compare against. The suite asserts they cite the same label, and that the
+change table left nothing behind — no `renderChanges`, `deltaCell`, `.ec-table`
+or `.ec-delta` anywhere in the source, and no `#election-changes` in the
+markup or the hero nav.
 
-The seat rows deliberately get **no** inline chip. That is where the interval
-parentheses live (`Medianmandat 102 (95–109)`) and where non-additivity bites:
-the seat medians are taken separately and do not sum to zero, which needs the
-one place under a single column where that note can sit.
+`Övr.` is the one asymmetry, and it is the payload's: it has a published vote
+change and no seat median at all. The vote rows show its chip; the seat
+contract's own `party_order` omits `REST`, so there is no seat row to explain
+away. The suite asserts both halves of that.
+
+Non-additivity moved into the sentence the seats section already had about
+medians not summing to 349 — *"…och förändringarna inte till 0. Varje
+simulerat valresultat innehåller ändå exakt 349 mandat."* — asserted against a
+publication whose own `seat_median_change` really does not sum to zero. That
+sentence is written by `election-seat-opacity.js`, now addressed by id rather
+than by `.election-panel__head .election-muted`, which took whichever muted
+paragraph came first once each panel head held more than one.
 
 Two generations are pinned, because the fallback is half the contract:
 

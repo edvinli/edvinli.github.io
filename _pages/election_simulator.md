@@ -165,7 +165,8 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
   <section id="election-seats" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Mandat på valdagen</h2>
-      <p class="election-muted">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349.</p>
+      <p class="election-muted" id="election-seats-intro">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349, och förändringarna inte till 0. Varje simulerat valresultat innehåller ändå exakt 349 mandat.</p>
+      <p class="election-muted" id="election-seat-change-note" hidden></p>
     </div>
     <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
     <div id="election-seat-axis" class="es-axis"></div>
@@ -176,14 +177,6 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
     </div>
     <ul id="election-parliament-legend" class="ep-legend"></ul>
-  </section>
-  <section id="election-changes" class="election-panel" hidden>
-    <div class="election-panel__head">
-      <h2>Förändring sedan jämförelseprognosen</h2>
-      <p class="election-muted" id="election-changes-status"></p>
-    </div>
-    <div id="election-changes-content" class="election-changes-table"></div>
-    <p class="election-muted" id="election-changes-note" hidden>Mandatförändringarna avser partiernas separata medianer och behöver därför inte summera till 0. Varje simulerat valresultat innehåller exakt 349 mandat.</p>
   </section>
   <section id="election-how-it-works" class="election-panel election-disclosure">
     <details id="election-model">
