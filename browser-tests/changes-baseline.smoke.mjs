@@ -60,6 +60,12 @@ const UNRESOLVABLE_GENERATION = '20260831T170410Z-1f5e0506';
 // to print. The two claims are independent and this pins that.
 const QUIET_UNDATED_GENERATION = '20260904T082721Z-af776460';
 
+// An intraday re-run: same polling, and the anchor date did not move either.
+// The model's horizon runs from `as_of`, so this publication has exactly the
+// horizon its predecessor had -- the one case where the note must say nothing
+// about time running out.
+const INTRADAY_GENERATION = '20260828T064703Z-1da59168';
+
 // The page's own month abbreviations. Intl's sv-SE forms ("sep.", "aug.")
 // are not these, so the expectation is built from the same list the page uses
 // rather than from the formatter's own month name.
@@ -158,10 +164,22 @@ async function precedingPublication(generation) {
   return { generation: name, metadata: await readJson(SITE, VERSIONS, name, 'metadata.json') };
 }
 
-const freshnessNote = (preceding) =>
-  `Inga nya mätningar sedan föregående prognos ` +
-  `(${stockholmStamp(preceding.metadata.generated_at_utc)}). ` +
-  'Omräkningen har kortare tid kvar till valdagen, men samma opinionsunderlag.';
+// What an equal poll hash actually witnesses: the poll source is byte-
+// identical, so no new individual measurement entered. Not that the forecast
+// is unchanged, and not that the other four published input hashes agree.
+//
+// The horizon sentence is a separate claim with a separate test. The model's
+// horizon runs from `as_of` to election day, so it is earned only when the
+// anchor has moved -- an intraday re-run against an unchanged anchor has
+// exactly the horizon its predecessor had.
+const freshnessNote = (preceding, current) => {
+  const anchorMoved = current.as_of > preceding.metadata.as_of;
+  return `Inga nya enskilda mätningar i underlaget sedan föregående prognos ` +
+    `(${stockholmStamp(preceding.metadata.generated_at_utc)}).` +
+    (anchorMoved
+      ? ' Prognosen är omräknad från ett senare ankardatum, med kortare tid kvar till valdagen.'
+      : '');
+};
 
 const pollHash = (metadata) => metadata.input_hashes.poll_data_hash;
 
@@ -683,8 +701,18 @@ async function quietRerun() {
     check('the lede cites the newest poll, not the anchor day',
       page.lede.includes(`opinionsunderlag till och med ${swedishDay(polling.newest)}`) &&
       !page.lede.includes(swedishDay(metadata.as_of)), page.lede);
-    equal('a re-run on unchanged polling says so',
-      page.freshnessText, freshnessNote(preceding));
+    equal('a re-run on unchanged polling says so, and only about the polls',
+      page.freshnessText, freshnessNote(preceding, metadata));
+    check('the claim is scoped to individual measurements, not to every input',
+      /Inga nya enskilda mätningar i underlaget/.test(page.freshnessText) &&
+      !/samma opinionsunderlag/.test(page.freshnessText), page.freshnessText);
+    // Here the anchor did move, 5 -> 6 September, so the horizon sentence is
+    // earned. intradayRerun() below owns the case where it is not.
+    check('this generation moved its anchor day forward',
+      metadata.as_of > preceding.metadata.as_of,
+      { asOf: metadata.as_of, preceding: preceding.metadata.as_of });
+    check('so the shorter horizon is stated',
+      /kortare tid kvar till valdagen/.test(page.freshnessText), page.freshnessText);
     equal('the freshness note is visible', page.freshnessHidden, false);
     check('the freshness note is painted, not just unhidden',
       page.freshnessDisplay !== 'none', page.freshnessDisplay);
@@ -710,7 +738,7 @@ async function quietRerun() {
   try {
     const page = await readProvenance(narrow.browser);
     equal('the freshness note survives the narrow layout',
-      [page.freshnessHidden, page.freshnessText], [false, freshnessNote(preceding)]);
+      [page.freshnessHidden, page.freshnessText], [false, freshnessNote(preceding, metadata)]);
     check('the freshness note is painted on mobile',
       page.freshnessDisplay !== 'none', page.freshnessDisplay);
     check('the narrow layout still has no horizontal overflow',
@@ -719,6 +747,40 @@ async function quietRerun() {
   } finally {
     await narrow.browser.close();
     await narrow.server.close();
+  }
+}
+
+// The horizon sentence is earned by a moved anchor, not by a re-publication.
+// Without this run, appending it unconditionally would pass every check above.
+async function intradayRerun() {
+  console.log(`\nintraday re-run, anchor unmoved (${INTRADAY_GENERATION})`);
+  const metadata = await readJson(SITE, VERSIONS, INTRADAY_GENERATION, 'metadata.json');
+  const preceding = await precedingPublication(INTRADAY_GENERATION);
+  check('the pinned generation re-ran on the same polling and the same anchor',
+    preceding !== null && pollHash(preceding.metadata) === pollHash(metadata) &&
+    preceding.metadata.as_of === metadata.as_of,
+    { asOf: metadata.as_of, preceding: preceding && preceding.metadata.as_of });
+
+  const { server, browser } =
+    await open(DESKTOP, await pointerFor(SITE, INTRADAY_GENERATION));
+  try {
+    await assertServedGeneration(browser, INTRADAY_GENERATION);
+    const page = await readProvenance(browser);
+    equal('the note still reports the unchanged polling',
+      page.freshnessText, freshnessNote(preceding, metadata));
+    check('and says nothing about a shorter horizon',
+      !/kortare tid kvar till valdagen/.test(page.freshnessText) &&
+      !/ankardatum/.test(page.freshnessText), page.freshnessText);
+    check('nor claims the whole underlying basis is unchanged',
+      !/samma opinionsunderlag/.test(page.freshnessText), page.freshnessText);
+    equal('the countdown is the same one its predecessor printed',
+      page.heroCountdown, countdownText(daysBetweenDays(
+        stockholmDayIso(metadata.generated_at_utc), metadata.election_date)));
+    equal('the intraday run has no console errors', appErrors(browser), []);
+    equal('the intraday run has no uncaught exceptions', browser.exceptions, []);
+  } finally {
+    await browser.close();
+    await server.close();
   }
 }
 
@@ -744,7 +806,7 @@ async function quietRerunUndated() {
     await assertServedGeneration(browser, QUIET_UNDATED_GENERATION);
     const page = await readProvenance(browser);
     equal('the note still fires, from the frozen bundle alone',
-      page.freshnessText, freshnessNote(preceding));
+      page.freshnessText, freshnessNote(preceding, metadata));
     equal('the polling cell prints nothing it cannot verify', page.heroAsOf, '—');
     check('and the lede makes no dated claim either',
       !/till och med/.test(page.lede) && page.lede.includes('det publicerade opinionsunderlaget'),
@@ -850,12 +912,23 @@ async function sourceGuard() {
     (source.match(/f\\u00f6reg\\u00e5ende prognos/g) || []).length === 1 &&
     source.includes('compactInstant(metadata.generated_at_utc) !== generationInstant(generation)') &&
     !page.includes('föregående prognos'));
-  // The identity of the polling input, not a date: `as_of` advances on a
-  // re-run that saw no new poll, so a date-based rule stays silent exactly
-  // when the note is needed.
-  check('the freshness note is gated on the polling input hash, not a date',
-    source.includes('pollDataHash(preceding) !== hash') &&
-    !/renderPollFreshness[\s\S]{0,600}?as_of/.test(source));
+  // Whether the note appears is the identity of the polling input, not a date:
+  // `as_of` advances on a re-run that saw no new poll, so a date-based gate
+  // would stay silent exactly when the note is needed.
+  check('whether the note appears is gated on the polling input hash',
+    source.includes('if (!hash || !stamp || pollDataHash(preceding) !== hash)'));
+  // The anchor dates are read, but only to decide whether the horizon sentence
+  // is earned -- never to decide whether the note is shown at all.
+  check('the anchor dates decide only the horizon sentence',
+    source.includes(
+      'var anchorMoved = anchor !== null && priorAnchor !== null && anchor > priorAnchor;') &&
+    /anchorMoved\s*\n?\s*\?\s*" Prognosen/.test(source));
+  // An equal hash witnesses that no new individual measurement entered. It
+  // does not witness that the forecast, or the other four published input
+  // hashes, are unchanged -- so the sentence may not say so.
+  check('the claim is scoped to what the hash witnesses',
+    source.includes('"Inga nya enskilda m\\u00e4tningar i underlaget sedan "') &&
+    !source.includes('men samma opinionsunderlag'));
   // The anchor day is never a fallback for the polling cell: falling back to
   // it would restore the overclaim the cell exists to remove.
   check('the polling cell is the verified newest poll, never the anchor day',
@@ -883,6 +956,7 @@ async function sourceGuard() {
 await sourceGuard();
 await target();
 await quietRerun();
+await intradayRerun();
 await unresolvable();
 await quietRerunUndated();
 await mobile();
@@ -891,5 +965,5 @@ if (failures) {
   console.log('FAIL');
   process.exit(1);
 }
-console.log(`PASS (${[TARGET_GENERATION, QUIET_RERUN_GENERATION,
+console.log(`PASS (${[TARGET_GENERATION, QUIET_RERUN_GENERATION, INTRADAY_GENERATION,
   UNRESOLVABLE_GENERATION, QUIET_UNDATED_GENERATION].join(', ')})`);

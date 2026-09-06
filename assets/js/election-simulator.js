@@ -4298,6 +4298,22 @@
   // publication is resolved, carries a printable instant, and drew on the very
   // same polling input.  Naming that publication by its instant keeps the
   // claim checkable rather than asking the reader to trust an ordering.
+  //
+  // Two things this deliberately does not say.
+  //
+  // It does not say the forecast is unchanged, or that it rests on the same
+  // inputs.  An equal `poll_data_hash` establishes exactly one thing -- that
+  // the poll source behind both publications is byte-identical, so no new
+  // individual measurement entered -- and the publication carries four other
+  // input hashes this never looks at.  The sentence is therefore scoped to the
+  // polls, which is what the hash actually witnesses.
+  //
+  // And it does not claim a shorter horizon on its own.  The model's horizon
+  // runs from `as_of` to election day, so an intraday re-run against an
+  // unchanged anchor has exactly the horizon its predecessor had --
+  // 20260828T064703Z followed 20260827T205828Z with both anchored on
+  // 2026-08-24.  The horizon sentence is added only once the anchor dates have
+  // been compared and the anchor has actually moved forward.
   function renderPollFreshness(metadata, preceding) {
     var node = byId("election-hero-poll-freshness");
     if (!node) return;
@@ -4308,9 +4324,15 @@
       node.hidden = true;
       return;
     }
-    node.textContent = "Inga nya m\u00e4tningar sedan f\u00f6reg\u00e5ende prognos (" +
-      stamp.text + "). Omr\u00e4kningen har kortare tid kvar till valdagen, " +
-      "men samma opinionsunderlag.";
+    var anchor = typeof metadata.as_of === "string" ? metadata.as_of : null;
+    var priorAnchor = typeof preceding.as_of === "string" ? preceding.as_of : null;
+    var anchorMoved = anchor !== null && priorAnchor !== null && anchor > priorAnchor;
+    node.textContent = "Inga nya enskilda m\u00e4tningar i underlaget sedan " +
+      "f\u00f6reg\u00e5ende prognos (" + stamp.text + ")." +
+      (anchorMoved
+        ? " Prognosen \u00e4r omr\u00e4knad fr\u00e5n ett senare ankardatum, " +
+          "med kortare tid kvar till valdagen."
+        : "");
     node.hidden = false;
   }
 

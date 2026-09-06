@@ -399,11 +399,22 @@ previously vague in a way no layout assertion could catch:
 
   Whether new polling arrived is a separate question with a separate answer:
   `input_hashes.poll_data_hash` against the preceding publication's, from the
-  frozen bundle alone. When they match, the hero says
-  `Inga nya mätningar sedan föregående prognos (5 sep 09:56)`. The predecessor
-  is the greatest generation below the current one in the page's build-time
-  generation index, believed only when its `generated_at_utc` matches the
-  directory it was fetched from.
+  frozen bundle alone. When they match, the hero says `Inga nya enskilda
+  mätningar i underlaget sedan föregående prognos (5 sep 09:56)`. The
+  predecessor is the greatest generation below the current one in the page's
+  build-time generation index, believed only when its `generated_at_utc`
+  matches the directory it was fetched from.
+
+  **The sentence is scoped to exactly what the hash witnesses.** An equal hash
+  means the poll source is byte-identical, so no new individual measurement
+  entered — not that the forecast is unchanged, and not that the four other
+  published input hashes agree. A second sentence, *"omräknad från ett senare
+  ankardatum, med kortare tid kvar till valdagen"*, is a separate claim earned
+  separately: the model's horizon runs from `as_of`, so it is appended only
+  after comparing anchor dates and finding the anchor moved forward.
+  `20260828T064703Z-1da59168` is pinned for the case where it did not — an
+  intraday re-run whose predecessor shares both its polling and its 24 August
+  anchor, and which therefore has exactly the horizon that predecessor had.
 
   Four generations are pinned, one per corner: `20260906T081926Z-92521273`
   (quiet re-run, poll date verifiable — the live case);
