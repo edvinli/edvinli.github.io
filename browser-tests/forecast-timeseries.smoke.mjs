@@ -815,8 +815,11 @@ function assertStructure(view, history) {
     ], view.navigation);
   const facts = view.hero?.facts || [];
   const publishedSamples = history.series?.at(-1)?.samples;
-  equal('hero fact labels are election-day-first', facts.map((fact) => fact.label),
-    ['Underlag t.o.m.', 'Valdag', 'Dagar kvar']);
+  // The polling label names the polls; the calculation time is its own line
+  // below the grid, so the two freshness claims cannot be read as one.
+  equal('hero fact labels name the polling input, not just "underlag"',
+    facts.map((fact) => fact.label),
+    ['Senaste opinionsunderlag', 'Valdag', 'Dagar kvar']);
   check('hero lede explains the published election date, as-of date and draw count',
     /Valprognosen visar hur valet den\s+\d+ \S+ \d{4} kan sluta/i.test(view.hero?.lede || '') &&
     /underlag till och med\s+\d+ \S+ \d{4}/i.test(view.hero?.lede || '') &&

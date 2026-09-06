@@ -242,12 +242,23 @@ canvas {
   display: grid;
   gap: 0 1.5rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
   margin: 0 0 1.1rem;
   padding-top: 0.85rem;
 }
 
+/* "Senaste opinionsunderlag" wraps to two lines in its column while the other
+   two labels do not, which would leave the three values on three different
+   baselines. Dropping the grouping box into the same grid puts every label in
+   row 1 and every value in row 2, so the values line up whatever the labels
+   do. The narrow layout replaces this with its own flex row below. */
+.election-hero__fact {
+  display: contents;
+}
+
 .election-hero__fact dt {
   color: var(--el-muted);
+  grid-row: 1;
   font-size: 0.72rem;
   letter-spacing: 0.07em;
   margin: 0;
@@ -255,21 +266,32 @@ canvas {
 }
 
 .election-hero__fact dd {
+  align-self: end;
   font-family: var(--el-mono);
   font-size: 1.22rem;
   font-weight: 700;
+  grid-row: 2;
   line-height: 1.25;
   margin: 0.15rem 0 0;
 }
 
-/* The publication instant sits between the facts and the lede: provenance
-   rather than a forecast quantity, so it takes the muted mono treatment of
-   the kicker instead of a fourth column in the three-column facts grid. */
-.election-hero__updated {
+/* The publication instant and the polling-freshness note sit between the
+   facts and the lede: provenance rather than forecast quantities, so they take
+   the muted mono treatment of the kicker instead of further columns in the
+   three-column facts grid. */
+.election-hero__updated,
+.election-hero__freshness {
   color: var(--el-muted);
   font-family: var(--el-mono);
   font-size: 0.78rem;
   margin: -0.35rem 0 0.9rem;
+}
+
+/* When both are shown they answer one question -- how fresh is this? -- so
+   they read as a single block rather than two separate notes. */
+.election-hero__updated:not([hidden]) + .election-hero__freshness {
+  margin-top: -0.75rem;
+  max-width: 62ch;
 }
 
 .election-hero__lede {

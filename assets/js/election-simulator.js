@@ -337,6 +337,10 @@
     return String(Number(parts[3])) + " " + month + " " + parts[1];
   }
 
+  function pad2(value) {
+    return (value < 10 ? "0" : "") + String(value);
+  }
+
   // Publication instants are ISO-8601 in UTC and may carry sub-millisecond
   // precision, which Date.parse is only obliged to accept to three digits.
   function parseInstant(iso) {
@@ -375,6 +379,11 @@
   // published, in the timezone it was published for.  Returns null rather than
   // an approximation when the instant or the zone database is unusable, so a
   // caller can fall back to the date alone instead of printing a wrong time.
+  //
+  // `day` is the same wall clock as an ISO date, for callers that need to
+  // count days from the publication rather than print it.  A UTC instant late
+  // in the evening is already the next Stockholm day, and taking the date off
+  // the ISO string would silently be a day out.
   function stockholmDateTime(iso) {
     var instant = parseInstant(iso);
     var formatter = stockholmFormatter();
@@ -385,11 +394,17 @@
     });
     var day = Number(fields.day);
     var month = MONTHS[Number(fields.month) - 1];
-    if (!month || !Number.isFinite(day) || !fields.hour || !fields.minute) return null;
+    var year = Number(fields.year);
+    if (!month || !Number.isFinite(day) || !Number.isFinite(year) ||
+      !fields.hour || !fields.minute) return null;
     // Some engines resolve an hour12:false request to the h24 cycle, which
     // writes midnight as 24:00.
     var hour = fields.hour === "24" ? "00" : fields.hour;
-    return { instant: instant, text: String(day) + " " + month + " " + hour + ":" + fields.minute };
+    return {
+      instant: instant,
+      text: String(day) + " " + month + " " + hour + ":" + fields.minute,
+      day: String(year) + "-" + pad2(Number(fields.month)) + "-" + pad2(day)
+    };
   }
 
   // Derived from the reader's own clock, so it is never the authoritative
@@ -530,16 +545,119 @@
   }
 
   // ---------------------------------------------------------------------
+  // The polling input
+  //
+  // `as_of` looks like a data-freshness fact and is not one.  It is the day
+  // the forecast is anchored at, and it advances on a re-run that saw no new
+  // poll at all: 20260904T110809Z, 20260905T075636Z and 20260906T081926Z carry
+  // `as_of` 4, 5 and 6 September over a byte-identical `poll_data_hash`, while
+  // the newest poll behind all three was published on 4 September.  Printing
+  // `as_of` as "underlag till och med" therefore claimed polling the forecast
+  // never saw, and grew a day more wrong with each quiet re-run.
+  //
+  // The frozen publication bundle names its polling input by hash only, so the
+  // date itself has to come from the history artifact -- which is outside the
+  // bundle, and is believed only when it carries the publication's own
+  // `poll_data_hash` in `poll_source_sha256`.  When it does not, the cell says
+  // nothing.  `as_of` is deliberately not a fallback: falling back to it would
+  // restore precisely the overclaim this exists to remove.
+  //
+  // The two fetches resolve in either order, so both sides write here and
+  // whichever finishes second renders.
+  // ---------------------------------------------------------------------
+  var pollingInput = {
+    pollHash: null,
+    historySource: null,
+    historyNewest: null,
+    samples: null,
+    electionDate: null,
+    ready: false
+  };
+
+  function isoDay(value) {
+    if (typeof value !== "string") return null;
+    var parts = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+    return parts ? parts[1] : null;
+  }
+
+  // Read straight from the raw artifact rather than the chart's normalized
+  // form: the polling date is a provenance fact, and must not depend on the
+  // chart's own validity rules.
+  function readHistoryPollingInput(payload) {
+    if (!payload || typeof payload !== "object") return;
+    if (typeof payload.poll_source_sha256 !== "string") return;
+    var raw = Array.isArray(payload.polls) ? payload.polls : [];
+    var newest = null;
+    raw.forEach(function (poll) {
+      var day = isoDay(poll && (poll.publication_date || poll.date));
+      if (day && (newest === null || day > newest)) newest = day;
+    });
+    if (!newest) return;
+    pollingInput.historySource = payload.poll_source_sha256;
+    pollingInput.historyNewest = newest;
+    renderPollingInput();
+  }
+
+  function newestPollDay() {
+    if (!pollingInput.pollHash || !pollingInput.historySource) return null;
+    if (pollingInput.historySource !== pollingInput.pollHash) return null;
+    return pollingInput.historyNewest;
+  }
+
+  function renderPollingInput() {
+    if (!pollingInput.ready) return;
+    var newest = newestPollDay();
+    setText("election-hero-asof", swedishDate(newest) || "\u2014");
+
+    var lede = byId("election-hero-lede");
+    if (!lede) return;
+    var draws = pollingInput.samples === null
+      ? "ett publicerat antal"
+      : grouped(pollingInput.samples);
+    var electionLabel = swedishDate(pollingInput.electionDate) ||
+      pollingInput.electionDate || "det publicerade valdatumet";
+    var basis = newest
+      ? "opinionsunderlag till och med " + swedishDate(newest)
+      : "det publicerade opinionsunderlaget";
+    lede.textContent = "Valprognosen visar hur valet den " + electionLabel +
+      " kan sluta. Den bygger p\u00e5 " + basis +
+      " och " + draws + " simulerade valresultat.";
+  }
+
+  // ---------------------------------------------------------------------
   // 1. Forecast header
   // ---------------------------------------------------------------------
   function renderHeader(forecast, metadata, manifest, pointer) {
     reveal("election-hero");
     var asOf = forecast.as_of || metadata.as_of || null;
     var electionDate = forecast.election_date || metadata.election_date || null;
-    setText("election-hero-asof", swedishDate(asOf) || asOf || "\u2014");
     setText("election-hero-election", swedishDate(electionDate) || electionDate || "\u2014");
 
-    var remaining = daysBetween(asOf, electionDate);
+    // The polling cell and the lede are not rendered from `as_of`; see
+    // "The polling input" below.  They wait for the history artifact, which
+    // resolves independently of this load and in either order.
+    pollingInput.pollHash = (metadata.input_hashes &&
+      typeof metadata.input_hashes.poll_data_hash === "string")
+      ? metadata.input_hashes.poll_data_hash : null;
+    pollingInput.samples = num(forecast.total_samples);
+    pollingInput.electionDate = electionDate;
+    pollingInput.ready = true;
+
+    // Two clocks answer "how fresh is this?", and they are not
+    // interchangeable: `as_of` is the newest polling input this forecast saw,
+    // `generated_at_utc` is when the simulation was run.  A re-run on
+    // unchanged polling moves the second and leaves the first where it was.
+    var generatedAt = metadata.generated_at_utc ||
+      (manifest && manifest.generated_at_utc) || null;
+    var generatedStamp = stockholmDateTime(generatedAt);
+
+    // Days to election day, counted from the day the forecast was computed --
+    // the only anchor that keeps this cell consistent with the election date
+    // printed beside it.  Counted from `as_of`, a forecast re-run a week after
+    // its newest poll printed a countdown that did not reach the published
+    // election day, which is arithmetic the reader can do in their head.
+    var remaining = daysBetween(
+      (generatedStamp && generatedStamp.day) || asOf, electionDate);
     var countdown = byId("election-hero-countdown");
     if (countdown) {
       if (remaining === null) {
@@ -553,21 +671,21 @@
       }
     }
 
-    // When this forecast was published, not merely which day its inputs run
+    // When this forecast was calculated, not merely which day its inputs run
     // to: two publications on the same day are two different forecasts, and
-    // "Underlag t.o.m." cannot tell them apart.  generated_at_utc is the
-    // publication's own instant and stays the authoritative statement; the
-    // relative age after it is a reader-clock convenience and is dropped
-    // whenever the instant itself cannot be read.
-    var generatedAt = metadata.generated_at_utc ||
-      (manifest && manifest.generated_at_utc) || null;
+    // "Senaste opinionsunderlag" cannot tell them apart.  The label says
+    // "beräknad" rather than "uppdaterad" because a new calculation is not by
+    // itself new information -- that is the reading this line has to stop.
+    // generated_at_utc is the publication's own instant and stays the
+    // authoritative statement; the relative age after it is a reader-clock
+    // convenience and is dropped whenever the instant itself cannot be read.
     var updated = byId("election-hero-updated");
     if (updated) {
-      var stamp = stockholmDateTime(generatedAt);
+      var stamp = generatedStamp;
       var printed = stamp ? stamp.text : swedishDate(generatedAt);
       if (printed) {
         var age = stamp ? relativeAge(stamp.instant) : null;
-        updated.innerHTML = "Uppdaterad <time id=\"election-hero-updated-time\" datetime=\"" +
+        updated.innerHTML = "Prognosen ber\u00e4knad <time id=\"election-hero-updated-time\" datetime=\"" +
           escapeHtml(generatedAt) + "\">" + escapeHtml(printed) + "</time>" +
           (age ? "<span class=\"election-hero__age\" id=\"election-hero-updated-age\"> \u00b7 " +
             escapeHtml(age) + "</span>" : "");
@@ -578,18 +696,7 @@
       }
     }
 
-    var samples = num(forecast.total_samples);
-    var lede = byId("election-hero-lede");
-    if (lede) {
-      var draws = samples === null
-        ? "ett publicerat antal"
-        : grouped(samples);
-      var asOfLabel = swedishDate(asOf) || asOf || "det publicerade underlaget";
-      var electionLabel = swedishDate(electionDate) || electionDate || "det publicerade valdatumet";
-      lede.textContent = "Valprognosen visar hur valet den " + electionLabel +
-        " kan sluta. Den bygger p\u00e5 underlag till och med " + asOfLabel +
-        " och " + draws + " simulerade valresultat.";
-    }
+    renderPollingInput();
 
     return isCertified(metadata, manifest);
   }
@@ -2370,7 +2477,7 @@
         " aria-controls=\"" + detailId + "\" aria-label=\"" + escapeHtml(label) + "\">" +
           "<span class=\"ev-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
           "<span class=\"ev-median\"><span class=\"ev-median__value\">" + format(party.vote_share_median, 1) + "</span><span class=\"ev-unit\">" + NBSP + "%</span>" +
-            inlineDelta(voteChange[name], 0.05, 1) + "</span>" +
+            inlineDelta(voteChange[name], VOTE_CHANGE.floor, VOTE_CHANGE.digits) + "</span>" +
           "<span class=\"ev-chart\" aria-hidden=\"true\">" +
             "<span class=\"ev-track\">" +
               "<span class=\"ev-threshold\" style=\"left:" + thresholdLeft.toFixed(3) + "%\"></span>" +
@@ -2482,7 +2589,7 @@
         row.innerHTML =
           "<span class=\"es-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
           "<span class=\"es-median\"><span class=\"es-median__value\">" + format(summary.median, 0) + "</span>" +
-            inlineDelta(seatChange[name], 0.5, 0) + "</span>" +
+            inlineDelta(seatChange[name], SEAT_CHANGE.floor, SEAT_CHANGE.digits) + "</span>" +
           "<span class=\"es-chart\" aria-hidden=\"true\">" +
             "<span class=\"es-track\">" +
               "<span class=\"es-majority\" style=\"left:" + majorityLeft.toFixed(3) + "%\"></span>" +
@@ -4124,6 +4231,111 @@
     });
   }
 
+  // ---------------------------------------------------------------------
+  // Polling freshness
+  //
+  // A forecast is re-run without new polling all the time -- an intraday
+  // re-publication, or a quiet stretch between houses.  The re-run has a
+  // shorter horizon to election day, so the medians and the intervals do move,
+  // and a reader who sees only the newer timestamp reads that movement as new
+  // opinion data.  It is not; the polling input behind it is the same.  So the
+  // page says so, in the one case where it can prove it.
+  //
+  // "The same" is `input_hashes.poll_data_hash`, which is the identity of the
+  // polling input and the only field that answers this exactly.  Neither date
+  // does: `as_of` advances on a quiet re-run (so it would stay silent when the
+  // note is most needed), and the newest poll date lives outside the frozen
+  // bundle.  The hash is byte-exact and is in every publication's metadata.
+  //
+  // Proving it needs the publication this one followed.  The generations this
+  // build ships are enumerated into the page at build time and each directory
+  // is named for its own publication instant, so the predecessor is the
+  // greatest name below the current one -- an ordering this page can actually
+  // establish, unlike the hash-named comparison baseline above.  The fetched
+  // metadata is believed only when it agrees with the directory it came from,
+  // and anything less than that resolves to null and prints nothing.
+  // ---------------------------------------------------------------------
+  function generationInstant(generation) {
+    return String(generation).split("-")[0];
+  }
+
+  function compactInstant(iso) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(String(iso || ""));
+    return match
+      ? match[1] + match[2] + match[3] + "T" + match[4] + match[5] + match[6] + "Z"
+      : null;
+  }
+
+  function precedingGeneration(current) {
+    if (typeof current !== "string") return null;
+    var earlier = publishedGenerations().filter(function (generation) {
+      return generation < current;
+    }).sort();
+    return earlier.length ? earlier[earlier.length - 1] : null;
+  }
+
+  function loadPrecedingPublication(current) {
+    var generation = precedingGeneration(current);
+    if (!generation) return Promise.resolve(null);
+    return getJson("metadata.json", base + "/versions/" + generation).then(function (metadata) {
+      if (!metadata || !pollDataHash(metadata) ||
+        compactInstant(metadata.generated_at_utc) !== generationInstant(generation)) {
+        return null;
+      }
+      return metadata;
+    }, function () {
+      return null;
+    });
+  }
+
+  function pollDataHash(metadata) {
+    return (metadata && metadata.input_hashes &&
+      typeof metadata.input_hashes.poll_data_hash === "string")
+      ? metadata.input_hashes.poll_data_hash : null;
+  }
+
+  // Silence is the default: the line appears only when the preceding
+  // publication is resolved, carries a printable instant, and drew on the very
+  // same polling input.  Naming that publication by its instant keeps the
+  // claim checkable rather than asking the reader to trust an ordering.
+  //
+  // Two things this deliberately does not say.
+  //
+  // It does not say the forecast is unchanged, or that it rests on the same
+  // inputs.  An equal `poll_data_hash` establishes exactly one thing -- that
+  // the poll source behind both publications is byte-identical, so no new
+  // individual measurement entered -- and the publication carries four other
+  // input hashes this never looks at.  The sentence is therefore scoped to the
+  // polls, which is what the hash actually witnesses.
+  //
+  // And it does not claim a shorter horizon on its own.  The model's horizon
+  // runs from `as_of` to election day, so an intraday re-run against an
+  // unchanged anchor has exactly the horizon its predecessor had --
+  // 20260828T064703Z followed 20260827T205828Z with both anchored on
+  // 2026-08-24.  The horizon sentence is added only once the anchor dates have
+  // been compared and the anchor has actually moved forward.
+  function renderPollFreshness(metadata, preceding) {
+    var node = byId("election-hero-poll-freshness");
+    if (!node) return;
+    var hash = pollDataHash(metadata);
+    var stamp = preceding ? stockholmDateTime(preceding.generated_at_utc) : null;
+    if (!hash || !stamp || pollDataHash(preceding) !== hash) {
+      node.textContent = "";
+      node.hidden = true;
+      return;
+    }
+    var anchor = typeof metadata.as_of === "string" ? metadata.as_of : null;
+    var priorAnchor = typeof preceding.as_of === "string" ? preceding.as_of : null;
+    var anchorMoved = anchor !== null && priorAnchor !== null && anchor > priorAnchor;
+    node.textContent = "Inga nya enskilda m\u00e4tningar i underlaget sedan " +
+      "f\u00f6reg\u00e5ende prognos (" + stamp.text + ")." +
+      (anchorMoved
+        ? " Prognosen \u00e4r omr\u00e4knad fr\u00e5n ett senare ankardatum, " +
+          "med kortare tid kvar till valdagen."
+        : "");
+    node.hidden = false;
+  }
+
   function generationSuffix(generation) {
     var dash = generation.indexOf("-");
     return dash === -1 ? "" : generation.slice(dash + 1);
@@ -4186,26 +4398,46 @@
     return day ? "prognosen " + day : "en tidigare prognos";
   }
 
+  // One definition of each section's noise floor, read by the chip that
+  // applies it and by the caption that states it, so the sentence cannot drift
+  // from the rule.  Percentage points resolve to 0,05; a seat median moves in
+  // whole seats, so its floor is half a seat.
+  var VOTE_CHANGE = {
+    unit: "i procentenheter", floor: 0.05, digits: 1,
+    floorLabel: "0,05 procentenheter",
+    field: "vote_share_median_change_pp"
+  };
+  var SEAT_CHANGE = {
+    unit: "i mandat", floor: 0.5, digits: 0,
+    floorLabel: "ett halvt mandat",
+    field: "seat_median_change"
+  };
+
   // A section's chips each imply a "since when?", and answering it beside
-  // every median would be noise.  Each section names its own unit and the
-  // baseline once, both from the same resolved snapshot, so the two sections
-  // cannot disagree about what they are comparing against.
+  // every median would be noise.  Each section names its own unit, its own
+  // floor and the baseline once, the baseline from the same resolved snapshot,
+  // so the two sections cannot disagree about what they are comparing against.
+  //
+  // The floor is stated rather than left implicit: a reader who sees a dot
+  // beside a median otherwise has no way to tell "did not move" from "moved by
+  // less than this publication can resolve".
   //
   // "Efter", not "under": the chip stacks below the median on wide screens and
   // sits beside it on narrow ones, and reading order is what both layouts
   // share.
-  function renderChangeCaption(id, forecast, prior, unit, field) {
+  function renderChangeCaption(id, forecast, prior, kind) {
     var node = byId(id);
     if (!node) return;
     var change = forecast.change_since_prior || {};
-    if (change.status !== "AVAILABLE" || !change[field]) {
+    if (change.status !== "AVAILABLE" || !change[kind.field]) {
       node.textContent = "";
       node.hidden = true;
       return;
     }
-    node.textContent = "Efter varje median visas f\u00f6r\u00e4ndringen " + unit +
+    node.textContent = "Efter varje median visas f\u00f6r\u00e4ndringen " + kind.unit +
       " j\u00e4mf\u00f6rt med " + priorLabel(prior, change) +
-      ". En punkt betyder ingen tydlig f\u00f6r\u00e4ndring.";
+      ". En punkt betyder ingen tydlig f\u00f6r\u00e4ndring: mindre \u00e4n " +
+      kind.floorLabel + ".";
     node.hidden = false;
   }
 
@@ -4339,8 +4571,10 @@
     reveal("election-meta");
     var certified = isCertified(metadata, manifest);
     var rows = [
-      ["Senast genererad", metadata.generated_at_utc || "\u2014"],
-      ["Opinionsl\u00e4ge", metadata.as_of || "\u2014"],
+      ["Prognosen ber\u00e4knad (UTC)", metadata.generated_at_utc || "\u2014"],
+      // Not "senaste opinionsunderlag": this is the day the forecast is
+      // anchored at, and it advances on a re-run that saw no new poll.
+      ["Prognosens ankardatum", metadata.as_of || "\u2014"],
       ["Valdag", metadata.election_date || "\u2014"],
       ["Modell", (metadata.model && metadata.model.version) || "\u2014"],
       ["Valresultatsbrus", metadata.election_noise_law
@@ -4379,13 +4613,21 @@
       // manifest, so they alone land on a promise.  A failed lookup costs
       // precision in those two sentences and nothing else.  Hiding the load
       // status last keeps "loaded" honest.
-      return resolvePriorPublication(data[0])
-        .catch(function () { return null; })
-        .then(function (prior) {
-          renderChangeCaption("election-vote-change-note", data[0], prior,
-            "i procentenheter", "vote_share_median_change_pp");
-          renderChangeCaption("election-seat-change-note", data[0], prior,
-            "i mandat", "seat_median_change");
+      // Two independent lookups against earlier publications: the hash-named
+      // comparison baseline the captions cite, and the publication this one
+      // immediately followed, which is what "did any new poll arrive?" is
+      // about.  They answer different questions and are allowed to resolve to
+      // different generations -- or to nothing.
+      return Promise.all([
+        resolvePriorPublication(data[0]).catch(function () { return null; }),
+        loadPrecedingPublication(publication.pointer &&
+          publication.pointer.publication_generation).catch(function () { return null; })
+      ])
+        .then(function (resolved) {
+          var prior = resolved[0];
+          renderPollFreshness(data[5], resolved[1]);
+          renderChangeCaption("election-vote-change-note", data[0], prior, VOTE_CHANGE);
+          renderChangeCaption("election-seat-change-note", data[0], prior, SEAT_CHANGE);
           // The status strings stay in the DOM as the published load contract,
           // but a successful load has no news for the reader, so it is hidden.
           status.textContent = certified ? "Certified forecast loaded." : "Forecast loaded, but it is not certified.";
@@ -4403,6 +4645,9 @@
   // when it is present, the section validates and renders it independently.
   if (byId("election-timeseries")) {
     getJson("history/coalition-timeseries.json", base).then(function (history) {
+      // Provenance first, and independently: the polling date is read from the
+      // raw artifact whether or not the chart can be drawn from it.
+      readHistoryPollingInput(history);
       if (!renderForecastHistory(history)) {
         var invalidSection = byId("election-timeseries");
         if (invalidSection) invalidSection.setAttribute("data-history-state", "invalid");
