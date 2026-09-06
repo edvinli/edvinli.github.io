@@ -16,8 +16,9 @@
     var asOf = document.getElementById("election-hero-asof");
     var label = asOf && asOf.previousElementSibling;
     var latest = pollDate();
-    if (label) label.textContent = latest ? "Opinionsunderlag t.o.m." : "Prognosdag";
-    if (latest && asOf) asOf.textContent = latest;
+    var labelText = latest ? "Opinionsunderlag t.o.m." : "Prognosdag";
+    if (label && label.textContent !== labelText) label.textContent = labelText;
+    if (latest && asOf && asOf.textContent !== latest) asOf.textContent = latest;
 
     var updated = document.getElementById("election-hero-updated");
     if (updated && updated.firstChild && updated.firstChild.nodeType === 3 &&
