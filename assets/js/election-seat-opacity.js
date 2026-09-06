@@ -56,6 +56,7 @@
     if (!nav) return;
 
     var links = [
+      ["election-blocs", "Chansen till egen majoritet"],
       ["election-timeseries", "Vägen till valdagen"],
       ["election-alternatives", "Regeringsalternativ"],
       ["election-government-builder", "Bygg din egen regering"],

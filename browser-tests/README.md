@@ -40,6 +40,7 @@ node browser-tests/party-timeseries.smoke.mjs              # fixture mode
 node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
 node browser-tests/party-timeseries.contract.mjs    # static, no browser
 node browser-tests/changes-baseline.smoke.mjs
+node browser-tests/bloc-summary.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -524,6 +525,68 @@ build time into a `<script type="application/json">` block. It is
 build-generated, never hand-written: the suite checks that no generation id
 appears literally in the page source, and that the block matches the
 directories the built site actually ships.
+
+### 10. `bloc-summary.smoke.mjs` — the parliamentary headline and the opening range
+
+Owns the panel directly under the hero and the chart's opening range, both
+added for the final week before election day.
+
+**The panel is a rendering, not a calculation.** Every number in it already
+exists in `groups.json`: each named bloc carries a joint `prob_majority`,
+`median_seats` and quantiles over the same 100 000 draws as the rest of the
+page. The suite reads its expectations out of that file and compares them to
+the DOM, so a frontend that started deriving its own probability — summing
+party medians, counting a histogram — would disagree with the artifact rather
+than with a constant someone typed into a test. A source guard backs that up
+by slicing out `renderBlocSummary` and asserting it mentions no
+`seat_histogram`, no `total_samples` and no reduction.
+
+**Rounding, and why the bounds are checked before it.** The headline is whole
+percent: at a glance the reader is deciding *likely / unlikely / too close to
+call*, and a second decimal there is precision the eye cannot use. But
+rounding must never manufacture certainty, so anything strictly inside the
+interval that would round to 0 or 100 prints as `<1 %` or `>99 %` instead.
+Three generations are pinned to cover that rule against real payloads:
+
+| generation | published | printed | why it is pinned |
+|---|---|---|---|
+| `20260906T081926Z-92521273` | 0.97944 / 0.02056 | `98 %` / `2 %` | the ordinary case, and the live publication |
+| `20260827T205828Z-e6c6ee97` | 0.99714 / 0.00286 | `>99 %` / `<1 %` | both bounds in one publication |
+| `20260903T110151Z-68041c74` | 0.98945 / 0.01055 | `99 %` / `1 %` | the boundary: 98.945 rounds **up** to 99 and 1.055 rounds **down** to 1, so a bound test written against the *rounded* figure would wrongly print `>99 %` and `<1 %` here |
+
+The exact published frequency stays on the tile in `data-prob-majority`, and
+the suite asserts both that it is the published value and that it is *not*
+what the tile prints — the rounding is presentation, and the record has to
+remain recoverable from the page.
+
+**The majority claim.** The panel talks in seats, never in a share of the
+chamber: 175 of 349 is the rule the reader is being asked about. The suite
+checks that the intro names both numbers, that the disclaimer says this is not
+a probability of forming a government, and that each tile's `aria-label`
+speaks the same rounded figure the tile prints — two readers of one page
+should not come away with different probabilities.
+
+**The opening range.** In the final week the chart opens on *Sista 30 dagarna*
+instead of *Sedan 2022*, decided by the published election date against the
+latest published forecast — never the reader's clock. Both controls stay, and
+the suite proves the full history is still reachable by clicking it. A fourth
+run serves the site's own history artifact with `election_date` moved out to
+13 October — the one field the rule reads — and asserts the chart opens on the
+full range again.
+
+**The endpoint stays the endpoint.** The chart still ends at the latest
+published forecast; nothing is drawn between it and election day. The suite
+asserts the x-domain ends on the latest published point, that no axis tick
+reaches past it, that both drawn series end on a marked current point drawn
+heavier than the interior points, and that the key names it *Senaste prognos*.
+
+Note that `forecast-timeseries.smoke.mjs` and `party-timeseries.smoke.mjs`
+both became sensitive to this default. The first now asserts its fixture sits
+outside the final week alongside each "Sedan 2022 is the default" expectation,
+so a fixture refresh that walks the last point closer to election day fails
+with the reason rather than with a bare `aria-pressed` mismatch; the second
+remembers the range it opened in rather than assuming `full`, because the
+y-domain it compares is derived from the visible window.
 
 ## Determinism: pin the generation you assert against
 
