@@ -839,6 +839,153 @@
   }
 
   // ---------------------------------------------------------------------
+  // 1c. The 4 % threshold
+  //
+  // The national threshold is the one place where a small move in vote share
+  // stops being a small move in seats, so it deserves saying out loud rather
+  // than being left as a tick mark on a bar.  This panel triages: which
+  // parties is the rule actually deciding?
+  //
+  // Everything printed comes out of `parties.json`.  `prob_above_4pct` is the
+  // publication's own frequency over the same simulated results as the rest of
+  // the page, and it is rendered, never rebuilt: the frontend has no draws to
+  // count and no business inferring a probability from a median and an
+  // interval.  Nothing here touches the local 12 % exception either -- the
+  // publication carries a separate field for it, and a panel about the
+  // national rule must not quietly speak for the other one.
+  //
+  // Two published booleans decide who may appear at all.  REST is the reason
+  // they exist: it carries a `prob_above_4pct` of its own, which is meaningless
+  // -- it is aggregate vote mass for parties modelled as ineligible and cannot
+  // qualify for anything -- so the flags are checked rather than the party
+  // name, and any future ineligible row is excluded by the same test.
+  // ---------------------------------------------------------------------
+  var THRESHOLD_PCT = 4;
+
+  // Threshold-relevant, defined from the published distribution and the
+  // published probability, so the panel's membership never depends on anyone's
+  // reading of the current numbers.
+  //
+  // Two limbs, because either alone has a blind spot:
+  //
+  //   * the probability limb catches a party the rule is deciding *against*.
+  //     A party at 0,5 % chance of clearing 4 % is maximally threshold-
+  //     relevant and its 90 % interval can sit entirely below the line, so an
+  //     interval test alone would drop exactly the party most at risk.
+  //   * the interval limb catches a party whose published interval straddles
+  //     the line even though its probability reads high, which a skewed
+  //     distribution can produce.
+  //
+  // The 0.99 bound is not a new constant: it is where headlineProbability
+  // stops printing a figure and starts printing ">99 %".  So the rule reads as
+  // one sentence -- a party appears unless its chance of clearing the
+  // threshold is a headline near-certainty -- and the panel cannot show a row
+  // whose own headline says there is nothing to worry about.
+  var THRESHOLD_NEAR_CERTAIN = 0.99;
+
+  function thresholdRelevant(party) {
+    if (party.eligible_for_national_threshold !== true) return false;
+    if (party.threshold_probability_defined !== true) return false;
+    var probability = num(party.prob_above_4pct);
+    var low = num(party.vote_share_p05);
+    var high = num(party.vote_share_p95);
+    if (probability === null || low === null || high === null) return false;
+    var straddles = low <= THRESHOLD_PCT && THRESHOLD_PCT <= high;
+    return probability <= THRESHOLD_NEAR_CERTAIN || straddles;
+  }
+
+  function thresholdCell(caption, value, field) {
+    return "<span class=\"et-cell" + (field === "probability" ? " et-cell--prob" : "") +
+        "\" aria-hidden=\"true\">" +
+      "<span class=\"et-label\">" + caption + "</span>" +
+      "<span class=\"et-value\" data-threshold-" + field + "=\"true\">" +
+        escapeHtml(value) + "</span></span>";
+  }
+
+  function renderThresholdPanel(parties) {
+    var section = byId("election-threshold");
+    var host = byId("election-threshold-rows");
+    if (!section || !host || !parties || !Array.isArray(parties.parties)) return;
+
+    var order = Array.isArray(parties.party_order) ? parties.party_order : [];
+    var rows = parties.parties.filter(thresholdRelevant).filter(function (party) {
+      // Ordered by the publication's own party_order, so the panel never
+      // invents a ranking -- least of all one by risk, which would read as a
+      // league table of who is about to fall out.
+      return order.indexOf(party.party) !== -1;
+    }).sort(function (left, right) {
+      return order.indexOf(left.party) - order.indexOf(right.party);
+    });
+
+    // No row means the rule is deciding nothing right now, and a panel saying
+    // so would be noise: every party's own threshold probability is on its
+    // card either way.
+    if (!rows.length) return;
+
+    // A list, not a table: each row already speaks a whole sentence, and the
+    // narrow layout hides the header strip entirely -- a table whose headers
+    // disappear at phone width is worse than no table. The strip is column
+    // labelling for the eye only, and every cell repeats its own caption in
+    // the stacked layout.
+    var header = "<div class=\"et-row et-row--head\" aria-hidden=\"true\">" +
+      "<span class=\"et-cell et-cell--party\">Parti</span>" +
+      "<span class=\"et-cell\">Median</span>" +
+      "<span class=\"et-cell\">90&#160;% intervall</span>" +
+      "<span class=\"et-cell et-cell--prob\">Chans att n\u00e5 4&#160;%</span>" +
+      "</div>";
+
+    host.innerHTML = header + rows.map(function (party) {
+      var name = party.party;
+      var median = percent(party.vote_share_median, 1);
+      var interval = percentRange(party.vote_share_p05, party.vote_share_p95, 1);
+      var chance = headlineProbability(party.prob_above_4pct);
+      var spoken = (partyNames[name] || name) + " (" + abbr(name) + "): median " +
+        format(party.vote_share_median, 1) + " procent, 90-procentigt prognosintervall " +
+        format(party.vote_share_p05, 1) + " till " + format(party.vote_share_p95, 1) +
+        " procent, sannolikhet att n\u00e5 fyraprocentssp\u00e4rren " + chance + ".";
+      return "<div class=\"et-row\" role=\"listitem\" data-threshold-party=\"" + escapeHtml(name) +
+          "\" data-prob-above-4pct=\"" + escapeHtml(String(party.prob_above_4pct)) +
+          "\" data-vote-median=\"" + escapeHtml(String(party.vote_share_median)) +
+          "\" data-vote-p05=\"" + escapeHtml(String(party.vote_share_p05)) +
+          "\" data-vote-p95=\"" + escapeHtml(String(party.vote_share_p95)) +
+          "\" aria-label=\"" + escapeHtml(spoken) + "\">" +
+        "<span class=\"et-cell et-cell--party\">" +
+          "<span class=\"ev-swatch\" style=\"background:" + (partyColors[name] || "#777") +
+            "\" aria-hidden=\"true\"></span>" +
+          "<span class=\"et-abbr\">" + escapeHtml(abbr(name)) + "</span>" +
+          "<span class=\"et-name\">" + escapeHtml(partyNames[name] || name) + "</span>" +
+        "</span>" +
+        thresholdCell("Median", median, "median") +
+        thresholdCell("90&#160;% intervall", interval, "interval") +
+        thresholdCell("Chans att n\u00e5 4&#160;%", chance, "probability") +
+      "</div>";
+    }).join("");
+
+    // Only claimed when the publication actually shows it: a party whose seat
+    // median is zero while its chance of clearing the threshold is not.  Left
+    // unsaid otherwise, so the page never explains a situation it is not
+    // displaying.
+    var zeroSeats = rows.filter(function (party) {
+      return num(party.seats_median) === 0 && num(party.prob_above_4pct) > 0;
+    });
+    var zeroNote = byId("election-threshold-zero-seats");
+    if (zeroNote) {
+      if (zeroSeats.length) {
+        var named = zeroSeats.map(function (party) { return abbr(party.party); }).join(", ");
+        zeroNote.textContent = "Noll mandat i median betyder inte noll chans att komma in. " +
+          "F\u00f6r " + named + " \u00e4r noll mandat det mest sannolika utfallet, " +
+          "medan chansen att n\u00e5 4\u00a0% st\u00e5r i tabellen ovan.";
+        zeroNote.hidden = false;
+      } else {
+        zeroNote.textContent = "";
+        zeroNote.hidden = true;
+      }
+    }
+
+    section.hidden = false;
+  }
+
+  // ---------------------------------------------------------------------
   // Historical coalition forecast
   //
   // This is a separate, lookup-only publication.  The historical JSON is
@@ -4730,6 +4877,11 @@
       // anchored at, and it advances on a re-run that saw no new poll.
       ["Prognosens ankardatum", metadata.as_of || "\u2014"],
       ["Valdag", metadata.election_date || "\u2014"],
+      // Where the threshold panel's probability comes from. It is provenance,
+      // not reader-facing copy: the panel says what the number means, this
+      // says which published field it is and that the page does not rebuild
+      // it.
+      ["Sp\u00e4rrsannolikhet", "parties.json: prob_above_4pct (publicerad, ber\u00e4knas inte om i webbl\u00e4saren)"],
       ["Modell", (metadata.model && metadata.model.version) || "\u2014"],
       ["Valresultatsbrus", metadata.election_noise_law
         ? metadata.election_noise_law + " (kandidat " + (metadata.election_noise_candidate || "\u2014") + ")"
@@ -4758,6 +4910,8 @@
       // Above the chart, and before anything that needs the coalition table:
       // it reads the published bloc summaries directly.
       renderBlocSummary(data[3]);
+      // Threshold triage reads the same party contract the vote rows render.
+      renderThresholdPanel(data[1]);
       renderVotes(data[0], data[1]);
       renderSeats(data[2], Boolean(publication.pointer), data[0]);
       var coalitionTable = validatedCoalitionBuilder(data[3], data[0] && data[0].total_samples);

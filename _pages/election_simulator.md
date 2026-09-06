@@ -168,6 +168,27 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda regeringspartierna tillsammans får minst 175 mandat i valdagsprognosen – inte sannolikheten att de faktiskt bildar regering.</p>
   </section>
+  <!-- Threshold triage, immediately before the full vote-share list: which
+       parties the 4 % rule is actually deciding. Rendered only for parties the
+       publication marks eligible with a defined threshold probability, and
+       only while at least one of them is close enough to matter; hidden
+       otherwise. Every number is read from parties.json. -->
+  <section id="election-threshold" class="election-panel election-threshold" hidden aria-labelledby="election-threshold-title">
+    <div class="election-panel__head">
+      <h2 id="election-threshold-title">4&#160;%-spärren</h2>
+      <p class="election-muted" id="election-threshold-intro">Huvudregeln är minst 4&#160;% av rösterna i hela landet. Här visas de partier vars prognos ligger nära den gränsen.</p>
+    </div>
+    <div id="election-threshold-rows" class="et-rows" role="list" aria-labelledby="election-threshold-title"></div>
+    <p class="et-note election-muted" id="election-threshold-discontinuity">Spärren gör utfallet hoppigt: några tiondelar åt endera hållet är skillnaden mellan noll mandat och ett tjugotal. Osäkerheten i röstandelen blir därför inte en jämn osäkerhet i mandat.</p>
+    <p class="et-note election-muted" id="election-threshold-zero-seats" hidden></p>
+    <!-- The 4 % rule is the main rule, not the only one: a party with at least
+         12 % in a single constituency takes part in that constituency's fixed
+         seat allocation. The panel's column is the national rule, so the
+         exception is stated rather than left to imply that 4 % is absolute.
+         No probability is attached to it: the publication carries the local
+         exception in a field of its own, and this page does not speak for it. -->
+    <p class="et-note election-muted" id="election-threshold-exception">Undantag: ett parti med minst 12&#160;% av rösterna i en enskild valkrets deltar i fördelningen av den valkretsens fasta mandat, även utan 4&#160;% i hela landet. Sannolikheten i tabellen gäller huvudregeln.</p>
+  </section>
   <section id="election-headline" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Röstandelar på valdagen</h2>

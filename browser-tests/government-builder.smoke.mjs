@@ -386,14 +386,17 @@ async function testSchema12(viewport, pointer, expected) {
     eq('the removed Majoritetsscenarier nodes are gone', panel.legacyGroups, []);
 
     // Chansen till egen majoritet -> Vägen till valdagen -> Regeringsalternativ
-    // -> Bygg din egen regering -> Röstandelar på valdagen -> Mandat på
-    // valdagen. The bloc summary leads: it is the one section that answers
-    // the question before asking the reader to read a chart.
+    // -> Bygg din egen regering -> 4 %-spärren -> Röstandelar på valdagen ->
+    // Mandat på valdagen. The bloc summary leads: it is the one section that
+    // answers the question before asking the reader to read a chart. The
+    // threshold triage sits immediately before the full vote-share list it
+    // triages.
     eq('page section order', panel.sectionOrder, [
       'election-blocs',
       'election-timeseries',
       'election-alternatives',
       'election-government-builder',
+      'election-threshold',
       'election-headline',
       'election-seats',
       'election-how-it-works',
