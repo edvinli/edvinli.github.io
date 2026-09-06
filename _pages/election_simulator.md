@@ -45,6 +45,18 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
+  <!-- The parliamentary headline, above the historical chart: what the current
+       forecast says about a majority, before the reader is asked to read a
+       time series. Rendered from the publication's own named blocs; hidden
+       until one resolves. -->
+  <section id="election-blocs" class="election-panel election-blocs" hidden aria-labelledby="election-blocs-title">
+    <div class="election-panel__head">
+      <h2 id="election-blocs-title">Chansen till egen majoritet</h2>
+      <p class="election-muted" id="election-blocs-intro">De två blocken i valdagsprognosen. Sannolikheten gäller att blocket får minst 175 av riksdagens 349 mandat.</p>
+    </div>
+    <div id="election-blocs-rows" class="eb-rows" role="list"></div>
+    <p class="eb-disclaimer" id="election-blocs-disclaimer">Sannolikheten avser att blockets partier tillsammans får minst 175 mandat – inte sannolikheten att de bildar regering. Ett block utan egen majoritet kan ändå hamna i regeringsställning.</p>
+  </section>
   <section id="election-timeseries" class="election-panel election-timeseries" hidden>
     <div class="election-panel__head">
       <h2>Vägen till valdagen</h2>
@@ -77,6 +89,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p class="election-timeseries__key election-muted">
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
+      <span class="election-timeseries__key-item" id="election-timeseries-key-current"><span class="election-timeseries__key-mark election-timeseries__key-mark--current" aria-hidden="true"></span>Senaste prognos</span>
     </p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Koalitionernas röstandelar beräknas över de åtta riksdagspartierna.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-party-note" hidden>Ett partis röstandel är dess andel av hela valmanskåren, med övriga partier i nämnaren. Det är samma definition som valdagsprognosen och som 4&#160;%-spärren.</p>

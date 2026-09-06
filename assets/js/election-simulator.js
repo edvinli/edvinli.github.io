@@ -41,6 +41,9 @@
 
   var MAJORITY = 175;
   var CHAMBER = 349;
+  // "The final week": the chart opens on the 30-day range once election day is
+  // this close to the latest published forecast.
+  var FINAL_WEEK_DAYS = 7;
   var EN_DASH = "\u2013";
   var NBSP = "\u00a0";
   // Abbreviating "procentenheter" has no settled Swedish form, so the unit is
@@ -437,6 +440,27 @@
     return percent(pct, 1);
   }
 
+  // The first-screen summary rounds to whole percent: at a glance the reader is
+  // deciding "likely / unlikely / too close to call", and a second decimal
+  // there is precision the eye cannot use.  The exact published frequency is
+  // untouched and stays in the payload, and in the row's data attribute.
+  //
+  // Rounding never manufactures certainty at either end.  Anything strictly
+  // inside the interval that would round to 0 or 100 is printed as a bound
+  // instead, so "<1 %" and ">99 %" mean "possible but unlikely" and "likely
+  // but not certain"; only an exact 0 or 1 in the payload prints as 0 % or
+  // 100 %.
+  function headlineProbability(value) {
+    var parsed = num(value);
+    if (parsed === null) return "\u2014";
+    if (parsed <= 0) return "0" + NBSP + "%";
+    if (parsed >= 1) return "100" + NBSP + "%";
+    var pct = parsed * 100;
+    if (pct < 1) return "<1" + NBSP + "%";
+    if (pct > 99) return ">99" + NBSP + "%";
+    return String(Math.round(pct)) + NBSP + "%";
+  }
+
   // Histogram framing keeps two decimal places so the reader can reconcile
   // the displayed percentage with the exact published draw count (for
   // example, 2.216% is shown as 2,22%).  The existing probability formatter
@@ -699,6 +723,119 @@
     renderPollingInput();
 
     return isCertified(metadata, manifest);
+  }
+
+  // ---------------------------------------------------------------------
+  // 1b. The parliamentary headline
+  //
+  // A visitor arriving in the final week wants one thing before any chart:
+  // can either side govern on its own?  That question is already answered in
+  // the publication -- `groups.json` carries a joint `prob_majority`, median
+  // and quantiles for each named bloc, computed over the same 100 000 draws as
+  // everything else on the page.  So this panel is a rendering, not a
+  // calculation: nothing here counts draws, combines parties or derives a
+  // probability, and a bloc the publication does not carry simply does not
+  // appear.
+  //
+  // The blocs are the two the chart already draws by default, named and
+  // coloured from the same HISTORY_COALITIONS table, so the summary and the
+  // series below it cannot disagree about what a bloc is.  The pairing is
+  // verified by party set before it is trusted: a publication that redefined
+  // `tido` would otherwise be silently relabelled with the chart's wording.
+  //
+  // Seats, not seat share.  175 of 349 is the rule the reader is being asked
+  // about, and a percentage of the chamber is one conversion away from it.
+  // ---------------------------------------------------------------------
+  function sameParties(left, right) {
+    if (!Array.isArray(left) || !Array.isArray(right)) return false;
+    if (left.length !== right.length) return false;
+    var sortedLeft = left.slice().sort();
+    var sortedRight = right.slice().sort();
+    return sortedLeft.every(function (party, index) {
+      return party === sortedRight[index];
+    });
+  }
+
+  // Every field the panel prints, or nothing: a bloc missing one of them would
+  // otherwise render a row with an em dash where a headline number belongs.
+  function blocSummary(groups, definition) {
+    var published = groups && groups.groups && groups.groups[definition.id];
+    if (!published || !sameParties(published.parties, definition.parties)) return null;
+    var probability = num(published.prob_majority);
+    var median = num(published.median_seats);
+    var low = num(published.p05_seats);
+    var high = num(published.p95_seats);
+    if (probability === null || median === null || low === null || high === null) return null;
+    // The panel states 175; a publication that counted majority differently
+    // would make that sentence wrong, so it is checked rather than assumed.
+    var threshold = num(published.majority_threshold);
+    if (threshold !== null && threshold !== MAJORITY) return null;
+    return {
+      definition: definition,
+      probability: probability,
+      median: median,
+      low: low,
+      high: high
+    };
+  }
+
+  function renderBlocSummary(groups) {
+    var section = byId("election-blocs");
+    var host = byId("election-blocs-rows");
+    if (!section || !host) return;
+
+    var rows = HISTORY_COALITIONS.filter(function (definition) {
+      return definition.defaultOn;
+    }).map(function (definition) {
+      return blocSummary(groups, definition);
+    }).filter(function (row) { return row !== null; });
+    if (!rows.length) return;
+
+    host.innerHTML = rows.map(function (row) {
+      var swatches = row.definition.parties.map(function (party) {
+        return "<span class=\"ev-swatch\" style=\"background:" +
+          (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>";
+      }).join("");
+      var chance = headlineProbability(row.probability);
+      var interval = rangeText(row.low, row.high, 0);
+      // One sentence per tile, so a screen reader hears the claim whole and
+      // never has to assemble it from three separate numbers. It says the same
+      // rounded figure the tile prints: two readers of the same page should
+      // not come away with different probabilities.
+      var spoken = row.definition.parties.join(" plus ") +
+        ": sannolikhet f\u00f6r minst " + MAJORITY + " mandat " + chance +
+        ", median " + format(row.median, 0) + " mandat, centralt 90-procentigt " +
+        "prognosintervall " + interval + " mandat.";
+      return "<div class=\"eb-bloc\" role=\"listitem\" data-bloc=\"" +
+          escapeHtml(row.definition.id) + "\" data-prob-majority=\"" +
+          escapeHtml(String(row.probability)) + "\" data-median-seats=\"" +
+          escapeHtml(String(row.median)) + "\" data-p05-seats=\"" +
+          escapeHtml(String(row.low)) + "\" data-p95-seats=\"" +
+          escapeHtml(String(row.high)) + "\" aria-label=\"" + escapeHtml(spoken) + "\">" +
+        "<p class=\"eb-bloc__name\">" +
+          "<span class=\"eb-bloc__swatches\" aria-hidden=\"true\">" + swatches + "</span>" +
+          "<span class=\"eb-bloc__text\">" + escapeHtml(row.definition.label) + "</span>" +
+        "</p>" +
+        "<p class=\"eb-bloc__chance\" aria-hidden=\"true\">" +
+          // Split at the non-breaking space the formatter already puts before
+          // the sign, so the percent sign can be set smaller than the figure
+          // without a second formatter deciding what the figure says.
+          "<span class=\"eb-bloc__value\" data-bloc-probability=\"true\">" +
+            "<span class=\"eb-bloc__number\">" +
+              escapeHtml(chance.split(NBSP)[0]) + "</span>" + NBSP +
+            "<span class=\"eb-bloc__unit\">" +
+              escapeHtml(chance.split(NBSP)[1] || "") + "</span></span>" +
+          "<span class=\"eb-bloc__word\">sannolikhet f\u00f6r egen majoritet</span>" +
+        "</p>" +
+        "<dl class=\"eb-bloc__seats\" aria-hidden=\"true\">" +
+          "<div><dt>Median</dt><dd data-bloc-median=\"true\">" +
+            escapeHtml(format(row.median, 0)) + " mandat</dd></div>" +
+          "<div><dt>90&#160;% intervall</dt><dd data-bloc-interval=\"true\">" +
+            escapeHtml(interval) + " mandat</dd></div>" +
+        "</dl>" +
+      "</div>";
+    }).join("");
+    section.hidden = false;
   }
 
   // ---------------------------------------------------------------------
@@ -1485,8 +1622,16 @@
     var selectedParties = {};
     var partyButtons = {};
     var selectedMetric = "vote";
-    // "Sedan 2022" stays the opening range; "Sista 30 dagarna" is the
-    // election-relative zoom on the most recent movement.
+    // "Sedan 2022" is the opening range for most of the cycle. In the final
+    // week it is not what the visitor came for: four years of history compress
+    // the movement that is actually deciding the election into the last few
+    // pixels. So the closing week opens on "Sista 30 dagarna" instead, and
+    // both buttons stay exactly as they were -- the full history is one click
+    // away and nothing is removed.
+    //
+    // The switch is driven by the published election date against the latest
+    // published forecast, never the reader's clock, so the opening view is a
+    // property of the publication and is reproducible from it.
     var selectedRange = "full";
     var selected = {};
     var selectedDate = null;
@@ -1515,6 +1660,15 @@
     var latestPointIso = latestPoint.date;
     var shortRangeStart = historyDateOffset(latestPointIso, -30);
     var shortRangeEnd = historyDate(latestPointIso);
+    // The closing week, counted from the latest published forecast to election
+    // day. The window itself is unchanged -- still the last 30 days of
+    // published history, still ending at the latest forecast -- only which of
+    // the two ranges opens.
+    var daysToElection = daysBetween(latestPointIso, history.electionDate);
+    if (shortRangeStart && shortRangeEnd &&
+      daysToElection !== null && daysToElection >= 0 && daysToElection <= FINAL_WEEK_DAYS) {
+      selectedRange = "short";
+    }
     history.definitions.forEach(function (definition) {
       selected[definition.id] = Boolean(definition.defaultOn);
     });
@@ -4601,6 +4755,9 @@
       var data = publication.files;
       validatePublicationBundle(data, publication.pointer, publication.manifest_sha256);
       renderHeader(data[0], data[5], data[6], publication.pointer);
+      // Above the chart, and before anything that needs the coalition table:
+      // it reads the published bloc summaries directly.
+      renderBlocSummary(data[3]);
       renderVotes(data[0], data[1]);
       renderSeats(data[2], Boolean(publication.pointer), data[0]);
       var coalitionTable = validatedCoalitionBuilder(data[3], data[0] && data[0].total_samples);

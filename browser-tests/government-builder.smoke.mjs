@@ -385,9 +385,12 @@ async function testSchema12(viewport, pointer, expected) {
     eq('no legacy card-list containers in DOM', panel.legacyIds, []);
     eq('the removed Majoritetsscenarier nodes are gone', panel.legacyGroups, []);
 
-    // Vägen till valdagen -> Regeringsalternativ -> Bygg din egen regering
-    // -> Röstandelar på valdagen -> Mandat på valdagen.
+    // Chansen till egen majoritet -> Vägen till valdagen -> Regeringsalternativ
+    // -> Bygg din egen regering -> Röstandelar på valdagen -> Mandat på
+    // valdagen. The bloc summary leads: it is the one section that answers
+    // the question before asking the reader to read a chart.
     eq('page section order', panel.sectionOrder, [
+      'election-blocs',
       'election-timeseries',
       'election-alternatives',
       'election-government-builder',

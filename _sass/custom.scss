@@ -607,9 +607,14 @@ canvas {
   stroke-width: 2.9;
 }
 
+/* The rightmost point of every series is the latest published forecast, and
+   the chart deliberately stops there -- nothing is drawn between it and
+   election day. A heavier ring than the interior points makes that endpoint
+   read as the current value rather than as one observation among many; the
+   key below the chart names it. */
 .election-timeseries__current {
   stroke: var(--el-panel);
-  stroke-width: 1.6;
+  stroke-width: 2.2;
 }
 
 .election-timeseries__poll {
@@ -702,6 +707,17 @@ canvas {
   width: 0.38rem;
 }
 
+/* The same shape as the endpoint it names: a filled dot inside a panel-
+   coloured ring. */
+.election-timeseries__key-mark--current {
+  background: var(--el-ink);
+  border: 2px solid var(--el-panel);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--el-rule);
+  height: 0.6rem;
+  width: 0.6rem;
+}
+
 .election-timeseries__key-mark--forecast {
   background: linear-gradient(to right,
     rgba(44, 42, 37, 0.18) 0 42%,
@@ -709,6 +725,120 @@ canvas {
     var(--el-ink) 72% 76%,
     transparent 76% 100%);
   height: 0.78rem;
+}
+
+/* --- The parliamentary headline ------------------------------------------
+   Two tiles, one per published bloc, directly under the hero.  They carry the
+   one question a visitor arrives with in the final week -- can either side
+   govern alone? -- so the probability is the largest thing in the tile and the
+   seat numbers sit under it as supporting detail.
+
+   Tiles rather than rows: a row that has to hold a name, a probability, a
+   median and an interval either wraps badly or shrinks its headline at phone
+   width, and this block has to survive first contact on a phone. */
+
+.election-blocs {
+  margin-bottom: 1.4rem;
+}
+
+.eb-rows {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1.1rem;
+}
+
+.eb-bloc {
+  border: 1px solid var(--el-rule);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 0.95rem 0.9rem;
+}
+
+.eb-bloc__name {
+  align-items: center;
+  display: flex;
+  gap: 0.4rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.eb-bloc__swatches {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  gap: 0.15rem;
+}
+
+.eb-bloc__text {
+  font-family: var(--el-mono);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.eb-bloc__chance {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin: 0;
+}
+
+.eb-bloc__value {
+  font-family: var(--el-mono);
+  font-size: 2.1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+/* The sign is set well below the figure: at 2.1rem a full-size percent sign
+   and the space Swedish typography puts before it read as a gap rather than
+   as a unit. */
+.eb-bloc__unit {
+  font-size: 0.46em;
+  font-weight: 700;
+  letter-spacing: -0.12em;
+  margin-left: -0.22em;
+}
+
+.eb-bloc__word {
+  color: var(--el-muted);
+  font-size: 0.76rem;
+}
+
+.eb-bloc__seats {
+  border-top: 1px solid var(--el-rule);
+  display: grid;
+  gap: 0 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding-top: 0.55rem;
+}
+
+.eb-bloc__seats dt {
+  color: var(--el-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.eb-bloc__seats dd {
+  font-family: var(--el-mono);
+  font-size: 0.94rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin: 0.1rem 0 0;
+  white-space: nowrap;
+}
+
+.eb-disclaimer {
+  color: var(--el-muted);
+  font-size: 0.78rem;
+  margin: 0.9rem 0 0;
+  max-width: 62ch;
 }
 
 /* --- National vote forecast --------------------------------------------- */
@@ -2409,6 +2539,17 @@ canvas {
     grid-template-columns: minmax(0, 1fr);
   }
 
+
+  /* The two bloc tiles stack: side by side at phone width the headline
+     probability would have to shrink to fit, and the headline is the reason
+     the panel is above the chart at all. */
+  .eb-rows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .eb-bloc__value {
+    font-size: 1.9rem;
+  }
 
   /* The two coalition columns stay side by side: comparing them is the whole
      point of the panel.  The gutter, plot height and tile chrome shrink

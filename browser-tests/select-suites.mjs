@@ -30,6 +30,7 @@ export const SUITES = {
   'party-timeseries.contract.mjs': { seconds: 1, area: 'forecast' },
   'equations.smoke.mjs': { seconds: 7, area: 'equations' },
   'changes-baseline.smoke.mjs': { seconds: 14, area: 'provenance' },
+  'bloc-summary.smoke.mjs': { seconds: 16, area: 'summary' },
 };
 
 const ALL = Object.keys(SUITES);
@@ -50,9 +51,10 @@ const RULES = [
   { prefix: 'assets/js/election-simulator.js', suites: null },
   { prefix: 'assets/js/election-latest-poll.js', suites: byArea('forecast') },
   // Reorders the election sections and rebuilds the hero's section nav, whose
-  // label for the change table has to track that section's own heading.
+  // entries have to track those sections' own headings -- the first of them
+  // being the bloc summary.
   { prefix: 'assets/js/election-seat-opacity.js',
-    suites: [...byArea('builder'), ...byArea('provenance')] },
+    suites: [...byArea('builder'), ...byArea('provenance'), ...byArea('summary')] },
 
   // Published forecast artifacts: the data every election view renders. The
   // provenance suite belongs here for a reason of its own -- it asserts
@@ -60,7 +62,8 @@ const RULES = [
   // adds a generation directory can move its expectations even when no
   // rendered number changes.
   { prefix: 'files/election-simulator/', suites: [
-    ...byArea('builder'), ...byArea('forecast'), ...byArea('provenance')] },
+    ...byArea('builder'), ...byArea('forecast'), ...byArea('provenance'),
+    ...byArea('summary')] },
 
   // Layout and markup: the suites assert computed style and box geometry, so a
   // stylesheet or include change can break any of them. This is the rule that

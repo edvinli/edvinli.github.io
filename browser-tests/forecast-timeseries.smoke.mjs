@@ -788,12 +788,29 @@ async function clickButton(browser, buttonText) {
   }, buttonText);
 }
 
+// The opening range is "Sedan 2022" outside the final week and "Sista 30
+// dagarna" inside it, so every default-range expectation in this suite is
+// conditional on where its fixture sits. Stated once, and asserted beside the
+// expectations it governs, so a fixture refresh that walks the last point
+// closer to election day fails with the reason rather than with a bare
+// aria-pressed mismatch.
+const FINAL_WEEK_DAYS = 7;
+
+function daysToElection(history) {
+  const last = history.series[history.series.length - 1].date;
+  return Math.round((Date.parse(`${history.election_date}T00:00:00Z`) -
+    Date.parse(`${last}T00:00:00Z`)) / 86400000);
+}
+
 function assertStructure(view, history) {
   check('Vägen till valdagen section exists and is visible', view.section && !view.section.hidden && view.section.display !== 'none', view.section);
   equal('the timeline heading uses the election-day-first label', view.section?.heading, 'Vägen till valdagen');
   const order = view.sectionOrder;
-  equal('the five primary sections use the exact timeline-first DOM order',
-    order.slice(0, 5), [
+  // The parliamentary headline leads, then the timeline: a visitor gets the
+  // current forecast before being asked to read a chart of it.
+  equal('the six primary sections use the exact summary-first DOM order',
+    order.slice(0, 6), [
+      'election-blocs',
       'election-timeseries',
       'election-alternatives',
       'election-government-builder',
@@ -802,6 +819,7 @@ function assertStructure(view, history) {
     ]);
   equal('the subsection navigation follows the DOM order and labels',
     view.navigation, [
+      { href: '#election-blocs', text: 'Chansen till egen majoritet' },
       { href: '#election-timeseries', text: 'Vägen till valdagen' },
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
       { href: '#election-government-builder', text: 'Bygg din egen regering' },
@@ -850,7 +868,11 @@ function assertStructure(view, history) {
     view.rangeGroup?.role === 'group' && Boolean(view.rangeGroup?.label) && view.ranges.every((button) =>
       button.tag === 'BUTTON' && button.type === 'button' && button.controls === 'election-timeseries-svg' &&
       ['true', 'false'].includes(button.pressed)), { group: view.rangeGroup, buttons: view.ranges });
-  equal('Sedan 2022 is the default range', view.ranges.map((button) => button.pressed), ['true', 'false']);
+  check('the fixture sits outside the final week, so the full range opens',
+    daysToElection(history) > FINAL_WEEK_DAYS,
+    { daysToElection: daysToElection(history), finalWeek: FINAL_WEEK_DAYS });
+  equal('Sedan 2022 is the default range outside the final week',
+    view.ranges.map((button) => button.pressed), ['true', 'false']);
   const fullStart = fullRangeStart(history, 'vote');
   const fullEnd = fullRangeEnd(history, 'vote');
   check('default full-range x-domain runs from the first to the latest published date',
@@ -1068,6 +1090,8 @@ async function exercise(viewport, history, siteRoot) {
     equal('the published full range is the opening range and ends at today',
       [view.svg?.range, view.svg?.xMin, view.svg?.xMax],
       ['full', fullRangeStart(history, 'vote'), fullRangeEnd(history, 'vote')]);
+    check('this fixture is still outside the final week',
+      daysToElection(history) > FINAL_WEEK_DAYS, daysToElection(history));
     equal('the range buttons open on Sedan 2022',
       view.ranges.map((button) => button.pressed), ['true', 'false']);
     assertNoForwardView(view, history, 'full range, vote');

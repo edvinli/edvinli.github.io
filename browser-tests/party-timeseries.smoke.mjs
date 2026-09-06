@@ -522,6 +522,12 @@ async function runViewport(viewport, site) {
     check('no 4 % threshold line in coalition mode', state.thresholdLine.length === 0);
     const coalitionDomain = { min: state.yMin, max: state.yMax, mode: state.yDomainMode };
     const coalitionSeries = state.seriesDefinitions.slice();
+    // The y-domain is derived from the visible window, so "unchanged" only
+    // means anything against the range this capture was taken in. Which range
+    // the chart opens in is a property of the artifact -- full through most of
+    // the cycle, the last 30 days in the final week -- so remember it rather
+    // than assuming, and restore it before comparing.
+    const openingRange = state.range;
     const coalitionPollDefinitions = state.pollDefinitions.slice().sort();
 
     // ---- switching to party mode -----------------------------------------
@@ -816,7 +822,7 @@ async function runViewport(viewport, site) {
     check('the routed vote view really drew the party vote series',
       navigated.pollDefinitions.length === 1 && navigated.pollDefinitions[0] === 'L',
       navigated.pollDefinitions);
-    await clickId(browser, 'election-timeseries-range-full');
+    await clickId(browser, `election-timeseries-range-${openingRange === 'short' ? 'short' : 'full'}`);
     await settle(260);
 
     // ---- back to coalitions, unchanged ------------------------------------
@@ -824,6 +830,8 @@ async function runViewport(viewport, site) {
     await settle(260);
     const back = await readState(browser);
     equal('the chart returns to coalition mode', back.viewMode, 'coalitions');
+    equal('the comparison is made in the range the capture was taken in',
+      back.range, openingRange);
     equal('the coalition domain is exactly what it was', [back.yMin, back.yMax],
       [coalitionDomain.min, coalitionDomain.max]);
     equal('the coalition series are exactly what they were', back.seriesDefinitions, coalitionSeries);
