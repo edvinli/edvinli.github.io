@@ -371,17 +371,58 @@ forecast.
 
 ### 9. `changes-baseline.smoke.mjs` — publication provenance in the copy
 
-Owns the two provenance claims the page makes in prose, both of which were
+Owns the provenance claims the page makes in prose, all of which were
 previously vague in a way no layout assertion could catch:
 
-- **The hero's publication instant.** `Underlag t.o.m.` is a date, and two
-  forecasts published five hours apart share it. The hero now also prints
-  `generated_at_utc` converted to `Europe/Stockholm` — `Uppdaterad 4 sep
-  13:08` — inside a `<time datetime>` carrying the published instant verbatim.
-  The suite checks the rendered wall clock against the pinned generation's own
-  `metadata.json`, that the conversion goes through the zone database rather
-  than a fixed `+02:00`, and that any relative age is an addition to the
-  absolute timestamp rather than a replacement for it.
+- **The hero's calculation instant.** `as_of` is a date, and two forecasts
+  published five hours apart share it. The hero also prints `generated_at_utc`
+  converted to `Europe/Stockholm` — `Prognosen beräknad 4 sep 13:08` — inside a
+  `<time datetime>` carrying the published instant verbatim. The suite checks
+  the rendered wall clock against the pinned generation's own `metadata.json`,
+  that the conversion goes through the zone database rather than a fixed
+  `+02:00`, and that any relative age is an addition to the absolute timestamp
+  rather than a replacement for it.
+- **Polling freshness versus calculation time.** The two are different clocks
+  and used to be printed as one: a fact labelled `Underlag t.o.m.` carrying
+  `as_of`, with `Uppdaterad <instant>` directly beneath it. `as_of` is not a
+  data-freshness fact at all — it is the day the forecast is anchored at, and
+  it advances on a re-run that saw no new poll. `20260904T110809Z`,
+  `20260905T075636Z` and `20260906T081926Z` carry `as_of` 4, 5 and 6 September
+  over a byte-identical `poll_data_hash`, above a newest poll published on
+  4 September.
+
+  So the hero's `Senaste opinionsunderlag` is the newest poll date, read from
+  the history artifact and used only when its `poll_source_sha256` is the
+  publication's own `poll_data_hash`; when it is not, the cell prints `—`
+  rather than falling back to the anchor day. `as_of` survives in the technical
+  table as `Prognosens ankardatum`.
+
+  Whether new polling arrived is a separate question with a separate answer:
+  `input_hashes.poll_data_hash` against the preceding publication's, from the
+  frozen bundle alone. When they match, the hero says
+  `Inga nya mätningar sedan föregående prognos (5 sep 09:56)`. The predecessor
+  is the greatest generation below the current one in the page's build-time
+  generation index, believed only when its `generated_at_utc` matches the
+  directory it was fetched from.
+
+  Four generations are pinned, one per corner: `20260906T081926Z-92521273`
+  (quiet re-run, poll date verifiable — the live case);
+  `20260904T082721Z-af776460` (quiet re-run whose poll date is *not*
+  verifiable, so the note fires while the cell stays `—`, which is what keeps
+  the two claims from being wired together); `20260904T110809Z-2edab481` (new
+  polling arrived, note silent); and `20260831T170410Z-1f5e0506`, where the
+  polling input changed while `as_of` stood still — the mirror image, and the
+  second reason a date cannot answer this question.
+- **The countdown.** `Dagar kvar` sits beside `Valdag` and is read as a
+  countdown to election day, but was measured from `as_of`. On
+  `20260831T170410Z-1f5e0506` — calculated 31 August against an anchor day of
+  24 August — that printed `20 dagar` beside a 13 September election day. It is
+  now measured from the Stockholm calendar day of `generated_at_utc`, and the
+  suite asserts both the correct count and that the stale one is gone.
+- **The noise floor, stated per section.** Each change caption names the floor
+  its own chip applies — `mindre än 0,05 procentenheter`, `mindre än ett halvt
+  mandat` — from the same constant the chip reads, so the sentence cannot drift
+  from the rule. The suite asserts both captions and the shared constants.
 - **The comparison baseline.** `change_since_prior` names its baseline by
   snapshot id and deterministic payload hash, never by position, so
   *föregående prognos* was a claim the payload does not make. On the pinned
