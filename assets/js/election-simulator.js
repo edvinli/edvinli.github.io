@@ -4877,6 +4877,11 @@
       // anchored at, and it advances on a re-run that saw no new poll.
       ["Prognosens ankardatum", metadata.as_of || "\u2014"],
       ["Valdag", metadata.election_date || "\u2014"],
+      // Where the threshold panel's probability comes from. It is provenance,
+      // not reader-facing copy: the panel says what the number means, this
+      // says which published field it is and that the page does not rebuild
+      // it.
+      ["Sp\u00e4rrsannolikhet", "parties.json: prob_above_4pct (publicerad, ber\u00e4knas inte om i webbl\u00e4saren)"],
       ["Modell", (metadata.model && metadata.model.version) || "\u2014"],
       ["Valresultatsbrus", metadata.election_noise_law
         ? metadata.election_noise_law + " (kandidat " + (metadata.election_noise_candidate || "\u2014") + ")"

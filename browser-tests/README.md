@@ -642,14 +642,27 @@ party's threshold probability is on its own card regardless. The suite asserts
 `hidden`, zero rows, `display: none`, and that the other nine party cards still
 render.
 
-**What it explains.** That 4 % is the national threshold; that the threshold
-makes seat outcomes discontinuous; that a zero seat median is not a zero chance
-of representation — claimed only when a shown party actually has
-`seats_median === 0` with a non-zero probability, so the page never explains a
-situation it is not displaying; and that the probability is read from
-`prob_above_4pct` rather than reconstructed. A source guard checks the renderer
-mentions no histogram, no draw count, no distribution maths, and nothing about
-the local 12 % exception, which the publication carries in a separate field.
+**What it explains.** That 4 % is the *main* rule — `Huvudregeln är minst 4 %
+av rösterna i hela landet` — with the constituency exception stated beside it:
+a party with at least 12 % in a single constituency takes part in that
+constituency's fixed seat allocation. The note is deliberately qualitative. The
+publication carries the local exception in a field of its own
+(`prob_local_12pct_exception_sub_4pct`) and this page does not speak for it, so
+the suite asserts the note contains exactly the two statutory percentages and
+no third figure that could read as an estimate.
+
+It also explains that the threshold makes seat outcomes discontinuous, and that
+a zero seat median is not a zero chance of representation — claimed only when a
+shown party actually has `seats_median === 0` with a non-zero probability, so
+the page never explains a situation it is not displaying.
+
+**Provenance is not reader copy.** `prob_above_4pct` and "this is not
+recomputed here" are facts about the pipeline, not something a visitor needs
+mid-sentence, so they live in the technical-information rows as
+`Spärrsannolikhet`. The suite asserts the panel contains no field name, no
+`parties.json`, and no "räknas inte om", *and* that the technical row states
+both. A source guard checks the renderer mentions no histogram, no draw count,
+no distribution maths, and nothing about the local 12 % exception.
 
 **Mobile.** Four columns do not fit a phone, so the row stacks: the party takes
 a line of its own and each number brings back its own caption in place of the

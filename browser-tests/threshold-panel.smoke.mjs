@@ -150,7 +150,12 @@ const readPanel = (browser) => browser.evaluate(() => {
     heading: text('#election-threshold-title'),
     intro: text('#election-threshold-intro'),
     discontinuity: text('#election-threshold-discontinuity'),
-    provenance: text('#election-threshold-provenance'),
+    exception: text('#election-threshold-exception'),
+    // Provenance moved out of the panel: a visitor does not need a field name.
+    panelText: flat(section ? section.textContent : ''),
+    technical: Array.from(document.querySelectorAll('#election-meta-list div'))
+      .map((row) => `${flat(row.querySelector('dt').textContent)} = ` +
+        `${flat(row.querySelector('dd').textContent)}`),
     zeroHidden: zero ? zero.hidden : null,
     zeroText: zero ? flat(zero.textContent) : null,
     listRole: rowsHost ? rowsHost.getAttribute('role') : null,
@@ -268,9 +273,33 @@ async function published(generation, title, documented) {
     check('the panel explains the discontinuity the threshold creates',
       /noll mandat/.test(page.discontinuity) &&
       /inte en jämn osäkerhet i mandat/.test(page.discontinuity), page.discontinuity);
-    check('the panel says the probability is published, not rebuilt here',
-      /prob_above_4pct/.test(page.provenance) &&
-      /räknas inte om här/.test(page.provenance), page.provenance);
+    // The 4 % rule is the main rule, not the only one.
+    check('the intro says 4 % is the main rule rather than an absolute one',
+      /Huvudregeln/.test(page.intro) && !/krävs minst 4/.test(page.intro), page.intro);
+    check('the constituency exception is stated, and scoped',
+      new RegExp(`12${NBSP}%`).test(page.exception) &&
+      /enskild valkrets/.test(page.exception) &&
+      /fasta mandat/.test(page.exception) &&
+      /Sannolikheten i tabellen gäller huvudregeln/.test(page.exception), page.exception);
+    // ...but no probability is attached to it. The publication carries the
+    // local exception in a field of its own (prob_local_12pct_exception_sub_4pct)
+    // and this page does not speak for it, so the note states the two statutory
+    // percentages and nothing that could read as a third, estimated one.
+    equal('the exception states the two rule percentages and no third figure',
+      page.exception.match(new RegExp(`\\d+(?:,\\d+)?${NBSP}%`, 'g')),
+      [`12${NBSP}%`, `4${NBSP}%`]);
+    check('and the panel never names the local-exception field',
+      !/prob_local/.test(page.panelText), page.panelText);
+
+    // Provenance is a technical fact, not reader copy.
+    check('the panel carries no implementation vocabulary',
+      !/prob_above_4pct/.test(page.panelText) &&
+      !/räknas inte om/.test(page.panelText) &&
+      !/parties\.json/.test(page.panelText), page.panelText);
+    check('and the provenance is stated in the technical section instead',
+      page.technical.some((row) => /^Spärrsannolikhet = /.test(row) &&
+        /prob_above_4pct/.test(row) && /beräknas inte om/.test(row)),
+      page.technical.filter((row) => /Spärr/.test(row)));
 
     // The zero-seat sentence is only claimed when a shown party actually has
     // a zero seat median and a non-zero chance -- never as decoration.
@@ -453,8 +482,9 @@ async function mobile() {
     check('each number carries its own caption instead',
       page.rows.every((row) => row.captionShown), page.rows.map((row) => row.captionShown));
     check('the explanations survive',
-      /hela landet/.test(page.intro) && /prob_above_4pct/.test(page.provenance),
-      { intro: page.intro, provenance: page.provenance });
+      /Huvudregeln/.test(page.intro) && /enskild valkrets/.test(page.exception) &&
+      /inte en jämn osäkerhet i mandat/.test(page.discontinuity),
+      { intro: page.intro, exception: page.exception });
     check('the mobile page has no horizontal overflow', page.overflow <= 0, page.overflow);
     equal('mobile has no console errors', appErrors(browser), []);
   } finally {
@@ -499,8 +529,11 @@ async function sourceGuard() {
     /renderThresholdPanel[\s\S]{0,2000}?headlineProbability\(party\.prob_above_4pct\)/.test(source));
   check('the explanatory copy lives in the markup, not in a string',
     page.includes('election-threshold-discontinuity') &&
-    page.includes('election-threshold-provenance') &&
+    page.includes('election-threshold-exception') &&
     page.includes('election-threshold-zero-seats'));
+  check('the field name is named once, in the technical rows',
+    (source.match(/prob_above_4pct \(publicerad/g) || []).length === 1 &&
+    !page.includes('prob_above_4pct'));
   check('no forecasting logic was touched',
     source.includes('function probability(') &&
     source.includes('function histogramProbability(') &&
