@@ -61,6 +61,7 @@
       ["election-alternatives", "Regeringsalternativ"],
       ["election-government-builder", "Bygg din egen regering"],
       ["election-parliament-outcome", "Ett simulerat riksdagsutfall"],
+      ["election-threshold", "4 %-spärren"],
       ["election-headline", "Röstandelar på valdagen"],
       ["election-seats", "Mandat på valdagen"],
       ["election-latest-poll", "Senaste mätningarna"],

@@ -808,12 +808,13 @@ function assertStructure(view, history) {
   const order = view.sectionOrder;
   // The parliamentary headline leads, then the timeline: a visitor gets the
   // current forecast before being asked to read a chart of it.
-  equal('the six primary sections use the exact summary-first DOM order',
-    order.slice(0, 6), [
+  equal('the seven primary sections use the exact summary-first DOM order',
+    order.slice(0, 7), [
       'election-blocs',
       'election-timeseries',
       'election-alternatives',
       'election-government-builder',
+      'election-threshold',
       'election-headline',
       'election-seats',
     ]);
@@ -824,6 +825,7 @@ function assertStructure(view, history) {
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
       { href: '#election-government-builder', text: 'Bygg din egen regering' },
       { href: '#election-parliament-outcome', text: 'Ett simulerat riksdagsutfall' },
+      { href: '#election-threshold', text: '4 %-spärren' },
       { href: '#election-headline', text: 'Röstandelar på valdagen' },
       { href: '#election-seats', text: 'Mandat på valdagen' },
       { href: '#election-latest-poll', text: 'Senaste mätningarna' },

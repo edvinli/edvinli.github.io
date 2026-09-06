@@ -168,6 +168,21 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p id="election-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
     <p class="eg-builder__disclaimer">Det här visar sannolikheten att de valda regeringspartierna tillsammans får minst 175 mandat i valdagsprognosen – inte sannolikheten att de faktiskt bildar regering.</p>
   </section>
+  <!-- Threshold triage, immediately before the full vote-share list: which
+       parties the 4 % rule is actually deciding. Rendered only for parties the
+       publication marks eligible with a defined threshold probability, and
+       only while at least one of them is close enough to matter; hidden
+       otherwise. Every number is read from parties.json. -->
+  <section id="election-threshold" class="election-panel election-threshold" hidden aria-labelledby="election-threshold-title">
+    <div class="election-panel__head">
+      <h2 id="election-threshold-title">4&#160;%-spärren</h2>
+      <p class="election-muted" id="election-threshold-intro">För att få mandat i riksdagen krävs minst 4&#160;% av rösterna i hela landet. Här visas de partier vars prognos ligger nära den gränsen.</p>
+    </div>
+    <div id="election-threshold-rows" class="et-rows" role="list" aria-labelledby="election-threshold-title"></div>
+    <p class="et-note election-muted" id="election-threshold-discontinuity">Spärren gör utfallet hoppigt: några tiondelar åt endera hållet är skillnaden mellan noll mandat och ett tjugotal. Osäkerheten i röstandelen blir därför inte en jämn osäkerhet i mandat.</p>
+    <p class="et-note election-muted" id="election-threshold-zero-seats" hidden></p>
+    <p class="et-note election-muted" id="election-threshold-provenance">Sannolikheten är hämtad direkt ur den publicerade prognosen (<code>prob_above_4pct</code>), räknad över samma simulerade valresultat som resten av sidan. Den räknas inte om här.</p>
+  </section>
   <section id="election-headline" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Röstandelar på valdagen</h2>

@@ -31,6 +31,7 @@ export const SUITES = {
   'equations.smoke.mjs': { seconds: 7, area: 'equations' },
   'changes-baseline.smoke.mjs': { seconds: 14, area: 'provenance' },
   'bloc-summary.smoke.mjs': { seconds: 16, area: 'summary' },
+  'threshold-panel.smoke.mjs': { seconds: 18, area: 'summary' },
 };
 
 const ALL = Object.keys(SUITES);

@@ -41,6 +41,7 @@ node browser-tests/party-timeseries.smoke.mjs _site --real-artifact
 node browser-tests/party-timeseries.contract.mjs    # static, no browser
 node browser-tests/changes-baseline.smoke.mjs
 node browser-tests/bloc-summary.smoke.mjs
+node browser-tests/threshold-panel.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -587,6 +588,74 @@ so a fixture refresh that walks the last point closer to election day fails
 with the reason rather than with a bare `aria-pressed` mismatch; the second
 remembers the range it opened in rather than assuming `full`, because the
 y-domain it compares is derived from the visible window.
+
+### 11. `threshold-panel.smoke.mjs` — the 4 % threshold panel
+
+Owns the compact threshold section above the vote-share list. Its numbers are
+not the risk — median, 90 % interval and `prob_above_4pct` are all published
+per party — the **selection** is. A panel whose membership drifts with whoever
+last looked at the numbers is a panel that editorialises, so the rule is fixed
+in code and pinned here:
+
+```
+eligible_for_national_threshold && threshold_probability_defined
+&& ( prob_above_4pct <= 0.99 || vote_share_p05 <= 4 <= vote_share_p95 )
+```
+
+**Both limbs are load-bearing, and two real generations show why.**
+
+| generation | L's interval | L's probability | selected by |
+|---|---|---|---|
+| `20260906T081926Z-92521273` | 1,2–4,4 % | `10 %` | both limbs — the interval straddles 4 |
+| `20260827T205828Z-e6c6ee97` | 1,06–3,29 % | `<1 %` | the probability limb **only** |
+
+The second is the argument for the probability limb: a party at a 0,01 % chance
+of clearing the threshold is maximally threshold-relevant and its 90 % interval
+sits entirely *below* the line, so an interval-only rule would drop precisely
+the party most at risk. The probability limb's bound is not a new constant — it
+is where `headlineProbability` stops printing a figure and starts printing
+`>99 %`, so the panel can never show a row whose own headline says there is
+nothing to worry about.
+
+**The remaining corners are synthetic**, because no published generation
+exercises them: the 0.99 boundary in *both* directions (0.99 included, 0.9901
+excluded), the interval limb rescuing a high-probability party, each of the two
+eligibility flags on its own, and the empty panel. A throwaway copy of the
+built site gets a rewritten `parties.json` — `deterministic_payload_sha256`
+untouched, so the publication still validates — with one corner mapped onto
+each real party code. It is a fixture for the rule and **never a release
+gate**; the two published runs are what assert real numbers. Four mutation
+probes confirm it bites: moving the bound, ignoring an eligibility flag, and
+deleting either limb each fail 5–9 checks.
+
+**REST is excluded by the published flags, not by name.** REST carries a
+`prob_above_4pct` of its own — 0.1382 in the live generation — which is
+meaningless, since it is aggregate vote mass for parties modelled as
+ineligible. The suite asserts both that REST is absent *and* that it publishes
+a non-zero probability, so the exclusion is shown to be doing work; a source
+guard checks the renderer tests the flags rather than matching the string
+`REST`.
+
+**Empty state.** When no party qualifies the section hides itself rather than
+rendering an empty table or a panel announcing it has nothing to say — every
+party's threshold probability is on its own card regardless. The suite asserts
+`hidden`, zero rows, `display: none`, and that the other nine party cards still
+render.
+
+**What it explains.** That 4 % is the national threshold; that the threshold
+makes seat outcomes discontinuous; that a zero seat median is not a zero chance
+of representation — claimed only when a shown party actually has
+`seats_median === 0` with a non-zero probability, so the page never explains a
+situation it is not displaying; and that the probability is read from
+`prob_above_4pct` rather than reconstructed. A source guard checks the renderer
+mentions no histogram, no draw count, no distribution maths, and nothing about
+the local 12 % exception, which the publication carries in a separate field.
+
+**Mobile.** Four columns do not fit a phone, so the row stacks: the party takes
+a line of its own and each number brings back its own caption in place of the
+header strip, which is `aria-hidden` decoration and `display: none` at that
+width. The rows are a list of `listitem`s rather than a table, precisely
+because a table whose headers disappear at phone width is worse than no table.
 
 ## Determinism: pin the generation you assert against
 
