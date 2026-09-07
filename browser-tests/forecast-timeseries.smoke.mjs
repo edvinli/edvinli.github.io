@@ -478,7 +478,15 @@ function readPage(browser) {
           value: fact.querySelector('dd')?.textContent?.trim() || '',
         })),
         lede: hero.querySelector('#election-hero-lede')?.textContent?.trim() || '',
+        text: hero.textContent?.replace(/[\t\n\r ]+/g, ' ').trim() || '',
       } : null,
+      // The technical surface, where as_of is allowed to appear -- and where
+      // the #27 contract requires it to be named for what it is.
+      technical: Array.from(document.querySelectorAll('#election-meta-list div'))
+        .map((row) => ({
+          label: row.querySelector('dt')?.textContent?.replace(/[\t\n\r ]+/g, ' ').trim() || '',
+          value: row.querySelector('dd')?.textContent?.replace(/[\t\n\r ]+/g, ' ').trim() || '',
+        })),
       navigation: navigation ? Array.from(navigation.querySelectorAll('a')).map((link) => ({
         href: link.getAttribute('href') || '',
         text: link.textContent.replace(/[\t\n\r ]+/g, ' ').trim(),
@@ -640,6 +648,16 @@ function findLabel(buttons, wanted) {
   const target = compact(labelFor(wanted));
   return buttons.find((button) => compact(button.text) === target) ||
     buttons.find((button) => compact(button.text).includes(target));
+}
+
+// The page's own month abbreviations. Intl's sv-SE forms ("sep.", "aug.") are
+// not these, so the expectation is built from the same list the page uses.
+const HERO_MONTHS = ['jan', 'feb', 'mars', 'apr', 'maj', 'juni',
+  'juli', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+function swedishDay(iso) {
+  const [year, month, day] = String(iso).split('-');
+  return `${Number(day)} ${HERO_MONTHS[Number(month) - 1]} ${year}`;
 }
 
 function numberInText(text, value) {
@@ -840,10 +858,62 @@ function assertStructure(view, history) {
   equal('hero fact labels name the polling input, not just "underlag"',
     facts.map((fact) => fact.label),
     ['Senaste opinionsunderlag', 'Valdag', 'Dagar kvar']);
-  check('hero lede explains the published election date, as-of date and draw count',
-    /Valprognosen visar hur valet den\s+\d+ \S+ \d{4} kan sluta/i.test(view.hero?.lede || '') &&
-    /underlag till och med\s+\d+ \S+ \d{4}/i.test(view.hero?.lede || '') &&
-    numberInText(view.hero?.lede || '', publishedSamples), view.hero?.lede);
+  // The lede's contract, restated for the post-#27 page.
+  //
+  // The old assertion required "underlag till och med <date>" in the lede.
+  // That was written when `as_of` was printed as the polling cutoff, and #27
+  // deliberately stopped doing that: `as_of` is the day the forecast is
+  // anchored at, it advances on a re-run that saw no new poll, and it is not
+  // the newest poll the forecast saw. The lede now names the newest *verified*
+  // poll or, when that cannot be established against this publication, no date
+  // at all -- so requiring a date mandated a surface the page is right to omit,
+  // and the regex would have been satisfied by an `as_of` date, which is the
+  // one thing #27 forbids. Production run #40 is what surfaced it.
+  //
+  // What the lede must do instead:
+  const lede = view.hero?.lede || '';
+  check('hero lede names the published election date',
+    new RegExp(`Valprognosen visar hur valet den ${swedishDay(history.election_date)} kan sluta`)
+      .test(lede), lede);
+  check('hero lede names the published simulation draw count',
+    numberInText(lede, publishedSamples), lede);
+
+  // The lede either names the verified newest poll or says it is publication
+  // data without a date. Either is correct; a third option -- a date sourced
+  // from as_of -- is not, so the dated form has to agree with the polling
+  // fact beside it rather than being asserted against as_of directly. On a
+  // normal daily cadence the newest poll and as_of legitimately coincide, so
+  // "the hero must not contain the as_of date" would be unsound.
+  const pollingFact = (view.hero?.facts || [])
+    .find((fact) => fact.label === 'Senaste opinionsunderlag');
+  const ledeDate = /opinionsunderlag till och med ([^.]+?) och/.exec(lede);
+  check('hero lede does not present as_of as the polling cutoff',
+    ledeDate
+      ? ledeDate[1].trim() === pollingFact?.value
+      : /Den bygger p\u00e5 det publicerade opinionsunderlaget/.test(lede),
+    { lede, pollingFact: pollingFact?.value });
+  check('the lede never speaks of the forecast anchor at all',
+    !/ankardatum/i.test(lede), lede);
+
+  // Polling freshness is its own surface, and stays one.
+  check('Senaste opinionsunderlag is the separate polling-freshness fact',
+    Boolean(pollingFact) &&
+    (pollingFact.value === '\u2014' || /^\d+ \S+ \d{4}$/.test(pollingFact.value)),
+    pollingFact);
+
+  // as_of is allowed exactly one home, and it is named for what it is.
+  const anchorRows = view.technical.filter((row) => row.label === 'Prognosens ankardatum');
+  equal('as_of is named only as Prognosens ankardatum, in the technical surface',
+    anchorRows.length, 1);
+  check('and that row carries the published anchor date',
+    /^\d{4}-\d{2}-\d{2}$/.test(anchorRows[0]?.value || ''), anchorRows[0]);
+  check('no technical row relabels the anchor as polling freshness',
+    view.technical.every((row) =>
+      !(row.label === 'Senaste opinionsunderlag' && /^\d{4}-\d{2}-\d{2}$/.test(row.value))),
+    view.technical.map((row) => row.label));
+  check('the hero facts never name the anchor',
+    (view.hero?.facts || []).every((fact) => !/ankardatum/i.test(fact.label)),
+    (view.hero?.facts || []).map((fact) => fact.label));
   check('historical SVG has accessible title and description',
     view.svg && view.svg.title.length > 0 && view.svg.description.length > 0 &&
     view.svg.role && view.svg.labelledby, view.svg);
