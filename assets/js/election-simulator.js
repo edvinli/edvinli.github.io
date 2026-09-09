@@ -1348,6 +1348,22 @@
       return point.provenance !== "prospective_archived";
     });
     if (!points.length) return null;
+    // A date whose *only* observation is an archived prospective forecast is
+    // dropped from the curve entirely: nothing refilled it with a
+    // reconstructed value.  The renderer needs those dates by name, because a
+    // hole inside the daily part of the schedule must cut the line rather than
+    // let it interpolate across a day the model never restated.  A date that
+    // also carries a reconstructed point is not omitted -- that point is the
+    // vertex, and the archived twin was never going to be one.
+    var plottedDates = {};
+    points.forEach(function (point) { plottedDates[point.date] = true; });
+    var omittedDates = [];
+    archived.forEach(function (point) {
+      if (!plottedDates[point.date] && omittedDates.indexOf(point.date) === -1) {
+        omittedDates.push(point.date);
+      }
+    });
+    omittedDates.sort();
     var rawPop = Array.isArray(payload.poll_of_polls) ? payload.poll_of_polls
       : (Array.isArray(payload.pollofpolls) ? payload.pollofpolls : []);
     var pop = rawPop.map(function (item) {
@@ -1403,6 +1419,7 @@
       definitions: definitions,
       points: points,
       archivedPoints: archived,
+      omittedDates: omittedDates,
       pop: pop,
       polls: polls
     };
@@ -1485,6 +1502,46 @@
       return point[0].toFixed(2) + "," + point[1].toFixed(2);
     }).join("L") + "Z";
     return path;
+  }
+
+  // True when at least one omitted date falls strictly between two drawn
+  // dates.  ISO dates compare correctly as strings, so no parsing is needed.
+  function historyOmittedBetween(omittedDates, previousDate, currentDate) {
+    for (var index = 0; index < omittedDates.length; index += 1) {
+      var date = omittedDates[index];
+      if (date > previousDate && date < currentDate) return true;
+    }
+    return false;
+  }
+
+  // Cut the drawn points into runs that may be joined by a stroke.  The break
+  // rule is deliberately "an omitted date lies between these two points", not
+  // "these two points are more than a day apart": the schedule is weekly until
+  // 2026-05-23, so seven-day steps are the honest shape of the early history
+  // and must stay connected.  Only a date the chart actually dropped breaks
+  // the line.
+  function historyCurveSegments(points, omittedDates) {
+    if (!omittedDates || !omittedDates.length || points.length < 2) return [points];
+    var segments = [];
+    var current = [];
+    points.forEach(function (point, index) {
+      if (index > 0 && historyOmittedBetween(omittedDates, points[index - 1].date, point.date)) {
+        segments.push(current);
+        current = [];
+      }
+      current.push(point);
+    });
+    if (current.length) segments.push(current);
+    return segments;
+  }
+
+  // One `d` per segment, concatenated into a single multi-subpath attribute.
+  // Fills stay correct because each band segment is closed on its own, and a
+  // stroked median cannot bridge two subpaths -- which is the whole point.
+  function historySegmentedPath(segments, metric, definitionId, xScale, yScale, upperKey, lowerKey) {
+    return segments.map(function (segment) {
+      return historyAreaPath(segment, metric, definitionId, xScale, yScale, upperKey, lowerKey);
+    }).filter(function (d) { return Boolean(d); }).join(" ");
   }
 
   function historyAxisTicks(minTime, maxTime) {
@@ -2157,6 +2214,15 @@
       svg.setAttribute("data-range", activeDomain.range);
       svg.setAttribute("data-x-axis-min", activeDomain.minIso);
       svg.setAttribute("data-x-axis-max", activeDomain.maxIso);
+      // Dates the chart drops for carrying only an archived prospective
+      // forecast.  Named here so the omission is inspectable rather than
+      // implicit in a wider-than-daily line segment.
+      var omittedInView = (history.omittedDates || []).filter(function (date) {
+        var time = Date.parse(date + "T00:00:00Z");
+        return !isNaN(time) && time >= activeDomain.minTime && time <= activeDomain.maxTime;
+      });
+      svg.setAttribute("data-omitted-dates", omittedInView.join(" "));
+      svg.setAttribute("data-omitted-date-count", String(omittedInView.length));
       svg.appendChild(svgNode("title", { id: "election-timeseries-title" },
         "Vägen till valdagen, " + historyMetricLabel(selectedMetric)));
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
@@ -2279,15 +2345,24 @@
         // normalizeHistoryPayload; the payload still carries them.
         var curvePoints = validPoints;
         if (!curvePoints.length) return;
+        // The curve is only continuous where the days it spans are.  Where a
+        // date was dropped for carrying nothing but an archived prospective
+        // forecast, the line and both bands stop and restart: the alternative
+        // is a segment at double daily width that reads as an ordinary step
+        // and quietly asserts a reconstructed value for a day that has none.
+        var curveSegments = historyCurveSegments(curvePoints, history.omittedDates);
+        var segmentGaps = curveSegments.length - 1;
         var group = svgNode("g", {
           class: "election-timeseries__series-group" + (definition.defaultOn ? " is-primary" : ""),
           "data-coalition": definition.id,
           "data-coalition-label": definition.label,
           "data-color": definition.color,
+          "data-curve-segments": String(curveSegments.length),
+          "data-curve-breaks": String(segmentGaps),
           "data-provenance": curvePoints[curvePoints.length - 1].provenance
         });
-        var ninety = historyAreaPath(curvePoints, selectedMetric, definition.id, xScale, yScale, "p95", "p05");
-        var fifty = historyAreaPath(curvePoints, selectedMetric, definition.id, xScale, yScale, "p75", "p25");
+        var ninety = historySegmentedPath(curveSegments, selectedMetric, definition.id, xScale, yScale, "p95", "p05");
+        var fifty = historySegmentedPath(curveSegments, selectedMetric, definition.id, xScale, yScale, "p75", "p25");
         if (ninety) group.appendChild(svgNode("path", {
           class: "election-timeseries__band election-timeseries__band--90 election-timeseries__band-p90",
           d: ninety, fill: definition.color, "data-coalition": definition.id, "data-quantile": "p05-p95",
@@ -2298,7 +2373,7 @@
           d: fifty, fill: definition.color, "data-coalition": definition.id, "data-quantile": "p25-p75",
           "data-timeseries-band": "50", "data-interval": "50"
         }));
-        var medianPath = historyAreaPath(curvePoints, selectedMetric, definition.id, xScale, yScale, "p50", "p50");
+        var medianPath = historySegmentedPath(curveSegments, selectedMetric, definition.id, xScale, yScale, "p50", "p50");
         if (medianPath) group.appendChild(svgNode("path", {
           class: "election-timeseries__line election-timeseries__median", d: medianPath, stroke: definition.color,
           "data-coalition": definition.id, "data-quantile": "p50"
