@@ -174,6 +174,36 @@ jobs:
       - name: Run ${{ matrix.suite }}
         run: node "browser-tests/${{ matrix.suite }}" _site
 
+  # This job's name is the single status a branch rule should require: it
+  # collapses the selector, the build and the whole browser matrix into one
+  # verdict, so the rule does not have to name a matrix whose membership
+  # changes per diff.
+  #
+  # KNOWN GAP, recorded deliberately rather than left implicit: as of
+  # 2026-09-09 nothing enforces it. `repos/.../branches/master/protection`
+  # returns "Branch not protected" and the ruleset list is empty, so "required"
+  # here is a name and a convention, not a gate -- PR #31 merged with this job
+  # red, which is how the gap was found.
+  #
+  # It is not being closed yet, and the reason is sequencing rather than
+  # doubt. Automated forecast publication pushes straight to master as
+  # github-actions[bot] (`website_push_ref` in the simulator's
+  # election_automation_base.py). A rule requiring pull requests would stop
+  # publication dead, and election day is 2026-09-13. Enabling it first and
+  # adapting the publisher afterwards would trade a merge-hygiene gap for a
+  # halt in publishing the forecast itself.
+  #
+  # The order to close it, after 2026-09-13:
+  #   1. move publication through a pull request instead of a direct push;
+  #   2. verify that flow end to end on a real scheduled run;
+  #   3. then require this exact status on master, with an up-to-date merge
+  #      result and no bot bypass.
+  #
+  # Until then the publisher gates itself: WEBSITE_GATE_COMMANDS runs before
+  # the forecast is certified and WEBSITE_PUSH_GATE_COMMANDS before the website
+  # is pushed, together covering exactly the suites select-suites.mjs reports
+  # for the paths a publication writes. That is a self-imposed gate, not an
+  # enforced one -- it is what makes the gap tolerable, not what closes it.
   required:
     name: Website PR required checks
     runs-on: ubuntu-latest
