@@ -51,6 +51,14 @@ function calendarDateOffset(iso, offsetDays) {
   return shifted.toISOString().slice(0, 10);
 }
 
+// Whole days between two ISO calendar dates.
+function dayGap(fromIso, toIso) {
+  const from = Date.parse(`${fromIso}T00:00:00Z`);
+  const to = Date.parse(`${toIso}T00:00:00Z`);
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  return Math.round((to - from) / 86400000);
+}
+
 // The chart ends at the latest published forecast, so both range ends do too.
 function latestPlottedDate(history) {
   return (history?.series || [])
@@ -504,6 +512,8 @@ function readPage(browser) {
         range: svg.getAttribute('data-time-range') || svg.getAttribute('data-range') || '',
         xMin: svg.getAttribute('data-x-axis-min') || '',
         xMax: svg.getAttribute('data-x-axis-max') || '',
+        omittedDates: (svg.getAttribute('data-omitted-dates') || '')
+          .split(' ').filter((date) => date !== ''),
         yDomainMode: svg.getAttribute('data-y-domain-mode') || '',
         forwardDataAttributes: Array.from(svg.attributes)
           .map((attribute) => attribute.name)
@@ -541,6 +551,35 @@ function readPage(browser) {
         className: String(element.className?.baseVal || element.className || ''),
       })),
       medianCount: svg ? Array.from(svg.querySelectorAll(selectors.median)).filter(visible).length : 0,
+      // Per-series curve geometry. `spans` is the x-extent of each subpath of
+      // the median stroke: a broken line has one span per drawn run, and no
+      // single span may reach across a date the chart omitted.
+      curves: seriesNodes.filter(visible).map((group) => {
+        const median = group.querySelector(selectors.median);
+        const d = median ? (median.getAttribute('d') || '') : '';
+        const spans = d.split('M').slice(1).map((subpath) => {
+          const xs = subpath.split('L')
+            .map((pair) => Number(pair.trim().split(',')[0]))
+            .filter((value) => Number.isFinite(value));
+          return xs.length ? { min: Math.min(...xs), max: Math.max(...xs) } : null;
+        }).filter((span) => span !== null);
+        return {
+          key: group.getAttribute('data-coalition') || group.getAttribute('data-coalition-key') || '',
+          segments: Number(group.getAttribute('data-curve-segments')),
+          breaks: Number(group.getAttribute('data-curve-breaks')),
+          subpaths: spans.length,
+          spans,
+          bandSubpaths: [selectors.band90, selectors.band50].map((selector) => {
+            const band = group.querySelector(selector);
+            return band ? (band.getAttribute('d') || '').split('M').length - 1 : 0;
+          }),
+        };
+      }),
+      // x of each drawn forecast marker, by date, so a span can be tested
+      // against the markers it is allowed to connect.
+      markerX: Object.fromEntries(forecastPoints.filter(visible).map((point) => [
+        point.getAttribute('data-date'), Number(point.getAttribute('cx')),
+      ])),
       archivedCount: svg
         ? Array.from(svg.querySelectorAll('.election-timeseries__archived, [data-provenance="prospective_archived"]'))
           .filter(visible).length
@@ -967,6 +1006,18 @@ function assertStructure(view, history) {
   // Archived prospective forecasts are published but not charted, so no
   // hollow marker is drawn and no undrawn mark stays selectable.
   equal('archived prospective forecasts are not drawn', view.archivedCount, 0);
+  // The contract fixture omits no date, so every drawn series is a single
+  // unbroken run. This is the guard against over-cutting: the schedule is
+  // weekly until 2026-05-23, and those seven-day steps are the honest shape of
+  // the early history, not holes to be broken across.
+  equal('nothing is omitted from the contract fixture', view.svg?.omittedDates, []);
+  check('each series is drawn as one unbroken run when no date is omitted',
+    (view.curves || []).length > 0 && (view.curves || []).every((curve) =>
+      curve.segments === 1 && curve.breaks === 0 && curve.subpaths === 1 &&
+      curve.bandSubpaths.every((count) => count === 1)),
+  (view.curves || []).map((curve) => ({
+    key: curve.key, segments: curve.segments, subpaths: curve.subpaths, bands: curve.bandSubpaths,
+  })));
   // A date that also carries a reconstructed point is rendered -- that mark is
   // the curve point, not the archived one, which is why this looks only at
   // dates the curve does not cover.
@@ -1681,6 +1732,100 @@ async function exercisePollAfterLatestForecast() {
   assertNoForwardView(view, prepared.history, 'poll after latest forecast');
 }
 
+// A date whose only observation is an archived prospective forecast. This is
+// the normal state of the real artifact: each publication relabels the
+// previous official point `prospective_archived`, and when the reconstruction
+// does not refill that date -- the archive lacks the joint coalition draws the
+// intervals need -- the date drops out of the chart entirely.
+//
+// The renderer used to draw straight through it. The result was a segment at
+// double daily width, with no marker between its ends and nothing saying a day
+// was missing, which reads as an ordinary daily step and silently asserts a
+// reconstructed value for a day the model never restated. The fixture the rest
+// of this suite uses gives every archived point a reconstructed twin, so it
+// never exercised the hole.
+//
+// The shape built here is exactly: reconstructed -> prospective_archived ->
+// current_production on three consecutive days.
+async function exerciseArchiveOnlyDate() {
+  const prepared = await prepareSite((history) => {
+    const drawn = history.series
+      .filter((point) => point.provenance !== 'prospective_archived')
+      .map((point) => point.date).sort();
+    const hole = drawn.at(-2);
+    // Drop only the reconstructed twin; its archived point stays, so the date
+    // is present in the payload and absent from the curve.
+    history.series = history.series.filter((point) =>
+      !(point.date === hole && point.provenance !== 'prospective_archived'));
+    return history;
+  }, false);
+  const series = prepared.history.series || [];
+  const drawnDates = series
+    .filter((point) => point.provenance !== 'prospective_archived')
+    .map((point) => point.date).sort();
+  const hole = series
+    .filter((point) => point.provenance === 'prospective_archived')
+    .map((point) => point.date)
+    .filter((date) => !drawnDates.includes(date)).sort().at(-1);
+  const before = drawnDates.filter((date) => date < hole).at(-1);
+  const after = drawnDates.filter((date) => date > hole)[0];
+
+  // The transform has to actually have produced the shape, or every assertion
+  // below passes for the wrong reason.
+  check('the archive-only fixture really omits one date from the curve',
+    Boolean(hole) && Boolean(before) && Boolean(after) &&
+    dayGap(before, hole) === 1 && dayGap(hole, after) === 1 &&
+    series.some((point) => point.date === hole && point.provenance === 'prospective_archived') &&
+    !drawnDates.includes(hole),
+  { before, hole, after });
+  check('the omitted date sits between a reconstructed and the current point',
+    series.some((point) => point.date === before && point.provenance === 'reconstructed_current_model') &&
+    series.some((point) => point.date === after && point.provenance === 'current_production'),
+  { before, after });
+
+  const view = await scenarioView(prepared, 'archive-only-date');
+
+  // The existing claim is preserved: an archived point is still not a vertex
+  // and still not a rendered forecast point.
+  check('the archive-only date is not drawn as a forecast point',
+    !view.forecastDates.includes(hole), { hole, drawn: view.forecastDates.slice(-4) });
+  equal('no archived prospective mark is drawn for it', view.archivedCount, 0);
+
+  // ...but the omission is now declared rather than implied by spacing.
+  check('the chart names the date it omitted',
+    (view.svg?.omittedDates || []).includes(hole),
+  { declared: view.svg?.omittedDates, hole });
+
+  // The load-bearing assertion: no drawn curve may connect the dates either
+  // side of the omitted one. Each series is cut into two runs, and no subpath
+  // of the median stroke reaches from `before` to `after`.
+  const curves = (view.curves || []).filter((curve) => Number.isFinite(curve.segments));
+  check('every visible series reports a broken curve', curves.length > 0 &&
+    curves.every((curve) => curve.segments === 2 && curve.breaks === 1),
+  curves.map((curve) => ({ key: curve.key, segments: curve.segments, breaks: curve.breaks })));
+  check('the median stroke is drawn as two subpaths', curves.length > 0 &&
+    curves.every((curve) => curve.subpaths === 2),
+  curves.map((curve) => ({ key: curve.key, subpaths: curve.subpaths })));
+  check('both uncertainty bands are split at the omission too', curves.length > 0 &&
+    curves.every((curve) => curve.bandSubpaths.every((count) => count === 2)),
+  curves.map((curve) => ({ key: curve.key, bands: curve.bandSubpaths })));
+
+  const xBefore = view.markerX?.[before];
+  const xAfter = view.markerX?.[after];
+  check('the markers either side of the omission are both drawn',
+    Number.isFinite(xBefore) && Number.isFinite(xAfter) && xAfter > xBefore,
+  { before: xBefore, after: xAfter });
+  const spanning = [];
+  for (const curve of curves) {
+    for (const span of curve.spans) {
+      if (span.min <= xBefore + 0.5 && span.max >= xAfter - 0.5) {
+        spanning.push({ key: curve.key, span });
+      }
+    }
+  }
+  equal('no curve segment interpolates across the omitted day', spanning, []);
+}
+
 async function main() {
   const prepared = await prepareSite();
   try {
@@ -1690,6 +1835,7 @@ async function main() {
   }
   await exerciseUnusedForwardArtifacts();
   await exercisePollAfterLatestForecast();
+  await exerciseArchiveOnlyDate();
   await exerciseMetricSpecificFullDomain();
   console.log(`\n${checks - failures}/${checks} checks passed`);
   if (failures) {
