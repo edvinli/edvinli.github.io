@@ -1,7 +1,14 @@
-// Static server for the built _site, with one hook: the election-simulator
-// publication pointer can be overridden per run so a test can exercise a
-// specific published generation without touching the repository's
-// current.json.
+// Static server for the built _site, with two hooks: the election-simulator
+// publication pointer and the history artifact can each be overridden per run,
+// so a test can exercise a specific published generation without touching the
+// repository's current.json.
+//
+// Both hooks exist for the same reason. A pinned generation is frozen, but the
+// history artifact ships outside the publication bundle and is replaced by
+// every forecast sync. A historical regression that pins one and reads the
+// other is not pinned at all: it asserts against whatever polling input the
+// artifact happens to describe today, and starts failing when the two drift
+// apart -- which says nothing about the generation under test.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -15,6 +22,8 @@ const TYPES = {
 };
 
 const POINTER_PATH = '/files/election-simulator/current.json';
+// `data-publication-base` in the built page, plus the name the app requests.
+const HISTORY_PATH = '/files/election-simulator/history/coalition-timeseries.json';
 
 /** Build a valid pointer for a published generation directory. */
 export async function pointerFor(siteRoot, generation) {
@@ -29,13 +38,39 @@ export async function pointerFor(siteRoot, generation) {
   };
 }
 
-export async function serve(siteRoot, { port = 4000, pointer = null } = {}) {
+/**
+ * Read a preserved history artifact fixture, and refuse one that is not a
+ * usable history payload. A silently-wrong override would leave the page
+ * rendering its "history unavailable" branch, and every provenance assertion
+ * would then pass or fail for a reason unrelated to what it names.
+ */
+export async function historyFixture(path) {
+  const history = JSON.parse(await readFile(path, 'utf8'));
+  const polls = Array.isArray(history.polls) ? history.polls : null;
+  if (typeof history.poll_source_sha256 !== 'string' || !history.poll_source_sha256) {
+    throw new Error(`history fixture ${path} carries no poll_source_sha256`);
+  }
+  if (!polls || polls.length === 0) {
+    throw new Error(`history fixture ${path} carries no polls`);
+  }
+  const newest = polls.map((poll) => poll.publication_date).filter(Boolean).sort().at(-1);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newest || '')) {
+    throw new Error(`history fixture ${path} has no dated newest poll`);
+  }
+  return { body: JSON.stringify(history), source: history.poll_source_sha256, newest, path };
+}
+
+export async function serve(siteRoot, { port = 4000, pointer = null, history = null } = {}) {
   const server = createServer(async (req, res) => {
     const path = decodeURIComponent(req.url.split('?')[0]);
     if (pointer && path === POINTER_PATH) {
       const body = JSON.stringify(pointer, null, 2);
       res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' });
       return res.end(body);
+    }
+    if (history && path === HISTORY_PATH) {
+      res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' });
+      return res.end(history.body);
     }
     let file = join(siteRoot, normalize(path).replace(/^(\.\.[/\\])+/, ''));
     try {

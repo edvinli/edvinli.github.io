@@ -31,7 +31,7 @@
 //   node browser-tests/changes-baseline.smoke.mjs [path/to/_site]
 
 import { launch } from './cdp.mjs';
-import { serve, pointerFor } from './server.mjs';
+import { serve, pointerFor, historyFixture } from './server.mjs';
 import { readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
@@ -183,9 +183,14 @@ const freshnessNote = (preceding, current) => {
 
 const pollHash = (metadata) => metadata.input_hashes.poll_data_hash;
 
-// The newest poll this forecast actually saw. The frozen bundle names its
-// polling input by hash only, so the date comes from the history artifact --
-// and only when that artifact carries this publication's own poll hash.
+// The newest poll a forecast actually saw. The frozen bundle names its polling
+// input by hash only, so the date comes from the history artifact -- and only
+// when that artifact carries this publication's own poll hash.
+//
+// This reads the *shipped* artifact, which every forecast sync replaces. It is
+// therefore only valid for the generation the repository is currently
+// publishing; a pinned historical generation has to be paired with the history
+// that shipped alongside it, via `pinnedHistory()` below.
 async function newestPollDay() {
   const history = await readJson(SITE, 'files/election-simulator/history',
     'coalition-timeseries.json');
@@ -193,6 +198,38 @@ async function newestPollDay() {
     source: history.poll_source_sha256,
     newest: history.polls.map((poll) => poll.publication_date).sort().at(-1),
   };
+}
+
+// The history artifact as it shipped with 20260906T081926Z-92521273, recovered
+// from repository history at 70b2a319 -- the sync commit that published that
+// very generation. Its `poll_source_sha256` is therefore the real one, not an
+// edited value: it is the polling input those publications genuinely saw.
+//
+// The same polling input backs 20260904T110809Z-2edab481, so one preserved
+// artifact serves both dated cases. Against 20260904T082721Z-af776460, whose
+// polling input is a different one, it is newer history under a different
+// hash -- which is exactly the undated case.
+const PINNED_HISTORY_GENERATION = '20260906T081926Z-92521273';
+const PINNED_HISTORY = new URL(
+  `./fixtures/history/${PINNED_HISTORY_GENERATION}.json`, import.meta.url);
+
+let pinnedHistoryCache = null;
+async function pinnedHistory() {
+  if (pinnedHistoryCache === null) {
+    pinnedHistoryCache = await historyFixture(PINNED_HISTORY);
+  }
+  return pinnedHistoryCache;
+}
+
+// Pair a pinned generation with a preserved history artifact, and prove the
+// pairing before anything is asserted from it. Without this the suite could
+// pass while reading a polling date that the generation under test never saw.
+async function pairedHistory(generation, metadata) {
+  const history = await pinnedHistory();
+  check(`the preserved history matches ${generation}'s own polling input`,
+    history.source === pollHash(metadata),
+    { history: history.source, publication: pollHash(metadata) });
+  return history;
 }
 
 const heroPollDay = (polling, metadata) =>
@@ -265,8 +302,8 @@ async function waitForApp(browser) {
   await settle(300);
 }
 
-async function open(viewport, pointer) {
-  const server = await serve(SITE, { port: 4000, pointer });
+async function open(viewport, pointer, history = null) {
+  const server = await serve(SITE, { port: 4000, pointer, history });
   const browser = await launch(viewport);
   await browser.goto(`http://localhost:${server.port}${PAGE}`);
   await waitForApp(browser);
@@ -387,10 +424,11 @@ async function target() {
     { baseline: baseline.generation, intervening });
 
   const preceding = await precedingPublication(TARGET_GENERATION);
-  const polling = await newestPollDay();
+  const polling = await pairedHistory(TARGET_GENERATION, metadata);
   check('the pinned generation has a shipped predecessor', preceding !== null, preceding);
 
-  const { server, browser } = await open(DESKTOP, await pointerFor(SITE, TARGET_GENERATION));
+  const { server, browser } = await open(
+    DESKTOP, await pointerFor(SITE, TARGET_GENERATION), polling);
   try {
     await assertServedGeneration(browser, TARGET_GENERATION);
     const page = await readProvenance(browser);
@@ -679,17 +717,19 @@ async function quietRerun() {
   console.log(`\nquiet re-run (${QUIET_RERUN_GENERATION})`);
   const metadata = await readJson(SITE, VERSIONS, QUIET_RERUN_GENERATION, 'metadata.json');
   const preceding = await precedingPublication(QUIET_RERUN_GENERATION);
-  const polling = await newestPollDay();
+  const polling = await pairedHistory(QUIET_RERUN_GENERATION, metadata);
 
   check('the pinned generation is a re-run on unchanged polling',
     preceding !== null && pollHash(preceding.metadata) === pollHash(metadata),
     { hash: pollHash(metadata), preceding: preceding && pollHash(preceding.metadata) });
+  // The property that makes this generation worth pinning, restated against
+  // the history it actually shipped with rather than against today's.
   check('its anchor day has moved past the newest poll it saw',
     polling.source === pollHash(metadata) && metadata.as_of > polling.newest,
     { asOf: metadata.as_of, newestPoll: polling.newest });
 
   const { server, browser } =
-    await open(DESKTOP, await pointerFor(SITE, QUIET_RERUN_GENERATION));
+    await open(DESKTOP, await pointerFor(SITE, QUIET_RERUN_GENERATION), polling);
   try {
     await assertServedGeneration(browser, QUIET_RERUN_GENERATION);
     const page = await readProvenance(browser);
@@ -792,16 +832,27 @@ async function quietRerunUndated() {
   console.log(`\nquiet re-run, unverifiable poll date (${QUIET_UNDATED_GENERATION})`);
   const metadata = await readJson(SITE, VERSIONS, QUIET_UNDATED_GENERATION, 'metadata.json');
   const preceding = await precedingPublication(QUIET_UNDATED_GENERATION);
-  const polling = await newestPollDay();
+  const polling = await pinnedHistory();
   check('the pinned generation is a re-run on unchanged polling',
     preceding !== null && pollHash(preceding.metadata) === pollHash(metadata),
     { hash: pollHash(metadata), preceding: preceding && pollHash(preceding.metadata) });
-  check('the shipped history artifact describes a different polling input',
+  // The mismatch is now a property of the pairing, not an accident of whatever
+  // the repository last synced. The paired artifact is the history that shipped
+  // with a *later* generation, which is the realistic drift case, and its
+  // differing hash is what makes the polling date unverifiable here.
+  check('the paired history shipped with a later generation',
+    PINNED_HISTORY_GENERATION > QUIET_UNDATED_GENERATION,
+    { history: PINNED_HISTORY_GENERATION, generation: QUIET_UNDATED_GENERATION });
+  check('the paired history describes a different polling input',
     polling.source !== pollHash(metadata),
     { history: polling.source, publication: pollHash(metadata) });
+  // And it does carry a printable date, so "no unverified date leaks in"
+  // below is a real check rather than one passing on an absent value.
+  check('the paired history carries a date that must not be printed',
+    /^\d{4}-\d{2}-\d{2}$/.test(polling.newest || ''), polling.newest);
 
   const { server, browser } =
-    await open(DESKTOP, await pointerFor(SITE, QUIET_UNDATED_GENERATION));
+    await open(DESKTOP, await pointerFor(SITE, QUIET_UNDATED_GENERATION), polling);
   try {
     await assertServedGeneration(browser, QUIET_UNDATED_GENERATION);
     const page = await readProvenance(browser);
@@ -816,6 +867,68 @@ async function quietRerunUndated() {
       { newest: swedishDay(polling.newest), hero: page.heroText });
     equal('this run has no console errors', appErrors(browser), []);
     equal('this run has no uncaught exceptions', browser.exceptions, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}
+
+// The live publication, against the artifacts the repository is actually
+// shipping. Every other run here pins a frozen generation, which is what makes
+// them stable -- and also what makes them blind to a bad publication.
+//
+// Nothing below names a date. The claim is a relationship: the polling date is
+// printed exactly when the shipped history can witness this publication's own
+// polling input, and withheld otherwise. That holds whatever today's dates are,
+// so a forecast sync cannot make it fail, while a forecast that really had
+// used polling it could not account for would.
+async function currentPublication() {
+  const pointer = await readJson(SITE, 'files/election-simulator', 'current.json');
+  const generation = pointer.publication_generation;
+  console.log(`\ncurrent publication (${generation})`);
+  const metadata = await readJson(SITE, VERSIONS, generation, 'metadata.json');
+  const polling = await newestPollDay();
+  const matches = polling.source === pollHash(metadata);
+
+  // A publication may not have been computed from polling published after it.
+  // This is the check that would speak to a genuine "used future polling"
+  // fault, as distinct from the artifacts merely having drifted apart.
+  if (matches) {
+    check('the newest poll it saw is not newer than the calculation day',
+      polling.newest <= stockholmDayIso(metadata.generated_at_utc),
+      { newest: polling.newest, calculated: stockholmDayIso(metadata.generated_at_utc) });
+  }
+
+  const { server, browser } = await open(DESKTOP, null);
+  try {
+    equal('the page is served the repository\'s own pointer',
+      await browser.evaluate(async () => {
+        const res = await fetch('/files/election-simulator/current.json', { cache: 'no-store' });
+        return (await res.json()).publication_generation;
+      }), generation);
+    const page = await readProvenance(browser);
+    equal('the polling cell states what the shipped history can witness',
+      page.heroAsOf, heroPollDay(polling, metadata));
+    if (matches) {
+      check('so the lede cites the polling input it can verify',
+        page.lede.includes(`opinionsunderlag till och med ${swedishDay(polling.newest)}`),
+        { lede: page.lede, newest: polling.newest });
+    } else {
+      check('so the lede makes no dated claim it cannot support',
+        !/till och med/.test(page.lede) &&
+        page.lede.includes('det publicerade opinionsunderlaget'), page.lede);
+      check('and no unverifiable date reaches the hero',
+        !page.heroText.includes(swedishDay(polling.newest)),
+        { newest: swedishDay(polling.newest), hero: page.heroText });
+    }
+    // Whatever the polling provenance, the anchor day is never the hero's
+    // polling fact -- that conflation is the bug this suite was written for.
+    check('the anchor day is not printed as the polling fact',
+      page.heroAsOf !== swedishDay(metadata.as_of) ||
+      (matches && polling.newest === metadata.as_of),
+      { hero: page.heroAsOf, asOf: metadata.as_of });
+    equal('the current publication has no console errors', appErrors(browser), []);
+    equal('the current publication has no uncaught exceptions', browser.exceptions, []);
   } finally {
     await browser.close();
     await server.close();
@@ -959,6 +1072,7 @@ await quietRerun();
 await intradayRerun();
 await unresolvable();
 await quietRerunUndated();
+await currentPublication();
 await mobile();
 console.log(`\n${checks - failures}/${checks} checks passed`);
 if (failures) {
