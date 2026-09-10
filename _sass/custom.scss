@@ -475,6 +475,13 @@ canvas {
   margin-top: 0.5rem;
 }
 
+/* Bordered in both states. The pills only show their outline when pressed,
+   which is right for a set of eight where the pressed ones are the content --
+   but a single action next to them has to look pressable while it is off. */
+.election-timeseries__party-all {
+  border-color: var(--el-rule);
+}
+
 .election-timeseries__party-all[aria-pressed="true"] {
   font-weight: 600;
 }

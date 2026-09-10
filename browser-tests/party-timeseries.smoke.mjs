@@ -601,7 +601,7 @@ async function runViewport(viewport, site) {
         insideActionHost: Boolean(button && host && host.contains(button)),
         hostHidden: host ? host.hidden : null,
         pressed: button?.getAttribute('aria-pressed') || null,
-        label: button?.getAttribute('aria-label') || null,
+        label: button?.getAttribute('aria-label'),
         text: (button?.textContent || '').trim(),
         countedAsParty: document.querySelectorAll(
           '#election-timeseries-parties button[aria-pressed="true"]').length,
@@ -619,8 +619,12 @@ async function runViewport(viewport, site) {
       allControl.hostHidden === false, allControl);
     equal('...pressed on entry, because every party starts on',
       allControl.pressed, 'true');
-    check('...and its label says what pressing it will do',
-      /Dölj alla partier/.test(allControl.label || ''), allControl.label);
+    // A toggle that renames itself while also carrying aria-pressed is
+    // announced as "Dölj alla partier, intryckt" -- the opposite of what it
+    // means. The name is the visible text and stays put; aria-pressed is the
+    // only thing that changes.
+    equal('...named by its visible text, with no competing aria-label',
+      [allControl.text, allControl.label], ['Alla partier', null]);
 
     await browser.evaluate(() => document
       .getElementById('election-timeseries-parties-all').click());
@@ -633,11 +637,12 @@ async function runViewport(viewport, site) {
       return {
         pressed: button.getAttribute('aria-pressed'),
         label: button.getAttribute('aria-label'),
+        text: button.textContent.trim(),
       };
     });
     equal('...and reports itself unpressed', offControl.pressed, 'false');
-    check('...with a label offering to show them again',
-      /Visa alla partier/.test(offControl.label || ''), offControl.label);
+    equal('...without its accessible name having moved',
+      [offControl.text, offControl.label], ['Alla partier', null]);
 
     await browser.evaluate(() => document
       .getElementById('election-timeseries-parties-all').click());

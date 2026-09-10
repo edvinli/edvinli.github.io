@@ -2013,11 +2013,18 @@
       });
       if (partyAllButton) {
         var everyParty = allPartiesSelected();
+        // Only the state changes. The accessible name stays "Alla partier":
+        // a toggle that renames itself while also carrying aria-pressed is
+        // announced as "D\u00f6lj alla partier, intryckt", which says the
+        // opposite of what it means. The name comes from the visible text, so
+        // it also matches what voice control has to say to reach it.
         partyAllButton.setAttribute("aria-pressed", everyParty ? "true" : "false");
-        partyAllButton.setAttribute("aria-label", everyParty
-          ? "D\u00f6lj alla partier i diagrammet"
-          : "Visa alla partier i diagrammet");
-        partyAllButton.className = "election-timeseries__control" +
+        // The chip styling, not `__control`: that class has `border: 0`
+        // because it is meant for buttons inside an already-bordered group,
+        // and standalone it rendered as plain text beside the pills with no
+        // sign it could be pressed. Safe to share the look now the button
+        // lives outside the party group, which is what the queries address.
+        partyAllButton.className = "election-timeseries__coalition" +
           " election-timeseries__party-all" + (everyParty ? " is-active" : "");
       }
     }
@@ -2718,6 +2725,8 @@
       partyAllButton.id = "election-timeseries-parties-all";
       partyAllButton.setAttribute("data-party-all", "true");
       partyAllButton.setAttribute("aria-controls", "election-timeseries-svg");
+      // No aria-label: the visible "Alla partier" is the accessible name, and
+      // aria-pressed alone carries whether they are all showing.
       partyAllButton.innerHTML = "<span class=\"election-timeseries__coalition-label\">" +
         "Alla partier</span>";
       partyAllButton.addEventListener("click", function () {
