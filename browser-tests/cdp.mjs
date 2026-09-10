@@ -10,6 +10,34 @@ const CDP_REQUEST_TIMEOUT_MS = 15000;
 const NAVIGATION_TIMEOUT_MS = 30000;
 const WEBSOCKET_OPEN_TIMEOUT_MS = 15000;
 
+// How long Chrome gets to expose its debugging endpoint.
+//
+// Configurable because 30s is not comfortably above what a loaded CI runner
+// needs: a passing publication was observed launching in 23.7s, a 6.3s margin,
+// and a rendering job -- which drives the browser after reconstruction and
+// projection work in the same job -- lost that race at 30.2s. Bounded at 60s
+// because a longer wait stops being a slow start and starts being a hang that
+// should fail the suite rather than delay it.
+//
+// Raising this does not fix a browser that cannot start. `launch` now
+// distinguishes the two: an exited process fails immediately, whatever the
+// deadline.
+const CDP_READY_TIMEOUT_DEFAULT_MS = 30000;
+const CDP_READY_TIMEOUT_CEILING_MS = 60000;
+
+export function resolveCdpReadyTimeout(raw = process.env.CDP_READY_TIMEOUT_MS) {
+  if (raw === undefined || raw === null || `${raw}`.trim() === '') {
+    return CDP_READY_TIMEOUT_DEFAULT_MS;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(
+      `CDP_READY_TIMEOUT_MS must be a positive number of milliseconds, got ${JSON.stringify(raw)}`,
+    );
+  }
+  return Math.min(Math.round(parsed), CDP_READY_TIMEOUT_CEILING_MS);
+}
+
 const timeoutText = (milliseconds) => milliseconds % 1000 === 0
   ? `${milliseconds / 1000}s`
   : `${milliseconds}ms`;
@@ -55,6 +83,12 @@ async function waitForProcessExit(proc, timeout) {
 export async function launch({ width = 1280, height = 1000 } = {}) {
   const profile = mkdtempSync(join(tmpdir(), 'cdp-profile-'));
   const port = 9222 + Math.floor(Math.random() * 2000);
+  // Which binary, and which build of it. The selection happens outside this
+  // repository -- CI resolves CHROME_BIN from whatever the runner image has --
+  // so a launch failure is not diagnosable without naming what was launched.
+  // Read from CDP's own /json/version on success; only guessed at on failure.
+  const launchStarted = Date.now();
+  let browserVersion = null;
   const proc = spawn(CHROME, [
     '--headless=new',
     `--remote-debugging-port=${port}`,
@@ -82,27 +116,52 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     stream.on('error', () => {});
   }
 
+  const readyTimeout = resolveCdpReadyTimeout();
+  const exitState = () =>
+    `exitCode=${proc.exitCode ?? 'running'}, signal=${proc.signalCode ?? 'none'}`;
+  const abandon = (reason) => {
+    const logTail = browserLog.join('').trim().slice(-12000);
+    proc.kill('SIGKILL');
+    try { rmSync(profile, { recursive: true, force: true }); } catch {}
+    return new Error(
+      `${reason} [browser=${CHROME}, version=${browserVersion ?? 'unknown'}, ` +
+      `startup=${((Date.now() - launchStarted) / 1000).toFixed(3)}s, ${exitState()}]` +
+      (logTail ? `\nChromium output:\n${logTail}` : ''),
+    );
+  };
+
   let wsUrl = null;
-  const deadline = Date.now() + 30000;
+  let versionPayload = null;
+  const deadline = Date.now() + readyTimeout;
   while (Date.now() < deadline && !wsUrl) {
+    // A browser that has already exited is never going to answer. Polling on
+    // regardless made a crash indistinguishable from a slow start: both
+    // reported the same "did not expose CDP" after the full deadline, which is
+    // how a dbus failure looked like a timeout worth waiting longer for.
+    if (proc.exitCode != null || proc.signalCode != null) {
+      throw abandon('Chrome exited before exposing CDP');
+    }
     try {
       const remaining = Math.max(1, deadline - Date.now());
       const r = await fetch(`http://127.0.0.1:${port}/json/version`, {
         signal: AbortSignal.timeout(Math.min(1000, remaining)),
       });
-      wsUrl = (await r.json()).webSocketDebuggerUrl;
+      versionPayload = await r.json();
+      wsUrl = versionPayload.webSocketDebuggerUrl;
     } catch { await new Promise(r => setTimeout(r, 120)); }
   }
   if (!wsUrl) {
-    const exitState = `exitCode=${proc.exitCode ?? 'running'}, signal=${proc.signalCode ?? 'none'}`;
-    const logTail = browserLog.join('').trim().slice(-12000);
-    proc.kill('SIGKILL');
-    try { rmSync(profile, { recursive: true, force: true }); } catch {}
-    throw new Error(
-      `Chrome did not expose CDP after 30s (${exitState})` +
-      (logTail ? `\nChromium output:\n${logTail}` : ''),
-    );
+    throw abandon(`Chrome did not expose CDP after ${timeoutText(readyTimeout)}`);
   }
+  browserVersion = versionPayload?.Browser ?? browserVersion;
+  // Reported on success too. A launch that is quietly creeping toward the
+  // deadline is the warning that precedes the failure, and it is invisible if
+  // the elapsed time is only printed when it is already too late.
+  process.stderr.write(
+    `[cdp] launched browser=${CHROME} version=${browserVersion ?? 'unknown'} ` +
+    `startup=${((Date.now() - launchStarted) / 1000).toFixed(3)}s ` +
+    `deadline=${timeoutText(readyTimeout)}\n`,
+  );
 
   const ws = new WebSocket(wsUrl);
   try {
@@ -297,4 +356,143 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   return { evaluate, goto, waitFor, click, close, screenshot, setViewport,
            consoleErrors, consoleAll, exceptions, failedRequests, S,
            browserLog: () => browserLog.join('') };
+}
+
+// --- self-test -------------------------------------------------------------
+// Runs in CI, as select-suites.mjs does. The launch path has exactly two
+// failure shapes and they used to be indistinguishable: a browser that is
+// slow, and a browser that is dead. Reporting both as "did not expose CDP
+// after 30s" is what made a dbus failure look like a deadline worth raising.
+//
+// Driven with a fake browser rather than Chrome: these assertions are about
+// this module's waiting and reporting, which a real browser cannot be made to
+// fail on demand.
+
+async function selfTest() {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const failures = [];
+  const check = (label, pass, detail) => {
+    if (pass) { console.log(`  ok   ${label}`); return; }
+    failures.push(label);
+    console.log(`  FAIL ${label}${detail === undefined ? '' : ` -- ${JSON.stringify(detail)}`}`);
+  };
+
+  // --- the configurable deadline ---
+  const cases = [
+    [undefined, CDP_READY_TIMEOUT_DEFAULT_MS], ['', CDP_READY_TIMEOUT_DEFAULT_MS],
+    ['45000', 45000], ['60000', 60000],
+    ['90000', CDP_READY_TIMEOUT_CEILING_MS], [' 40000 ', 40000],
+  ];
+  for (const [raw, expected] of cases) {
+    check(`deadline ${JSON.stringify(raw)} resolves to ${expected}`,
+      resolveCdpReadyTimeout(raw) === expected, resolveCdpReadyTimeout(raw));
+  }
+  check('the ceiling is a bound, not a default',
+    CDP_READY_TIMEOUT_DEFAULT_MS < CDP_READY_TIMEOUT_CEILING_MS);
+  for (const raw of ['0', '-1', 'soon', 'NaN']) {
+    let refused = false;
+    try { resolveCdpReadyTimeout(raw); } catch { refused = true; }
+    check(`deadline ${JSON.stringify(raw)} is refused`, refused);
+  }
+
+  // --- a fake browser, so the waiting itself can be tested ---
+  const workspace = mkdtempSync(join(tmpdir(), 'cdp-selftest-'));
+  const fake = (body) => {
+    const file = join(workspace, `fake-${Math.random().toString(36).slice(2)}.mjs`);
+    writeFileSync(file, `#!/usr/bin/env node\n${body}\n`, { mode: 0o755 });
+    return file;
+  };
+  const portFromArgv = `Number(process.argv.find((a) => \
+a.startsWith('--remote-debugging-port='))?.split('=')[1])`;
+
+  const exitsImmediately = fake(`
+    process.stderr.write('fake browser refusing to start\\n');
+    process.exit(3);
+  `);
+  const staysSilent = fake(`setInterval(() => {}, 1000);`);
+  const readyLate = fake(`
+    const { createServer } = await import('node:http');
+    const port = ${portFromArgv};
+    setTimeout(() => {
+      createServer((req, res) => {
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({
+          Browser: 'FakeChrome/1.2.3',
+          webSocketDebuggerUrl: 'ws://127.0.0.1:1/devtools/browser/fake',
+        }));
+      }).listen(port, '127.0.0.1');
+    }, 600);
+  `);
+
+  const attempt = async (binary, timeoutMs) => {
+    const previousChrome = process.env.CHROME_BIN;
+    const previousTimeout = process.env.CDP_READY_TIMEOUT_MS;
+    process.env.CHROME_BIN = binary;
+    process.env.CDP_READY_TIMEOUT_MS = String(timeoutMs);
+    const started = Date.now();
+    try {
+      // `CHROME` is captured at module load, so the child is spawned through a
+      // fresh import of this module with the environment already in place.
+      const fresh = await import(`${import.meta.url}?case=${Math.random()}`);
+      const browser = await fresh.launch({ width: 400, height: 300 });
+      await browser.close();
+      return { error: null, elapsed: Date.now() - started };
+    } catch (error) {
+      return { error, elapsed: Date.now() - started };
+    } finally {
+      if (previousChrome === undefined) delete process.env.CHROME_BIN;
+      else process.env.CHROME_BIN = previousChrome;
+      if (previousTimeout === undefined) delete process.env.CDP_READY_TIMEOUT_MS;
+      else process.env.CDP_READY_TIMEOUT_MS = previousTimeout;
+    }
+  };
+
+  // Early process exit: fails at once, and says the process exited rather
+  // than blaming the deadline. The 4000ms budget is deliberately far above
+  // what an immediate failure needs and far below the deadline.
+  const dead = await attempt(exitsImmediately, 8000);
+  check('a browser that exits fails immediately',
+    dead.error !== null && dead.elapsed < 4000, dead.elapsed);
+  check('...and names the exit rather than the deadline',
+    /exited before exposing CDP/.test(dead.error?.message ?? ''), dead.error?.message?.slice(0, 200));
+  check('...and reports the exit status',
+    /exitCode=3/.test(dead.error?.message ?? ''), dead.error?.message?.slice(0, 300));
+  check('...and includes the bounded browser output',
+    /refusing to start/.test(dead.error?.message ?? ''), dead.error?.message?.slice(0, 300));
+  check('...and names the binary it launched',
+    (dead.error?.message ?? '').includes(exitsImmediately));
+
+  // A live but silent browser is waited for, to the deadline and no further.
+  const silent = await attempt(staysSilent, 2000);
+  check('a live but silent browser is waited for, then fails on the deadline',
+    /did not expose CDP after 2s/.test(silent.error?.message ?? ''),
+    silent.error?.message?.slice(0, 200));
+  check('...having waited roughly the deadline, not longer',
+    silent.elapsed >= 1900 && silent.elapsed < 7000, silent.elapsed);
+  check('...and reports it was still running',
+    /exitCode=running/.test(silent.error?.message ?? ''), silent.error?.message?.slice(0, 300));
+
+  // Delayed readiness: the endpoint appearing after a pause is accepted, so a
+  // slow start is not failed. This fake serves /json/version and no
+  // WebSocket, so the attempt still fails -- at the *next* stage, which is
+  // what proves the poll loop got past waiting.
+  const late = await attempt(readyLate, 8000);
+  check('an endpoint that appears late is accepted',
+    late.error !== null && !/did not expose CDP/.test(late.error.message)
+      && !/exited before exposing CDP/.test(late.error.message),
+    late.error?.message?.slice(0, 200));
+  check('...and the failure is the WebSocket stage, past the wait',
+    /WebSocket/.test(late.error?.message ?? ''), late.error?.message?.slice(0, 200));
+
+  try { rmSync(workspace, { recursive: true, force: true }); } catch {}
+
+  console.log(failures.length === 0
+    ? `\ncdp launch self-test: all checks passed`
+    : `\ncdp launch self-test: ${failures.length} failed`);
+  return failures.length === 0 ? 0 : 1;
+}
+
+if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())
+    && process.argv.includes('--self-test')) {
+  process.exit(await selfTest());
 }

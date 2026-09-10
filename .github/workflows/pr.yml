@@ -45,6 +45,12 @@ jobs:
       - name: Self-test the suite selector
         run: node browser-tests/select-suites.mjs --self-test
 
+      # Every suite launches the browser through cdp.mjs, so a launch path
+      # that cannot tell a slow start from a dead process makes every suite's
+      # failure unreadable. Driven with fake browsers; needs no Chrome.
+      - name: Self-test the browser launch path
+        run: node browser-tests/cdp.mjs --self-test
+
       - name: Select affected suites
         id: plan
         shell: bash
