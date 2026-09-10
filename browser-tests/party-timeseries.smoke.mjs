@@ -584,6 +584,96 @@ async function runViewport(viewport, site) {
     equal('toggling back restores the full set', backOn.selectedParties, PARTY_ORDER);
     equal('toggling back restores the domain', [backOn.yMin, backOn.yMax], [allOn.min, allOn.max]);
 
+    // --- the toggle-all control ---------------------------------------
+    // Eight pills is enough friction to stop anyone comparing the whole
+    // field, which is the reason to be in this view at all. The control is
+    // deliberately *outside* the party group: that group is labelled "Välj
+    // parti" and holds one control per party, and a ninth swatchless chip in
+    // it answered to every query that counts or clicks the parties -- which
+    // is how it first broke this suite.
+    const allControl = await browser.evaluate(() => {
+      const button = document.getElementById('election-timeseries-parties-all');
+      const host = document.getElementById('election-timeseries-party-actions');
+      return {
+        exists: Boolean(button),
+        insidePartyGroup: Boolean(
+          button && button.closest('#election-timeseries-parties')),
+        insideActionHost: Boolean(button && host && host.contains(button)),
+        hostHidden: host ? host.hidden : null,
+        pressed: button?.getAttribute('aria-pressed') || null,
+        label: button?.getAttribute('aria-label') || null,
+        text: (button?.textContent || '').trim(),
+        countedAsParty: document.querySelectorAll(
+          '#election-timeseries-parties button[aria-pressed="true"]').length,
+        partyPillCount: document.querySelectorAll(
+          '#election-timeseries-parties button[data-party]').length,
+      };
+    });
+    check('a toggle-all control is offered in the party view', allControl.exists);
+    check('...outside the party group, not as a ninth party',
+      !allControl.insidePartyGroup && allControl.insideActionHost, allControl);
+    check('...so it is not counted among the parties',
+      allControl.countedAsParty === allControl.partyPillCount && allControl.partyPillCount === 8,
+      allControl);
+    check('...and is visible while the party view is open',
+      allControl.hostHidden === false, allControl);
+    equal('...pressed on entry, because every party starts on',
+      allControl.pressed, 'true');
+    check('...and its label says what pressing it will do',
+      /Dölj alla partier/.test(allControl.label || ''), allControl.label);
+
+    await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').click());
+    await settle(320);
+    const allOff = await readState(browser);
+    equal('pressing it once clears every party', allOff.selectedParties, []);
+    equal('...and draws no series', allOff.seriesDefinitions, []);
+    const offControl = await browser.evaluate(() => {
+      const button = document.getElementById('election-timeseries-parties-all');
+      return {
+        pressed: button.getAttribute('aria-pressed'),
+        label: button.getAttribute('aria-label'),
+      };
+    });
+    equal('...and reports itself unpressed', offControl.pressed, 'false');
+    check('...with a label offering to show them again',
+      /Visa alla partier/.test(offControl.label || ''), offControl.label);
+
+    await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').click());
+    await settle(320);
+    const allBackOn = await readState(browser);
+    equal('pressing it again restores every party',
+      allBackOn.selectedParties, ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD']);
+
+    // Its state is derived from the selection, not remembered: switching one
+    // party off must un-press it even though it was not the thing clicked.
+    await browser.evaluate(() => document
+      .querySelector('#election-timeseries-parties button[data-party="S"]').click());
+    await settle(320);
+    const afterOnePillOff = await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').getAttribute('aria-pressed'));
+    equal('switching one party off un-presses the toggle-all control',
+      afterOnePillOff, 'false');
+    await browser.evaluate(() => document
+      .querySelector('#election-timeseries-parties button[data-party="S"]').click());
+    await settle(320);
+    const afterOnePillBack = await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').getAttribute('aria-pressed'));
+    equal('switching it back on presses it again', afterOnePillBack, 'true');
+
+    // --- the chart is tall enough to read eight lines -------------------
+    // The party view is why the height changed: eight series inside the old
+    // 320 user units of plot sat on top of each other. Asserted as a shape
+    // rather than a pixel count, so it survives a re-tune but not a revert.
+    const shape = await browser.evaluate(() => {
+      const svg = document.getElementById('election-timeseries-svg');
+      const box = (svg.getAttribute('viewBox') || '').split(' ').map(Number);
+      return { width: box[2], height: box[3] };
+    });
+    check('the chart is at least 55 % as tall as it is wide',
+      shape.height / shape.width >= 0.55, shape);
+
     // Every party off is a legal, empty chart -- the same as deselecting every
     // coalition -- and must not throw or leave a stale series behind.
     await browser.evaluate(() => {

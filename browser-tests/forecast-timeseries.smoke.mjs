@@ -881,10 +881,13 @@ function assertStructure(view, history) {
       { href: '#election-timeseries', text: 'Vägen till valdagen' },
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
       { href: '#election-government-builder', text: 'Bygg din egen regering' },
-      { href: '#election-parliament-outcome', text: 'Ett simulerat riksdagsutfall' },
       { href: '#election-threshold', text: '4 %-spärren' },
       { href: '#election-headline', text: 'Röstandelar på valdagen' },
       { href: '#election-seats', text: 'Mandat på valdagen' },
+      // The simulated parliament closes the page, below the seat forecast it
+      // is an instance of, so the navigation names it after "Mandat på
+      // valdagen" rather than under the builder.
+      { href: '#election-parliament-outcome', text: 'Ett simulerat riksdagsutfall' },
       { href: '#election-latest-poll', text: 'Senaste mätningarna' },
       { href: '#election-model', text: 'Så fungerar modellen' },
       { href: '#election-methodology', text: 'Metod och utvärdering' },

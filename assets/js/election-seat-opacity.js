@@ -17,8 +17,8 @@
 
   // Keep the source DOM and visual order aligned: the reader first sees the
   // route to election day, then the coalition comparison, builder and
-  // election-day forecast views. The simulated parliament is moved inside the
-  // builder panel below the interactive builder itself.
+  // election-day forecast views. The simulated parliament closes the page,
+  // below the seat forecast it illustrates.
   function placeElectionSections() {
     var alternatives = document.getElementById("election-alternatives");
     var builder = document.getElementById("election-government-builder");
@@ -32,23 +32,29 @@
     children.forEach(function (child) { child.style.order = ""; });
   }
 
-  function placeParliamentAfterBuilder() {
-    var builder = document.getElementById("election-government-builder");
+  // One example parliament drawn from the simulation, which only means
+  // anything once the seat distribution above it has been read -- so it sits
+  // at the end of "Mandat p\u00e5 valdagen" rather than under the builder,
+  // where it interrupted the builder's own result and arrived before the seat
+  // forecast it is an instance of.
+  function placeParliamentAfterSeats() {
     var heading = root.querySelector(".election-subhead");
     var caption = document.getElementById("election-parliament-caption");
     var frame = root.querySelector(".election-parliament-frame");
     var legend = document.getElementById("election-parliament-legend");
-    if (!builder || !heading || !caption || !frame || !legend) return;
+    if (!heading || !caption || !frame || !legend) return;
 
+    // Still wrapped, and still with the same id: the hero navigation links to
+    // it and the browser gates address it by that id.
     var host = document.createElement("div");
     host.id = "election-parliament-outcome";
     host.className = "election-parliament-outcome";
-    host.setAttribute("data-placement", "after-government-builder");
+    host.setAttribute("data-placement", "after-seat-bars");
     host.appendChild(heading);
     host.appendChild(caption);
     host.appendChild(frame);
     host.appendChild(legend);
-    builder.appendChild(host);
+    root.appendChild(host);
   }
 
   function updateHeroLinks() {
@@ -60,10 +66,10 @@
       ["election-timeseries", "Vägen till valdagen"],
       ["election-alternatives", "Regeringsalternativ"],
       ["election-government-builder", "Bygg din egen regering"],
-      ["election-parliament-outcome", "Ett simulerat riksdagsutfall"],
       ["election-threshold", "4 %-spärren"],
       ["election-headline", "Röstandelar på valdagen"],
       ["election-seats", "Mandat på valdagen"],
+      ["election-parliament-outcome", "Ett simulerat riksdagsutfall"],
       ["election-latest-poll", "Senaste mätningarna"],
       ["election-model", "Så fungerar modellen"],
       ["election-methodology", "Metod och utvärdering"],
@@ -87,7 +93,7 @@
   }
 
   placeElectionSections();
-  placeParliamentAfterBuilder();
+  placeParliamentAfterSeats();
   updateHeroLinks();
 
   // Addressed by id, not by ".election-panel__head .election-muted": that

@@ -465,6 +465,20 @@ canvas {
   background: var(--el-fill);
 }
 
+/* An action on the whole set, so it sits beside the party pills rather than
+   among them: the group next to it is labelled "V\00e4lj parti" and holds one
+   control per party. */
+.election-timeseries__party-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.election-timeseries__party-all[aria-pressed="true"] {
+  font-weight: 600;
+}
+
 .election-timeseries__coalition-swatch {
   border-radius: 50%;
   display: inline-block;
@@ -544,7 +558,7 @@ canvas {
   display: block;
   height: auto;
   max-width: 100%;
-  min-height: 13rem;
+  min-height: 18rem;
   outline-offset: -2px;
   touch-action: manipulation;
   width: 100%;
@@ -2524,7 +2538,7 @@ canvas {
   }
 
   .election-timeseries__svg {
-    min-height: 16rem;
+    min-height: 22rem;
   }
 
   .election-timeseries__svg text {
