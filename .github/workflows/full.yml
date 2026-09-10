@@ -31,6 +31,8 @@ jobs:
           node-version: "22"
       - name: Self-test the suite selector
         run: node browser-tests/select-suites.mjs --self-test
+      - name: Self-test the browser launch path
+        run: node browser-tests/cdp.mjs --self-test
       - name: Enumerate every suite
         id: plan
         shell: bash
