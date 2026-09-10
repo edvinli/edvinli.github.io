@@ -584,6 +584,168 @@ async function runViewport(viewport, site) {
     equal('toggling back restores the full set', backOn.selectedParties, PARTY_ORDER);
     equal('toggling back restores the domain', [backOn.yMin, backOn.yMax], [allOn.min, allOn.max]);
 
+    // --- the toggle-all control ---------------------------------------
+    // Eight pills is enough friction to stop anyone comparing the whole
+    // field, which is the reason to be in this view at all. The control is
+    // deliberately *outside* the party group: that group is labelled "Välj
+    // parti" and holds one control per party, and a ninth swatchless chip in
+    // it answered to every query that counts or clicks the parties -- which
+    // is how it first broke this suite.
+    const allControl = await browser.evaluate(() => {
+      const button = document.getElementById('election-timeseries-parties-all');
+      const host = document.getElementById('election-timeseries-party-actions');
+      return {
+        exists: Boolean(button),
+        insidePartyGroup: Boolean(
+          button && button.closest('#election-timeseries-parties')),
+        insideActionHost: Boolean(button && host && host.contains(button)),
+        hostHidden: host ? host.hidden : null,
+        pressed: button?.getAttribute('aria-pressed') || null,
+        label: button?.getAttribute('aria-label'),
+        text: (button?.textContent || '').trim(),
+        countedAsParty: document.querySelectorAll(
+          '#election-timeseries-parties button[aria-pressed="true"]').length,
+        partyPillCount: document.querySelectorAll(
+          '#election-timeseries-parties button[data-party]').length,
+      };
+    });
+    check('a toggle-all control is offered in the party view', allControl.exists);
+    check('...outside the party group, not as a ninth party',
+      !allControl.insidePartyGroup && allControl.insideActionHost, allControl);
+    check('...so it is not counted among the parties',
+      allControl.countedAsParty === allControl.partyPillCount && allControl.partyPillCount === 8,
+      allControl);
+    check('...and is visible while the party view is open',
+      allControl.hostHidden === false, allControl);
+    equal('...pressed on entry, because every party starts on',
+      allControl.pressed, 'true');
+    // A toggle that renames itself while also carrying aria-pressed is
+    // announced as "Dölj alla partier, intryckt" -- the opposite of what it
+    // means. The name is the visible text and stays put; aria-pressed is the
+    // only thing that changes.
+    equal('...named by its visible text, with no competing aria-label',
+      [allControl.text, allControl.label], ['Alla partier', null]);
+
+    await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').click());
+    await settle(320);
+    const allOff = await readState(browser);
+    equal('pressing it once clears every party', allOff.selectedParties, []);
+    equal('...and draws no series', allOff.seriesDefinitions, []);
+    const offControl = await browser.evaluate(() => {
+      const button = document.getElementById('election-timeseries-parties-all');
+      return {
+        pressed: button.getAttribute('aria-pressed'),
+        label: button.getAttribute('aria-label'),
+        text: button.textContent.trim(),
+      };
+    });
+    equal('...and reports itself unpressed', offControl.pressed, 'false');
+    equal('...without its accessible name having moved',
+      [offControl.text, offControl.label], ['Alla partier', null]);
+
+    await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').click());
+    await settle(320);
+    const allBackOn = await readState(browser);
+    equal('pressing it again restores every party',
+      allBackOn.selectedParties, ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD']);
+
+    // Its state is derived from the selection, not remembered: switching one
+    // party off must un-press it even though it was not the thing clicked.
+    await browser.evaluate(() => document
+      .querySelector('#election-timeseries-parties button[data-party="S"]').click());
+    await settle(320);
+    const afterOnePillOff = await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').getAttribute('aria-pressed'));
+    equal('switching one party off un-presses the toggle-all control',
+      afterOnePillOff, 'false');
+    await browser.evaluate(() => document
+      .querySelector('#election-timeseries-parties button[data-party="S"]').click());
+    await settle(320);
+    const afterOnePillBack = await browser.evaluate(() => document
+      .getElementById('election-timeseries-parties-all').getAttribute('aria-pressed'));
+    equal('switching it back on presses it again', afterOnePillBack, 'true');
+
+    // --- accessible names do not move with the state --------------------
+    // Every toggle here reports state through aria-pressed. A control that
+    // also renames itself is announced as "Dölj Moderaterna, intryckt" --
+    // the state twice, and the second one contradicting the first. The pills
+    // keep a name; it just never changes.
+    const names = await browser.evaluate(() => {
+      const read = (selector) => Array.from(document.querySelectorAll(selector))
+        .map((button) => ({
+          text: button.textContent.trim(),
+          label: button.getAttribute('aria-label'),
+          pressed: button.getAttribute('aria-pressed'),
+        }));
+      const before = read('#election-timeseries-parties button[data-party]');
+      document.querySelectorAll('#election-timeseries-parties button[data-party]')
+        .forEach((button) => button.click());
+      return { before, after: read('#election-timeseries-parties button[data-party]') };
+    });
+    await settle(320);
+    equal('a party pill keeps its name when it is switched',
+      names.before.map((entry) => entry.label),
+      names.after.map((entry) => entry.label), names);
+    check('...and the state really did change under it',
+      names.before.some((entry, index) => entry.pressed !== names.after[index].pressed),
+      names);
+    check('...with the visible text inside the name, so it can be spoken',
+      names.before.every((entry) => entry.label && entry.label.includes(entry.text)),
+      names.before);
+    check('...and no name says show or hide',
+      names.before.concat(names.after).every((entry) =>
+        !/^(Visa|Dölj)\b/.test(entry.label || '')),
+      names.before);
+    // Put them back for whatever runs after this.
+    await browser.evaluate(() => {
+      document.querySelectorAll('#election-timeseries-parties button[data-party]')
+        .forEach((button) => button.click());
+    });
+    await settle(320);
+
+    // The coalition chips are the same control family in the same panel and
+    // had the same defect, so they are checked here rather than in
+    // forecast-timeseries, whose navigation assertions are synchronous.
+    // Still in the DOM while the party view is open, just hidden.
+    const coalitionNames = await browser.evaluate(() => {
+      const read = () => Array.from(document.querySelectorAll(
+        '#election-timeseries-coalitions button[data-coalition]')).map((button) => ({
+          text: button.textContent.trim(),
+          label: button.getAttribute('aria-label'),
+          pressed: button.getAttribute('aria-pressed'),
+        }));
+      const before = read();
+      document.querySelector('#election-timeseries-coalitions button[data-coalition]')?.click();
+      const after = read();
+      document.querySelector('#election-timeseries-coalitions button[data-coalition]')?.click();
+      return { before, after };
+    });
+    await settle(320);
+    check('there are coalition chips to check', coalitionNames.before.length > 0);
+    equal('a coalition chip keeps its name when it is switched',
+      coalitionNames.before.map((entry) => entry.label),
+      coalitionNames.after.map((entry) => entry.label), coalitionNames);
+    check('...the first chip really did toggle',
+      coalitionNames.before[0].pressed !== coalitionNames.after[0].pressed,
+      coalitionNames);
+    check('...and it is named by its visible text, with no aria-label at all',
+      coalitionNames.before.every((entry) => entry.label === null && entry.text.length > 0),
+      coalitionNames.before);
+
+    // --- the chart is tall enough to read eight lines -------------------
+    // The party view is why the height changed: eight series inside the old
+    // 320 user units of plot sat on top of each other. Asserted as a shape
+    // rather than a pixel count, so it survives a re-tune but not a revert.
+    const shape = await browser.evaluate(() => {
+      const svg = document.getElementById('election-timeseries-svg');
+      const box = (svg.getAttribute('viewBox') || '').split(' ').map(Number);
+      return { width: box[2], height: box[3] };
+    });
+    check('the chart is at least 55 % as tall as it is wide',
+      shape.height / shape.width >= 0.55, shape);
+
     // Every party off is a legal, empty chart -- the same as deselecting every
     // coalition -- and must not throw or leave a stale series behind.
     await browser.evaluate(() => {

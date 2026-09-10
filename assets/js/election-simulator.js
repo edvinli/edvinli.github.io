@@ -1815,6 +1815,11 @@
     var rangeShort = byId("election-timeseries-range-short");
     var coalitionHost = byId("election-timeseries-coalitions");
     var partyHost = byId("election-timeseries-parties");
+    // Deliberately not inside `partyHost`. That group is labelled "V\u00e4lj
+    // parti" and holds one control per party; an action on the whole set is
+    // not a ninth party, and putting it there made it answer to every query
+    // that counts or clicks the parties.
+    var partyActionHost = byId("election-timeseries-party-actions");
     var viewHost = byId("election-timeseries-view");
     var viewCoalitions = byId("election-timeseries-view-coalitions");
     var viewParties = byId("election-timeseries-view-parties");
@@ -1825,6 +1830,7 @@
     var viewMode = "coalitions";
     var selectedParties = {};
     var partyButtons = {};
+    var partyAllButton = null;
     var selectedMetric = "vote";
     // "Sedan 2022" is the opening range for most of the cycle. In the final
     // week it is not what the visitor came for: four years of history compress
@@ -1847,13 +1853,18 @@
     var activeDomain = null;
     var compactChart = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
     var width = compactChart ? 600 : 960;
-    var height = compactChart ? 500 : 430;
+    // Taller than the chart is wide would be odd, but 430 was too flat for
+    // the party view: eight lines inside 320px of plot sit on top of each
+    // other, and the whole reason to open that view is to compare them. The
+    // extra height goes entirely to the plot -- the gutter below it still
+    // holds only the date axis, at 70px desktop and 85px compact.
+    var height = compactChart ? 620 : 560;
     // Keep a quiet right-hand gutter for the current-value labels.  The
     // generous top/bottom margins also make the chart read like the site's
     // histogram sections rather than a boxed dashboard widget.
     var plot = compactChart
-      ? { left: 62, right: 520, top: 50, bottom: 415 }
-      : { left: 72, right: 880, top: 40, bottom: 360 };
+      ? { left: 62, right: 520, top: 50, bottom: 535 }
+      : { left: 72, right: 880, top: 40, bottom: 490 };
     plot.width = plot.right - plot.left;
     plot.height = plot.bottom - plot.top;
     // The chart ends at the latest certified forecast, so "Sista 30 dagarna"
@@ -1957,6 +1968,7 @@
       }
       if (coalitionHost) coalitionHost.hidden = parties;
       if (partyHost) partyHost.hidden = !parties;
+      if (partyActionHost) partyActionHost.hidden = !parties || !partyAllButton;
       // Party mode's one standing note. It exists because the switch changes
       // what the y-axis measures -- a party share has a different denominator
       // from a coalition share -- and nothing else on the page says so at the
@@ -1977,17 +1989,42 @@
       }
     }
 
+    // Whether every party is currently on. The toggle-all control reads as
+    // "all of them are showing" rather than "I was the last thing pressed",
+    // so it has to be derived from the selection and not remembered -- an
+    // individual pill, or the isolate-one action below, changes the answer.
+    function allPartiesSelected() {
+      return Boolean(partyDefinitions && partyDefinitions.length) &&
+        partyDefinitions.every(function (definition) {
+          return Boolean(selectedParties[definition.id]);
+        });
+    }
+
     function setPartyButtons() {
       Object.keys(partyButtons).forEach(function (id) {
         var button = partyButtons[id];
         var active = Boolean(selectedParties[id]);
-        var definition = partyDefinitions.filter(function (item) { return item.id === id; })[0];
+        // The name is set once, at construction, and left alone.
         button.setAttribute("aria-pressed", active ? "true" : "false");
-        button.setAttribute("aria-label", (active ? "D\u00f6lj " : "Visa ") +
-          (definition ? definition.name : id) + " i diagrammet");
         button.className = "election-timeseries__coalition election-timeseries__coalition-button" +
           " election-timeseries__party-button" + (active ? " is-active" : "");
       });
+      if (partyAllButton) {
+        var everyParty = allPartiesSelected();
+        // Only the state changes. The accessible name stays "Alla partier":
+        // a toggle that renames itself while also carrying aria-pressed is
+        // announced as "D\u00f6lj alla partier, intryckt", which says the
+        // opposite of what it means. The name comes from the visible text, so
+        // it also matches what voice control has to say to reach it.
+        partyAllButton.setAttribute("aria-pressed", everyParty ? "true" : "false");
+        // The chip styling, not `__control`: that class has `border: 0`
+        // because it is meant for buttons inside an already-bordered group,
+        // and standalone it rendered as plain text beside the pills with no
+        // sign it could be pressed. Safe to share the look now the button
+        // lives outside the party group, which is what the queries address.
+        partyAllButton.className = "election-timeseries__coalition" +
+          " election-timeseries__party-all" + (everyParty ? " is-active" : "");
+      }
     }
 
     // The direct-navigation action from "R\u00f6standelar p\u00e5 valdagen" asks for one
@@ -2658,15 +2695,17 @@
         button.type = "button";
         button.className = "election-timeseries__coalition election-timeseries__coalition-button";
         button.setAttribute("data-coalition", definition.id);
+        // No aria-label. The visible label is the accessible name, and
+        // aria-pressed carries the state: a toggle that renames itself to
+        // "Dölj V + MP + S + C" while also reporting itself pressed is
+        // announced as "hide this, pressed", which contradicts itself.
         button.setAttribute("aria-pressed", selected[definition.id] ? "true" : "false");
-        button.setAttribute("aria-label", (selected[definition.id] ? "Dölj " : "Visa ") + definition.label);
         button.innerHTML = "<span class=\"election-timeseries__coalition-swatch\" style=\"background:" +
           definition.color + "\" aria-hidden=\"true\"></span><span class=\"election-timeseries__coalition-label\">" +
           escapeHtml(definition.label) + "</span>";
         button.addEventListener("click", function () {
           selected[definition.id] = !selected[definition.id];
           button.setAttribute("aria-pressed", selected[definition.id] ? "true" : "false");
-          button.setAttribute("aria-label", (selected[definition.id] ? "Dölj " : "Visa ") + definition.label);
           renderChart();
         });
         coalitionHost.appendChild(button);
@@ -2675,6 +2714,30 @@
     if (partyHost && partyModeAvailable) {
       partyHost.innerHTML = "";
       partyButtons = {};
+      // Switching on eight parties one pill at a time is the friction that
+      // stops anyone comparing the whole field, which is what the party view
+      // is for. Ahead of the pills in the source so it is reached first, and
+      // a toggle rather than two buttons: pressed means all are showing.
+      if (!partyActionHost) return;
+      partyActionHost.innerHTML = "";
+      partyAllButton = document.createElement("button");
+      partyAllButton.type = "button";
+      partyAllButton.id = "election-timeseries-parties-all";
+      partyAllButton.setAttribute("data-party-all", "true");
+      partyAllButton.setAttribute("aria-controls", "election-timeseries-svg");
+      // No aria-label: the visible "Alla partier" is the accessible name, and
+      // aria-pressed alone carries whether they are all showing.
+      partyAllButton.innerHTML = "<span class=\"election-timeseries__coalition-label\">" +
+        "Alla partier</span>";
+      partyAllButton.addEventListener("click", function () {
+        var showEvery = !allPartiesSelected();
+        partyDefinitions.forEach(function (definition) {
+          selectedParties[definition.id] = showEvery;
+        });
+        setPartyButtons();
+        renderChart();
+      });
+      partyActionHost.appendChild(partyAllButton);
       partyDefinitions.forEach(function (definition) {
         var button = document.createElement("button");
         button.type = "button";
@@ -2683,7 +2746,12 @@
         button.setAttribute("data-coalition", definition.id);
         button.setAttribute("data-party", definition.id);
         button.setAttribute("aria-pressed", "false");
-        button.setAttribute("aria-label", "Visa " + definition.name + " i diagrammet");
+        // Stable, and richer than the pill's own text: "M" alone is a poor
+        // name to hear. `definition.label` is "Moderaterna (M)", which keeps
+        // the visible text inside the accessible name -- so a voice-control
+        // user can still say what they can see. It never changes; only
+        // aria-pressed does.
+        button.setAttribute("aria-label", definition.label);
         button.innerHTML = "<span class=\"election-timeseries__coalition-swatch\" style=\"background:" +
           definition.color + "\" aria-hidden=\"true\"></span>" +
           "<span class=\"election-timeseries__coalition-label\">" +
@@ -2696,6 +2764,7 @@
         partyButtons[definition.id] = button;
         partyHost.appendChild(button);
       });
+      setPartyButtons();
     }
 
     function setViewMode(mode, options) {
