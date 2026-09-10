@@ -81,6 +81,11 @@ async function waitForProcessExit(proc, timeout) {
 }
 
 export async function launch({ width = 1280, height = 1000 } = {}) {
+  // First, before a profile directory exists or a browser is running. A
+  // misconfigured deadline is a configuration error, and throwing it after
+  // the spawn leaked both the process and the profile -- so the one failure
+  // that is entirely our own fault was also the one that left rubbish behind.
+  const readyTimeout = resolveCdpReadyTimeout();
   const profile = mkdtempSync(join(tmpdir(), 'cdp-profile-'));
   const port = 9222 + Math.floor(Math.random() * 2000);
   // Which binary, and which build of it. The selection happens outside this
@@ -116,7 +121,6 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     stream.on('error', () => {});
   }
 
-  const readyTimeout = resolveCdpReadyTimeout();
   const exitState = () =>
     `exitCode=${proc.exitCode ?? 'running'}, signal=${proc.signalCode ?? 'none'}`;
   const abandon = (reason) => {
@@ -369,7 +373,7 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
 // fail on demand.
 
 async function selfTest() {
-  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { existsSync, mkdtempSync, readdirSync, writeFileSync } = await import('node:fs');
   const failures = [];
   const check = (label, pass, detail) => {
     if (pass) { console.log(`  ok   ${label}`); return; }
@@ -424,11 +428,12 @@ a.startsWith('--remote-debugging-port='))?.split('=')[1])`;
     }, 600);
   `);
 
-  const attempt = async (binary, timeoutMs) => {
+  // `deadline` is passed through verbatim so an invalid value can be tested.
+  const attempt = async (binary, deadline) => {
     const previousChrome = process.env.CHROME_BIN;
     const previousTimeout = process.env.CDP_READY_TIMEOUT_MS;
     process.env.CHROME_BIN = binary;
-    process.env.CDP_READY_TIMEOUT_MS = String(timeoutMs);
+    process.env.CDP_READY_TIMEOUT_MS = String(deadline);
     const started = Date.now();
     try {
       // `CHROME` is captured at module load, so the child is spawned through a
@@ -461,6 +466,28 @@ a.startsWith('--remote-debugging-port='))?.split('=')[1])`;
     /refusing to start/.test(dead.error?.message ?? ''), dead.error?.message?.slice(0, 300));
   check('...and names the binary it launched',
     (dead.error?.message ?? '').includes(exitsImmediately));
+
+  // A misconfigured deadline must be caught before anything exists to clean
+  // up. Proven by the browser recording that it ran: asserting only that
+  // `launch` throws would pass just as well with a spawned browser and a
+  // profile directory left behind.
+  const ranMarker = join(workspace, 'the-browser-ran');
+  const recordsThatItRan = fake(`
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(${JSON.stringify(ranMarker)}, 'ran');
+    setInterval(() => {}, 1000);
+  `);
+  const profilesBefore = readdirSync(tmpdir()).filter((n) => n.startsWith('cdp-profile-')).length;
+  const misconfigured = await attempt(recordsThatItRan, 'not-a-number');
+  check('an invalid deadline is refused',
+    /CDP_READY_TIMEOUT_MS must be a positive number/.test(misconfigured.error?.message ?? ''),
+    misconfigured.error?.message?.slice(0, 200));
+  check('...before any browser is started',
+    !existsSync(ranMarker));
+  check('...and before any profile directory is created',
+    readdirSync(tmpdir()).filter((n) => n.startsWith('cdp-profile-')).length === profilesBefore);
+  check('...and fails fast, without waiting on anything',
+    misconfigured.elapsed < 2000, misconfigured.elapsed);
 
   // A live but silent browser is waited for, to the deadline and no further.
   const silent = await attempt(staysSilent, 2000);
