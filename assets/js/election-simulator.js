@@ -2004,10 +2004,8 @@
       Object.keys(partyButtons).forEach(function (id) {
         var button = partyButtons[id];
         var active = Boolean(selectedParties[id]);
-        var definition = partyDefinitions.filter(function (item) { return item.id === id; })[0];
+        // The name is set once, at construction, and left alone.
         button.setAttribute("aria-pressed", active ? "true" : "false");
-        button.setAttribute("aria-label", (active ? "D\u00f6lj " : "Visa ") +
-          (definition ? definition.name : id) + " i diagrammet");
         button.className = "election-timeseries__coalition election-timeseries__coalition-button" +
           " election-timeseries__party-button" + (active ? " is-active" : "");
       });
@@ -2697,15 +2695,17 @@
         button.type = "button";
         button.className = "election-timeseries__coalition election-timeseries__coalition-button";
         button.setAttribute("data-coalition", definition.id);
+        // No aria-label. The visible label is the accessible name, and
+        // aria-pressed carries the state: a toggle that renames itself to
+        // "Dölj V + MP + S + C" while also reporting itself pressed is
+        // announced as "hide this, pressed", which contradicts itself.
         button.setAttribute("aria-pressed", selected[definition.id] ? "true" : "false");
-        button.setAttribute("aria-label", (selected[definition.id] ? "Dölj " : "Visa ") + definition.label);
         button.innerHTML = "<span class=\"election-timeseries__coalition-swatch\" style=\"background:" +
           definition.color + "\" aria-hidden=\"true\"></span><span class=\"election-timeseries__coalition-label\">" +
           escapeHtml(definition.label) + "</span>";
         button.addEventListener("click", function () {
           selected[definition.id] = !selected[definition.id];
           button.setAttribute("aria-pressed", selected[definition.id] ? "true" : "false");
-          button.setAttribute("aria-label", (selected[definition.id] ? "Dölj " : "Visa ") + definition.label);
           renderChart();
         });
         coalitionHost.appendChild(button);
@@ -2746,7 +2746,12 @@
         button.setAttribute("data-coalition", definition.id);
         button.setAttribute("data-party", definition.id);
         button.setAttribute("aria-pressed", "false");
-        button.setAttribute("aria-label", "Visa " + definition.name + " i diagrammet");
+        // Stable, and richer than the pill's own text: "M" alone is a poor
+        // name to hear. `definition.label` is "Moderaterna (M)", which keeps
+        // the visible text inside the accessible name -- so a voice-control
+        // user can still say what they can see. It never changes; only
+        // aria-pressed does.
+        button.setAttribute("aria-label", definition.label);
         button.innerHTML = "<span class=\"election-timeseries__coalition-swatch\" style=\"background:" +
           definition.color + "\" aria-hidden=\"true\"></span>" +
           "<span class=\"election-timeseries__coalition-label\">" +

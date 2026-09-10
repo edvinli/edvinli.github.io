@@ -667,6 +667,73 @@ async function runViewport(viewport, site) {
       .getElementById('election-timeseries-parties-all').getAttribute('aria-pressed'));
     equal('switching it back on presses it again', afterOnePillBack, 'true');
 
+    // --- accessible names do not move with the state --------------------
+    // Every toggle here reports state through aria-pressed. A control that
+    // also renames itself is announced as "Dölj Moderaterna, intryckt" --
+    // the state twice, and the second one contradicting the first. The pills
+    // keep a name; it just never changes.
+    const names = await browser.evaluate(() => {
+      const read = (selector) => Array.from(document.querySelectorAll(selector))
+        .map((button) => ({
+          text: button.textContent.trim(),
+          label: button.getAttribute('aria-label'),
+          pressed: button.getAttribute('aria-pressed'),
+        }));
+      const before = read('#election-timeseries-parties button[data-party]');
+      document.querySelectorAll('#election-timeseries-parties button[data-party]')
+        .forEach((button) => button.click());
+      return { before, after: read('#election-timeseries-parties button[data-party]') };
+    });
+    await settle(320);
+    equal('a party pill keeps its name when it is switched',
+      names.before.map((entry) => entry.label),
+      names.after.map((entry) => entry.label), names);
+    check('...and the state really did change under it',
+      names.before.some((entry, index) => entry.pressed !== names.after[index].pressed),
+      names);
+    check('...with the visible text inside the name, so it can be spoken',
+      names.before.every((entry) => entry.label && entry.label.includes(entry.text)),
+      names.before);
+    check('...and no name says show or hide',
+      names.before.concat(names.after).every((entry) =>
+        !/^(Visa|Dölj)\b/.test(entry.label || '')),
+      names.before);
+    // Put them back for whatever runs after this.
+    await browser.evaluate(() => {
+      document.querySelectorAll('#election-timeseries-parties button[data-party]')
+        .forEach((button) => button.click());
+    });
+    await settle(320);
+
+    // The coalition chips are the same control family in the same panel and
+    // had the same defect, so they are checked here rather than in
+    // forecast-timeseries, whose navigation assertions are synchronous.
+    // Still in the DOM while the party view is open, just hidden.
+    const coalitionNames = await browser.evaluate(() => {
+      const read = () => Array.from(document.querySelectorAll(
+        '#election-timeseries-coalitions button[data-coalition]')).map((button) => ({
+          text: button.textContent.trim(),
+          label: button.getAttribute('aria-label'),
+          pressed: button.getAttribute('aria-pressed'),
+        }));
+      const before = read();
+      document.querySelector('#election-timeseries-coalitions button[data-coalition]')?.click();
+      const after = read();
+      document.querySelector('#election-timeseries-coalitions button[data-coalition]')?.click();
+      return { before, after };
+    });
+    await settle(320);
+    check('there are coalition chips to check', coalitionNames.before.length > 0);
+    equal('a coalition chip keeps its name when it is switched',
+      coalitionNames.before.map((entry) => entry.label),
+      coalitionNames.after.map((entry) => entry.label), coalitionNames);
+    check('...the first chip really did toggle',
+      coalitionNames.before[0].pressed !== coalitionNames.after[0].pressed,
+      coalitionNames);
+    check('...and it is named by its visible text, with no aria-label at all',
+      coalitionNames.before.every((entry) => entry.label === null && entry.text.length > 0),
+      coalitionNames.before);
+
     // --- the chart is tall enough to read eight lines -------------------
     // The party view is why the height changed: eight series inside the old
     // 320 user units of plot sat on top of each other. Asserted as a shape
