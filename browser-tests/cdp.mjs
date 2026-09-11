@@ -89,11 +89,16 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   const profile = mkdtempSync(join(tmpdir(), 'cdp-profile-'));
   // Port 0 means "pick one and tell me". Chrome writes the port it actually
   // bound to DevToolsActivePort in the profile directory, once the DevTools
-  // server is listening. Picking a port ourselves and polling it was a guess
-  // that could be wrong in a way nothing recovered from: if the port was
-  // already taken, Chrome bound a different one, announced *that* one, and we
-  // polled ours until the deadline -- reporting "did not expose CDP" about a
-  // browser whose endpoint was up and reachable the whole time.
+  // server is listening.
+  //
+  // Picking a port ourselves and polling it was a guess with no recovery: if
+  // the bound port were ever not the requested one, the launcher would poll
+  // its own choice to the deadline and report "did not expose CDP" about a
+  // reachable browser. Reading the announced port removes that possibility.
+  // It is not a diagnosis of any particular failure -- on 2026-09-11 a launch
+  // timed out while the browser logged an endpoint, and the surviving evidence
+  // cannot say why. This removes one mechanism the log is consistent with; the
+  // diagnostics below are what will identify the next one.
   const activePortFile = join(profile, 'DevToolsActivePort');
   // Which binary, and which build of it. The selection happens outside this
   // repository -- CI resolves CHROME_BIN from whatever the runner image has --
@@ -485,9 +490,9 @@ a.startsWith('--user-data-dir='))?.split('=')[1]`;
       }`)}
     }, 600);
   `);
-  // The failure this repair is about: the browser is listening and reachable,
-  // but not on any port the launcher would have guessed. Reading the announced
-  // port is the whole difference between this launching and timing out.
+  // A browser listening and reachable, but not on any port the launcher would
+  // have guessed. Reading the announced port is the whole difference between
+  // this launching and timing out.
   const listensOnAnUnguessablePort = fake(`
     ${servesVersion(`{
       Browser: 'FakeChrome/9.9.9',
@@ -597,9 +602,10 @@ a.startsWith('--user-data-dir='))?.split('=')[1]`;
     /WebSocket/.test(late.error?.message ?? ''), late.error?.message?.slice(0, 200));
 
   // --- the port is Chrome's to choose, not ours to guess ---
-  // A browser on a port the launcher never picked must still be found. Under
-  // the old guess-a-port launcher this timed out while fully reachable, which
-  // is the failure that cost a publication on 2026-09-11.
+  // A browser on a port the launcher never picked must still be found. The
+  // old guess-a-port launcher timed out on this while it was fully reachable.
+  // This validates port discovery; it does not reproduce the 2026-09-11
+  // incident, whose cause is not established.
   const unguessable = await attempt(listensOnAnUnguessablePort, 8000);
   check('a browser on its own chosen port is reached, not timed out',
     unguessable.error !== null && !/did not expose CDP/.test(unguessable.error.message),
