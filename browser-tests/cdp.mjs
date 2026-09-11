@@ -1,6 +1,6 @@
 // Minimal zero-dependency CDP driver over Node's built-in WebSocket.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -87,7 +87,14 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   // that is entirely our own fault was also the one that left rubbish behind.
   const readyTimeout = resolveCdpReadyTimeout();
   const profile = mkdtempSync(join(tmpdir(), 'cdp-profile-'));
-  const port = 9222 + Math.floor(Math.random() * 2000);
+  // Port 0 means "pick one and tell me". Chrome writes the port it actually
+  // bound to DevToolsActivePort in the profile directory, once the DevTools
+  // server is listening. Picking a port ourselves and polling it was a guess
+  // that could be wrong in a way nothing recovered from: if the port was
+  // already taken, Chrome bound a different one, announced *that* one, and we
+  // polled ours until the deadline -- reporting "did not expose CDP" about a
+  // browser whose endpoint was up and reachable the whole time.
+  const activePortFile = join(profile, 'DevToolsActivePort');
   // Which binary, and which build of it. The selection happens outside this
   // repository -- CI resolves CHROME_BIN from whatever the runner image has --
   // so a launch failure is not diagnosable without naming what was launched.
@@ -96,7 +103,7 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   let browserVersion = null;
   const proc = spawn(CHROME, [
     '--headless=new',
-    `--remote-debugging-port=${port}`,
+    '--remote-debugging-port=0',
     `--user-data-dir=${profile}`,
     `--window-size=${width},${height}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu',
@@ -121,6 +128,15 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     stream.on('error', () => {});
   }
 
+  // Every polling error used to be discarded. That is what made a launch
+  // failure undiagnosable: the message could say only that some deadline had
+  // passed, never what had been tried or what had come back, so the same text
+  // covered a dead browser, an unreachable port and a malformed reply -- and
+  // the standing response was to raise the deadline, which fixed none of them.
+  let discoveredPort = null;
+  let pollAttempts = 0;
+  let lastPollError = null;
+
   const exitState = () =>
     `exitCode=${proc.exitCode ?? 'running'}, signal=${proc.signalCode ?? 'none'}`;
   const abandon = (reason) => {
@@ -129,6 +145,8 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     try { rmSync(profile, { recursive: true, force: true }); } catch {}
     return new Error(
       `${reason} [browser=${CHROME}, version=${browserVersion ?? 'unknown'}, ` +
+      `port=${discoveredPort ?? 'never announced'}, polls=${pollAttempts}, ` +
+      `lastError=${lastPollError ?? 'none'}, ` +
       `startup=${((Date.now() - launchStarted) / 1000).toFixed(3)}s, ${exitState()}]` +
       (logTail ? `\nChromium output:\n${logTail}` : ''),
     );
@@ -137,6 +155,7 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
   let wsUrl = null;
   let versionPayload = null;
   const deadline = Date.now() + readyTimeout;
+  const pause = () => new Promise(r => setTimeout(r, 120));
   while (Date.now() < deadline && !wsUrl) {
     // A browser that has already exited is never going to answer. Polling on
     // regardless made a crash indistinguishable from a slow start: both
@@ -145,14 +164,39 @@ export async function launch({ width = 1280, height = 1000 } = {}) {
     if (proc.exitCode != null || proc.signalCode != null) {
       throw abandon('Chrome exited before exposing CDP');
     }
+    // Phase one: which port did it bind? Cheap, local, and the answer comes
+    // from Chrome rather than from us.
+    if (discoveredPort === null) {
+      try {
+        const announced = Number(readFileSync(activePortFile, 'utf8').split('\n')[0].trim());
+        if (Number.isInteger(announced) && announced > 0) discoveredPort = announced;
+        else lastPollError = `DevToolsActivePort held ${JSON.stringify(announced)}`;
+      } catch (error) {
+        lastPollError = `DevToolsActivePort unreadable: ${error.code ?? error.message}`;
+      }
+      if (discoveredPort === null) { await pause(); continue; }
+    }
+    // Phase two: is it answering yet, and with a target to attach to?
     try {
+      pollAttempts += 1;
       const remaining = Math.max(1, deadline - Date.now());
-      const r = await fetch(`http://127.0.0.1:${port}/json/version`, {
+      const r = await fetch(`http://127.0.0.1:${discoveredPort}/json/version`, {
         signal: AbortSignal.timeout(Math.min(1000, remaining)),
       });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       versionPayload = await r.json();
       wsUrl = versionPayload.webSocketDebuggerUrl;
-    } catch { await new Promise(r => setTimeout(r, 120)); }
+      if (!wsUrl) {
+        lastPollError = '/json/version answered without a webSocketDebuggerUrl: '
+          + JSON.stringify(versionPayload).slice(0, 200);
+      }
+    } catch (error) {
+      lastPollError = `/json/version: ${error.name}: ${error.message}`;
+    }
+    // Unconditional, because an answer without a debugger URL is not an
+    // exception: leaving the sleep to the catch turned that case into a hot
+    // loop that spun a core until the deadline.
+    if (!wsUrl) await pause();
   }
   if (!wsUrl) {
     throw abandon(`Chrome did not expose CDP after ${timeoutText(readyTimeout)}`);
@@ -406,8 +450,27 @@ async function selfTest() {
     writeFileSync(file, `#!/usr/bin/env node\n${body}\n`, { mode: 0o755 });
     return file;
   };
-  const portFromArgv = `Number(process.argv.find((a) => \
-a.startsWith('--remote-debugging-port='))?.split('=')[1])`;
+  // Chrome is asked for port 0 and answers in DevToolsActivePort, so a fake
+  // that hardcodes a port no longer resembles it. These fakes bind an
+  // ephemeral port and announce it the same way, which is what lets the
+  // port-discovery path be tested at all.
+  const profileFromArgv = `process.argv.find((a) => \
+a.startsWith('--user-data-dir='))?.split('=')[1]`;
+  const announce = (portExpr) => `
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(${profileFromArgv} + '/DevToolsActivePort',
+      ${portExpr} + '\\n/devtools/browser/fake\\n');
+  `;
+  const servesVersion = (payload) => `
+    const { createServer } = await import('node:http');
+    const server = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify(${payload}));
+    });
+    server.listen(0, '127.0.0.1', async () => {
+      ${announce('server.address().port')}
+    });
+  `;
 
   const exitsImmediately = fake(`
     process.stderr.write('fake browser refusing to start\\n');
@@ -415,17 +478,39 @@ a.startsWith('--remote-debugging-port='))?.split('=')[1])`;
   `);
   const staysSilent = fake(`setInterval(() => {}, 1000);`);
   const readyLate = fake(`
-    const { createServer } = await import('node:http');
-    const port = ${portFromArgv};
-    setTimeout(() => {
-      createServer((req, res) => {
-        res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({
-          Browser: 'FakeChrome/1.2.3',
-          webSocketDebuggerUrl: 'ws://127.0.0.1:1/devtools/browser/fake',
-        }));
-      }).listen(port, '127.0.0.1');
+    setTimeout(async () => {
+      ${servesVersion(`{
+        Browser: 'FakeChrome/1.2.3',
+        webSocketDebuggerUrl: 'ws://127.0.0.1:1/devtools/browser/fake',
+      }`)}
     }, 600);
+  `);
+  // The failure this repair is about: the browser is listening and reachable,
+  // but not on any port the launcher would have guessed. Reading the announced
+  // port is the whole difference between this launching and timing out.
+  const listensOnAnUnguessablePort = fake(`
+    ${servesVersion(`{
+      Browser: 'FakeChrome/9.9.9',
+      webSocketDebuggerUrl: 'ws://127.0.0.1:1/devtools/browser/fake',
+    }`)}
+  `);
+  // Announces a port that nothing is listening on. Distinct from silence: the
+  // launcher got an answer to "which port", and no answer on it.
+  const announcesADeadPort = fake(`
+    const { createServer } = await import('node:http');
+    const probe = createServer(() => {});
+    probe.listen(0, '127.0.0.1', async () => {
+      const dead = probe.address().port;
+      probe.close();
+      ${announce('dead')}
+    });
+    setInterval(() => {}, 1000);
+  `);
+  // Answers, but with nothing to attach to. This used to spin a core: no
+  // exception meant no sleep, so the poll loop ran flat out to the deadline.
+  const answersWithoutATarget = fake(`
+    ${servesVersion(`{ Browser: 'FakeChrome/0.0.0' }`)}
+    setInterval(() => {}, 1000);
   `);
 
   // `deadline` is passed through verbatim so an invalid value can be tested.
@@ -510,6 +595,52 @@ a.startsWith('--remote-debugging-port='))?.split('=')[1])`;
     late.error?.message?.slice(0, 200));
   check('...and the failure is the WebSocket stage, past the wait',
     /WebSocket/.test(late.error?.message ?? ''), late.error?.message?.slice(0, 200));
+
+  // --- the port is Chrome's to choose, not ours to guess ---
+  // A browser on a port the launcher never picked must still be found. Under
+  // the old guess-a-port launcher this timed out while fully reachable, which
+  // is the failure that cost a publication on 2026-09-11.
+  const unguessable = await attempt(listensOnAnUnguessablePort, 8000);
+  check('a browser on its own chosen port is reached, not timed out',
+    unguessable.error !== null && !/did not expose CDP/.test(unguessable.error.message),
+    unguessable.error?.message?.slice(0, 200));
+  check('...promptly, rather than creeping toward the deadline',
+    unguessable.elapsed < 4000, unguessable.elapsed);
+
+  // --- a rejection has to say what was tried ---
+  // A whole number of seconds, because timeoutText only abbreviates those.
+  const deadPort = await attempt(announcesADeadPort, 3000);
+  check('an announced port that answers nothing fails on the deadline',
+    /did not expose CDP after 3s/.test(deadPort.error?.message ?? ''),
+    deadPort.error?.message?.slice(0, 200));
+  check('...and names the port it actually polled',
+    /port=\d+/.test(deadPort.error?.message ?? ''), deadPort.error?.message?.slice(0, 300));
+  check('...and reports that it polled, rather than discarding every attempt',
+    /polls=[1-9]/.test(deadPort.error?.message ?? ''), deadPort.error?.message?.slice(0, 300));
+  check('...and carries the last error instead of only the deadline',
+    /lastError=\/json\/version: /.test(deadPort.error?.message ?? ''),
+    deadPort.error?.message?.slice(0, 400));
+
+  // Silence must still be distinguishable: no port was ever announced.
+  check('a silent browser is reported as never having announced a port',
+    /port=never announced/.test(silent.error?.message ?? ''),
+    silent.error?.message?.slice(0, 300));
+
+  // --- an answer without a target is waited out, not spun on ---
+  const targetless = await attempt(answersWithoutATarget, 2000);
+  check('an endpoint with no debugger URL fails on the deadline',
+    /did not expose CDP after 2s/.test(targetless.error?.message ?? ''),
+    targetless.error?.message?.slice(0, 200));
+  check('...saying so, rather than blaming the port',
+    /webSocketDebuggerUrl/.test(targetless.error?.message ?? ''),
+    targetless.error?.message?.slice(0, 400));
+  // The hot loop managed thousands of polls in two seconds. Paced polling
+  // cannot exceed roughly one per 120ms, so this bounds the spin without
+  // pinning a timing-sensitive exact count.
+  const pacedCeiling = 2000 / 120 * 3;
+  const targetlessPolls = Number(/polls=(\d+)/.exec(targetless.error?.message ?? '')?.[1] ?? -1);
+  check('...having polled at a paced rate, not spun a core',
+    targetlessPolls > 0 && targetlessPolls < pacedCeiling, targetlessPolls);
 
   try { rmSync(workspace, { recursive: true, force: true }); } catch {}
 
