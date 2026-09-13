@@ -340,10 +340,18 @@ async function live() {
     // --- the endpoint ---
     equal('the chart still ends at the latest published forecast',
       page.axisDomain ? page.axisDomain[1] : null, latestPoint);
-    check('nothing is drawn at or past election day',
-      page.axisDomain === null || page.axisDomain[1] < history.election_date,
+    // Election day included. The forecast for election day is published on
+    // election day, so the endpoint and election day coincide exactly once --
+    // and that morning a strict `<` here reads a correct chart as broken. The
+    // invariant was always "nothing beyond election day"; "strictly before"
+    // was a property of every date on which it had previously been checked.
+    check('nothing is drawn after election day',
+      page.axisDomain === null || page.axisDomain[1] <= history.election_date,
       { domain: page.axisDomain, election: history.election_date });
-    check('no axis tick reaches election day',
+    // Named for what it compares: the endpoint, not election day. Before
+    // today the two were never the same date, so the old name was true by
+    // coincidence rather than by construction.
+    check('no axis tick reaches past the latest forecast',
       page.axisTicks.every((tick) => tick.split(' ')[0] <= latestPoint), page.axisTicks);
     check('the key names the endpoint', page.keys.includes('Senaste prognos'), page.keys);
     check('every drawn series ends on a marked current point',
