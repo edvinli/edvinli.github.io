@@ -1083,8 +1083,13 @@ function assertNoForwardView(view, history, label) {
   // end exactly there even when a newer poll exists.
   equal(`${label}: the x-axis ends exactly at the latest published forecast`,
     view.svg?.xMax, view.svg?.range === 'short' ? view.svg?.xMax : latest);
-  check(`${label}: the right edge is before election day`,
-    view.svg?.xMax < history.election_date,
+  // Same boundary as bloc-summary's, and the same correction. This one runs
+  // against transformed fixtures rather than the published artifact, so it
+  // never fired -- the fixtures simply sit before election day. That is why
+  // it is fixed here rather than left: it is not a passing check, it is an
+  // expired one that nothing has asked the awkward date yet.
+  check(`${label}: the right edge is no later than election day`,
+    view.svg?.xMax <= history.election_date,
   { xMax: view.svg?.xMax, election: history.election_date });
   check(`${label}: the last drawn mark is no later than the right edge`,
     view.forward?.lastDrawnDate !== '' && view.forward?.lastDrawnDate <= view.svg?.xMax,

@@ -179,7 +179,7 @@ known on its date, and the last point is the forecast today**:
   that no forward-view control is in the page, that neither the section nor the
   SVG carries a `data-future-*` / `data-campaign-*` attribute, that none of the
   mark kinds the chart used to draw past today is present, that the x-axis ends
-  on a published date strictly before election day, and that no copy explains a
+  on a published date no later than election day, and that no copy explains a
   removed forward view;
 - `Sedan 2022` is the opening range and `Sista 30 dagarna` is the 30 days up
   to the latest published forecast — not the 30 days before election day, which
@@ -576,9 +576,11 @@ run serves the site's own history artifact with `election_date` moved out to
 full range again.
 
 **The endpoint stays the endpoint.** The chart still ends at the latest
-published forecast; nothing is drawn between it and election day. The suite
-asserts the x-domain ends on the latest published point, that no axis tick
-reaches past it, that both drawn series end on a marked current point drawn
+published forecast, and nothing is drawn past election day. On election day
+itself those are the same date -- the forecast for election day is published
+that morning -- so the bound is *no later than* election day rather than
+strictly before it. The suite asserts the x-domain ends on the latest
+published point, that no axis tick reaches past it, that both drawn series end on a marked current point drawn
 heavier than the interior points, and that the key names it *Senaste prognos*.
 
 Note that `forecast-timeseries.smoke.mjs` and `party-timeseries.smoke.mjs`
