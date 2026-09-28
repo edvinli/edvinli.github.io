@@ -106,15 +106,29 @@ function readPage(browser) {
       countdown: text('election-hero-countdown'),
       lede: text('election-hero-lede'),
       updated: text('election-hero-updated'),
-      segments: Array.from(document.querySelectorAll('#election-result-chamber .election-result__segment'))
-        .map((node) => ({ party: node.dataset.party, seats: Number(node.dataset.seats) })),
+      // The chamber's dots in drawing order, run-length encoded by party.
+      chamber: Array.from(document.querySelectorAll('#election-result-parliament .election-seat'))
+        .reduce((runs, node) => {
+          const party = node.dataset.party || null;
+          const last = runs[runs.length - 1];
+          if (last && last.party === party) last.seats += 1;
+          else runs.push({ party, seats: 1 });
+          return runs;
+        }, []),
+      legend: Array.from(document.querySelectorAll('#election-result-legend .ep-legend__item'))
+        .map((node) => [node.dataset.party, node.querySelector('.ep-legend__seats')?.textContent.trim()]),
+      order: Array.from(document.querySelectorAll('.election-app > section')).map((node) => node.id),
+      nav: Array.from(document.querySelectorAll('#election-hero .election-hero__links a'))
+        .map((node) => node.getAttribute('href')),
+      simulatedChamber: Boolean(document.getElementById('election-parliament')) ||
+        /simulerat riksdagsutfall/i.test(document.getElementById('election-simulator-app').textContent),
       blocs: Array.from(document.querySelectorAll('#election-result-blocs .election-result__bloc'))
         .map((node) => ({ id: node.dataset.coalition, text: node.textContent.replace(/\s+/g, ' ').trim() })),
-      parties: Array.from(document.querySelectorAll('#election-result-parties .election-result__party'))
+      bars: Array.from(document.querySelectorAll('#election-result-bars .erb-row'))
         .map((node) => ({
           party: node.dataset.party,
-          share: node.querySelector('.election-result__party-share')?.textContent.trim(),
-          seats: node.querySelector('.election-result__party-seats')?.textContent.trim(),
+          value: node.querySelector('.erb-value')?.textContent.trim(),
+          width: parseFloat(node.querySelector('.erb-bar')?.style.width || 'NaN'),
         })),
       rows: Array.from(document.querySelectorAll('#election-result-delta-rows .erd-row'))
         .map((node) => ({
@@ -128,7 +142,6 @@ function readPage(browser) {
         })),
       summary: text('election-result-delta-summary'),
       summaryHidden: hidden('election-result-delta-summary'),
-      firstNavLink: document.querySelector('#election-hero .election-hero__links a')?.getAttribute('href') || null,
       overflow: document.documentElement.scrollWidth - window.innerWidth,
     };
   });
@@ -194,7 +207,11 @@ async function decided(viewport, name) {
   const { server, browser } = await open(viewport, { pointer });
   try {
     const page = await readPage(browser);
-    check('the result leads the hero', !page.resultHidden);
+    check('the result section is shown', !page.resultHidden);
+    equal('the chart leads, then the result, then the comparison, then the forecast',
+      page.order.slice(0, 4),
+      ['election-timeseries', 'election-result', 'election-result-delta', 'election-blocs']);
+    check('the simulated parliament is gone from the page', !page.simulatedChamber);
     equal('the kicker names the result', page.kicker, `Sverige · Riksdagen · valresultat ${result.election_date.slice(0, 4)}`);
     equal('the countdown cell names the next election', [page.countdownLabel, page.countdown],
       ['Nästa val', swedishDay(result.next_election_date)]);
@@ -204,20 +221,23 @@ async function decided(viewport, name) {
     check('the polling-freshness note is not shown', page.freshnessHidden);
     check('the divider over the forecast panels is shown', !page.dividerHidden);
 
-    equal('the chamber bar is in seating order and holds every seat',
-      page.segments, ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD']
-        .map((party) => ({ party, seats: result.parties[party].seats })));
-    equal('the chamber adds up to 349', page.segments.reduce((sum, s) => sum + s.seats, 0), CHAMBER);
+    const seating = ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD'];
+    equal('the chamber draws every certified seat, in seating order',
+      page.chamber, seating.map((party) => ({ party, seats: result.parties[party].seats })));
+    equal('the chamber holds 349 seats', page.chamber.reduce((sum, run) => sum + run.seats, 0), CHAMBER);
+    equal('the legend prints the certified seats',
+      page.legend, seating.map((party) => [party, String(result.parties[party].seats)]));
     equal('the bloc totals are the sums of the certified seats',
       page.blocs.map((bloc) => bloc.id + ':' + /(\d+) mandat/.exec(bloc.text)?.[1]),
       BLOCS.map((bloc) => bloc.id + ':' + bloc.parties.reduce((sum, p) => sum + result.parties[p].seats, 0)));
     const ranked = PARTIES.slice().sort((a, b) => result.parties[b].vote_share_pct - result.parties[a].vote_share_pct);
-    equal('the party list is ranked by vote share', page.parties.map((p) => p.party), ranked);
-    equal('each party prints its certified share and seats', page.parties.map((p) => [p.share, p.seats]),
-      ranked.map((party) => [
-        `${result.parties[party].vote_share_pct.toFixed(1).replace('.', ',')}\u00a0%`,
-        `${result.parties[party].seats} mandat`,
-      ]));
+    equal('the vote-share bars are ranked by vote share', page.bars.map((bar) => bar.party), ranked);
+    equal('each bar prints its certified share', page.bars.map((bar) => bar.value),
+      ranked.map((party) => `${result.parties[party].vote_share_pct.toFixed(1).replace('.', ',')}\u00a0%`));
+    check('bar lengths are proportional to the shares',
+      page.bars.every((bar) => near(bar.width / page.bars[0].width,
+        result.parties[bar.party].vote_share_pct / result.parties[ranked[0]].vote_share_pct, 1e-3)),
+      page.bars);
 
     check('the forecast-against-result panel is shown', !page.deltaHidden);
     equal('one row per parliamentary party', page.rows.map((row) => row.party), PARTIES);
@@ -240,7 +260,9 @@ async function decided(viewport, name) {
       page.summary.includes(`90-procentiga intervall för ${inside} av ${PARTIES.length} partier`), page.summary);
     check('every row is spoken with its result and direction',
       page.rows.every((row) => /valresultat \d+,\d procent/.test(row.label) && /(högre|lägre|i nivå)/.test(row.label)));
-    equal('the hero navigation starts at the panel', page.firstNavLink, '#election-result-delta');
+    equal('the hero navigation follows the page',
+      page.nav.slice(0, 5),
+      ['#election-timeseries', '#election-latest-poll', '#election-result', '#election-result-delta', '#election-blocs']);
     check('no horizontal scroll', page.overflow <= 0, page.overflow);
 
     // The chart: the result sits on the last day of the 2026 series, never

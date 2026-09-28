@@ -758,65 +758,54 @@ canvas {
    vote share. Party colour is never the only cue: every segment and row
    carries its abbreviation. */
 
-.election-result {
+/* Vote share as ranked bars on a zero-based scale, with the 4 % line. */
+.erb-rows {
   border-top: 1px solid var(--el-rule);
-  margin: 0 0 1.2rem;
-  padding-top: 0.85rem;
+  list-style: none;
+  margin: 0.4rem 0 1.4rem;
+  padding: 0;
 }
 
-.election-result__title {
-  font-size: 1.35rem;
-  margin: 0 0 0.15rem;
+.page__content .erb-rows li {
+  margin: 0;
 }
 
-.election-result__meta {
-  font-family: var(--el-mono);
-  font-size: 0.76rem;
-  margin: 0 0 0.8rem;
-}
-
-.election-result__bar {
-  display: flex;
-  height: 2.1rem;
-  overflow: hidden;
-  position: relative;
-  width: 100%;
-}
-
-.election-result__segment {
+.erb-row {
   align-items: center;
-  box-shadow: inset -1px 0 0 var(--el-panel);
-  display: flex;
-  flex-basis: 0;
-  justify-content: center;
-  min-width: 0;
-  overflow: hidden;
+  border-bottom: 1px solid var(--el-rule);
+  display: grid;
+  gap: var(--ev-gap);
+  grid-template-areas: "abbr bar value";
+  grid-template-columns: 3rem minmax(0, 1fr) 4.6rem;
+  min-height: 2.5rem;
+  padding: 0.3rem 0.15rem;
 }
 
-.election-result__segment-label {
-  color: #fff;
-  font-family: var(--el-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  overflow: hidden;
-  padding: 0 0.2rem;
-  text-overflow: clip;
-  white-space: nowrap;
+.erb-track {
+  display: block;
+  grid-area: bar;
+  height: 1.15rem;
+  position: relative;
 }
 
-.election-result__majority {
-  border-left: 2px dashed var(--el-panel);
-  bottom: -2px;
+.erb-bar {
+  bottom: 0;
+  left: 0;
   position: absolute;
-  top: -2px;
+  top: 0;
 }
 
-.election-result__majority-label {
-  color: var(--el-muted);
+.erb-value {
   font-family: var(--el-mono);
-  font-size: 0.7rem;
-  margin: 0.25rem 0 0.6rem;
-  text-align: center;
+  grid-area: value;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+#election-result .election-parliament-frame {
+  margin-top: 0.6rem;
 }
 
 .election-result__blocs {
@@ -835,58 +824,6 @@ canvas {
 .election-result__bloc-flag {
   color: var(--el-muted);
   font-size: 0.78rem;
-}
-
-.election-result__parties {
-  display: grid;
-  gap: 0.35rem 1.2rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.page__content .election-result__parties li {
-  margin: 0;
-}
-
-.election-result__party {
-  align-items: baseline;
-  border-bottom: 1px solid var(--el-rule);
-  display: grid;
-  gap: 0 0.5rem;
-  grid-template-areas: "name share" "name seats";
-  grid-template-columns: auto 1fr;
-  padding: 0.3rem 0;
-}
-
-.election-result__party-name {
-  align-items: center;
-  align-self: center;
-  display: flex;
-  font-family: var(--el-mono);
-  font-size: 0.95rem;
-  font-weight: 700;
-  gap: 0.4rem;
-  grid-area: name;
-}
-
-.election-result__party-share {
-  font-family: var(--el-mono);
-  font-size: 1.05rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  grid-area: share;
-  text-align: right;
-}
-
-.election-result__party-seats {
-  color: var(--el-muted);
-  font-family: var(--el-mono);
-  font-size: 0.74rem;
-  font-variant-numeric: tabular-nums;
-  grid-area: seats;
-  text-align: right;
 }
 
 .election-forecast-divider {
@@ -2842,17 +2779,6 @@ canvas {
     row-gap: 0.6rem;
   }
 
-  .election-result__parties {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .election-result__segment-label {
-    font-size: 0.62rem;
-  }
-
-  .election-result__segment.is-narrow .election-result__segment-label {
-    visibility: hidden;
-  }
 
   .erd-row {
     grid-template-areas:
@@ -3085,7 +3011,7 @@ canvas {
   .ev-band,
   .es-bar,
   .ev-swatch,
-  .election-result__segment,
+  .erb-bar,
   .ep-legend__swatch,
   .eg-preset__swatch,
   .egh-histogram__party-chip,

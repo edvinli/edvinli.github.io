@@ -3299,7 +3299,15 @@
 
     renderAxis("election-seat-axis", scale, 50, "mandat", { value: MAJORITY, label: MAJORITY + " = majoritet" });
 
-    renderParliament(seats, order, requireRepresentative);
+    // Contract call, kept although the simulated chamber is no longer drawn:
+    // it throws for a certified publication whose representative joint
+    // allocation is missing or not a legal 349-seat chamber, which is a
+    // publication fault whether or not a picture of it is on the page. The
+    // path it took is recorded on the section, where the simulator's consumer
+    // contract test reads it.
+    var display = displaySeatAllocation(seats, order, requireRepresentative);
+    var seatsSection = byId("election-seats");
+    if (seatsSection) seatsSection.setAttribute("data-seat-allocation-source", display.source);
   }
 
   // Concentric-ring seating geometry for a semicircular chamber.  Ring radii
@@ -3346,27 +3354,16 @@
     return { points: points, spacing: Math.min(radial, minArc) };
   }
 
-  function renderParliament(seats, order, requireRepresentative) {
-    var parliament = byId("election-parliament");
-    if (!parliament) return;
-    parliament.innerHTML = "";
-
-    // Contract call: throws for a certified publication whose representative
-    // joint allocation is missing or not a legal 349-seat chamber.
-    var display = displaySeatAllocation(seats, order, requireRepresentative);
-
-    var sequence = [];
-    seatingOrder.forEach(function (name) {
-      if (order.indexOf(name) !== -1) sequence.push(name);
-    });
-    order.forEach(function (name) {
-      if (sequence.indexOf(name) === -1) sequence.push(name);
-    });
-
+  // A 349-seat chamber, one dot per seat in seating order, drawn into
+  // ``host`` from a {party: seats} allocation that sums to 349. The last
+  // certified result is the only allocation the page draws this way.
+  function drawChamber(host, allocation) {
+    if (!host) return [];
+    host.innerHTML = "";
     var assignment = [];
     var counts = [];
-    sequence.forEach(function (name) {
-      var count = Math.max(0, Number(display.allocation[name]) || 0);
+    seatingOrder.forEach(function (name) {
+      var count = Math.max(0, Number(allocation[name]) || 0);
       if (count > 0) counts.push({ party: name, seats: count });
       for (var i = 0; i < count; i += 1) assignment.push(name);
     });
@@ -3376,16 +3373,14 @@
     var centreY = 51;
     var boxHeight = 53;
     var dotSize = (layout.spacing * maxRadius * 0.8).toFixed(3);
-
-    var seatIndex = 0;
-    while (seatIndex < CHAMBER) {
+    for (var seatIndex = 0; seatIndex < CHAMBER; seatIndex += 1) {
       var point = layout.points[seatIndex];
       var party = assignment[seatIndex];
       var seat = document.createElement("span");
       seat.className = party ? "election-seat" : "election-seat election-seat--empty";
       if (party) {
         seat.style.backgroundColor = partyColors[party] || "#777";
-        track(party, seat, "election-seat");
+        seat.setAttribute("data-party", party);
       }
       if (point) {
         seat.style.left = (50 + maxRadius * point.radius * Math.cos(point.angle)).toFixed(3) + "%";
@@ -3393,35 +3388,9 @@
       }
       seat.style.width = dotSize + "%";
       seat.setAttribute("aria-hidden", "true");
-      parliament.appendChild(seat);
-      seatIndex += 1;
+      host.appendChild(seat);
     }
-
-    var breakdown = counts.map(function (entry) {
-      return entry.party + " " + entry.seats;
-    }).join(", ");
-    parliament.setAttribute("aria-label", "Riksdagen med 349 mandat; " + display.source.replace(/_/g, " ") +
-      " med " + seatIndex + " mandatpositioner" + (breakdown ? ". Mandat: " + breakdown + "." : ""));
-
-    var representative = display.source === "representative_joint_simulation_draw";
-    setText("election-parliament-caption", representative
-      ? "Ett av de simulerade utfallen med 349 mandat. Det \u00e4r inte skapat genom att summera partiernas medianer."
-      : "Den h\u00e4r \u00e4ldre publiceringen inneh\u00e5ller bara medianer f\u00f6r ett parti i taget. Riksdagsbilden nedan \u00e4r de medianerna omr\u00e4knade till en giltig f\u00f6rdelning av 349 mandat \u2013 en kompatibilitetsvisning, inte ett simulerat utfall.");
-
-    var legend = byId("election-parliament-legend");
-    if (legend) {
-      legend.innerHTML = "";
-      counts.forEach(function (entry) {
-        var item = document.createElement("li");
-        item.innerHTML =
-          "<span class=\"ep-legend__swatch\" style=\"background:" + (partyColors[entry.party] || "#777") + "\" aria-hidden=\"true\"></span>" +
-          "<span class=\"ep-legend__abbr\">" + escapeHtml(abbr(entry.party)) + "</span>" +
-          "<span class=\"ep-legend__seats\">" + entry.seats + "</span>";
-        item.setAttribute("aria-label", (partyNames[entry.party] || entry.party) + ": " + entry.seats + " mandat i det h\u00e4r utfallet");
-        track(entry.party, item, "ep-legend__item");
-        legend.appendChild(item);
-      });
-    }
+    return counts;
   }
 
   // ---------------------------------------------------------------------
@@ -5420,22 +5389,27 @@
       (result.authority ? " \u00b7 " + result.authority : "") +
       (result.turnout !== null ? " \u00b7 valdeltagande " + percent(result.turnout, 1) : ""));
 
-    // The chamber as one bar in seating order, cut at the 175th seat.
-    var segments = seatingOrder.map(function (party) {
-      var seats = result.parties[party].seats;
-      if (!seats) return "";
-      return "<span class=\"election-result__segment" + (seats < 30 ? " is-narrow" : "") + "\" data-party=\"" + party + "\" data-seats=\"" + seats +
-        "\" style=\"flex-grow:" + seats + ";background:" + (partyColors[party] || "#777") + "\">" +
-        "<span class=\"election-result__segment-label\">" + escapeHtml(abbr(party)) + " " + seats + "</span></span>";
-    }).join("");
-    var chamberLabel = "Riksdagens 349 mandat efter valet " + result.year + ": " + seatingOrder.map(function (party) {
-      return party + " " + result.parties[party].seats;
-    }).join(", ") + ".";
-    setHtml("election-result-chamber",
-      "<div class=\"election-result__bar\" role=\"img\" aria-label=\"" + escapeHtml(chamberLabel) + "\">" + segments +
-      "<span class=\"election-result__majority\" style=\"left:" + (100 * (MAJORITY - 0.5) / CHAMBER).toFixed(3) + "%\" aria-hidden=\"true\"></span></div>" +
-      "<p class=\"election-result__majority-label\" aria-hidden=\"true\">175 mandat = majoritet</p>");
+    // Vote share: one bar per party, ranked, on a scale that starts at zero.
+    var ranked = HISTORY_PARTIES.slice().sort(function (left, right) {
+      return result.parties[right].share - result.parties[left].share;
+    });
+    var scale = niceMax(result.parties[ranked[0]].share * 1.04, 5);
+    var threshold = pct(NATIONAL_THRESHOLD_PCT, scale);
+    setHtml("election-result-bars", ranked.map(function (party) {
+      var entry = result.parties[party];
+      var color = partyColors[party] || "#777";
+      return "<li class=\"erb-row\" data-party=\"" + party + "\" data-share=\"" + entry.share + "\"" +
+        " aria-label=\"" + escapeHtml((partyNames[party] || party) + ": " + format(entry.share, 2) + " procent") + "\">" +
+        "<span class=\"ev-abbr\" aria-hidden=\"true\"><span class=\"ev-swatch\" style=\"background:" + color + "\"></span>" +
+          escapeHtml(abbr(party)) + "</span>" +
+        "<span class=\"erb-track\" aria-hidden=\"true\">" +
+          "<span class=\"erb-bar\" style=\"width:" + pct(entry.share, scale).toFixed(3) + "%;background:" + color + "\"></span>" +
+          "<span class=\"ev-threshold\" style=\"left:" + threshold.toFixed(3) + "%\"></span>" +
+        "</span>" +
+        "<span class=\"erb-value\" aria-hidden=\"true\">" + percent(entry.share, 1) + "</span></li>";
+    }).join(""));
 
+    // Seats: the certified allocation as a chamber, with the bloc totals.
     var blocs = HISTORY_COALITIONS.filter(function (definition) { return definition.defaultOn; });
     setHtml("election-result-blocs", blocs.map(function (definition) {
       var seats = definition.parties.reduce(function (sum, party) { return sum + result.parties[party].seats; }, 0);
@@ -5444,19 +5418,20 @@
         "<strong>" + seats + " mandat</strong>" +
         (seats >= MAJORITY ? " <span class=\"election-result__bloc-flag\">egen majoritet</span>" : "") + "</span>";
     }).join("<span aria-hidden=\"true\"> \u00b7 </span>"));
-
-    var ranked = HISTORY_PARTIES.slice().sort(function (left, right) {
-      return result.parties[right].share - result.parties[left].share;
-    });
-    setHtml("election-result-parties", ranked.map(function (party) {
-      var entry = result.parties[party];
-      return "<li class=\"election-result__party\" data-party=\"" + party + "\"" +
-        " aria-label=\"" + escapeHtml((partyNames[party] || party) + ": " + format(entry.share, 2) +
-          " procent, " + entry.seats + " mandat") + "\">" +
-        "<span class=\"election-result__party-name\"><span class=\"ev-swatch\" style=\"background:" +
-          (partyColors[party] || "#777") + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(party)) + "</span>" +
-        "<span class=\"election-result__party-share\" aria-hidden=\"true\">" + percent(entry.share, 1) + "</span>" +
-        "<span class=\"election-result__party-seats\" aria-hidden=\"true\">" + entry.seats + " mandat</span></li>";
+    var allocation = {};
+    HISTORY_PARTIES.forEach(function (party) { allocation[party] = result.parties[party].seats; });
+    var parliament = byId("election-result-parliament");
+    var counts = drawChamber(parliament, allocation);
+    if (parliament) {
+      parliament.setAttribute("aria-label", "Riksdagen efter valet " + result.year + ", 349 mandat: " +
+        counts.map(function (entry) { return entry.party + " " + entry.seats; }).join(", ") + ".");
+    }
+    setHtml("election-result-legend", counts.map(function (entry) {
+      return "<li class=\"ep-legend__item\" data-party=\"" + entry.party + "\"" +
+        " aria-label=\"" + escapeHtml((partyNames[entry.party] || entry.party) + ": " + entry.seats + " mandat") + "\">" +
+        "<span class=\"ep-legend__swatch\" style=\"background:" + (partyColors[entry.party] || "#777") + "\" aria-hidden=\"true\"></span>" +
+        "<span class=\"ep-legend__abbr\">" + escapeHtml(abbr(entry.party)) + "</span>" +
+        "<span class=\"ep-legend__seats\">" + entry.seats + "</span></li>";
     }).join(""));
     reveal("election-result");
 
@@ -5582,16 +5557,28 @@
     setText("election-result-delta-source", "Staplarna visar prognosens intervall minus valresultatet, i procentenheter. Mandat: prognosens median minus mandaten i valet." +
       (result.authority ? " Valresultat: " + result.authority + ", slutligt resultat." : ""));
     reveal("election-result-delta");
+    // The hero's section links follow the page: the result and the comparison
+    // sit right after the chart.
     var nav = document.querySelector("#election-hero .election-hero__links");
-    if (nav && !nav.querySelector("a[href=\"#election-result-delta\"]")) {
-      var link = document.createElement("a");
-      link.href = "#election-result-delta";
-      link.textContent = decided ? "Sista prognosen mot valresultatet" : "Prognosen mot valresultatet";
-      var separator = document.createElement("span");
-      separator.setAttribute("aria-hidden", "true");
-      separator.textContent = " \u00b7 ";
-      nav.insertBefore(separator, nav.firstChild);
-      nav.insertBefore(link, separator);
+    // After the chart's own entries: its heading and the latest-polls table
+    // that sits inside it.
+    var chartLink = nav && (nav.querySelector("a[href=\"#election-latest-poll\"]") ||
+      nav.querySelector("a[href=\"#election-timeseries\"]"));
+    if (nav && chartLink && !nav.querySelector("a[href=\"#election-result-delta\"]")) {
+      var anchorNode = chartLink;
+      [["#election-result", "Valresultatet " + result.year],
+        ["#election-result-delta", decided ? "Sista prognosen mot valresultatet" : "Prognosen mot valresultatet"]]
+        .forEach(function (entry) {
+          var separator = document.createElement("span");
+          separator.setAttribute("aria-hidden", "true");
+          separator.textContent = " \u00b7 ";
+          var link = document.createElement("a");
+          link.href = entry[0];
+          link.textContent = entry[1];
+          nav.insertBefore(separator, anchorNode.nextSibling);
+          nav.insertBefore(link, separator.nextSibling);
+          anchorNode = link;
+        });
     }
   }
 

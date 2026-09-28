@@ -385,18 +385,18 @@ async function testSchema12(viewport, pointer, expected) {
     eq('no legacy card-list containers in DOM', panel.legacyIds, []);
     eq('the removed Majoritetsscenarier nodes are gone', panel.legacyGroups, []);
 
-    // Chansen till egen majoritet -> Vägen till valdagen -> Regeringsalternativ
-    // -> Bygg din egen regering -> 4 %-spärren -> Röstandelar på valdagen ->
-    // Mandat på valdagen. The bloc summary leads: it is the one section that
-    // answers the question before asking the reader to read a chart. The
-    // threshold triage sits immediately before the full vote-share list it
-    // triages. The forecast-against-result panel sits in the DOM ahead of
-    // them all; it stays hidden until the publication postdates an election
-    // whose result is published.
+    // Vägen till valdagen -> Valresultatet -> Prognosen mot valresultatet ->
+    // Chansen till egen majoritet -> Regeringsalternativ -> Bygg din egen
+    // regering -> 4 %-spärren -> Röstandelar på valdagen -> Mandat på
+    // valdagen. The chart leads; the result and the comparison sit between it
+    // and the forecast panels, hidden until the publication postdates an
+    // election whose result is published. The threshold triage sits
+    // immediately before the full vote-share list it triages.
     eq('page section order', panel.sectionOrder, [
+      'election-timeseries',
+      'election-result',
       'election-result-delta',
       'election-blocs',
-      'election-timeseries',
       'election-alternatives',
       'election-government-builder',
       'election-threshold',

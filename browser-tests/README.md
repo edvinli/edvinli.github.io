@@ -681,11 +681,16 @@ from `files/election-simulator/results/2026.json` — a lookup file outside the
 frozen publication bundle, like the history artifact. The suite pins the
 election-day generation and checks, against the files on disk:
 
-- **The hero.** The chamber bar is in seating order and sums to 349, the bloc
-  totals are sums of certified seats, the party list is ranked by share. The
-  countdown cell becomes "Nästa val", the lede says the election is decided, the
-  calculation stamp says "Sista prognosen", and the polling-freshness note is
-  not shown.
+- **The layout.** The chart leads the page, then "Valresultatet", then the
+  comparison, then the forecast panels, and the hero navigation follows that
+  order. The simulated riksdag outcome is gone from the page.
+- **The hero.** The countdown cell becomes "Nästa val", the lede says the
+  election is decided, the calculation stamp says "Sista prognosen", and the
+  polling-freshness note is not shown.
+- **Valresultatet.** The vote-share bars are ranked, and their lengths are
+  proportional to the certified shares. The chamber draws all 349 certified
+  seats in seating order, and the legend and bloc totals are sums of certified
+  seats.
 - **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
   is `forecast.json`'s median minus the certified share, and whether the result
   lies inside the 90 % interval is computed from `vote_share_p05`/`p95`, as is
@@ -701,8 +706,9 @@ computed before the election (`20260906T081926Z-92521273`) renders exactly as
 it was published. A result file that does not validate whole (one seat short)
 changes nothing and logs no error.
 
-**Where the other suites meet it.** The DOM always contains the new section
-first, so the section-order checks list it. `forecast-timeseries` reads the
+**Where the other suites meet it.** The DOM always contains the result and
+comparison sections, right after the chart, so the section-order checks list
+them. `forecast-timeseries` reads the
 hero's `data-election-decided` and asserts the decided lede and labels when the
 live pointer is the election-day generation.
 
