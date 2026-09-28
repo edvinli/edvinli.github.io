@@ -1268,6 +1268,41 @@ async function exercise(viewport, history, siteRoot) {
     assertStructure(view, history);
     const fullVoteView = structuredClone(view);
 
+    // The uncertainty toggle: on by default; off removes both bands, fits the
+    // y-axis to the medians and polls, and says so in the key; on restores
+    // exactly the view it left.
+    const uncertainty = () => browser.evaluate(() => {
+      const svg = document.getElementById('election-timeseries-svg');
+      const button = document.getElementById('election-timeseries-uncertainty');
+      return {
+        button: button ? { hidden: button.hidden, pressed: button.getAttribute('aria-pressed') } : null,
+        state: svg.getAttribute('data-uncertainty'),
+        bands: svg.querySelectorAll('.election-timeseries__band').length,
+        medians: svg.querySelectorAll('.election-timeseries__median').length,
+        domain: [Number(svg.getAttribute('data-y-min')), Number(svg.getAttribute('data-y-max'))],
+        maxDrawnMedian: Math.max(...Array.from(svg.querySelectorAll('[data-forecast-point="true"]'))
+          .map((node) => Number(node.getAttribute('data-p50')))),
+        key: document.getElementById('election-timeseries-key-forecast-label')?.textContent.trim(),
+      };
+    });
+    const withBands = await uncertainty();
+    equal('the uncertainty toggle is offered and on', [withBands.button, withBands.state],
+      [{ hidden: false, pressed: 'true' }, 'shown']);
+    check('bands are drawn by default', withBands.bands > 0, withBands.bands);
+    await browser.evaluate(() => document.getElementById('election-timeseries-uncertainty').click());
+    await settle();
+    const withoutBands = await uncertainty();
+    equal('off: the toggle says so', [withoutBands.button.pressed, withoutBands.state], ['false', 'hidden']);
+    equal('off: no band is drawn', withoutBands.bands, 0);
+    equal('off: every median is still drawn', withoutBands.medians, withBands.medians);
+    check('off: the y-axis never widens and still holds every median',
+      withoutBands.domain[0] >= withBands.domain[0] && withoutBands.domain[1] <= withBands.domain[1] &&
+      withoutBands.maxDrawnMedian <= withoutBands.domain[1], { withBands, withoutBands });
+    equal('off: the key names the median only', withoutBands.key, 'Historisk prognos · median');
+    await browser.evaluate(() => document.getElementById('election-timeseries-uncertainty').click());
+    await settle();
+    equal('on again: the same view as before', await uncertainty(), withBands);
+
     // Clicking an extra coalition must change both aria-pressed and the
     // visible series.
     const extra = labelFor(EXTRA_COALITIONS[0]);

@@ -384,6 +384,7 @@ canvas {
 
 .election-timeseries__view,
 .election-timeseries__mode,
+.election-timeseries__uncertainty,
 .election-timeseries__range {
   border: 1px solid var(--el-rule);
   border-radius: 999px;
@@ -418,8 +419,23 @@ canvas {
 }
 
 .election-timeseries__range-button,
+.election-timeseries__uncertainty-button,
 .election-timeseries__view-button {
   white-space: nowrap;
+}
+
+// A single on/off toggle: its pressed state is shown by the shared control
+// style, with a mark so the state is not carried by colour alone.
+.election-timeseries__uncertainty-button::before {
+  content: "\25CB\00a0";
+}
+
+.election-timeseries__uncertainty-button[aria-pressed="true"]::before {
+  content: "\25CF\00a0";
+}
+
+.election-timeseries__uncertainty:has(> [hidden]) {
+  display: none;
 }
 
 // The first control dimension: what the chart is about, before how it is
@@ -741,6 +757,11 @@ canvas {
   box-shadow: 0 0 0 1px var(--el-rule);
   height: 0.6rem;
   width: 0.6rem;
+}
+
+.election-timeseries__key-mark--median-only {
+  background: var(--el-ink);
+  height: 2px;
 }
 
 .election-timeseries__key-mark--forecast {

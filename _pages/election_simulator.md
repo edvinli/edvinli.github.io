@@ -59,6 +59,9 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
         <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-vote" aria-pressed="true">Röstandel</button>
         <button type="button" class="election-timeseries__control election-timeseries__mode-button" id="election-timeseries-seats" aria-pressed="false">Mandatandel</button>
       </div>
+      <div class="election-timeseries__uncertainty" role="group" aria-label="Osäkerhet i diagrammet">
+        <button type="button" class="election-timeseries__control election-timeseries__uncertainty-button" id="election-timeseries-uncertainty" aria-pressed="true" aria-controls="election-timeseries-svg" hidden>Osäkerhet</button>
+      </div>
       <div class="election-timeseries__range" id="election-timeseries-range" role="group" aria-label="Tidsintervall">
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-full" data-range="full" aria-pressed="true" aria-controls="election-timeseries-svg">Sedan 2022</button>
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Sista 30 dagarna</button>
@@ -76,7 +79,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <p id="election-timeseries-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">Välj en punkt i diagrammet för detaljer.</p>
     <div id="election-timeseries-readout" class="visually-hidden" role="region" aria-live="off" aria-label="Prognosintervall för valt datum"></div>
     <p class="election-timeseries__key election-muted">
-      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
+      <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span><span id="election-timeseries-key-forecast-label">Historisk prognos · 50/90 % intervall</span></span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-current"><span class="election-timeseries__key-mark election-timeseries__key-mark--current" aria-hidden="true"></span>Senaste prognos</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-result" hidden><span class="election-timeseries__key-mark election-timeseries__key-mark--result" aria-hidden="true"></span><span id="election-timeseries-key-result-label">Valresultat</span></span>

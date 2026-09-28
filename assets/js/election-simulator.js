@@ -1730,7 +1730,9 @@
   var HISTORY_TICK_STEPS = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20];
   function historyTickStep(span) {
     for (var index = 0; index < HISTORY_TICK_STEPS.length; index += 1) {
-      if (span / HISTORY_TICK_STEPS[index] <= 8) return HISTORY_TICK_STEPS[index];
+      // Up to nine gridlines before stepping up: a party view whose top value
+      // is 42 % then ends at 45 % on five-point steps instead of 50 % on ten.
+      if (span / HISTORY_TICK_STEPS[index] <= 9) return HISTORY_TICK_STEPS[index];
     }
     return HISTORY_TICK_STEPS[HISTORY_TICK_STEPS.length - 1];
   }
@@ -1837,8 +1839,11 @@
     return domain;
   }
 
-  function historyValueDomain(history, metric, definitions, domain, extraValues) {
+  function historyValueDomain(history, metric, definitions, domain, extraValues, withUncertainty) {
     var values = (extraValues || []).slice();
+    // With the uncertainty hidden the axis fits what is drawn: the medians.
+    var lowKey = withUncertainty === false ? "p50" : "p05";
+    var highKey = withUncertainty === false ? "p50" : "p95";
     var inDomain = function (point) {
       return point && (!domain || (point.time >= domain.minTime && point.time <= domain.maxTime));
     };
@@ -1849,8 +1854,8 @@
     definitions.forEach(function (definition) {
       history.points.filter(inDomain).forEach(function (point) {
         var group = point.groups && point.groups[definition.id];
-        var low = historyMetricValue(group, metric, "p05");
-        var high = historyMetricValue(group, metric, "p95");
+        var low = historyMetricValue(group, metric, lowKey);
+        var high = historyMetricValue(group, metric, highKey);
         if (low !== null) values.push(low);
         if (high !== null) values.push(high);
       });
@@ -1987,6 +1992,10 @@
     var partyButtons = {};
     var partyAllButton = null;
     var selectedMetric = "vote";
+    // The 50/90 % bands. On by default; hiding them leaves the medians and the
+    // polls, and the y-axis follows what is left.
+    var showUncertainty = true;
+    var uncertaintyButton = byId("election-timeseries-uncertainty");
     // The chart always opens on the whole history ("Sedan 2022"); the shorter
     // windows are one click away.
     var selectedRange = "full";
@@ -2391,7 +2400,7 @@
         return mark ? { definition: definition, value: mark.value, seats: mark.seats } : null;
       }).filter(Boolean) : [];
       var yDomain = historyValueDomain(history, selectedMetric, definitions, activeDomain,
-        resultMarks.map(function (mark) { return mark.value; }));
+        resultMarks.map(function (mark) { return mark.value; }), showUncertainty);
       var minValue = yDomain.min;
       var maxValue = yDomain.max;
       var yScale = function (value) {
@@ -2414,6 +2423,8 @@
         : (selectedMetric === "vote" && activeDomain.range === "short"
           ? "adaptive-short-window" : "published-history"));
       svg.setAttribute("data-view-mode", viewMode);
+      svg.setAttribute("data-uncertainty", showUncertainty ? "shown" : "hidden");
+      if (uncertaintyButton) uncertaintyButton.setAttribute("aria-pressed", showUncertainty ? "true" : "false");
       svg.setAttribute("data-threshold-visible", yDomain.thresholdVisible ? "true" : "false");
       if (viewMode === "parties") {
         svg.setAttribute("data-selected-parties", activePartyDefinitions()
@@ -2576,12 +2587,12 @@
         });
         var ninety = historySegmentedPath(curveSegments, selectedMetric, definition.id, xScale, yScale, "p95", "p05");
         var fifty = historySegmentedPath(curveSegments, selectedMetric, definition.id, xScale, yScale, "p75", "p25");
-        if (ninety) group.appendChild(svgNode("path", {
+        if (ninety && showUncertainty) group.appendChild(svgNode("path", {
           class: "election-timeseries__band election-timeseries__band--90 election-timeseries__band-p90",
           d: ninety, fill: definition.color, "data-coalition": definition.id, "data-quantile": "p05-p95",
           "data-timeseries-band": "90", "data-interval": "90"
         }));
-        if (fifty) group.appendChild(svgNode("path", {
+        if (fifty && showUncertainty) group.appendChild(svgNode("path", {
           class: "election-timeseries__band election-timeseries__band--50 election-timeseries__band-p50",
           d: fifty, fill: definition.color, "data-coalition": definition.id, "data-quantile": "p25-p75",
           "data-timeseries-band": "50", "data-interval": "50"
@@ -3006,6 +3017,23 @@
       selectedMetric = "vote";
       renderChart();
     });
+    if (uncertaintyButton) {
+      uncertaintyButton.hidden = false;
+      uncertaintyButton.addEventListener("click", function () {
+        showUncertainty = !showUncertainty;
+        var forecastMark = document.querySelector(".election-timeseries__key-mark--forecast, .election-timeseries__key-mark--median-only");
+        if (forecastMark) {
+          forecastMark.className = "election-timeseries__key-mark " + (showUncertainty
+            ? "election-timeseries__key-mark--forecast" : "election-timeseries__key-mark--median-only");
+        }
+        var forecastKey = byId("election-timeseries-key-forecast-label");
+        if (forecastKey) {
+          forecastKey.textContent = showUncertainty
+            ? "Historisk prognos \u00b7 50/90 % intervall" : "Historisk prognos \u00b7 median";
+        }
+        renderChart();
+      });
+    }
     if (modeSeats) modeSeats.addEventListener("click", function () {
       selectedMetric = "seats";
       renderChart();
