@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "role": "official_election_result",
+  "election_date": "2026-09-13",
+  "next_election_date": "2030-09-08",
+  "authority": "Valmyndigheten",
+  "certification_status": "FINAL_CERTIFIED",
+  "source_url": "https://resultat.val.se/data/resultat/val2026/RD_S.json",
+  "source_title": "Val till riksdagen - Slutligt valresultat",
+  "decision_protocol_url": "https://resultat.val.se/protokoll/protokoll_Val_2026_00_RD.pdf",
+  "retrieved_at_utc": "2026-09-19T17:32:49Z",
+  "raw_sha256": "1998afdc723a83b325c729faf68063c8731e33496fc274bf9fbb80499e0afb08",
+  "vote_share_definition": "national_vote_share",
+  "valid_national_votes": 6767429,
+  "turnout_pct": 84.89,
+  "total_seats": 349,
+  "party_order": [
+    "M",
+    "L",
+    "C",
+    "KD",
+    "S",
+    "V",
+    "MP",
+    "SD"
+  ],
+  "parties": {
+    "M": {
+      "votes": 1343448,
+      "vote_share_pct": 19.8517,
+      "seats": 70
+    },
+    "L": {
+      "votes": 361187,
+      "vote_share_pct": 5.3371,
+      "seats": 19
+    },
+    "C": {
+      "votes": 475780,
+      "vote_share_pct": 7.0304,
+      "seats": 25
+    },
+    "KD": {
+      "votes": 417490,
+      "vote_share_pct": 6.1691,
+      "seats": 22
+    },
+    "S": {
+      "votes": 1895989,
+      "vote_share_pct": 28.0164,
+      "seats": 99
+    },
+    "V": {
+      "votes": 568781,
+      "vote_share_pct": 8.4047,
+      "seats": 30
+    },
+    "MP": {
+      "votes": 414307,
+      "vote_share_pct": 6.1221,
+      "seats": 22
+    },
+    "SD": {
+      "votes": 1183248,
+      "vote_share_pct": 17.4845,
+      "seats": 62
+    }
+  },
+  "other_parties": {
+    "votes": 107199,
+    "vote_share_pct": 1.584,
+    "seats": 0
+  }
+}

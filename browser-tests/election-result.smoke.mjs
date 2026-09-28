@@ -1,0 +1,335 @@
+// The certified election result: the hero that leads with it, the panel that
+// sets the forecast against it, and its marks on "Vägen till valdagen".
+//
+// The result is a separate lookup file (files/election-simulator/results/),
+// outside the frozen publication bundle. What this suite guards is that the
+// page only *prints* it and subtracts it from published quantiles: every
+// expectation is read from results/2026.json and the pinned generation's
+// forecast.json on disk, so a frontend that started rounding, re-deriving or
+// transcribing numbers would disagree with the files rather than with a
+// constant written here.
+//
+// It also guards the two ways the result must stay off the page: a
+// publication computed before the election never meets its result, and a
+// result file that does not validate whole changes nothing.
+//
+// Usage:
+//   jekyll build --config _config.yml,_config.dev.yml
+//   node browser-tests/election-result.smoke.mjs [path/to/_site]
+
+import { launch } from './cdp.mjs';
+import { serve, pointerFor } from './server.mjs';
+import { readFile, cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+
+const SITE = resolve(process.argv[2] || './_site');
+const PAGE = '/election-simulator/';
+const DESKTOP = { width: 1280, height: 1000 };
+const MOBILE = { width: 360, height: 800 };
+const VERSIONS = 'files/election-simulator/versions';
+const RESULT = 'files/election-simulator/results/2026.json';
+
+// The election-day publication: the last forecast made for 2026, computed on
+// the morning of the election. Its result is the one the page compares to.
+const DECIDED_GENERATION = '20260913T054241Z-496dd879';
+// A week before the election. The page must render it exactly as published.
+const PRE_ELECTION_GENERATION = '20260906T081926Z-92521273';
+
+const PARTIES = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
+const CHAMBER = 349;
+const MONTHS = ['jan', 'feb', 'mars', 'apr', 'maj', 'juni',
+  'juli', 'aug', 'sep', 'okt', 'nov', 'dec'];
+const BLOCS = [
+  { id: 'red_green_center', parties: ['V', 'MP', 'S', 'C'] },
+  { id: 'tido', parties: ['L', 'KD', 'M', 'SD'] },
+];
+
+let failures = 0;
+let checks = 0;
+function check(label, condition, detail) {
+  checks += 1;
+  if (condition) {
+    console.log(`  ok   ${label}`);
+    return;
+  }
+  failures += 1;
+  console.log(`  FAIL ${label}${detail === undefined ? '' : ` -- ${JSON.stringify(detail)}`}`);
+}
+function equal(label, actual, expected) {
+  check(label, JSON.stringify(actual) === JSON.stringify(expected), { actual, expected });
+}
+const near = (a, b, tolerance = 1e-3) => Math.abs(Number(a) - Number(b)) <= tolerance;
+
+const settle = (ms = 250) => new Promise((r) => setTimeout(r, ms));
+const appErrors = (browser) => browser.consoleErrors.filter(
+  (entry) => !/favicon|images\/manifest\.json/.test(entry.text));
+const readJson = async (...parts) => JSON.parse(await readFile(join(...parts), 'utf8'));
+const swedishDay = (iso) => {
+  const [year, month, day] = iso.split('-');
+  return `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}`;
+};
+
+async function waitForApp(browser) {
+  const settled = await browser.waitFor(() => {
+    const status = document.getElementById('election-app-status');
+    const svg = document.getElementById('election-timeseries-svg');
+    return Boolean(status) && (status.hidden || status.className.includes('error')) &&
+      Boolean(svg) && svg.childElementCount > 2;
+  }, 25000);
+  if (!settled) throw new Error('the forecast page never finished loading');
+  await settle(400);
+}
+
+async function open(viewport, { root = SITE, pointer = null } = {}) {
+  const server = await serve(root, { port: 4000, pointer });
+  const browser = await launch(viewport);
+  await browser.goto(`http://localhost:${server.port}${PAGE}`);
+  await waitForApp(browser);
+  return { server, browser };
+}
+
+function readPage(browser) {
+  return browser.evaluate(() => {
+    const text = (id) => (document.getElementById(id)?.textContent || '').replace(/\s+/g, ' ').trim();
+    const hidden = (id) => {
+      const node = document.getElementById(id);
+      return !node || node.hidden || getComputedStyle(node).display === 'none';
+    };
+    return {
+      resultHidden: hidden('election-result'),
+      deltaHidden: hidden('election-result-delta'),
+      dividerHidden: hidden('election-forecast-divider'),
+      freshnessHidden: hidden('election-hero-poll-freshness'),
+      kicker: text('election-hero-kicker'),
+      countdownLabel: text('election-hero-countdown-label'),
+      countdown: text('election-hero-countdown'),
+      lede: text('election-hero-lede'),
+      updated: text('election-hero-updated'),
+      segments: Array.from(document.querySelectorAll('#election-result-chamber .election-result__segment'))
+        .map((node) => ({ party: node.dataset.party, seats: Number(node.dataset.seats) })),
+      blocs: Array.from(document.querySelectorAll('#election-result-blocs .election-result__bloc'))
+        .map((node) => ({ id: node.dataset.coalition, text: node.textContent.replace(/\s+/g, ' ').trim() })),
+      parties: Array.from(document.querySelectorAll('#election-result-parties .election-result__party'))
+        .map((node) => ({
+          party: node.dataset.party,
+          share: node.querySelector('.election-result__party-share')?.textContent.trim(),
+          seats: node.querySelector('.election-result__party-seats')?.textContent.trim(),
+        })),
+      rows: Array.from(document.querySelectorAll('#election-result-delta-rows .erd-row'))
+        .map((node) => ({
+          party: node.dataset.party,
+          result: Number(node.dataset.resultShare),
+          delta: Number(node.dataset.deltaMedian),
+          // dataset cannot name data-inside-90: a digit after the dash is not camel-cased.
+          inside90: node.getAttribute('data-inside-90') === 'true',
+          printed: node.querySelector('.erd-delta__value')?.textContent.trim(),
+          label: node.getAttribute('aria-label') || '',
+        })),
+      summary: text('election-result-delta-summary'),
+      summaryHidden: hidden('election-result-delta-summary'),
+      firstNavLink: document.querySelector('#election-hero .election-hero__links a')?.getAttribute('href') || null,
+      overflow: document.documentElement.scrollWidth - window.innerWidth,
+    };
+  });
+}
+
+function readChart(browser) {
+  return browser.evaluate(() => {
+    const svg = document.getElementById('election-timeseries-svg');
+    const line = svg.querySelector('[data-election-line]');
+    return {
+      metric: svg.getAttribute('data-metric'),
+      view: svg.getAttribute('data-view-mode'),
+      electionAttr: svg.getAttribute('data-election-result'),
+      xMax: svg.getAttribute('data-x-axis-max'),
+      line: line ? line.getAttribute('data-election-line') : null,
+      marks: Array.from(svg.querySelectorAll('.election-timeseries__result')).map((node) => ({
+        series: node.getAttribute('data-result-series'),
+        value: Number(node.getAttribute('data-result-value')),
+        seats: Number(node.getAttribute('data-result-seats')),
+      })),
+      drawnSeries: Array.from(svg.querySelectorAll('.election-timeseries__series-group'))
+        .map((node) => node.getAttribute('data-coalition')),
+      currentPoints: svg.querySelectorAll('.election-timeseries__current').length,
+      keyHidden: document.getElementById('election-timeseries-key-result')?.hidden !== false,
+      intro: (document.getElementById('election-timeseries-intro')?.textContent || '').trim(),
+    };
+  });
+}
+
+const click = (browser, id) => browser.evaluate((wanted) => {
+  const node = document.getElementById(wanted);
+  if (!node) return false;
+  node.click();
+  return true;
+}, id);
+
+// --- expectations from the files ------------------------------------------
+
+const result = await readJson(SITE, RESULT);
+const decidedForecast = await readJson(SITE, VERSIONS, DECIDED_GENERATION, 'forecast.json');
+const parliamentaryVotes = PARTIES.reduce((sum, party) => sum + result.parties[party].votes, 0);
+
+function expectedChartValue(members, metric, kind) {
+  const seats = members.reduce((sum, party) => sum + result.parties[party].seats, 0);
+  if (metric === 'seats') return { value: 100 * seats / CHAMBER, seats };
+  if (kind === 'party') return { value: result.parties[members[0]].vote_share_pct, seats };
+  const votes = members.reduce((sum, party) => sum + result.parties[party].votes, 0);
+  return { value: 100 * votes / parliamentaryVotes, seats };
+}
+
+// --- 1. decided: the election-day publication against its result ---------
+
+async function decided(viewport, name) {
+  console.log(`\n[decided] ${name}`);
+  const pointer = await pointerFor(SITE, DECIDED_GENERATION);
+  const { server, browser } = await open(viewport, { pointer });
+  try {
+    const page = await readPage(browser);
+    check('the result leads the hero', !page.resultHidden);
+    equal('the kicker names the result', page.kicker, `Sverige · Riksdagen · valresultat ${result.election_date.slice(0, 4)}`);
+    equal('the countdown cell names the next election', [page.countdownLabel, page.countdown],
+      ['Nästa val', swedishDay(result.next_election_date)]);
+    check('the lede says the election is decided',
+      page.lede.startsWith(`Valet den ${swedishDay(result.election_date)} är avgjort.`), page.lede);
+    check('the calculation stamp names the last forecast', page.updated.startsWith('Sista prognosen beräknad'), page.updated);
+    check('the polling-freshness note is not shown', page.freshnessHidden);
+    check('the divider over the forecast panels is shown', !page.dividerHidden);
+
+    equal('the chamber bar is in seating order and holds every seat',
+      page.segments, ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD']
+        .map((party) => ({ party, seats: result.parties[party].seats })));
+    equal('the chamber adds up to 349', page.segments.reduce((sum, s) => sum + s.seats, 0), CHAMBER);
+    equal('the bloc totals are the sums of the certified seats',
+      page.blocs.map((bloc) => bloc.id + ':' + /(\d+) mandat/.exec(bloc.text)?.[1]),
+      BLOCS.map((bloc) => bloc.id + ':' + bloc.parties.reduce((sum, p) => sum + result.parties[p].seats, 0)));
+    const ranked = PARTIES.slice().sort((a, b) => result.parties[b].vote_share_pct - result.parties[a].vote_share_pct);
+    equal('the party list is ranked by vote share', page.parties.map((p) => p.party), ranked);
+    equal('each party prints its certified share and seats', page.parties.map((p) => [p.share, p.seats]),
+      ranked.map((party) => [
+        `${result.parties[party].vote_share_pct.toFixed(1).replace('.', ',')}\u00a0%`,
+        `${result.parties[party].seats} mandat`,
+      ]));
+
+    check('the forecast-against-result panel is shown', !page.deltaHidden);
+    equal('one row per parliamentary party', page.rows.map((row) => row.party), PARTIES);
+    const deltas = PARTIES.map((party) => {
+      const forecast = decidedForecast.parties[party];
+      const actual = result.parties[party].vote_share_pct;
+      return {
+        party,
+        delta: forecast.vote_share_median - actual,
+        inside90: forecast.vote_share_p05 <= actual && forecast.vote_share_p95 >= actual,
+      };
+    });
+    check('each delta is the published median minus the result',
+      page.rows.every((row, index) => near(row.delta, deltas[index].delta)),
+      page.rows.map((row, index) => [row.party, row.delta, deltas[index].delta]));
+    equal('each row knows whether the result was inside the 90 % interval',
+      page.rows.map((row) => row.inside90), deltas.map((d) => d.inside90));
+    const inside = deltas.filter((d) => d.inside90).length;
+    check('the summary counts the 90 % hits', !page.summaryHidden &&
+      page.summary.includes(`90-procentiga intervall för ${inside} av ${PARTIES.length} partier`), page.summary);
+    check('every row is spoken with its result and direction',
+      page.rows.every((row) => /valresultat \d+,\d procent/.test(row.label) && /(högre|lägre|i nivå)/.test(row.label)));
+    equal('the hero navigation starts at the panel', page.firstNavLink, '#election-result-delta');
+    check('no horizontal scroll', page.overflow <= 0, page.overflow);
+
+    // The chart: the result sits on the last day of the 2026 series, never
+    // beyond it, and each mark is on the chart's own scale for its series.
+    let chart = await readChart(browser);
+    equal('the election line is at election day', chart.line, result.election_date);
+    check('nothing is drawn past election day', chart.xMax <= result.election_date, chart.xMax);
+    check('the result key is shown', !chart.keyHidden);
+    check('the intro says the last point is the last forecast', /romberna visar valresultatet/.test(chart.intro), chart.intro);
+    equal('one result mark per drawn coalition', chart.marks.map((m) => m.series), chart.drawnSeries);
+    check('the result marks are not forecast endpoints', chart.currentPoints === chart.drawnSeries.length,
+      { current: chart.currentPoints, series: chart.drawnSeries.length });
+    const coalition = (id) => BLOCS.find((bloc) => bloc.id === id).parties;
+    check('coalition vote marks are renormalized over the eight parties',
+      chart.marks.every((mark) => near(mark.value, expectedChartValue(coalition(mark.series), 'vote').value, 1e-3)),
+      chart.marks);
+
+    await click(browser, 'election-timeseries-seats');
+    await settle();
+    chart = await readChart(browser);
+    check('coalition seat marks are a share of the chamber',
+      chart.marks.length > 0 && chart.marks.every((mark) => {
+        const expected = expectedChartValue(coalition(mark.series), 'seats');
+        return near(mark.value, expected.value, 1e-3) && mark.seats === expected.seats;
+      }), chart.marks);
+
+    await click(browser, 'election-timeseries-vote');
+    if (await click(browser, 'election-timeseries-view-parties')) {
+      await settle();
+      chart = await readChart(browser);
+      if (chart.view === 'parties') {
+        check('party marks are the certified shares',
+          chart.marks.length > 0 && chart.marks.every((mark) =>
+            near(mark.value, result.parties[mark.series].vote_share_pct, 1e-3)), chart.marks);
+      }
+    }
+    equal('no console errors', appErrors(browser).map((e) => e.text), []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}
+
+// --- 2. a publication from before the election ----------------------------
+
+async function preElection() {
+  console.log('\n[pre-election publication] desktop');
+  const pointer = await pointerFor(SITE, PRE_ELECTION_GENERATION);
+  const { server, browser } = await open(DESKTOP, { pointer });
+  try {
+    const page = await readPage(browser);
+    check('the result is not shown', page.resultHidden);
+    check('the comparison is not shown', page.deltaHidden);
+    check('the divider is not shown', page.dividerHidden);
+    equal('the countdown cell is the countdown', page.countdownLabel, 'Dagar kvar');
+    check('the lede is the forecast lede', page.lede.startsWith('Valprognosen visar'), page.lede);
+    equal('no console errors', appErrors(browser).map((e) => e.text), []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}
+
+// --- 3. a result file that does not validate ------------------------------
+
+async function invalidResult() {
+  console.log('\n[invalid result file] desktop');
+  const root = await mkdtemp(join(tmpdir(), 'election-result-site-'));
+  try {
+    await cp(SITE, root, { recursive: true });
+    const broken = structuredClone(result);
+    broken.parties.M.seats -= 1;
+    await writeFile(join(root, RESULT), `${JSON.stringify(broken)}\n`);
+    const pointer = await pointerFor(SITE, DECIDED_GENERATION);
+    const { server, browser } = await open(DESKTOP, { root, pointer });
+    try {
+      const page = await readPage(browser);
+      const chart = await readChart(browser);
+      check('the result is not shown', page.resultHidden);
+      check('the comparison is not shown', page.deltaHidden);
+      equal('no result marks on the chart', chart.marks.length, 0);
+      check('the result key stays hidden', chart.keyHidden);
+      equal('no console errors', appErrors(browser).map((e) => e.text), []);
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+await decided(DESKTOP, 'desktop');
+await decided(MOBILE, 'mobile');
+await preElection();
+await invalidResult();
+
+console.log(`\n${failures ? `FAIL (${failures})` : 'PASS'} ${checks} checks`);
+process.exit(failures ? 1 : 0);

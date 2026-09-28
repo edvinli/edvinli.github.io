@@ -90,7 +90,7 @@ const checks = [
     source.includes('var allDefinitions = partyDefinitions ? definitions.concat(partyDefinitions) : definitions;')],
   ['both families share one time domain and one value domain',
     source.includes('activeDomain = activeTimeDomain()') &&
-    source.includes('historyValueDomain(history, selectedMetric, definitions, activeDomain)')],
+    source.includes('historyValueDomain(history, selectedMetric, definitions, activeDomain,')],
   ['no companion party renderer is loaded',
     !(await readFile(join(HERE, '..', '_includes', 'head', 'custom.html'), 'utf8'))
       .includes('election-party-timeseries.js')],
@@ -180,7 +180,7 @@ const checks = [
     !source.includes('selectedPartyId')],
   ['the y-axis is derived from the selected set',
     source.includes('if (viewMode === "parties") return activePartyDefinitions();') &&
-    source.includes('historyValueDomain(history, selectedMetric, definitions, activeDomain)')],
+    source.includes('historyValueDomain(history, selectedMetric, definitions, activeDomain,')],
   ['the direct-navigation action isolates the party it came from',
     /function selectTimeseriesParty[\s\S]*?selectedParties\[definition\.id\] = definition\.id === match\[0\]\.id;/
       .test(source)],
