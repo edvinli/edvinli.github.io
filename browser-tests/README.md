@@ -42,6 +42,7 @@ node browser-tests/party-timeseries.contract.mjs    # static, no browser
 node browser-tests/changes-baseline.smoke.mjs
 node browser-tests/bloc-summary.smoke.mjs
 node browser-tests/threshold-panel.smoke.mjs
+node browser-tests/election-result.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -671,6 +672,38 @@ a line of its own and each number brings back its own caption in place of the
 header strip, which is `aria-hidden` decoration and `display: none` at that
 width. The rows are a list of `listitem`s rather than a table, precisely
 because a table whose headers disappear at phone width is worse than no table.
+
+### 12. `election-result.smoke.mjs` — the certified result and the forecast against it
+
+After an election the page leads with Valmyndigheten's certified result, read
+from `files/election-simulator/results/2026.json` — a lookup file outside the
+frozen publication bundle, like the history artifact. The suite pins the
+election-day generation and checks, against the files on disk:
+
+- **The hero.** The chamber bar is in seating order and sums to 349, the bloc
+  totals are sums of certified seats, the party list is ranked by share. The
+  countdown cell becomes "Nästa val", the lede says the election is decided, the
+  calculation stamp says "Sista prognosen", and the polling-freshness note is
+  not shown.
+- **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
+  is `forecast.json`'s median minus the certified share, and whether the result
+  lies inside the 90 % interval is computed from `vote_share_p05`/`p95`, as is
+  the summary's count.
+- **The chart.** A dashed line at election day, never past the axis end, and
+  one diamond per drawn series. They are not `current` endpoints. Coalition vote
+  marks are renormalized over the eight parties, exactly as the coalition series
+  are. Seat marks are a share of the chamber, and party marks are the certified
+  shares.
+
+It also checks two ways the result must stay off the page. A publication
+computed before the election (`20260906T081926Z-92521273`) renders exactly as
+it was published. A result file that does not validate whole (one seat short)
+changes nothing and logs no error.
+
+**Where the other suites meet it.** The DOM always contains the new section
+first, so the section-order checks list it. `forecast-timeseries` reads the
+hero's `data-election-decided` and asserts the decided lede and labels when the
+live pointer is the election-day generation.
 
 ## Determinism: pin the generation you assert against
 

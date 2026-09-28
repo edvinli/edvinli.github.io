@@ -486,6 +486,9 @@ function readPage(browser) {
           value: fact.querySelector('dd')?.textContent?.trim() || '',
         })),
         lede: hero.querySelector('#election-hero-lede')?.textContent?.trim() || '',
+        // The certified result of a decided election leads the hero once the
+        // publication postdates it; election-result.smoke.mjs owns that view.
+        decided: hero.getAttribute('data-election-decided') === 'true',
         text: hero.textContent?.replace(/[\t\n\r ]+/g, ' ').trim() || '',
       } : null,
       // The technical surface, where as_of is allowed to appear -- and where
@@ -865,8 +868,11 @@ function assertStructure(view, history) {
   const order = view.sectionOrder;
   // The parliamentary headline leads, then the timeline: a visitor gets the
   // current forecast before being asked to read a chart of it.
+  // The forecast-against-result panel is always first in the DOM; it is
+  // hidden unless the publication postdates a published election result.
   equal('the seven primary sections use the exact summary-first DOM order',
-    order.slice(0, 7), [
+    order.slice(0, 8), [
+      'election-result-delta',
       'election-blocs',
       'election-timeseries',
       'election-alternatives',
@@ -875,8 +881,10 @@ function assertStructure(view, history) {
       'election-headline',
       'election-seats',
     ]);
+  const decided = Boolean(view.hero?.decided);
   equal('the subsection navigation follows the DOM order and labels',
     view.navigation, [
+      ...(decided ? [{ href: '#election-result-delta', text: 'Sista prognosen mot valresultatet' }] : []),
       { href: '#election-blocs', text: 'Chansen till egen majoritet' },
       { href: '#election-timeseries', text: 'Vägen till valdagen' },
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
@@ -899,7 +907,7 @@ function assertStructure(view, history) {
   // below the grid, so the two freshness claims cannot be read as one.
   equal('hero fact labels name the polling input, not just "underlag"',
     facts.map((fact) => fact.label),
-    ['Senaste opinionsunderlag', 'Valdag', 'Dagar kvar']);
+    ['Senaste opinionsunderlag', 'Valdag', decided ? 'N\u00e4sta val' : 'Dagar kvar']);
   // The lede's contract, restated for the post-#27 page.
   //
   // The old assertion required "underlag till och med <date>" in the lede.
@@ -914,11 +922,18 @@ function assertStructure(view, history) {
   //
   // What the lede must do instead:
   const lede = view.hero?.lede || '';
-  check('hero lede names the published election date',
-    new RegExp(`Valprognosen visar hur valet den ${swedishDay(history.election_date)} kan sluta`)
-      .test(lede), lede);
-  check('hero lede names the published simulation draw count',
-    numberInText(lede, publishedSamples), lede);
+  if (decided) {
+    // After the election the lede reports the result instead of the forecast;
+    // the draw count belongs to the forecast panels below it.
+    check('hero lede names the decided election date',
+      lede.startsWith(`Valet den ${swedishDay(history.election_date)} \u00e4r avgjort.`), lede);
+  } else {
+    check('hero lede names the published election date',
+      new RegExp(`Valprognosen visar hur valet den ${swedishDay(history.election_date)} kan sluta`)
+        .test(lede), lede);
+    check('hero lede names the published simulation draw count',
+      numberInText(lede, publishedSamples), lede);
+  }
 
   // The lede either names the verified newest poll or says it is publication
   // data without a date. Either is correct; a third option -- a date sourced
@@ -928,11 +943,12 @@ function assertStructure(view, history) {
   // "the hero must not contain the as_of date" would be unsound.
   const pollingFact = (view.hero?.facts || [])
     .find((fact) => fact.label === 'Senaste opinionsunderlag');
-  const ledeDate = /opinionsunderlag till och med ([^.]+?) och/.exec(lede);
+  const ledeDate = /opinionsunderlag till och med ([^.,]+?)(?: och|,)/.exec(lede);
   check('hero lede does not present as_of as the polling cutoff',
     ledeDate
       ? ledeDate[1].trim() === pollingFact?.value
-      : /Den bygger p\u00e5 det publicerade opinionsunderlaget/.test(lede),
+      : (decided ? /byggd p\u00e5 det publicerade opinionsunderlaget/
+        : /Den bygger p\u00e5 det publicerade opinionsunderlaget/).test(lede),
     { lede, pollingFact: pollingFact?.value });
   check('the lede never speaks of the forecast anchor at all',
     !/ankardatum/i.test(lede), lede);

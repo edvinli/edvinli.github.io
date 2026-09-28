@@ -390,8 +390,11 @@ async function testSchema12(viewport, pointer, expected) {
     // Mandat på valdagen. The bloc summary leads: it is the one section that
     // answers the question before asking the reader to read a chart. The
     // threshold triage sits immediately before the full vote-share list it
-    // triages.
+    // triages. The forecast-against-result panel sits in the DOM ahead of
+    // them all; it stays hidden until the publication postdates an election
+    // whose result is published.
     eq('page section order', panel.sectionOrder, [
+      'election-result-delta',
       'election-blocs',
       'election-timeseries',
       'election-alternatives',

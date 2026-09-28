@@ -21,18 +21,28 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
        list on the next build. -->
   <script type="application/json" id="election-publication-generations">{% assign election_version_root = '/files/election-simulator/versions/' %}{% assign election_generations = '' %}{% for election_file in site.static_files %}{% if election_file.name == 'manifest.json' and election_file.path contains election_version_root %}{% assign election_tail = election_file.path | split: election_version_root | last %}{% assign election_generation = election_tail | split: '/' | first %}{% if election_generations == '' %}{% assign election_generations = election_generation %}{% else %}{% assign election_generations = election_generations | append: ',' | append: election_generation %}{% endif %}{% endif %}{% endfor %}{{ election_generations | split: ',' | sort | jsonify }}</script>
   <header class="election-hero" id="election-hero">
-    <p class="election-hero__kicker">Sverige · Riksdagen · valprognos 2026</p>
+    <p class="election-hero__kicker" id="election-hero-kicker">Sverige · Riksdagen · valprognos 2026</p>
+    <!-- The certified result of the last election. Rendered only once the
+         publication on screen postdates that election; hidden otherwise, so a
+         pinned pre-election generation reads exactly as it did. -->
+    <section class="election-result" id="election-result" hidden aria-labelledby="election-result-title">
+      <h2 class="election-result__title" id="election-result-title">Valresultatet 2026</h2>
+      <p class="election-result__meta election-muted" id="election-result-meta"></p>
+      <div class="election-result__chamber" id="election-result-chamber"></div>
+      <p class="election-result__blocs" id="election-result-blocs"></p>
+      <ol class="election-result__parties" id="election-result-parties"></ol>
+    </section>
     <dl class="election-hero__facts">
       <div class="election-hero__fact">
         <dt>Senaste opinionsunderlag</dt>
         <dd id="election-hero-asof">—</dd>
       </div>
       <div class="election-hero__fact">
-        <dt>Valdag</dt>
+        <dt id="election-hero-election-label">Valdag</dt>
         <dd id="election-hero-election">—</dd>
       </div>
       <div class="election-hero__fact">
-        <dt>Dagar kvar</dt>
+        <dt id="election-hero-countdown-label">Dagar kvar</dt>
         <dd id="election-hero-countdown">—</dd>
       </div>
     </dl>
@@ -45,6 +55,23 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
     <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
+  <!-- The current forecast against the last certified result, party by
+       party. Every number is read from forecast.json and results/<year>.json;
+       nothing is simulated here. -->
+  <section id="election-result-delta" class="election-panel election-result-delta" hidden aria-labelledby="election-result-delta-title">
+    <div class="election-panel__head">
+      <h2 id="election-result-delta-title">Prognosen mot valresultatet</h2>
+      <p class="election-muted" id="election-result-delta-intro"></p>
+    </div>
+    <div id="election-result-delta-rows" class="erd-rows" role="list"></div>
+    <div id="election-result-delta-axis" class="erd-axis" aria-hidden="true"></div>
+    <p class="election-legend-note election-muted erd-legend"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>prognosens median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % prognosintervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % prognosintervall</span><span class="election-key"><span class="election-key__mark erd-key__result" aria-hidden="true"></span>valresultatet</span></p>
+    <p class="election-muted erd-summary" id="election-result-delta-summary" hidden></p>
+    <p class="election-muted erd-source" id="election-result-delta-source"></p>
+  </section>
+  <!-- Stated only while the forecast on screen is the one made for an
+       election that has since been decided. -->
+  <p id="election-forecast-divider" class="election-forecast-divider" hidden></p>
   <!-- The parliamentary headline, above the historical chart: what the current
        forecast says about a majority, before the reader is asked to read a
        time series. Rendered from the publication's own named blocs; hidden
@@ -91,6 +118,7 @@ excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandat
       <span class="election-timeseries__key-item"><span class="election-timeseries__key-mark election-timeseries__key-mark--forecast" aria-hidden="true"></span>Historisk prognos · 50/90 % intervall</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-polls"><span class="election-timeseries__key-mark election-timeseries__key-mark--polls" aria-hidden="true"></span>Enskilda mätningar</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-current"><span class="election-timeseries__key-mark election-timeseries__key-mark--current" aria-hidden="true"></span>Senaste prognos</span>
+      <span class="election-timeseries__key-item" id="election-timeseries-key-result" hidden><span class="election-timeseries__key-mark election-timeseries__key-mark--result" aria-hidden="true"></span><span id="election-timeseries-key-result-label">Valresultat</span></span>
     </p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Koalitionernas röstandelar beräknas över de åtta riksdagspartierna.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-party-note" hidden>Ett partis röstandel är dess andel av hela valmanskåren, med övriga partier i nämnaren. Det är samma definition som valdagsprognosen och som 4&#160;%-spärren.</p>
