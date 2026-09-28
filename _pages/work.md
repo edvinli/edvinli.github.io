@@ -1,7 +1,9 @@
 ---
 layout: archive
-title: "industry projects"
-permalink: /industry/
+title: "work"
+permalink: /work/
+redirect_from:
+  - /industry/
 author_profile: true
 ---
 

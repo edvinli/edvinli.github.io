@@ -45,8 +45,7 @@ redirect_from:
     <div class="project-date">2025--</div>
     <div class="project-body">
       senior ML engineer<br>
-      <span class="project-tags"><a href="https://eghed.se/">eghed</a></span><br>
-      leading the design and deployment of scalable ml systems for enterprise clients. architecting end-to-end pipelines bridging research and production.
+      <span class="project-tags"><a href="https://eghed.se/">eghed</a></span>
     </div>
   </div>
 
@@ -54,8 +53,7 @@ redirect_from:
     <div class="project-date">2019--2025</div>
     <div class="project-body">
       ML research scientist<br>
-      <span class="project-tags">RISE research institutes of sweden</span><br>
-      research on decentralized deep learning and ood generalization. industry and public sector projects in computer vision, NLP, and privacy-preserving ML, with applications in healthcare, energy, and telecom.
+      <span class="project-tags">RISE research institutes of sweden</span>
     </div>
   </div>
 
@@ -63,8 +61,7 @@ redirect_from:
     <div class="project-date">2023</div>
     <div class="project-body">
       research visitor<br>
-      <span class="project-tags">NYU center for data science · collaboration with kyunghyun cho</span><br>
-      working on domain generalization in federated learning at the CILVR group.
+      <span class="project-tags">NYU center for data science · collaboration with kyunghyun cho</span>
     </div>
   </div>
 
@@ -72,8 +69,7 @@ redirect_from:
     <div class="project-date">2017--2019</div>
     <div class="project-body">
       ML engineer<br>
-      <span class="project-tags">zenuity / zenseact</span><br>
-      modelling sensors for autonomous vehicles using machine learning.
+      <span class="project-tags">zenuity / zenseact</span>
     </div>
   </div>
 

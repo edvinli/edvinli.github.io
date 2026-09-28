@@ -3,14 +3,11 @@ main:
   - title: "CV"
     url: /cv/
 
-  - title: "Publications"
-    url: /publications/
+  - title: "Work"
+    url: /work/
 
-  - title: "Industry projects"
-    url: /industry/
-
-  - title: "Students"
-    url: /students/
+  - title: "Research"
+    url: /research/
 
   - title: "Valprognos 2026"
     url: /election-simulator/
