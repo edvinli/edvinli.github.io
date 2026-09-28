@@ -13,7 +13,7 @@ author_profile: true
     <div class="project-date">2026--</div>
     <div class="project-body">
       skatteverket<br>
-      ai for financial crime detection<br>
+      <a href="https://www.skatteverket.se/omoss/pressochmedia/nyheter/2026/nyheter/brottiskatteverketsaikonceptsomstarkerbrottsutredningar.5.9567cda19bf6c002722636.html">ai for financial crime detection</a><br>
       leading the development and deployment of ai systems dedicated to detecting financial crime.<br>
       <span class="project-tags">financial crime detection · production ML · MLOps</span>
     </div>
@@ -23,7 +23,7 @@ author_profile: true
     <div class="project-date">2025--2026</div>
     <div class="project-body">
       trafikverket<br>
-      computer vision for digital maintenance of railway<br>
+      <a href="https://bransch.trafikverket.se/om-oss/aktuellt-for-dig-i-branschen3/aktuellt-for-dig-i-branschen/2025/2025-06/ai-effektiviserar-underhallet-och-trafikverkets-interna-verksamhet/">computer vision for digital maintenance of railway</a><br>
       training DINOv2 transformers on 250 TB of railway imagery; optimized S3 I/O for H100 GPU throughput; exported to ONNX for production deployment.<br>
       <span class="project-tags">self-supervised learning · DINOv2 · computer vision · MLOps</span>
     </div>
