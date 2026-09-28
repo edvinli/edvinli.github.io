@@ -17,9 +17,8 @@
 //   node browser-tests/bloc-summary.smoke.mjs [path/to/_site]
 
 import { launch } from './cdp.mjs';
-import { serve, pointerFor } from './server.mjs';
-import { readFile, cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { serve, pointerFor, historyFixture } from './server.mjs';
+import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const SITE = resolve(process.argv[2] || './_site');
@@ -27,7 +26,11 @@ const PAGE = '/election-simulator/';
 const DESKTOP = { width: 1280, height: 1000 };
 const MOBILE = { width: 390, height: 844 };
 const VERSIONS = 'files/election-simulator/versions';
-const HISTORY = 'files/election-simulator/history/coalition-timeseries.json';
+// The history artifact as it stood with the pinned generation. The live file
+// is replaced by every forecast sync -- and after the 2026 election targets the
+// next one -- so a final-week assertion read from it would test whatever the
+// latest sync happened to publish rather than the generation under test.
+const PINNED_HISTORY = new URL('./fixtures/history/20260906T081926Z-92521273.json', import.meta.url);
 
 // The live publication: an ordinary pair of probabilities that round to whole
 // percent, and an election seven days from the latest published forecast, so
@@ -131,8 +134,9 @@ async function waitForApp(browser) {
   await settle(350);
 }
 
-async function open(viewport, { root = SITE, pointer = null } = {}) {
-  const server = await serve(root, { port: 4000, pointer });
+async function open(viewport, { root = SITE, pointer = null, history = null } = {}) {
+  const served = history || await historyFixture(PINNED_HISTORY);
+  const server = await serve(root, { port: 4000, pointer, history: served });
   const browser = await launch(viewport);
   await browser.goto(`http://localhost:${server.port}${PAGE}`);
   await waitForApp(browser);
@@ -236,7 +240,7 @@ async function live() {
   console.log(`\nthe headline panel (${LIVE_GENERATION})`);
   const blocs = await publishedBlocs(LIVE_GENERATION);
   const groups = await readJson(SITE, VERSIONS, LIVE_GENERATION, 'groups.json');
-  const history = await readJson(SITE, HISTORY);
+  const history = JSON.parse(await readFile(PINNED_HISTORY, 'utf8'));
   const latestPoint = history.series[history.series.length - 1].date;
 
   // The pin is only meaningful while it really is the final week.
@@ -471,34 +475,29 @@ async function boundary() {
 // would test a different artifact.
 async function midCampaign() {
   console.log('\noutside the final week (election date moved out)');
-  const root = await mkdtemp(join(tmpdir(), 'bloc-summary-site-'));
-  try {
-    await cp(SITE, root, { recursive: true });
-    const history = await readJson(SITE, HISTORY);
-    const latestPoint = history.series[history.series.length - 1].date;
-    history.election_date = '2026-10-13';
-    await writeFile(join(root, HISTORY), `${JSON.stringify(history)}\n`);
-    check('the moved election date is well outside the final week',
-      Math.round((Date.parse('2026-10-13T00:00:00Z') -
-        Date.parse(`${latestPoint}T00:00:00Z`)) / 86400000) > 7, latestPoint);
+  const pinned = await historyFixture(PINNED_HISTORY);
+  const history = JSON.parse(pinned.body);
+  const latestPoint = history.series[history.series.length - 1].date;
+  history.election_date = '2026-10-13';
+  const moved = { ...pinned, body: `${JSON.stringify(history)}\n` };
+  check('the moved election date is well outside the final week',
+    Math.round((Date.parse('2026-10-13T00:00:00Z') -
+      Date.parse(`${latestPoint}T00:00:00Z`)) / 86400000) > 7, latestPoint);
 
-    const { server, browser } = await open(DESKTOP, { root });
-    try {
-      const page = await readPage(browser);
-      equal('the chart opens on the full history again',
-        page.rangePressed, ['full:true', 'short:false']);
-      check('and it really is showing the full history',
-        page.axisDomain && page.axisDomain[0].startsWith('2022'), page.axisDomain);
-      // The panel is a property of the publication, not of the calendar.
-      equal('the headline panel is unaffected by the range default',
-        [page.sectionHidden, page.tiles.length], [false, 2]);
-      equal('the mid-campaign run has no console errors', appErrors(browser), []);
-    } finally {
-      await browser.close();
-      await server.close();
-    }
+  const { server, browser } = await open(DESKTOP, { history: moved });
+  try {
+    const page = await readPage(browser);
+    equal('the chart opens on the full history again',
+      page.rangePressed, ['full:true', 'short:false']);
+    check('and it really is showing the full history',
+      page.axisDomain && page.axisDomain[0].startsWith('2022'), page.axisDomain);
+    // The panel is a property of the publication, not of the calendar.
+    equal('the headline panel is unaffected by the range default',
+      [page.sectionHidden, page.tiles.length], [false, 2]);
+    equal('the mid-campaign run has no console errors', appErrors(browser), []);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await browser.close();
+    await server.close();
   }
 }
 

@@ -168,6 +168,13 @@ const click = (browser, id) => browser.evaluate((wanted) => {
 // --- expectations from the files ------------------------------------------
 
 const result = await readJson(SITE, RESULT);
+// The live history is replaced by every sync. Until the first history for the
+// next election it ends on the decided election day; after that the page
+// joins the archived 2026 history to its left and the chart runs on past the
+// result (forecast-cycles.smoke.mjs owns that join).
+const liveHistory = await readJson(SITE, 'files/election-simulator/history/coalition-timeseries.json');
+const historyIsDecided = liveHistory.election_date === result.election_date;
+const liveLatest = liveHistory.series.at(-1).date;
 const decidedForecast = await readJson(SITE, VERSIONS, DECIDED_GENERATION, 'forecast.json');
 const parliamentaryVotes = PARTIES.reduce((sum, party) => sum + result.parties[party].votes, 0);
 
@@ -240,9 +247,14 @@ async function decided(viewport, name) {
     // beyond it, and each mark is on the chart's own scale for its series.
     let chart = await readChart(browser);
     equal('the election line is at election day', chart.line, result.election_date);
-    check('nothing is drawn past election day', chart.xMax <= result.election_date, chart.xMax);
+    if (historyIsDecided) {
+      check('nothing is drawn past election day', chart.xMax <= result.election_date, chart.xMax);
+      check('the intro says the last point is the last forecast', /romberna visar valresultatet/.test(chart.intro), chart.intro);
+    } else {
+      equal('the axis runs on to the latest forecast for the next election', chart.xMax, liveLatest);
+      check('the intro points to the result', /Romberna på valdagen visar valresultatet/.test(chart.intro), chart.intro);
+    }
     check('the result key is shown', !chart.keyHidden);
-    check('the intro says the last point is the last forecast', /romberna visar valresultatet/.test(chart.intro), chart.intro);
     equal('one result mark per drawn coalition', chart.marks.map((m) => m.series), chart.drawnSeries);
     check('the result marks are not forecast endpoints', chart.currentPoints === chart.drawnSeries.length,
       { current: chart.currentPoints, series: chart.drawnSeries.length });

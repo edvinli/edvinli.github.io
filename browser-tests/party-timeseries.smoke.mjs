@@ -332,6 +332,24 @@ async function readSiteHistory(root) {
   return JSON.parse(await readFile(join(root, HISTORY_RELATIVE), 'utf8'));
 }
 
+// The polls the page draws: the live history's, plus those of every archived
+// election it joins to the left of the live one (history/cycles.json). A dot
+// from 2022 is a published 2026-cycle poll once the live history targets the
+// next election, and has to be found there rather than reported as invented.
+async function drawnPollSources(root, history) {
+  const publication = join(root, 'files', 'election-simulator');
+  let cycles = [];
+  try {
+    cycles = JSON.parse(await readFile(join(publication, 'history', 'cycles.json'), 'utf8')).cycles || [];
+  } catch {
+    return history.polls || [];
+  }
+  const archived = await Promise.all(cycles
+    .filter((cycle) => cycle.election_date < history.election_date)
+    .map(async (cycle) => JSON.parse(await readFile(join(publication, cycle.path), 'utf8')).polls || []));
+  return archived.flat().concat(history.polls || []);
+}
+
 // Resolves the certified party rows through the publication pointer.
 //
 // The flat `files/election-simulator/parties.json` at the publication root is
@@ -769,7 +787,7 @@ async function runViewport(viewport, site) {
     // Several institutes can publish on one date, so a drawn dot has to match
     // *some* poll from that date rather than a single lookup.
     const publishedPolls = new Map();
-    (history.polls || []).forEach((poll) => {
+    (await drawnPollSources(site.root, history)).forEach((poll) => {
       const values = publishedPolls.get(poll.publication_date) || [];
       values.push(poll.parties);
       publishedPolls.set(poll.publication_date, values);
