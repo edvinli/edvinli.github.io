@@ -1,10 +1,10 @@
 ---
-title: "Prognos för riksdagsvalet 2026"
+title: "Valprognos för riksdagen"
 permalink: /election-simulator/
 layout: single
 author_profile: false
 classes: wide
-excerpt: "En öppen prognos för riksdagsvalet 2026 med prognosintervall, mandatfördelning och utvärdering."
+excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med prognosintervall, mandatfördelning och utvärdering."
 ---
 
 <div id="election-simulator-app" class="election-app" data-publication-base="{{ site.baseurl }}/files/election-simulator">

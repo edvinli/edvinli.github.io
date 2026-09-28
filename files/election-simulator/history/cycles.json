@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "role": "forecast_history_archive",
+  "cycles": [
+    {
+      "election_date": "2026-09-13",
+      "path": "history/2026/coalition-timeseries.json",
+      "sha256": "02389a5df1ce21adc8ead55508907648fd4b017ca60deb0dfe43a922c3009918",
+      "frozen_from_generation": "20260913T054241Z-496dd879"
+    }
+  ]
+}

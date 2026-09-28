@@ -33,6 +33,7 @@ export const SUITES = {
   'bloc-summary.smoke.mjs': { seconds: 16, area: 'summary' },
   'threshold-panel.smoke.mjs': { seconds: 18, area: 'summary' },
   'election-result.smoke.mjs': { seconds: 20, area: 'summary' },
+  'forecast-cycles.smoke.mjs': { seconds: 20, area: 'cycles' },
 };
 
 const ALL = Object.keys(SUITES);
@@ -63,6 +64,16 @@ const RULES = [
   // published instants and the resolved comparison baseline, so a sync that
   // adds a generation directory can move its expectations even when no
   // rendered number changes.
+  // The frozen histories of earlier elections and their index. Only these,
+  // the app and the page can change what forecast-cycles asserts: it pins the
+  // publication and overrides the live history, so the paths a forecast
+  // publication writes deliberately do not select it (the simulator's gate is
+  // checked against exactly that selection).
+  { prefix: 'files/election-simulator/history/cycles.json', suites: [
+    ...byArea('forecast'), ...byArea('cycles')] },
+  { prefix: 'files/election-simulator/history/2026/', suites: [
+    ...byArea('forecast'), ...byArea('cycles')] },
+
   { prefix: 'files/election-simulator/', suites: [
     ...byArea('builder'), ...byArea('forecast'), ...byArea('provenance'),
     ...byArea('summary')] },
@@ -214,6 +225,18 @@ function selfTest() {
   check('published forecast data selects the provenance suite',
     selectSuites(['files/election-simulator/versions/x/manifest.json']).suites
       .includes('changes-baseline.smoke.mjs'));
+
+  // The simulator's publication gate must equal this selection, so a suite
+  // that no publication can affect must stay out of it.
+  const publication = selectSuites([
+    'files/election-simulator/current.json',
+    'files/election-simulator/history/coalition-timeseries.json',
+  ]).suites;
+  check('a forecast publication does not select forecast-cycles',
+    !publication.includes('forecast-cycles.smoke.mjs'), publication);
+  check('the frozen 2026 history selects forecast-cycles',
+    selectSuites(['files/election-simulator/history/2026/coalition-timeseries.json']).suites
+      .includes('forecast-cycles.smoke.mjs'));
 
   const forecastOnly = selectSuites(['browser-tests/forecast-timeseries.smoke.mjs']).suites;
   check('a forecast suite edit does not drag in builder suites',

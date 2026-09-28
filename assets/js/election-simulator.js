@@ -1456,9 +1456,110 @@
     };
   }
 
+  // ---------------------------------------------------------------------
+  // Earlier elections on the same chart
+  //
+  // The live history artifact covers one election. When it targets a later
+  // election than an archived cycle, the archived history is drawn to its left
+  // on the same axis: the line for one election stops on its election day and
+  // the next election's line starts after it. Archived cycles are frozen files
+  // named in history/cycles.json with their SHA-256; a cycle that does not
+  // verify, does not validate, or overlaps the live history is left out, and
+  // the chart is exactly the live one.
+  // ---------------------------------------------------------------------
+  var HISTORY_ARCHIVE_INDEX = "history/cycles.json";
+  var HISTORY_ARCHIVE_SCHEMA = "1.0";
+  var HISTORY_ARCHIVE_ROLE = "forecast_history_archive";
+
+  function loadHistoryArchive(livePayload) {
+    var liveDate = livePayload && historyDate(livePayload.election_date);
+    if (!liveDate) return Promise.resolve([]);
+    return getJson(HISTORY_ARCHIVE_INDEX).then(function (index) {
+      if (!index || index.schema_version !== HISTORY_ARCHIVE_SCHEMA ||
+        index.role !== HISTORY_ARCHIVE_ROLE || !Array.isArray(index.cycles)) return [];
+      var wanted = index.cycles.filter(function (cycle) {
+        var date = cycle && historyDate(cycle.election_date);
+        return date && date.time < liveDate.time && typeof cycle.path === "string" &&
+          /^history\/[0-9]{4}\/[A-Za-z0-9._-]+\.json$/.test(cycle.path) &&
+          typeof cycle.sha256 === "string" && /^[0-9a-f]{64}$/.test(cycle.sha256);
+      });
+      return Promise.all(wanted.map(function (cycle) {
+        return getText(cycle.path).then(function (text) {
+          return sha256Hex(text).then(function (digest) {
+            if (digest !== cycle.sha256) return null;
+            var payload = JSON.parse(text);
+            return payload && payload.election_date === cycle.election_date ? payload : null;
+          });
+        }).catch(function () { return null; });
+      })).then(function (payloads) {
+        return payloads.filter(Boolean);
+      });
+    }).catch(function () { return []; });
+  }
+
+  function joinHistoryCycles(live, archivedPayloads) {
+    var livePoints = live.points.slice();
+    var firstLiveTime = livePoints.length ? livePoints[0].time : Infinity;
+    var archives = (archivedPayloads || []).map(normalizeHistoryPayload).filter(function (archive) {
+      if (!archive || archive.electionDate >= live.electionDate) return false;
+      if (archive.points[archive.points.length - 1].time >= firstLiveTime) return false;
+      // Party mode must cover every point on the axis, so an archive without
+      // the party family would switch it off for the live cycle too.
+      return !live.partyDefinitions || Boolean(archive.partyDefinitions);
+    }).sort(function (left, right) {
+      return left.electionDate < right.electionDate ? -1 : 1;
+    });
+    if (!archives.length) return live;
+    var tag = function (points, electionDate, final) {
+      return points.map(function (point) {
+        var copy = Object.assign({}, point, { cycle: electionDate });
+        // The last forecast before a decided election is no longer "current".
+        if (final && copy.provenance === "current_production") copy.provenance = "final_production";
+        return copy;
+      });
+    };
+    var points = [];
+    var archivedPoints = [];
+    var omittedDates = [];
+    var polls = [];
+    var pop = [];
+    var partyPointCount = 0;
+    archives.forEach(function (archive) {
+      points = points.concat(tag(archive.points, archive.electionDate, true));
+      archivedPoints = archivedPoints.concat(archive.archivedPoints);
+      omittedDates = omittedDates.concat(archive.omittedDates);
+      polls = polls.concat(archive.polls);
+      pop = pop.concat(archive.pop);
+      partyPointCount += archive.partyPointCount || 0;
+    });
+    // A poll published after an archived history was frozen can appear in
+    // both files; keep one dot per poll.
+    var seenPolls = {};
+    var joinedPolls = polls.concat(live.polls).filter(function (poll) {
+      var key = poll.date + "|" + poll.company + "|" + poll.fieldworkEnd + "|" + poll.n;
+      if (seenPolls[key]) return false;
+      seenPolls[key] = true;
+      return true;
+    }).sort(function (a, b) { return a.time - b.time; });
+    return Object.assign({}, live, {
+      points: points.concat(tag(livePoints, live.electionDate, false)),
+      archivedPoints: archivedPoints.concat(live.archivedPoints),
+      omittedDates: omittedDates.concat(live.omittedDates).sort(),
+      polls: joinedPolls,
+      pop: pop.concat(live.pop).sort(function (a, b) { return a.time - b.time; }),
+      partyPointCount: partyPointCount + (live.partyPointCount || 0),
+      cycles: archives.map(function (archive) {
+        return { electionDate: archive.electionDate, start: archive.points[0].date };
+      }).concat([{ electionDate: live.electionDate, start: livePoints.length ? livePoints[0].date : null }])
+    });
+  }
+
   function historyProvenanceLabel(value) {
     if (value === "current_production") {
       return "Officiell aktuell valprognos";
+    }
+    if (value === "final_production") {
+      return "Sista publicerade prognosen f\u00f6re valet";
     }
     if (value === "prospective_archived") {
       return "Prospektiv arkiverad prognos";
@@ -1552,11 +1653,19 @@
   // and must stay connected.  Only a date the chart actually dropped breaks
   // the line.
   function historyCurveSegments(points, omittedDates) {
-    if (!omittedDates || !omittedDates.length || points.length < 2) return [points];
+    var crossesElection = points.some(function (point, index) {
+      return index > 0 && points[index - 1].cycle !== point.cycle;
+    });
+    if ((!omittedDates || !omittedDates.length) && !crossesElection) return [points];
+    if (points.length < 2) return [points];
     var segments = [];
     var current = [];
     points.forEach(function (point, index) {
-      if (index > 0 && historyOmittedBetween(omittedDates, points[index - 1].date, point.date)) {
+      // A forecast for one election never joins a forecast for the next: the
+      // line stops on election day and restarts after it.
+      if (index > 0 && (points[index - 1].cycle !== point.cycle ||
+        (omittedDates && omittedDates.length &&
+          historyOmittedBetween(omittedDates, points[index - 1].date, point.date)))) {
         segments.push(current);
         current = [];
       }
@@ -1832,18 +1941,35 @@
     };
   }
 
-  function renderForecastHistory(payload, electionResult) {
+  function renderForecastHistory(payload, electionResult, archivedPayloads) {
     var section = byId("election-timeseries");
     var svg = byId("election-timeseries-svg");
     if (!section || !svg) return false;
     var history = normalizeHistoryPayload(payload);
     if (!history) return false;
+    history = joinHistoryCycles(history, archivedPayloads);
+    var cycles = history.cycles || [];
+    // The election before the live one, when its history is on the axis.
+    var priorElection = cycles.length > 1 ? historyDate(cycles[cycles.length - 2].electionDate) : null;
     var liveStatus = byId("election-timeseries-status");
     var readout = byId("election-timeseries-readout");
     var modeVote = byId("election-timeseries-vote");
     var modeSeats = byId("election-timeseries-seats");
     var rangeFull = byId("election-timeseries-range-full");
     var rangeShort = byId("election-timeseries-range-short");
+    // "Sedan valet <år>" exists only when an earlier election is on the axis,
+    // so a single-election chart keeps exactly the two range controls it had.
+    var rangeCycle = null;
+    if (priorElection && rangeFull && rangeShort && rangeShort.parentNode) {
+      rangeCycle = byId("election-timeseries-range-cycle") || document.createElement("button");
+      rangeCycle.type = "button";
+      rangeCycle.id = "election-timeseries-range-cycle";
+      rangeCycle.className = rangeShort.className;
+      rangeCycle.setAttribute("data-range", "cycle");
+      rangeCycle.setAttribute("aria-pressed", "false");
+      rangeCycle.setAttribute("aria-controls", "election-timeseries-svg");
+      rangeShort.parentNode.insertBefore(rangeCycle, rangeShort);
+    }
     var coalitionHost = byId("election-timeseries-coalitions");
     var partyHost = byId("election-timeseries-parties");
     // Deliberately not inside `partyHost`. That group is labelled "V\u00e4lj
@@ -1918,6 +2044,21 @@
     history.definitions.forEach(function (definition) {
       selected[definition.id] = Boolean(definition.defaultOn);
     });
+    if (priorElection) {
+      var priorDay = swedishDate(priorElection.iso) || priorElection.iso;
+      var liveYear = history.electionDate.slice(0, 4);
+      setText("election-timeseries-intro", "Till v\u00e4nster prognoserna inf\u00f6r valet den " + priorDay +
+        ", till h\u00f6ger prognoserna inf\u00f6r valet " + liveYear +
+        (electionResult && electionResult.electionDate === priorElection.iso ? ". Romberna p\u00e5 valdagen visar valresultatet" : "") +
+        ". S\u00e5 skulle modellen ha bed\u00f6mt l\u00e4get vid olika tidpunkter; historiken \u00e4r rekonstruerad i efterhand och den sista punkten \u00e4r den aktuella publicerade prognosen.");
+      var capStart = historyDateOffset(history.electionDate, -HISTORY_DYNAMICS_CAP);
+      setText("election-timeseries-dynamics-note", "Mer \u00e4n " + HISTORY_DYNAMICS_CAP +
+        " dagar f\u00f6re ett val" + (capStart ? " \u2013 inf\u00f6r valet " + liveYear + " f\u00f6re " +
+          (swedishDate(capStart.iso) || capStart.iso) : "") +
+        " \u2013 anv\u00e4nder modellen sin maximalt empiriskt underst\u00f6dda r\u00f6relsedel p\u00e5 " +
+        HISTORY_DYNAMICS_CAP + " dagar, inte en modellering av hela den \u00e5terst\u00e5ende tiden till valet.");
+      section.setAttribute("data-history-cycles", cycles.map(function (cycle) { return cycle.electionDate; }).join(" "));
+    }
     // The series ends on the day of an election whose result is known: say
     // so, since the last point is no longer "the current forecast".
     if (electionResult && electionResult.electionDate === history.electionDate &&
@@ -1948,6 +2089,9 @@
       if (!Number.isFinite(fullMinTime)) fullMinTime = history.points[0].time;
       if (!Number.isFinite(fullMaxTime)) fullMaxTime = history.points[history.points.length - 1].time;
       var minTime = useShortRange ? shortRangeStart.time : fullMinTime;
+      if (selectedRange === "cycle" && priorElection && priorElection.time < fullMaxTime) {
+        minTime = priorElection.time;
+      }
       var maxTime = useShortRange ? shortRangeEnd.time : fullMaxTime;
       if (!Number.isFinite(minTime) || !Number.isFinite(maxTime)) return null;
       if (maxTime <= minTime) maxTime = minTime + 86400000;
@@ -1986,6 +2130,7 @@
     function setRangeButtons() {
       if (rangeFull) rangeFull.setAttribute("aria-pressed", selectedRange === "full" ? "true" : "false");
       if (rangeShort) rangeShort.setAttribute("aria-pressed", selectedRange === "short" ? "true" : "false");
+      if (rangeCycle) rangeCycle.setAttribute("aria-pressed", selectedRange === "cycle" ? "true" : "false");
     }
 
     function setModeButtons() {
@@ -2892,6 +3037,13 @@
       selectedRange = "short";
       renderChart();
     });
+    if (rangeCycle) {
+      rangeCycle.textContent = "Sedan valet " + priorElection.iso.slice(0, 4);
+      rangeCycle.addEventListener("click", function () {
+        selectedRange = "cycle";
+        renderChart();
+      });
+    }
     section.setAttribute("data-history-schema-version", history.schemaVersion);
     section.setAttribute("data-history-point-count", String(history.points.length));
     section.setAttribute("data-history-poll-count", String(history.polls.length));
@@ -5509,8 +5661,8 @@
       // Provenance first, and independently: the polling date is read from the
       // raw artifact whether or not the chart can be drawn from it.
       readHistoryPollingInput(history);
-      return electionResultPromise.then(function (electionResult) {
-        if (!renderForecastHistory(history, electionResult)) {
+      return Promise.all([electionResultPromise, loadHistoryArchive(history)]).then(function (loaded) {
+        if (!renderForecastHistory(history, loaded[0], loaded[1])) {
           var invalidSection = byId("election-timeseries");
           if (invalidSection) invalidSection.setAttribute("data-history-state", "invalid");
         }

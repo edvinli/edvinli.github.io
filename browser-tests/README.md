@@ -43,6 +43,7 @@ node browser-tests/changes-baseline.smoke.mjs
 node browser-tests/bloc-summary.smoke.mjs
 node browser-tests/threshold-panel.smoke.mjs
 node browser-tests/election-result.smoke.mjs
+node browser-tests/forecast-cycles.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -704,6 +705,50 @@ changes nothing and logs no error.
 first, so the section-order checks list it. `forecast-timeseries` reads the
 hero's `data-election-decided` and asserts the decided lede and labels when the
 live pointer is the election-day generation.
+
+### 13. `forecast-cycles.smoke.mjs` — two elections on one chart
+
+The live history artifact covers a single election. Once it targets a later
+election than an archived cycle, the page joins that archive onto the same
+axis. Archives are listed in `files/election-simulator/history/cycles.json`
+and each is verified by SHA-256; today the only one is the frozen 2026
+history. The 2026 line stops on election day, the result diamonds sit on the
+break, and the next election's line starts after it. "Sedan valet 2026" opens
+the window at the break.
+
+No 2030 history exists yet, so the live side is a synthetic fixture,
+`fixtures/next-cycle-2030.json`. Regenerate it with
+`node browser-tests/fixtures/make-next-cycle-fixture.mjs`. Its points are
+copies of the final 2026 point re-dated to after the election, and its polls
+are labelled "Syntetisk".
+
+The suite checks four things:
+
+- **The join is exact.** Every plotted point of both files is on the chart,
+  and nothing else.
+- **Every series breaks on election day.** No point falls between election
+  day and the first live point.
+- **Forecast labels are correct.** Only the live forecast is marked
+  `current`, and the last 2026 forecast becomes `final_production`.
+- **It fails closed.** An archive whose bytes do not match the index, or a
+  live history for the archived election itself (today's deployed state),
+  leaves the chart exactly the live one.
+
+**Not in the publication gate, on purpose.** The suite pins the publication
+and overrides the live history, so nothing a forecast publication writes can
+change its outcome. The selector therefore picks it for the archive files,
+the app and the page, but not for `current.json` or the live history. The
+selector's self-test pins that, because the simulator's gate has to equal
+exactly that selection.
+
+**`bloc-summary` serves its pinned history.** It used to read the live
+history while pinning the 6 September generation. The first history for the
+next election would then have failed its final-week checks for reasons that
+have nothing to do with the panel. It now serves
+`fixtures/history/20260906T081926Z-92521273.json`, as `changes-baseline`
+does. `election-result` reads which election the live history targets. It
+asserts "nothing past election day" only while that is the decided election;
+otherwise it asserts that the axis runs on to the latest forecast.
 
 ## Determinism: pin the generation you assert against
 
