@@ -75,32 +75,6 @@ redirect_from:
 
 </div>
 
-## skills
-
-<div class="project-log">
-
-  <div class="project-entry">
-    <div class="project-date">core</div>
-    <div class="project-body">python · pytorch · distributed & multi-gpu training · numpy · pandas · sql · git</div>
-  </div>
-
-  <div class="project-entry">
-    <div class="project-date">ml</div>
-    <div class="project-body">self-supervised & representation learning · ood generalization · generative models (gans, transformers) · llm fine-tuning · federated & decentralized learning</div>
-  </div>
-
-  <div class="project-entry">
-    <div class="project-date">mlops</div>
-    <div class="project-body">docker · mlflow · onnx · kubernetes · kubeflow · ray · aws · gcp</div>
-  </div>
-
-  <div class="project-entry">
-    <div class="project-date">spoken</div>
-    <div class="project-body">swedish (native) · english (fluent) · spanish (b2) · japanese (beginner)</div>
-  </div>
-
-</div>
-
 ## grants
 
 <div class="project-log">
