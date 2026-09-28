@@ -1980,8 +1980,9 @@
     var partyNote = byId("election-timeseries-party-note");
     var partyDefinitions = history.partyDefinitions;
     var partyModeAvailable = Boolean(partyDefinitions && partyDefinitions.length);
-    // Koalitioner stays the default and the coalition experience is unchanged.
-    var viewMode = "coalitions";
+    // Partier is the opening view whenever the publication carries the full
+    // party family; a history without it opens, and stays, on Koalitioner.
+    var viewMode = partyModeAvailable ? "parties" : "coalitions";
     var selectedParties = {};
     var partyButtons = {};
     var partyAllButton = null;
@@ -3024,6 +3025,7 @@
         renderChart();
       });
     }
+    section.setAttribute("data-opening-view", viewMode);
     section.setAttribute("data-history-schema-version", history.schemaVersion);
     section.setAttribute("data-history-point-count", String(history.points.length));
     section.setAttribute("data-history-poll-count", String(history.polls.length));

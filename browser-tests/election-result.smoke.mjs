@@ -296,11 +296,22 @@ async function decided(viewport, name) {
       check('the intro points to the result', /Romberna på valdagen visar valresultatet/.test(chart.intro), chart.intro);
     }
     check('the result key is shown', !chart.keyHidden);
-    equal('one result mark per drawn coalition', chart.marks.map((m) => m.series), chart.drawnSeries);
+    equal('one result mark per drawn series', chart.marks.map((m) => m.series), chart.drawnSeries);
     check('the result marks are not forecast endpoints', chart.currentPoints === chart.drawnSeries.length,
       { current: chart.currentPoints, series: chart.drawnSeries.length });
+    // The chart opens on Partier: the party marks are the certified shares.
+    equal('the chart opens on the party view', chart.view, 'parties');
+    check('party marks are the certified shares',
+      chart.marks.length === PARTIES.length && chart.marks.every((mark) =>
+        near(mark.value, result.parties[mark.series].vote_share_pct, 1e-3)), chart.marks);
+
+    await click(browser, 'election-timeseries-view-coalitions');
+    await settle();
+    chart = await readChart(browser);
+    equal('Koalitioner shows the two default blocs', chart.drawnSeries, BLOCS.map((bloc) => bloc.id));
     const coalition = (id) => BLOCS.find((bloc) => bloc.id === id).parties;
     check('coalition vote marks are renormalized over the eight parties',
+      chart.marks.length === BLOCS.length &&
       chart.marks.every((mark) => near(mark.value, expectedChartValue(coalition(mark.series), 'vote').value, 1e-3)),
       chart.marks);
 
@@ -312,17 +323,6 @@ async function decided(viewport, name) {
         const expected = expectedChartValue(coalition(mark.series), 'seats');
         return near(mark.value, expected.value, 1e-3) && mark.seats === expected.seats;
       }), chart.marks);
-
-    await click(browser, 'election-timeseries-vote');
-    if (await click(browser, 'election-timeseries-view-parties')) {
-      await settle();
-      chart = await readChart(browser);
-      if (chart.view === 'parties') {
-        check('party marks are the certified shares',
-          chart.marks.length > 0 && chart.marks.every((mark) =>
-            near(mark.value, result.parties[mark.series].vote_share_pct, 1e-3)), chart.marks);
-      }
-    }
     equal('no console errors', appErrors(browser).map((e) => e.text), []);
   } finally {
     await browser.close();

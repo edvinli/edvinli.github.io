@@ -134,12 +134,27 @@ async function waitForApp(browser) {
   await settle(350);
 }
 
+// The chart opens on Partier. This suite's assertions are about the coalition
+// chart, so every page it opens is switched to Koalitioner first; the opening
+// view itself is asserted from data-opening-view.
+async function showCoalitions(browser) {
+  const switched = await browser.evaluate(() => {
+    const svg = document.getElementById('election-timeseries-svg');
+    const button = document.getElementById('election-timeseries-view-coalitions');
+    if (!svg || svg.getAttribute('data-view-mode') !== 'parties' || !button) return false;
+    button.click();
+    return true;
+  });
+  if (switched) await settle(300);
+}
+
 async function open(viewport, { root = SITE, pointer = null, history = null } = {}) {
   const served = history || await historyFixture(PINNED_HISTORY);
   const server = await serve(root, { port: 4000, pointer, history: served });
   const browser = await launch(viewport);
   await browser.goto(`http://localhost:${server.port}${PAGE}`);
   await waitForApp(browser);
+  await showCoalitions(browser);
   return { server, browser };
 }
 
@@ -160,6 +175,7 @@ const readPage = (browser) => browser.evaluate(() => {
     sectionDisplay: section ? getComputedStyle(section).display : null,
     // Where it sits relative to the hero and the chart is the whole point.
     sectionOrder: order,
+    openingView: document.getElementById('election-timeseries')?.getAttribute('data-opening-view'),
     heroBottom: hero ? Math.round(hero.getBoundingClientRect().bottom) : null,
     sectionTop: section ? Math.round(section.getBoundingClientRect().top) : null,
     heading: text('#election-blocs-title'),
@@ -272,6 +288,7 @@ async function live() {
       ['election-timeseries', 'election-blocs', 'election-alternatives']);
     check('the panel sits below the hero, not inside it',
       page.sectionTop >= page.heroBottom, { hero: page.heroBottom, panel: page.sectionTop });
+    equal('the chart opens on Partier', page.openingView, 'parties');
     equal('the section nav starts at the chart',
       page.navFirst, '#election-timeseries Vägen till valdagen');
 

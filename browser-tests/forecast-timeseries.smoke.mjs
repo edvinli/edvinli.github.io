@@ -331,6 +331,20 @@ async function waitForApp(browser) {
   await settle(350);
 }
 
+// The chart opens on Partier. This suite's assertions are about the coalition
+// chart, so every page it opens is switched to Koalitioner first; the opening
+// view itself is asserted from data-opening-view.
+async function showCoalitions(browser) {
+  const switched = await browser.evaluate(() => {
+    const svg = document.getElementById('election-timeseries-svg');
+    const button = document.getElementById('election-timeseries-view-coalitions');
+    if (!svg || svg.getAttribute('data-view-mode') !== 'parties' || !button) return false;
+    button.click();
+    return true;
+  });
+  if (switched) await settle(300);
+}
+
 async function open(viewport, siteRoot = SITE) {
   const server = await serve(siteRoot, { port: 4000 });
   let browser;
@@ -347,6 +361,7 @@ async function open(viewport, siteRoot = SITE) {
       { timeout: 30000, label: `${viewport.diagnostic} navigate` },
     ));
     await boundary(viewport.diagnostic, 'app-ready', () => waitForApp(browser));
+    await showCoalitions(browser);
     return { server, browser };
   } catch (error) {
     await closeBrowser(viewport.diagnostic, browser, server);
@@ -459,6 +474,7 @@ function readPage(browser) {
     const majority = svg?.querySelector('[data-majority="175"]');
     return {
       section: section ? {
+        openingView: section.getAttribute('data-opening-view'),
         hidden: section.hidden,
         display: getComputedStyle(section).display,
         text: section.textContent.replace(/[\t\n\r ]+/g, ' ').trim(),
@@ -854,6 +870,7 @@ async function clickButton(browser, buttonText) {
 function assertStructure(view, history) {
   check('Vägen till valdagen section exists and is visible', view.section && !view.section.hidden && view.section.display !== 'none', view.section);
   equal('the timeline heading uses the election-day-first label', view.section?.heading, 'Vägen till valdagen');
+  equal('the chart opens on Partier', view.section?.openingView, 'parties');
   const order = view.sectionOrder;
   // The timeline leads. The result and the forecast-against-result panel
   // follow it in the DOM, hidden unless the publication postdates a published
