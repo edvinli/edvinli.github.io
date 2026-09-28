@@ -16,9 +16,8 @@
   };
 
   // Keep the source DOM and visual order aligned: the reader first sees the
-  // route to election day, then the coalition comparison, builder and
-  // election-day forecast views. The simulated parliament closes the page,
-  // below the seat forecast it illustrates.
+  // route to election day, then the last certified result and the forecast
+  // against it, then the coalition comparison, builder and forecast views.
   function placeElectionSections() {
     var alternatives = document.getElementById("election-alternatives");
     var builder = document.getElementById("election-government-builder");
@@ -32,45 +31,21 @@
     children.forEach(function (child) { child.style.order = ""; });
   }
 
-  // One example parliament drawn from the simulation, which only means
-  // anything once the seat distribution above it has been read -- so it sits
-  // at the end of "Mandat p\u00e5 valdagen" rather than under the builder,
-  // where it interrupted the builder's own result and arrived before the seat
-  // forecast it is an instance of.
-  function placeParliamentAfterSeats() {
-    var heading = root.querySelector(".election-subhead");
-    var caption = document.getElementById("election-parliament-caption");
-    var frame = root.querySelector(".election-parliament-frame");
-    var legend = document.getElementById("election-parliament-legend");
-    if (!heading || !caption || !frame || !legend) return;
-
-    // Still wrapped, and still with the same id: the hero navigation links to
-    // it and the browser gates address it by that id.
-    var host = document.createElement("div");
-    host.id = "election-parliament-outcome";
-    host.className = "election-parliament-outcome";
-    host.setAttribute("data-placement", "after-seat-bars");
-    host.appendChild(heading);
-    host.appendChild(caption);
-    host.appendChild(frame);
-    host.appendChild(legend);
-    root.appendChild(host);
-  }
-
+  // The result and the comparison links are added next to the chart link by
+  // the app, and only when those sections are shown.
   function updateHeroLinks() {
     var nav = app.querySelector(".election-hero__links");
     if (!nav) return;
 
     var links = [
-      ["election-blocs", "Chansen till egen majoritet"],
       ["election-timeseries", "Vägen till valdagen"],
+      ["election-latest-poll", "Senaste mätningarna"],
+      ["election-blocs", "Chansen till egen majoritet"],
       ["election-alternatives", "Regeringsalternativ"],
       ["election-government-builder", "Bygg din egen regering"],
       ["election-threshold", "4 %-spärren"],
       ["election-headline", "Röstandelar på valdagen"],
       ["election-seats", "Mandat på valdagen"],
-      ["election-parliament-outcome", "Ett simulerat riksdagsutfall"],
-      ["election-latest-poll", "Senaste mätningarna"],
       ["election-model", "Så fungerar modellen"],
       ["election-methodology", "Metod och utvärdering"],
       ["election-technical", "Teknisk information"]
@@ -93,7 +68,6 @@
   }
 
   placeElectionSections();
-  placeParliamentAfterSeats();
   updateHeroLinks();
 
   // Addressed by id, not by ".election-panel__head .election-muted": that
@@ -123,8 +97,6 @@
     "#election-seats .es-row[data-opacity-bands=\"true\"] .es-median-mark{background:#fff;bottom:-2px;box-shadow:0 0 0 1px rgba(44,42,37,.75);position:absolute;top:-2px;transform:translateX(-1px);width:2px}",
     "#election-seats .es-row[data-opacity-bands=\"true\"] .es-range,#election-seats .es-median-mark{pointer-events:none}",
     "#election-seats .election-legend-note{margin-top:1rem}",
-    ".election-parliament-outcome{border-top:1px solid var(--el-rule);margin-top:2.3rem;padding-top:1.4rem}",
-    ".election-parliament-outcome .election-subhead{margin-top:0}",
     "@media (max-width:600px){#election-seats .es-row{padding:.55rem .15rem}}",
     "@media (forced-colors:active){#election-seats .es-range,#election-seats .es-median-mark{forced-color-adjust:none}}"
   ].join("");

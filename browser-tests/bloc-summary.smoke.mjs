@@ -1,9 +1,9 @@
-// The parliamentary headline above the chart, and the chart's opening range.
+// The parliamentary headline, and the chart's opening range.
 //
-// A visitor arriving in the final week used to meet four years of time series
-// before any statement of where the forecast stands. The page now answers the
-// question first -- can either bloc govern alone? -- in a panel directly under
-// the hero, and the chart opens on the last 30 days instead of since 2022.
+// The panel answers the forecast's first question -- can either bloc govern
+// alone? -- and opens the forecast panels, below the chart that leads the page
+// (and, once an election is decided, below its result). In the final week the
+// chart opens on the last 30 days instead of since 2022.
 //
 // What this suite is really guarding is that the panel is a *rendering*. Every
 // number it prints exists in `groups.json` already, computed jointly over the
@@ -264,13 +264,16 @@ async function live() {
     equal('the panel is visible', [page.sectionExists, page.sectionHidden], [true, false]);
     check('the panel is painted, not just unhidden',
       page.sectionDisplay !== 'none', page.sectionDisplay);
-    equal('the panel comes before the historical chart',
-      page.sectionOrder.filter((id) => id === 'election-blocs' || id === 'election-timeseries'),
-      ['election-blocs', 'election-timeseries']);
+    // The chart leads the page; the bloc panel opens the forecast panels,
+    // after the (here hidden) result and comparison sections.
+    equal('the panel follows the chart and opens the forecast panels',
+      page.sectionOrder.filter((id) => ['election-blocs', 'election-timeseries',
+        'election-alternatives'].includes(id)),
+      ['election-timeseries', 'election-blocs', 'election-alternatives']);
     check('the panel sits below the hero, not inside it',
       page.sectionTop >= page.heroBottom, { hero: page.heroBottom, panel: page.sectionTop });
-    equal('the section nav points at it first',
-      page.navFirst, '#election-blocs Chansen till egen majoritet');
+    equal('the section nav starts at the chart',
+      page.navFirst, '#election-timeseries Vägen till valdagen');
 
     // --- the numbers, all four of them, per bloc ---
     equal('every published bloc has a tile, in the chart\'s own order',

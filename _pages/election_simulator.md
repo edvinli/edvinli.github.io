@@ -22,16 +22,6 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   <script type="application/json" id="election-publication-generations">{% assign election_version_root = '/files/election-simulator/versions/' %}{% assign election_generations = '' %}{% for election_file in site.static_files %}{% if election_file.name == 'manifest.json' and election_file.path contains election_version_root %}{% assign election_tail = election_file.path | split: election_version_root | last %}{% assign election_generation = election_tail | split: '/' | first %}{% if election_generations == '' %}{% assign election_generations = election_generation %}{% else %}{% assign election_generations = election_generations | append: ',' | append: election_generation %}{% endif %}{% endif %}{% endfor %}{{ election_generations | split: ',' | sort | jsonify }}</script>
   <header class="election-hero" id="election-hero">
     <p class="election-hero__kicker" id="election-hero-kicker">Sverige · Riksdagen · valprognos 2026</p>
-    <!-- The certified result of the last election. Rendered only once the
-         publication on screen postdates that election; hidden otherwise, so a
-         pinned pre-election generation reads exactly as it did. -->
-    <section class="election-result" id="election-result" hidden aria-labelledby="election-result-title">
-      <h2 class="election-result__title" id="election-result-title">Valresultatet 2026</h2>
-      <p class="election-result__meta election-muted" id="election-result-meta"></p>
-      <div class="election-result__chamber" id="election-result-chamber"></div>
-      <p class="election-result__blocs" id="election-result-blocs"></p>
-      <ol class="election-result__parties" id="election-result-parties"></ol>
-    </section>
     <dl class="election-hero__facts">
       <div class="election-hero__fact">
         <dt>Senaste opinionsunderlag</dt>
@@ -55,35 +45,6 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
-  <!-- The current forecast against the last certified result, party by
-       party. Every number is read from forecast.json and results/<year>.json;
-       nothing is simulated here. -->
-  <section id="election-result-delta" class="election-panel election-result-delta" hidden aria-labelledby="election-result-delta-title">
-    <div class="election-panel__head">
-      <h2 id="election-result-delta-title">Prognosen mot valresultatet</h2>
-      <p class="election-muted" id="election-result-delta-intro"></p>
-    </div>
-    <div id="election-result-delta-rows" class="erd-rows" role="list"></div>
-    <div id="election-result-delta-axis" class="erd-axis" aria-hidden="true"></div>
-    <p class="election-legend-note election-muted erd-legend"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>prognosens median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % prognosintervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % prognosintervall</span><span class="election-key"><span class="election-key__mark erd-key__result" aria-hidden="true"></span>valresultatet</span></p>
-    <p class="election-muted erd-summary" id="election-result-delta-summary" hidden></p>
-    <p class="election-muted erd-source" id="election-result-delta-source"></p>
-  </section>
-  <!-- Stated only while the forecast on screen is the one made for an
-       election that has since been decided. -->
-  <p id="election-forecast-divider" class="election-forecast-divider" hidden></p>
-  <!-- The parliamentary headline, above the historical chart: what the current
-       forecast says about a majority, before the reader is asked to read a
-       time series. Rendered from the publication's own named blocs; hidden
-       until one resolves. -->
-  <section id="election-blocs" class="election-panel election-blocs" hidden aria-labelledby="election-blocs-title">
-    <div class="election-panel__head">
-      <h2 id="election-blocs-title">Chansen till egen majoritet</h2>
-      <p class="election-muted" id="election-blocs-intro">De två blocken i valdagsprognosen. Sannolikheten gäller att blocket får minst 175 av riksdagens 349 mandat.</p>
-    </div>
-    <div id="election-blocs-rows" class="eb-rows" role="list"></div>
-    <p class="eb-disclaimer" id="election-blocs-disclaimer">Sannolikheten avser att blockets partier tillsammans får minst 175 mandat – inte sannolikheten att de bildar regering. Ett block utan egen majoritet kan ändå hamna i regeringsställning.</p>
-  </section>
   <section id="election-timeseries" class="election-panel election-timeseries" hidden>
     <div class="election-panel__head">
       <h2>Vägen till valdagen</h2>
@@ -124,6 +85,54 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <p class="election-timeseries__note election-muted" id="election-timeseries-party-note" hidden>Ett partis röstandel är dess andel av hela valmanskåren, med övriga partier i nämnaren. Det är samma definition som valdagsprognosen och som 4&#160;%-spärren.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>. Prognos och intervall: vår modell.</p>
+  </section>
+  <!-- The certified result of the last election, between the chart that
+       ends on its election day and the panel that sets the forecast against
+       it. Rendered only once the publication on screen postdates that
+       election; hidden otherwise, so a pinned pre-election generation reads
+       exactly as it did. -->
+  <section id="election-result" class="election-panel election-result" hidden aria-labelledby="election-result-title">
+    <div class="election-panel__head">
+      <h2 id="election-result-title">Valresultatet 2026</h2>
+      <p class="election-muted" id="election-result-meta"></p>
+    </div>
+    <h3 class="election-subhead">Röstandel</h3>
+    <ol id="election-result-bars" class="erb-rows" aria-label="Röstandel per parti"></ol>
+    <h3 class="election-subhead">Mandat</h3>
+    <p class="election-result__blocs" id="election-result-blocs"></p>
+    <div class="election-parliament-frame">
+      <div id="election-result-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
+      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
+    </div>
+    <ul id="election-result-legend" class="ep-legend"></ul>
+  </section>
+  <!-- The current forecast against the last certified result, party by
+       party. Every number is read from forecast.json and results/<year>.json;
+       nothing is simulated here. -->
+  <section id="election-result-delta" class="election-panel election-result-delta" hidden aria-labelledby="election-result-delta-title">
+    <div class="election-panel__head">
+      <h2 id="election-result-delta-title">Prognosen mot valresultatet</h2>
+      <p class="election-muted" id="election-result-delta-intro"></p>
+    </div>
+    <div id="election-result-delta-rows" class="erd-rows" role="list"></div>
+    <div id="election-result-delta-axis" class="erd-axis" aria-hidden="true"></div>
+    <p class="election-legend-note election-muted erd-legend"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>prognosens median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % prognosintervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % prognosintervall</span><span class="election-key"><span class="election-key__mark erd-key__result" aria-hidden="true"></span>valresultatet</span></p>
+    <p class="election-muted erd-summary" id="election-result-delta-summary" hidden></p>
+    <p class="election-muted erd-source" id="election-result-delta-source"></p>
+  </section>
+  <!-- Stated only while the forecast on screen is the one made for an
+       election that has since been decided. -->
+  <p id="election-forecast-divider" class="election-forecast-divider" hidden></p>
+  <!-- The parliamentary headline of the forecast panels: what the current
+       forecast says about a majority. Rendered from the publication's own
+       named blocs; hidden until one resolves. -->
+  <section id="election-blocs" class="election-panel election-blocs" hidden aria-labelledby="election-blocs-title">
+    <div class="election-panel__head">
+      <h2 id="election-blocs-title">Chansen till egen majoritet</h2>
+      <p class="election-muted" id="election-blocs-intro">De två blocken i valdagsprognosen. Sannolikheten gäller att blocket får minst 175 av riksdagens 349 mandat.</p>
+    </div>
+    <div id="election-blocs-rows" class="eb-rows" role="list"></div>
+    <p class="eb-disclaimer" id="election-blocs-disclaimer">Sannolikheten avser att blockets partier tillsammans får minst 175 mandat – inte sannolikheten att de bildar regering. Ett block utan egen majoritet kan ändå hamna i regeringsställning.</p>
   </section>
   <section id="election-alternatives" class="election-panel" hidden>
     <div class="election-panel__head">
@@ -236,13 +245,6 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     </div>
     <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
     <div id="election-seat-axis" class="es-axis"></div>
-    <h3 class="election-subhead">Ett simulerat riksdagsutfall</h3>
-    <p class="election-muted" id="election-parliament-caption"></p>
-    <div class="election-parliament-frame">
-      <div id="election-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
-      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
-    </div>
-    <ul id="election-parliament-legend" class="ep-legend"></ul>
   </section>
   <section id="election-how-it-works" class="election-panel election-disclosure">
     <details id="election-model">

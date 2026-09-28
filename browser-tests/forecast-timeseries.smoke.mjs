@@ -866,15 +866,15 @@ function assertStructure(view, history) {
   check('Vägen till valdagen section exists and is visible', view.section && !view.section.hidden && view.section.display !== 'none', view.section);
   equal('the timeline heading uses the election-day-first label', view.section?.heading, 'Vägen till valdagen');
   const order = view.sectionOrder;
-  // The parliamentary headline leads, then the timeline: a visitor gets the
-  // current forecast before being asked to read a chart of it.
-  // The forecast-against-result panel is always first in the DOM; it is
-  // hidden unless the publication postdates a published election result.
-  equal('the seven primary sections use the exact summary-first DOM order',
-    order.slice(0, 8), [
+  // The timeline leads. The result and the forecast-against-result panel
+  // follow it in the DOM, hidden unless the publication postdates a published
+  // election result; the forecast panels come after them.
+  equal('the primary sections use the exact chart-first DOM order',
+    order.slice(0, 9), [
+      'election-timeseries',
+      'election-result',
       'election-result-delta',
       'election-blocs',
-      'election-timeseries',
       'election-alternatives',
       'election-government-builder',
       'election-threshold',
@@ -884,19 +884,19 @@ function assertStructure(view, history) {
   const decided = Boolean(view.hero?.decided);
   equal('the subsection navigation follows the DOM order and labels',
     view.navigation, [
-      ...(decided ? [{ href: '#election-result-delta', text: 'Sista prognosen mot valresultatet' }] : []),
-      { href: '#election-blocs', text: 'Chansen till egen majoritet' },
       { href: '#election-timeseries', text: 'Vägen till valdagen' },
+      // The latest-polls table sits inside the chart section.
+      { href: '#election-latest-poll', text: 'Senaste mätningarna' },
+      ...(decided ? [
+        { href: '#election-result', text: `Valresultatet ${history.election_date.slice(0, 4)}` },
+        { href: '#election-result-delta', text: 'Sista prognosen mot valresultatet' },
+      ] : []),
+      { href: '#election-blocs', text: 'Chansen till egen majoritet' },
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
       { href: '#election-government-builder', text: 'Bygg din egen regering' },
       { href: '#election-threshold', text: '4 %-spärren' },
       { href: '#election-headline', text: 'Röstandelar på valdagen' },
       { href: '#election-seats', text: 'Mandat på valdagen' },
-      // The simulated parliament closes the page, below the seat forecast it
-      // is an instance of, so the navigation names it after "Mandat på
-      // valdagen" rather than under the builder.
-      { href: '#election-parliament-outcome', text: 'Ett simulerat riksdagsutfall' },
-      { href: '#election-latest-poll', text: 'Senaste mätningarna' },
       { href: '#election-model', text: 'Så fungerar modellen' },
       { href: '#election-methodology', text: 'Metod och utvärdering' },
       { href: '#election-technical', text: 'Teknisk information' },
