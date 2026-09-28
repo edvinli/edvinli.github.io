@@ -10,7 +10,17 @@ author_profile: true
 <div class="project-log">
 
   <div class="project-entry">
-    <div class="project-date">2025--</div>
+    <div class="project-date">2026--</div>
+    <div class="project-body">
+      skatteverket<br>
+      ai for financial crime detection<br>
+      leading the development and deployment of ai systems dedicated to detecting financial crime.<br>
+      <span class="project-tags">financial crime detection · production ML · MLOps</span>
+    </div>
+  </div>
+
+  <div class="project-entry">
+    <div class="project-date">2025--2026</div>
     <div class="project-body">
       trafikverket<br>
       computer vision for digital maintenance of railway<br>
