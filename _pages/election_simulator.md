@@ -96,8 +96,9 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       <h2 id="election-result-title">Valresultatet 2026</h2>
       <p class="election-muted" id="election-result-meta"></p>
     </div>
-    <h3 class="election-subhead">Röstandel</h3>
+    <h3 class="election-subhead" id="election-result-bars-title">Röstandel</h3>
     <ol id="election-result-bars" class="erb-rows" aria-label="Röstandel per parti"></ol>
+    <p class="election-legend-note erb-legend" id="election-result-bars-key"></p>
     <h3 class="election-subhead">Mandat</h3>
     <p class="election-result__blocs" id="election-result-blocs"></p>
     <div class="election-parliament-frame">

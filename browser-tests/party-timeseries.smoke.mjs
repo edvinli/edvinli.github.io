@@ -523,11 +523,18 @@ async function runViewport(viewport, site) {
   console.log(`\n${viewport.name}`);
   const { server, browser } = await open(viewport, site.root);
   try {
-    // ---- coalition mode is the default and is unchanged ------------------
+    // ---- party mode is the opening view ----------------------------------
     let state = await readState(browser);
-    equal('opens in coalition mode', state.viewMode, 'coalitions');
+    equal('opens in party mode when the party family is published', state.viewMode, 'parties');
     check('the view switch is offered', state.viewSwitchVisible);
     check('party mode reports itself ready', state.partyViewState === 'ready', state.partyViewState);
+    equal('it opens with all eight parties on', state.selectedParties, PARTY_ORDER);
+
+    // ---- coalition mode is one click away and unchanged ------------------
+    check('the Koalitioner control responds', await clickId(browser, 'election-timeseries-view-coalitions'));
+    await settle(260);
+    state = await readState(browser);
+    equal('the chart reports coalition mode', state.viewMode, 'coalitions');
     check('the coalition selector is the visible one', state.coalitionHostVisible && !state.partyHostVisible);
     check('the party denominator note is hidden in coalition mode', !state.partyNoteVisible);
     check('the two default coalitions are drawn', state.seriesDefinitions.length === 2 &&
@@ -541,10 +548,8 @@ async function runViewport(viewport, site) {
     const coalitionDomain = { min: state.yMin, max: state.yMax, mode: state.yDomainMode };
     const coalitionSeries = state.seriesDefinitions.slice();
     // The y-domain is derived from the visible window, so "unchanged" only
-    // means anything against the range this capture was taken in. Which range
-    // the chart opens in is a property of the artifact -- full through most of
-    // the cycle, the last 30 days in the final week -- so remember it rather
-    // than assuming, and restore it before comparing.
+    // means anything against the range this capture was taken in, so
+    // remember it and restore it before comparing.
     const openingRange = state.range;
     const coalitionPollDefinitions = state.pollDefinitions.slice().sort();
 
@@ -1086,9 +1091,15 @@ async function runUnreadForwardArtifact(label, transform) {
   const site = await prepareSite(transform);
   const { server, browser } = await open(VIEWPORTS[0], site.root);
   try {
-    const state = await readState(browser);
+    let state = await readState(browser);
     equal('party mode is still offered', state.partyViewState, 'ready');
     check('the view switch is still offered', state.viewSwitchVisible);
+    check('the party chart opens as usual', state.viewMode === 'parties' &&
+      state.seriesDefinitions.length === PARTY_ORDER.length, state.seriesDefinitions);
+    equal('nothing is drawn beyond the latest forecast in party mode', state.forwardMarkCount, 0);
+    await clickId(browser, 'election-timeseries-view-coalitions');
+    await settle(260);
+    state = await readState(browser);
     check('the coalition chart is unaffected', state.seriesDefinitions.length === 2,
       state.seriesDefinitions);
     equal('nothing is drawn beyond the latest forecast', state.forwardMarkCount, 0);

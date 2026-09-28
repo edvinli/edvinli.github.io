@@ -41,9 +41,6 @@
 
   var MAJORITY = 175;
   var CHAMBER = 349;
-  // "The final week": the chart opens on the 30-day range once election day is
-  // this close to the latest published forecast.
-  var FINAL_WEEK_DAYS = 7;
   var EN_DASH = "\u2013";
   var NBSP = "\u00a0";
   // Abbreviating "procentenheter" has no settled Swedish form, so the unit is
@@ -1983,22 +1980,15 @@
     var partyNote = byId("election-timeseries-party-note");
     var partyDefinitions = history.partyDefinitions;
     var partyModeAvailable = Boolean(partyDefinitions && partyDefinitions.length);
-    // Koalitioner stays the default and the coalition experience is unchanged.
-    var viewMode = "coalitions";
+    // Partier is the opening view whenever the publication carries the full
+    // party family; a history without it opens, and stays, on Koalitioner.
+    var viewMode = partyModeAvailable ? "parties" : "coalitions";
     var selectedParties = {};
     var partyButtons = {};
     var partyAllButton = null;
     var selectedMetric = "vote";
-    // "Sedan 2022" is the opening range for most of the cycle. In the final
-    // week it is not what the visitor came for: four years of history compress
-    // the movement that is actually deciding the election into the last few
-    // pixels. So the closing week opens on "Sista 30 dagarna" instead, and
-    // both buttons stay exactly as they were -- the full history is one click
-    // away and nothing is removed.
-    //
-    // The switch is driven by the published election date against the latest
-    // published forecast, never the reader's clock, so the opening view is a
-    // property of the publication and is reproducible from it.
+    // The chart always opens on the whole history ("Sedan 2022"); the shorter
+    // windows are one click away.
     var selectedRange = "full";
     var selected = {};
     var selectedDate = null;
@@ -2032,15 +2022,6 @@
     var latestPointIso = latestPoint.date;
     var shortRangeStart = historyDateOffset(latestPointIso, -30);
     var shortRangeEnd = historyDate(latestPointIso);
-    // The closing week, counted from the latest published forecast to election
-    // day. The window itself is unchanged -- still the last 30 days of
-    // published history, still ending at the latest forecast -- only which of
-    // the two ranges opens.
-    var daysToElection = daysBetween(latestPointIso, history.electionDate);
-    if (shortRangeStart && shortRangeEnd &&
-      daysToElection !== null && daysToElection >= 0 && daysToElection <= FINAL_WEEK_DAYS) {
-      selectedRange = "short";
-    }
     history.definitions.forEach(function (definition) {
       selected[definition.id] = Boolean(definition.defaultOn);
     });
@@ -3044,6 +3025,7 @@
         renderChart();
       });
     }
+    section.setAttribute("data-opening-view", viewMode);
     section.setAttribute("data-history-schema-version", history.schemaVersion);
     section.setAttribute("data-history-point-count", String(history.points.length));
     section.setAttribute("data-history-poll-count", String(history.polls.length));
@@ -5361,8 +5343,32 @@
     electionOutcome.result = result;
     electionOutcome.decided = publicationContext.electionDate === result.electionDate;
     renderResultHero(result);
-    renderResultDelta(result, publicationContext.forecast);
+    // "Sista prognosen mot valresultatet" is always the last forecast made
+    // for the decided election. While that is the publication on screen, it
+    // is already loaded; once the forecast has moved on to the next election
+    // it is read from the frozen generation the archive index names.
+    if (electionOutcome.decided) {
+      renderResultDelta(result, publicationContext.forecast);
+    } else {
+      loadFinalForecast(result).then(function (finalForecast) {
+        if (finalForecast) renderResultDelta(result, finalForecast);
+      });
+    }
     renderPollingInput();
+  }
+
+  function loadFinalForecast(result) {
+    return getJson(HISTORY_ARCHIVE_INDEX).then(function (index) {
+      var cycle = (index && Array.isArray(index.cycles) ? index.cycles : []).filter(function (entry) {
+        return entry && entry.election_date === result.electionDate &&
+          typeof entry.frozen_from_generation === "string" &&
+          /^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}$/.test(entry.frozen_from_generation);
+      })[0];
+      if (!cycle) return null;
+      return getJson("versions/" + cycle.frozen_from_generation + "/forecast.json").then(function (forecast) {
+        return forecast && forecast.election_date === result.electionDate && forecast.parties ? forecast : null;
+      });
+    }).catch(function () { return null; });
   }
 
   function renderResultHero(result) {
@@ -5390,24 +5396,74 @@
       (result.turnout !== null ? " \u00b7 valdeltagande " + percent(result.turnout, 1) : ""));
 
     // Vote share: one bar per party, ranked, on a scale that starts at zero.
+    // Once the forecast targets the next election, each row also carries
+    // today's forecast -- its median and central 50 % interval -- and the
+    // change since the election: how opinion has moved from the result.
+    var current = !decided && publicationContext.forecast && publicationContext.forecast.parties
+      ? publicationContext.forecast.parties : null;
     var ranked = HISTORY_PARTIES.slice().sort(function (left, right) {
       return result.parties[right].share - result.parties[left].share;
     });
-    var scale = niceMax(result.parties[ranked[0]].share * 1.04, 5);
+    var top = 0;
+    ranked.forEach(function (party) {
+      top = Math.max(top, result.parties[party].share);
+      var now = current && current[party];
+      if (now && num(now.vote_share_p75) !== null) top = Math.max(top, num(now.vote_share_p75));
+    });
+    var scale = niceMax(top * 1.04, 5);
     var threshold = pct(NATIONAL_THRESHOLD_PCT, scale);
+    var withChange = Boolean(current) && ranked.every(function (party) {
+      var now = current[party];
+      return now && ["vote_share_p25", "vote_share_median", "vote_share_p75"].every(function (key) {
+        return num(now[key]) !== null;
+      });
+    });
+    var barsHost = byId("election-result-bars");
+    if (barsHost) barsHost.setAttribute("data-opinion-change", withChange ? "true" : "false");
+    setText("election-result-bars-title", withChange ? "R\u00f6standel och opinionsf\u00f6r\u00e4ndring" : "R\u00f6standel");
     setHtml("election-result-bars", ranked.map(function (party) {
       var entry = result.parties[party];
       var color = partyColors[party] || "#777";
-      return "<li class=\"erb-row\" data-party=\"" + party + "\" data-share=\"" + entry.share + "\"" +
-        " aria-label=\"" + escapeHtml((partyNames[party] || party) + ": " + format(entry.share, 2) + " procent") + "\">" +
+      var now = withChange ? current[party] : null;
+      var change = now ? num(now.vote_share_median) - entry.share : null;
+      var label = (partyNames[party] || party) + ": valresultat " + format(entry.share, 2) + " procent" +
+        (now ? ", dagens prognos " + format(num(now.vote_share_median), 1) + " procent (" +
+          (Math.abs(change) < 0.05 ? "i niv\u00e5 med valet" : format(Math.abs(change), 1) +
+            " procentenheter " + (change > 0 ? "h\u00f6gre" : "l\u00e4gre")) + ")" : "");
+      var forecastMarks = now
+        ? "<span class=\"erb-band\" style=\"left:" + pct(now.vote_share_p25, scale).toFixed(3) + "%;width:" +
+            Math.max(0.4, pct(now.vote_share_p75, scale) - pct(now.vote_share_p25, scale)).toFixed(3) + "%\"></span>" +
+          "<span class=\"erb-median\" style=\"left:" + pct(now.vote_share_median, scale).toFixed(3) + "%\"></span>"
+        : "";
+      var changeCell = now
+        ? "<span class=\"erb-change" + (Math.abs(change) < 0.05 ? " erb-change--flat" : "") + "\" aria-hidden=\"true\">" +
+            "<span class=\"erb-change__glyph\">" + (Math.abs(change) < 0.05 ? "\u2022" : (change > 0 ? "\u25b2" : "\u25bc")) + "</span>" +
+            format(Math.abs(change), 1) + "</span>"
+        : "";
+      return "<li class=\"erb-row" + (now ? " erb-row--change" : "") + "\" data-party=\"" + party + "\"" +
+        " data-share=\"" + entry.share + "\"" +
+        (now ? " data-forecast-median=\"" + num(now.vote_share_median) + "\" data-change=\"" + change.toFixed(4) + "\"" : "") +
+        " aria-label=\"" + escapeHtml(label) + "\">" +
         "<span class=\"ev-abbr\" aria-hidden=\"true\"><span class=\"ev-swatch\" style=\"background:" + color + "\"></span>" +
           escapeHtml(abbr(party)) + "</span>" +
         "<span class=\"erb-track\" aria-hidden=\"true\">" +
           "<span class=\"erb-bar\" style=\"width:" + pct(entry.share, scale).toFixed(3) + "%;background:" + color + "\"></span>" +
           "<span class=\"ev-threshold\" style=\"left:" + threshold.toFixed(3) + "%\"></span>" +
+          forecastMarks +
         "</span>" +
-        "<span class=\"erb-value\" aria-hidden=\"true\">" + percent(entry.share, 1) + "</span></li>";
+        "<span class=\"erb-value\" aria-hidden=\"true\">" + percent(entry.share, 1) + "</span>" +
+        changeCell + "</li>";
     }).join(""));
+    var barsKey = byId("election-result-bars-key");
+    if (barsKey) {
+      barsKey.innerHTML = withChange
+        ? "<span class=\"election-key\"><span class=\"election-key__mark erb-key__bar\" aria-hidden=\"true\"></span>valresultatet " +
+            escapeHtml(swedishDate(result.electionDate) || result.electionDate) + "</span>" +
+          "<span class=\"election-key\"><span class=\"election-key__mark erb-key__forecast\" aria-hidden=\"true\"></span>dagens prognos, median och 50\u00a0% intervall</span>" +
+          "<span class=\"election-key\"><span class=\"erb-change__glyph\" aria-hidden=\"true\">\u25b2\u25bc</span>f\u00f6r\u00e4ndring sedan valet, procentenheter</span>"
+        : "<span class=\"election-muted\">Opinionsf\u00f6r\u00e4ndringen sedan valet visas h\u00e4r n\u00e4r den f\u00f6rsta prognosen f\u00f6r valet " +
+            escapeHtml(result.nextElectionDate ? result.nextElectionDate.slice(0, 4) : "") + " har publicerats.</span>";
+    }
 
     // Seats: the certified allocation as a chamber, with the bloc totals.
     var blocs = HISTORY_COALITIONS.filter(function (definition) { return definition.defaultOn; });
@@ -5450,7 +5506,7 @@
   function renderResultDelta(result, forecast) {
     var host = byId("election-result-delta-rows");
     if (!host || !forecast || !forecast.parties) return;
-    var decided = electionOutcome.decided;
+    // Always the last forecast before the election (see renderElectionOutcome).
     var rows = [];
     var extent = 0;
     for (var index = 0; index < HISTORY_PARTIES.length; index += 1) {
@@ -5481,15 +5537,12 @@
     var position = function (value) {
       return Math.max(0, Math.min(100, 50 + 50 * value / scale));
     };
-    var forecastLabel = decided ? "den sista prognosen" : "prognosen";
+    var forecastLabel = "den sista prognosen";
 
-    setText("election-result-delta-title", decided
-      ? "Sista prognosen mot valresultatet"
-      : "Prognosen mot valresultatet " + result.year);
-    setText("election-result-delta-intro", decided
-      ? "S\u00e5 stod sig den sista prognosen mot det slutliga resultatet. Nollan \u00e4r valresultatet; till h\u00f6ger betyder att prognosen l\u00e5g h\u00f6gre \u00e4n partiet fick, till v\u00e4nster l\u00e4gre."
-      : "Hur dagens prognos skiljer sig fr\u00e5n resultatet i valet " + result.year +
-        ". Nollan \u00e4r valresultatet; till h\u00f6ger betyder att prognosen ligger h\u00f6gre \u00e4n partiet fick d\u00e5, till v\u00e4nster l\u00e4gre.");
+    setText("election-result-delta-title", "Sista prognosen mot valresultatet");
+    setText("election-result-delta-intro", "S\u00e5 stod sig den sista prognosen" +
+      (forecast.as_of ? " (" + (swedishDate(forecast.as_of) || forecast.as_of) + ")" : "") +
+      " mot det slutliga resultatet. Nollan \u00e4r valresultatet; till h\u00f6ger betyder att prognosen l\u00e5g h\u00f6gre \u00e4n partiet fick, till v\u00e4nster l\u00e4gre.");
 
     host.innerHTML = "";
     rows.forEach(function (row) {
@@ -5540,19 +5593,14 @@
 
     var summary = byId("election-result-delta-summary");
     if (summary) {
-      if (decided) {
-        var inside90 = rows.filter(function (row) { return row.inside90; });
-        var inside50 = rows.filter(function (row) { return row.inside50; });
-        var outside = rows.filter(function (row) { return !row.inside90; }).map(function (row) { return abbr(row.party); });
-        summary.textContent = "Valresultatet hamnade inom prognosens 90-procentiga intervall f\u00f6r " + inside90.length +
-          " av " + rows.length + " partier och inom det 50-procentiga f\u00f6r " + inside50.length + "." +
-          (outside.length ? " Utanf\u00f6r 90-procentsintervallet: " + outside.join(", ") + "." : "") +
-          " Med v\u00e4lkalibrerade intervall v\u00e4ntar man sig ungef\u00e4r h\u00e4lften inom 50\u00a0% och nio av tio inom 90\u00a0%.";
-        summary.hidden = false;
-      } else {
-        summary.textContent = "";
-        summary.hidden = true;
-      }
+      var inside90 = rows.filter(function (row) { return row.inside90; });
+      var inside50 = rows.filter(function (row) { return row.inside50; });
+      var outside = rows.filter(function (row) { return !row.inside90; }).map(function (row) { return abbr(row.party); });
+      summary.textContent = "Valresultatet hamnade inom prognosens 90-procentiga intervall f\u00f6r " + inside90.length +
+        " av " + rows.length + " partier och inom det 50-procentiga f\u00f6r " + inside50.length + "." +
+        (outside.length ? " Utanf\u00f6r 90-procentsintervallet: " + outside.join(", ") + "." : "") +
+        " Med v\u00e4lkalibrerade intervall v\u00e4ntar man sig ungef\u00e4r h\u00e4lften inom 50\u00a0% och nio av tio inom 90\u00a0%.";
+      summary.hidden = false;
     }
     setText("election-result-delta-source", "Staplarna visar prognosens intervall minus valresultatet, i procentenheter. Mandat: prognosens median minus mandaten i valet." +
       (result.authority ? " Valresultat: " + result.authority + ", slutligt resultat." : ""));
@@ -5567,7 +5615,7 @@
     if (nav && chartLink && !nav.querySelector("a[href=\"#election-result-delta\"]")) {
       var anchorNode = chartLink;
       [["#election-result", "Valresultatet " + result.year],
-        ["#election-result-delta", decided ? "Sista prognosen mot valresultatet" : "Prognosen mot valresultatet"]]
+        ["#election-result-delta", "Sista prognosen mot valresultatet"]]
         .forEach(function (entry) {
           var separator = document.createElement("span");
           separator.setAttribute("aria-hidden", "true");

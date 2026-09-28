@@ -201,9 +201,10 @@ known on its date, and the last point is the forecast today**:
 Owns the `Koalitioner | Partier` switch and everything behind it, at desktop
 and 360 px mobile widths:
 
-- coalition mode is the default and is asserted **unchanged** — same series,
-  same y-domain, same poll cloud — before and after a round trip through party
-  mode. The switch is only worth having if the default experience did not move;
+- party mode is the opening view whenever the party family is published, with
+  all eight parties on. Coalition mode is one click away and is asserted
+  **unchanged** — same series, same y-domain, same poll cloud — before and
+  after a round trip through party mode;
 - one party at a time, every pill tab-reachable, exactly one `aria-pressed`,
   and the deterministic default being the largest party in the certified
   forecast;
@@ -531,8 +532,8 @@ directories the built site actually ships.
 
 ### 10. `bloc-summary.smoke.mjs` — the parliamentary headline and the opening range
 
-Owns the panel directly under the hero and the chart's opening range, both
-added for the final week before election day.
+Owns the bloc panel, which opens the forecast panels below the chart, and the
+chart's opening view and range.
 
 **The panel is a rendering, not a calculation.** Every number in it already
 exists in `groups.json`: each named bloc carries a joint `prob_majority`,
@@ -569,13 +570,12 @@ a probability of forming a government, and that each tile's `aria-label`
 speaks the same rounded figure the tile prints — two readers of one page
 should not come away with different probabilities.
 
-**The opening range.** In the final week the chart opens on *Sista 30 dagarna*
-instead of *Sedan 2022*, decided by the published election date against the
-latest published forecast — never the reader's clock. Both controls stay, and
-the suite proves the full history is still reachable by clicking it. A fourth
-run serves the site's own history artifact with `election_date` moved out to
-13 October — the one field the rule reads — and asserts the chart opens on the
-full range again.
+**The opening view and range.** The chart opens on *Partier* and on *Sedan
+2022* — in the final week as at any other time; `data-opening-view` records
+the view it opened on. Both range controls stay, and *Sista 30 dagarna* is
+selected only by its own button. This suite's other checks are about the
+coalition chart, so it switches to *Koalitioner* after load, as
+`forecast-timeseries.smoke.mjs` does.
 
 **The endpoint stays the endpoint.** The chart still ends at the latest
 published forecast, and nothing is drawn past election day. On election day
@@ -585,13 +585,9 @@ strictly before it. The suite asserts the x-domain ends on the latest
 published point, that no axis tick reaches past it, that both drawn series end on a marked current point drawn
 heavier than the interior points, and that the key names it *Senaste prognos*.
 
-Note that `forecast-timeseries.smoke.mjs` and `party-timeseries.smoke.mjs`
-both became sensitive to this default. The first now asserts its fixture sits
-outside the final week alongside each "Sedan 2022 is the default" expectation,
-so a fixture refresh that walks the last point closer to election day fails
-with the reason rather than with a bare `aria-pressed` mismatch; the second
-remembers the range it opened in rather than assuming `full`, because the
-y-domain it compares is derived from the visible window.
+`party-timeseries.smoke.mjs` remembers the range it opened in rather than
+assuming it, because the y-domain it compares is derived from the visible
+window.
 
 ### 11. `threshold-panel.smoke.mjs` — the 4 % threshold panel
 
@@ -688,7 +684,8 @@ election-day generation and checks, against the files on disk:
   election is decided, the calculation stamp says "Sista prognosen", and the
   polling-freshness note is not shown.
 - **Valresultatet.** The vote-share bars are ranked, and their lengths are
-  proportional to the certified shares. The chamber draws all 349 certified
+  proportional to the certified shares. While the forecast on screen is still
+  the 2026 one they show the result alone, with a note. The chamber draws all 349 certified
   seats in seating order, and the legend and bloc totals are sums of certified
   seats.
 - **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
@@ -700,6 +697,17 @@ election-day generation and checks, against the files on disk:
   marks are renormalized over the eight parties, exactly as the coalition series
   are. Seat marks are a share of the chamber, and party marks are the certified
   shares.
+
+**With a 2030 forecast on screen.** No real 2030 generation exists yet, so
+`fixtures/generation-2030/` holds a synthetic one. It was built by the
+simulator's own publication pipeline, with 2,000 draws on the 2026-09-11
+polls. The suite copies it into a scratch site and pins it:
+
+- Each bar gains today's forecast (median and 50 % band) and an "opinion
+  change": the published median minus the certified result.
+- "Sista prognosen mot valresultatet" still compares the **final 2026
+  forecast**. The page reads that forecast from the generation
+  `history/cycles.json` names as `frozen_from_generation`.
 
 It also checks two ways the result must stay off the page. A publication
 computed before the election (`20260906T081926Z-92521273`) renders exactly as
