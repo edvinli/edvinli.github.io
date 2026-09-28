@@ -541,10 +541,8 @@ async function runViewport(viewport, site) {
     const coalitionDomain = { min: state.yMin, max: state.yMax, mode: state.yDomainMode };
     const coalitionSeries = state.seriesDefinitions.slice();
     // The y-domain is derived from the visible window, so "unchanged" only
-    // means anything against the range this capture was taken in. Which range
-    // the chart opens in is a property of the artifact -- full through most of
-    // the cycle, the last 30 days in the final week -- so remember it rather
-    // than assuming, and restore it before comparing.
+    // means anything against the range this capture was taken in, so
+    // remember it and restore it before comparing.
     const openingRange = state.range;
     const coalitionPollDefinitions = state.pollDefinitions.slice().sort();
 

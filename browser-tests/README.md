@@ -688,7 +688,8 @@ election-day generation and checks, against the files on disk:
   election is decided, the calculation stamp says "Sista prognosen", and the
   polling-freshness note is not shown.
 - **Valresultatet.** The vote-share bars are ranked, and their lengths are
-  proportional to the certified shares. The chamber draws all 349 certified
+  proportional to the certified shares. While the forecast on screen is still
+  the 2026 one they show the result alone, with a note. The chamber draws all 349 certified
   seats in seating order, and the legend and bloc totals are sums of certified
   seats.
 - **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
@@ -700,6 +701,17 @@ election-day generation and checks, against the files on disk:
   marks are renormalized over the eight parties, exactly as the coalition series
   are. Seat marks are a share of the chamber, and party marks are the certified
   shares.
+
+**With a 2030 forecast on screen.** No real 2030 generation exists yet, so
+`fixtures/generation-2030/` holds a synthetic one. It was built by the
+simulator's own publication pipeline, with 2,000 draws on the 2026-09-11
+polls. The suite copies it into a scratch site and pins it:
+
+- Each bar gains today's forecast (median and 50 % band) and an "opinion
+  change": the published median minus the certified result.
+- "Sista prognosen mot valresultatet" still compares the **final 2026
+  forecast**. The page reads that forecast from the generation
+  `history/cycles.json` names as `frozen_from_generation`.
 
 It also checks two ways the result must stay off the page. A publication
 computed before the election (`20260906T081926Z-92521273`) renders exactly as

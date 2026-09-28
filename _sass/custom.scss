@@ -795,6 +795,64 @@ canvas {
   top: 0;
 }
 
+/* With today's forecast: a fourth column for the change since the election,
+   and the forecast drawn over the result bar as a light 50 % band with a
+   median tick, so the bar keeps reading as the result. */
+.erb-row--change {
+  grid-template-areas: "abbr bar value change";
+  grid-template-columns: 3rem minmax(0, 1fr) 4.6rem 3.6rem;
+}
+
+.erb-band {
+  background: rgba(44, 42, 37, 0.22);
+  bottom: -3px;
+  box-shadow: inset 0 0 0 1px rgba(44, 42, 37, 0.35);
+  position: absolute;
+  top: -3px;
+}
+
+.erb-median {
+  background: var(--el-ink);
+  bottom: -5px;
+  box-shadow: 0 0 0 1px var(--el-panel);
+  position: absolute;
+  top: -5px;
+  transform: translateX(-1px);
+  width: 2px;
+}
+
+.erb-change {
+  color: var(--el-ink-soft);
+  font-family: var(--el-mono);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  grid-area: change;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.erb-change--flat {
+  color: var(--el-muted);
+}
+
+.erb-change__glyph {
+  font-size: 0.7em;
+  margin-right: 0.2em;
+}
+
+.erb-legend {
+  margin: -0.6rem 0 1.4rem;
+}
+
+.erb-key__bar {
+  background: var(--el-ink-soft);
+}
+
+.erb-key__forecast {
+  background: rgba(44, 42, 37, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(44, 42, 37, 0.35), inset 0.6rem 0 0 -0.52rem var(--el-ink);
+}
+
 .erb-value {
   font-family: var(--el-mono);
   grid-area: value;
@@ -2791,6 +2849,10 @@ canvas {
 
   .erd-actual {
     text-align: left;
+  }
+
+  .erb-row--change {
+    grid-template-columns: 2.6rem minmax(0, 1fr) 3.8rem 3.2rem;
   }
 
   .erd-axis {

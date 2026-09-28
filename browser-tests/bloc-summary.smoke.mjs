@@ -2,8 +2,8 @@
 //
 // The panel answers the forecast's first question -- can either bloc govern
 // alone? -- and opens the forecast panels, below the chart that leads the page
-// (and, once an election is decided, below its result). In the final week the
-// chart opens on the last 30 days instead of since 2022.
+// (and, once an election is decided, below its result). The chart opens on
+// the whole history, "Sedan 2022", in the final week as at any other time.
 //
 // What this suite is really guarding is that the panel is a *rendering*. Every
 // number it prints exists in `groups.json` already, computed jointly over the
@@ -243,7 +243,7 @@ async function live() {
   const history = JSON.parse(await readFile(PINNED_HISTORY, 'utf8'));
   const latestPoint = history.series[history.series.length - 1].date;
 
-  // The pin is only meaningful while it really is the final week.
+  // The pin is the case the old default special-cased: the final week.
   const daysLeft = Math.round(
     (Date.parse(`${history.election_date}T00:00:00Z`) - Date.parse(`${latestPoint}T00:00:00Z`))
     / 86400000);
@@ -337,8 +337,8 @@ async function live() {
         groups.groups[bloc.id].median_seats === bloc.median), blocs);
 
     // --- the chart's opening range ---
-    equal('the final week opens on the 30-day range',
-      page.rangePressed, ['full:false', 'short:true']);
+    equal('even in the final week the chart opens on the whole history',
+      page.rangePressed, ['full:true', 'short:false']);
     equal('and the full history is still offered',
       page.rangeLabels, ['Sedan 2022', 'Sista 30 dagarna']);
     check('the range buttons still both exist and are switchable',
@@ -472,10 +472,9 @@ async function boundary() {
   }
 }
 
-// Outside the final week the chart opens where it always did. The site's own
-// history artifact is served with one field changed -- the election date --
-// because that is exactly the input the rule reads, and changing anything else
-// would test a different artifact.
+// Outside the final week the chart opens on the whole history too. The pinned
+// history is served with one field changed -- the election date -- which is
+// the input the retired final-week rule read.
 async function midCampaign() {
   console.log('\noutside the final week (election date moved out)');
   const pinned = await historyFixture(PINNED_HISTORY);
@@ -529,8 +528,8 @@ async function mobile() {
         `${bloc.median} mandat`, `${bloc.low}–${bloc.high} mandat`]));
     check('the majority wording survives too',
       /inte sannolikheten att de bildar regering/.test(page.disclaimer), page.disclaimer);
-    equal('the final-week default holds on mobile',
-      page.rangePressed, ['full:false', 'short:true']);
+    equal('mobile opens on the whole history too',
+      page.rangePressed, ['full:true', 'short:false']);
     check('the mobile page has no horizontal overflow', page.overflow <= 0, page.overflow);
     equal('mobile has no console errors', appErrors(browser), []);
     equal('mobile has no uncaught exceptions', browser.exceptions, []);
@@ -583,10 +582,11 @@ async function sourceGuard() {
   check('the two-decimal formatters elsewhere are untouched',
     source.includes('function probability(') && source.includes('function histogramProbability('));
 
-  // The opening range is a property of the publication, not of the reader.
-  check('the final-week default reads published dates, never the clock',
-    source.includes('daysBetween(latestPointIso, history.electionDate)') &&
-    !/selectedRange = "short"[\s\S]{0,200}?Date\.now/.test(source));
+  // The opening range is always the whole history: only the reader's own
+  // click selects the 30-day window.
+  check('the short window is selected only by its button',
+    (source.match(/selectedRange = "short"/g) || []).length === 1 &&
+    /rangeShort\.addEventListener\("click", function \(\) \{\s*selectedRange = "short";/.test(source));
   check('the window itself is unchanged: still 30 days back from the last point',
     source.includes('historyDateOffset(latestPointIso, -30)') &&
     source.includes('var shortRangeEnd = historyDate(latestPointIso)'));

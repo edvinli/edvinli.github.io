@@ -18,7 +18,7 @@
 //   node browser-tests/election-result.smoke.mjs [path/to/_site]
 
 import { launch } from './cdp.mjs';
-import { serve, pointerFor } from './server.mjs';
+import { serve, pointerFor, historyFixture } from './server.mjs';
 import { readFile, cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -35,6 +35,14 @@ const RESULT = 'files/election-simulator/results/2026.json';
 const DECIDED_GENERATION = '20260913T054241Z-496dd879';
 // A week before the election. The page must render it exactly as published.
 const PRE_ELECTION_GENERATION = '20260906T081926Z-92521273';
+// A synthetic forecast for the next election, built by the simulator's own
+// publication pipeline (2,000 draws, as_of 2026-09-11) and kept as a test
+// fixture only: no real 2030 generation exists yet. With it on screen the
+// bars show today's forecast against the result, and the comparison panel
+// keeps showing the final 2026 forecast.
+const NEXT_GENERATION = '20261005T040000Z-1ba3b530';
+const NEXT_GENERATION_DIR = new URL(`./fixtures/generation-2030/${NEXT_GENERATION}/`, import.meta.url);
+const NEXT_HISTORY = new URL('./fixtures/next-cycle-2030.json', import.meta.url);
 
 const PARTIES = ['M', 'L', 'C', 'KD', 'S', 'V', 'MP', 'SD'];
 const CHAMBER = 349;
@@ -81,8 +89,8 @@ async function waitForApp(browser) {
   await settle(400);
 }
 
-async function open(viewport, { root = SITE, pointer = null } = {}) {
-  const server = await serve(root, { port: 4000, pointer });
+async function open(viewport, { root = SITE, pointer = null, history = null } = {}) {
+  const server = await serve(root, { port: 4000, pointer, history });
   const browser = await launch(viewport);
   await browser.goto(`http://localhost:${server.port}${PAGE}`);
   await waitForApp(browser);
@@ -124,8 +132,15 @@ function readPage(browser) {
         /simulerat riksdagsutfall/i.test(document.getElementById('election-simulator-app').textContent),
       blocs: Array.from(document.querySelectorAll('#election-result-blocs .election-result__bloc'))
         .map((node) => ({ id: node.dataset.coalition, text: node.textContent.replace(/\s+/g, ' ').trim() })),
+      opinionChange: document.getElementById('election-result-bars')?.getAttribute('data-opinion-change'),
+      barsTitle: text('election-result-bars-title'),
+      barsKey: text('election-result-bars-key'),
+      deltaIntro: text('election-result-delta-intro'),
       bars: Array.from(document.querySelectorAll('#election-result-bars .erb-row'))
         .map((node) => ({
+          change: node.dataset.change === undefined ? null : Number(node.dataset.change),
+          forecastMedian: node.dataset.forecastMedian === undefined ? null : Number(node.dataset.forecastMedian),
+          printedChange: node.querySelector('.erb-change')?.textContent.trim() || null,
           party: node.dataset.party,
           value: node.querySelector('.erb-value')?.textContent.trim(),
           width: parseFloat(node.querySelector('.erb-bar')?.style.width || 'NaN'),
@@ -234,6 +249,10 @@ async function decided(viewport, name) {
     equal('the vote-share bars are ranked by vote share', page.bars.map((bar) => bar.party), ranked);
     equal('each bar prints its certified share', page.bars.map((bar) => bar.value),
       ranked.map((party) => `${result.parties[party].vote_share_pct.toFixed(1).replace('.', ',')}\u00a0%`));
+    equal('no opinion change is shown while the forecast is still the 2026 one',
+      [page.opinionChange, page.bars.every((bar) => bar.change === null)], ['false', true]);
+    check('the key says when the change will appear',
+      page.barsKey.includes('valet 2030'), page.barsKey);
     check('bar lengths are proportional to the shares',
       page.bars.every((bar) => near(bar.width / page.bars[0].width,
         result.parties[bar.party].vote_share_pct / result.parties[ranked[0]].vote_share_pct, 1e-3)),
@@ -331,7 +350,55 @@ async function preElection() {
   }
 }
 
-// --- 3. a result file that does not validate ------------------------------
+// --- 3. a forecast for the next election on screen ------------------------
+
+async function nextElection(viewport, name) {
+  console.log(`\n[2030 forecast on screen] ${name}`);
+  const root = await mkdtemp(join(tmpdir(), 'election-result-2030-'));
+  try {
+    await cp(SITE, root, { recursive: true });
+    await cp(NEXT_GENERATION_DIR, join(root, VERSIONS, NEXT_GENERATION), { recursive: true });
+    const next = JSON.parse(await readFile(new URL('forecast.json', NEXT_GENERATION_DIR), 'utf8'));
+    const pointer = await pointerFor(root, NEXT_GENERATION);
+    const { server, browser } = await open(viewport, { root, pointer, history: await historyFixture(NEXT_HISTORY) });
+    try {
+      const page = await readPage(browser);
+      equal('the fixture forecasts the next election', next.election_date, result.next_election_date);
+      equal('the kicker names both', page.kicker,
+        `Sverige · Riksdagen · valresultat ${result.election_date.slice(0, 4)} · valprognos ${result.next_election_date.slice(0, 4)}`);
+      equal('the bars carry the opinion change', [page.opinionChange, page.barsTitle],
+        ['true', 'Röstandel och opinionsförändring']);
+      check('each change is today\'s published median minus the certified result',
+        page.bars.length === PARTIES.length && page.bars.every((bar) =>
+          near(bar.forecastMedian, next.parties[bar.party].vote_share_median) &&
+          near(bar.change, next.parties[bar.party].vote_share_median - result.parties[bar.party].vote_share_pct)),
+        page.bars);
+      check('each change is printed with its direction',
+        page.bars.every((bar) => /^[▲▼•]\s?\d+,\d$/.test(bar.printedChange)), page.bars.map((bar) => bar.printedChange));
+      check('the bars still show the result', page.bars.every((bar) =>
+        bar.value === `${result.parties[bar.party].vote_share_pct.toFixed(1).replace('.', ',')}\u00a0%`));
+
+      // The comparison is the final forecast for 2026, not today's.
+      check('the comparison panel is shown', !page.deltaHidden);
+      check('it names the final forecast\'s date', page.deltaIntro.includes('(13 sep 2026)'), page.deltaIntro);
+      check('its deltas are the final 2026 forecast minus the result',
+        page.rows.length === PARTIES.length && page.rows.every((row, index) => {
+          const party = PARTIES[index];
+          return near(row.delta, decidedForecast.parties[party].vote_share_median - result.parties[party].vote_share_pct);
+        }), page.rows.map((row) => [row.party, row.delta]));
+      check('the divider is not shown: the panels below are the 2030 forecast', page.dividerHidden);
+      check('no horizontal scroll', page.overflow <= 0, page.overflow);
+      equal('no console errors', appErrors(browser).map((e) => e.text), []);
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+// --- 4. a result file that does not validate ------------------------------
 
 async function invalidResult() {
   console.log('\n[invalid result file] desktop');
@@ -363,6 +430,8 @@ async function invalidResult() {
 await decided(DESKTOP, 'desktop');
 await decided(MOBILE, 'mobile');
 await preElection();
+await nextElection(DESKTOP, 'desktop');
+await nextElection(MOBILE, 'mobile');
 await invalidResult();
 
 console.log(`\n${failures ? `FAIL (${failures})` : 'PASS'} ${checks} checks`);
