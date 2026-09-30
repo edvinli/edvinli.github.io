@@ -1070,10 +1070,10 @@ function assertStructure(view, history) {
   check('the former 24 May dynamics marker is absent from the plot', view.marker === null, view.marker);
   check('the page explains retrospective reconstruction and eight-party normalization',
     /rekonstru|omräkn|återskap/i.test(view.section?.text || '') &&
-    /åtta riksdagspartier|normaliser|slutliga historiska poll of polls|poll of polls/i.test(view.section?.text || ''), view.section?.text);
-  check('the chart copy distinguishes our simulation from Poll of Polls',
+    /åtta riksdagspartier|normaliser|swedishpolls/i.test(view.section?.text || ''), view.section?.text);
+  check('the chart copy distinguishes our simulation from its SwedishPolls input',
     /vår(?:a)? (?:simulerade |modell)?(?:val)?prognos|vår simulering|våra modellsimuleringar/i.test(view.section?.text || '') &&
-    /Poll of Polls.*jämförelse|Opinionsunderlag via Poll of Polls/i.test(view.section?.text || ''),
+    /Opinionsunderlag:[^.]*SwedishPolls/i.test(view.section?.text || ''),
   view.section?.text);
   check('the page explains actual and dynamics horizons',
     /faktisk.*tid|faktiska.*dag|horizon|rörelsedel|dynamik/i.test(view.section?.text || '') &&

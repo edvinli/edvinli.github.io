@@ -84,10 +84,10 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       <span class="election-timeseries__key-item" id="election-timeseries-key-current"><span class="election-timeseries__key-mark election-timeseries__key-mark--current" aria-hidden="true"></span>Senaste prognos</span>
       <span class="election-timeseries__key-item" id="election-timeseries-key-result" hidden><span class="election-timeseries__key-mark election-timeseries__key-mark--result" aria-hidden="true"></span><span id="election-timeseries-key-result-label">Valresultat</span></span>
     </p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med den slutliga historiska Poll of Polls-serien och är därför inte äkta prospektiva prognoser. Koalitionernas röstandelar beräknas över de åtta riksdagspartierna.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-provenance-note">Linjen visar historiska rekonstruktioner med dagens modell. Rekonstruktionerna är gjorda i efterhand med ett opinionsunderlag byggt enbart på SwedishPolls, där varje datum bara använder mätningar som var publicerade då, och är därför inte äkta prospektiva prognoser. Koalitionernas röstandelar beräknas över de åtta riksdagspartierna.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-party-note" hidden>Ett partis röstandel är dess andel av hela valmanskåren, med övriga partier i nämnaren. Det är samma definition som valdagsprognosen och som 4&#160;%-spärren.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
-    <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag via <a href="http://pollofpolls.se/" target="_blank" rel="noopener noreferrer">Poll of Polls</a>. Prognos och intervall: vår modell.</p>
+    <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag: vår egen sammanvägning av mätningar från <a href="https://github.com/MansMeg/SwedishPolls" target="_blank" rel="noopener noreferrer">SwedishPolls</a>. Prognos och intervall: vår modell.</p>
   </section>
   <!-- The certified result of the last election, between the chart that
        ends on its election day and the panel that sets the forecast against
@@ -256,7 +256,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       <div class="election-disclosure__body">
         <p>Prognosen simulerar valdagen, inte bara en felmarginal runt dagens opinionsmätningar. Modellen skapar 100&#160;000 möjliga valresultat. Intervall och sannolikheter på sidan beräknas direkt från dessa simuleringar.</p>
         <h3 class="election-subhead">1. Opinionsläget i dag</h3>
-        <p>Utgångspunkten är den senaste skattningen från Poll of Polls. För att uppskatta osäkerheten runt dagens läge jämför modellen historiska enskilda mätningar med Poll of Polls.</p>
+        <p>Utgångspunkten är vår egen dagliga sammanvägning av enskilda mätningar från SwedishPolls. Varje dag använder bara mätningar som var publicerade då, och nivån motsvarar ett urvalsviktat genomsnitt av de institut som mäter. För att uppskatta osäkerheten runt dagens läge jämför modellen historiska enskilda mätningar med sammanvägningen.</p>
         <p>Röstandelar kan inte behandlas som vanliga oberoende tal eftersom de tillsammans måste summera till 100&#160;%. Därför arbetar modellen med log-kvoter. För parti <var>j</var>:</p>
         <div class="election-equation">\[ z_j = \log\!\left(\frac{p_j}{p_{\mathrm{övr}}}\right) \]</div>
         <p>där <var>p_j</var> är partiets röstandel och <var>p_övr</var> är den samlade andelen för övriga partier.</p>
@@ -268,11 +268,11 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
                  \times \operatorname{clip}\!\left(\sqrt{\tfrac{N_i}{1000}},\; 0{,}7,\; 1{,}5\right) \\[6pt]
           n_{\mathrm{eff}} &amp;= \frac{\left(\sum_i w_i\right)^{2}}{\sum_i w_i^{2}}
         \end{aligned}\]</div>
-        <p>Det effektiva antalet mätningar begränsas till högst 8. Ett simulerat opinionsläge i dag dras sedan runt Poll of Polls med denna gemensamma osäkerhet.</p>
+        <p>Det effektiva antalet mätningar begränsas till högst 8. Ett simulerat opinionsläge i dag dras sedan runt sammanvägningen med denna gemensamma osäkerhet.</p>
         <h3 class="election-subhead">2. Vad kan hända fram till valdagen?</h3>
         <p>Osäkerheten beror på hur många dagar som återstår. Om det är <var>h</var> dagar kvar tittar modellen på hur hela opinionsläget historiskt har förändrats över <var>h</var> dagar.</p>
-        <p>För den delen används en symmetrisk log-kvotstransformation, CLR. En historisk förändring definieras som:</p>
-        <div class="election-equation">\[ \Delta_{s,h} = \operatorname{CLR}\!\left(\mathrm{PoP}_{s+h}\right) - \operatorname{CLR}\!\left(\mathrm{PoP}_{s}\right) \]</div>
+        <p>För den delen används en symmetrisk log-kvotstransformation, CLR. En historisk förändring i den dagliga sammanvägningen <var>O</var> definieras som:</p>
+        <div class="election-equation">\[ \Delta_{s,h} = \operatorname{CLR}\!\left(\mathrm{O}_{s+h}\right) - \operatorname{CLR}\!\left(\mathrm{O}_{s}\right) \]</div>
         <p>Hela vektorn med partiernas förändringar sparas tillsammans. Modellen drar sedan en sådan historisk förändring och använder den med slumpmässigt tecken:</p>
         <div class="election-equation">\[\begin{aligned}
           \operatorname{CLR}(p_{\mathrm{val}}) &amp;= \operatorname{CLR}(p_{\mathrm{idag}}) + S \times \Delta_{s,h} \\[6pt]
@@ -341,7 +341,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
         <h3 class="election-subhead">Viktigaste antagandena</h3>
         <p>Modellen bygger framför allt på fyra antaganden:</p>
         <ol class="election-list">
-          <li>Poll of Polls är ett rimligt ankare för opinionsläget i dag.</li>
+          <li>En urvalsviktad sammanvägning av mätningarna i SwedishPolls är ett rimligt ankare för opinionsläget i dag.</li>
           <li>Historiska svenska opinionsrörelser är informativa om hur mycket opinionen kan röra sig fram till valet 2026.</li>
           <li>Historiska skillnader mellan slutmätningar och valresultat är informativa om den osäkerhet som finns kvar på valdagen.</li>
           <li>Partiernas relativa geografiska styrka är tillräckligt stabil för att tidigare val ska vara användbara när nationella röster fördelas över valkretsarna.</li>
