@@ -867,7 +867,43 @@ async function clickButton(browser, buttonText) {
 // The chart always opens on "Sedan 2022", whatever the distance to election
 // day; "Sista 30 dagarna" is selected only by its button.
 
-function assertStructure(view, history) {
+// What the page itself resolves, from the published artifacts rather than
+// the history fixture: current.json names the generation whose forecast and
+// metadata the hero reads, and results/2026.json is the certified result. The
+// page shows that result (and "Sista prognosen mot valresultatet") whenever
+// the publication was computed on or after its election day, and calls the
+// election decided only when the published forecast targets it. In a new
+// cycle the fixture history still describes the previous election, so
+// deriving these from it asserted the wrong page.
+async function readPublication(siteRoot) {
+  const base = join(siteRoot, 'files', 'election-simulator');
+  const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
+  const pointer = await readJson(join(base, 'current.json'));
+  const version = join(base, pointer.path);
+  const forecast = await readJson(join(version, 'forecast.json'));
+  const metadata = await readJson(join(version, 'metadata.json'));
+  let manifest = null;
+  try { manifest = await readJson(join(version, 'manifest.json')); } catch { manifest = null; }
+  const generatedAt = metadata.generated_at_utc || manifest?.generated_at_utc || null;
+  const generationDay = generatedAt
+    ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' }).format(new Date(generatedAt))
+    : null;
+  let result = null;
+  try {
+    const payload = await readJson(join(base, 'results', '2026.json'));
+    if (payload.role === 'official_election_result' && typeof payload.election_date === 'string') result = payload;
+  } catch { result = null; }
+  const resultShown = Boolean(result && generationDay && generationDay >= result.election_date);
+  return {
+    electionDate: forecast.election_date,
+    generationDay,
+    result,
+    resultShown,
+    decided: resultShown && forecast.election_date === result.election_date,
+  };
+}
+
+function assertStructure(view, history, publication) {
   check('Vägen till valdagen section exists and is visible', view.section && !view.section.hidden && view.section.display !== 'none', view.section);
   equal('the timeline heading uses the election-day-first label', view.section?.heading, 'Vägen till valdagen');
   equal('the chart opens on Partier', view.section?.openingView, 'parties');
@@ -887,14 +923,19 @@ function assertStructure(view, history) {
       'election-headline',
       'election-seats',
     ]);
-  const decided = Boolean(view.hero?.decided);
+  const decided = publication.decided;
+  equal('the hero marks the election decided exactly when the published forecast targets the certified result',
+    Boolean(view.hero?.decided), decided);
   equal('the subsection navigation follows the DOM order and labels',
     view.navigation, [
       { href: '#election-timeseries', text: 'Vägen till valdagen' },
       // The latest-polls table sits inside the chart section.
       { href: '#election-latest-poll', text: 'Senaste mätningarna' },
-      ...(decided ? [
-        { href: '#election-result', text: `Valresultatet ${history.election_date.slice(0, 4)}` },
+      // The result and the comparison with it stay on the page after the
+      // forecast moves on to the next election (a new cycle), so they follow
+      // whether a certified result is shown, not whether it is decided.
+      ...(publication.resultShown ? [
+        { href: '#election-result', text: `Valresultatet ${publication.result.election_date.slice(0, 4)}` },
         { href: '#election-result-delta', text: 'Sista prognosen mot valresultatet' },
       ] : []),
       { href: '#election-blocs', text: 'Chansen till egen majoritet' },
@@ -932,10 +973,10 @@ function assertStructure(view, history) {
     // After the election the lede reports the result instead of the forecast;
     // the draw count belongs to the forecast panels below it.
     check('hero lede names the decided election date',
-      lede.startsWith(`Valet den ${swedishDay(history.election_date)} \u00e4r avgjort.`), lede);
+      lede.startsWith(`Valet den ${swedishDay(publication.electionDate)} \u00e4r avgjort.`), lede);
   } else {
     check('hero lede names the published election date',
-      new RegExp(`Valprognosen visar hur valet den ${swedishDay(history.election_date)} kan sluta`)
+      new RegExp(`Valprognosen visar hur valet den ${swedishDay(publication.electionDate)} kan sluta`)
         .test(lede), lede);
     check('hero lede names the published simulation draw count',
       numberInText(lede, publishedSamples), lede);
@@ -1070,10 +1111,10 @@ function assertStructure(view, history) {
   check('the former 24 May dynamics marker is absent from the plot', view.marker === null, view.marker);
   check('the page explains retrospective reconstruction and eight-party normalization',
     /rekonstru|omräkn|återskap/i.test(view.section?.text || '') &&
-    /åtta riksdagspartier|normaliser|slutliga historiska poll of polls|poll of polls/i.test(view.section?.text || ''), view.section?.text);
-  check('the chart copy distinguishes our simulation from Poll of Polls',
+    /åtta riksdagspartier|normaliser|swedishpolls/i.test(view.section?.text || ''), view.section?.text);
+  check('the chart copy distinguishes our simulation from its SwedishPolls input',
     /vår(?:a)? (?:simulerade |modell)?(?:val)?prognos|vår simulering|våra modellsimuleringar/i.test(view.section?.text || '') &&
-    /Poll of Polls.*jämförelse|Opinionsunderlag via Poll of Polls/i.test(view.section?.text || ''),
+    /Opinionsunderlag:[^.]*SwedishPolls/i.test(view.section?.text || ''),
   view.section?.text);
   check('the page explains actual and dynamics horizons',
     /faktisk.*tid|faktiska.*dag|horizon|rörelsedel|dynamik/i.test(view.section?.text || '') &&
@@ -1265,7 +1306,7 @@ async function exercise(viewport, history, siteRoot) {
     await settle();
     view = await readPage(browser);
     view = await readPage(browser);
-    assertStructure(view, history);
+    assertStructure(view, history, await readPublication(siteRoot));
     const fullVoteView = structuredClone(view);
 
     // The uncertainty toggle: on by default; off removes both bands, fits the
