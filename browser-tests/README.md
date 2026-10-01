@@ -183,7 +183,7 @@ known on its date, and the last point is the forecast today**:
   mark kinds the chart used to draw past today is present, that the x-axis ends
   on a published date no later than election day, and that no copy explains a
   removed forward view;
-- `Sedan 2022` is the opening range and `Sista 30 dagarna` is the 30 days up
+- `Sedan 2022` is the opening range and `Senaste 30 dagarna` is the 30 days up
   to the latest published forecast — not the 30 days before election day, which
   would leave a third of the plot empty;
 - Röstandel gets a data-driven window in the short range
@@ -213,7 +213,7 @@ and 360 px mobile widths:
   would otherwise move every party away from the 4 % line;
 - the last drawn party point being the certified `current_production` forecast,
   value for value;
-- the adaptive party y-domain: tighter in `Sista 30 dagarna` than in
+- the adaptive party y-domain: tighter in `Senaste 30 dagarna` than in
   `Sedan 2022`, readable tick counts, and every drawn forecast point and poll
   dot inside the visible domain;
 - the 4 %-spärr drawn for a threshold-near party and **absent** for a large
@@ -572,7 +572,7 @@ should not come away with different probabilities.
 
 **The opening view and range.** The chart opens on *Partier* and on *Sedan
 2022* — in the final week as at any other time; `data-opening-view` records
-the view it opened on. Both range controls stay, and *Sista 30 dagarna* is
+the view it opened on. Both range controls stay, and *Senaste 30 dagarna* is
 selected only by its own button. This suite's other checks are about the
 coalition chart, so it switches to *Koalitioner* after load, as
 `forecast-timeseries.smoke.mjs` does.

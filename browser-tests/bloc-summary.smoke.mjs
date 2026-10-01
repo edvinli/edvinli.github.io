@@ -357,7 +357,7 @@ async function live() {
     equal('even in the final week the chart opens on the whole history',
       page.rangePressed, ['full:true', 'short:false']);
     equal('and the full history is still offered',
-      page.rangeLabels, ['Sedan 2022', 'Sista 30 dagarna']);
+      page.rangeLabels, ['Sedan 2022', 'Senaste 30 dagarna']);
     check('the range buttons still both exist and are switchable',
       await switchesBackToFullHistory(browser));
 

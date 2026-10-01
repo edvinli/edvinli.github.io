@@ -865,7 +865,7 @@ async function clickButton(browser, buttonText) {
 }
 
 // The chart always opens on "Sedan 2022", whatever the distance to election
-// day; "Sista 30 dagarna" is selected only by its button.
+// day; "Senaste 30 dagarna" is selected only by its button.
 
 // What the page itself resolves, from the published artifacts rather than
 // the history fixture: current.json names the generation whose forecast and
@@ -1039,8 +1039,8 @@ function assertStructure(view, history, publication) {
     view.views.map((button) => button.text), ['Röstandel', 'Mandatandel']);
   check('view controls are native buttons with aria-pressed', view.views.every((button) =>
     button.tag === 'BUTTON' && button.type === 'button' && ['true', 'false'].includes(button.pressed)), view.views);
-  equal('range controls expose Sedan 2022 and Sista 30 dagarna',
-    view.ranges.map((button) => button.text), ['Sedan 2022', 'Sista 30 dagarna']);
+  equal('range controls expose Sedan 2022 and Senaste 30 dagarna',
+    view.ranges.map((button) => button.text), ['Sedan 2022', 'Senaste 30 dagarna']);
   check('range control is an accessible native pressed-button group',
     view.rangeGroup?.role === 'group' && Boolean(view.rangeGroup?.label) && view.ranges.every((button) =>
       button.tag === 'BUTTON' && button.type === 'button' && button.controls === 'election-timeseries-svg' &&
@@ -1224,7 +1224,7 @@ function assertShortRange(view, history, fullView, metric = 'vote') {
   const origin = end;
   equal('fixture short-range dates are the 30 days up to the latest forecast',
     [start, end], ['2026-08-05', '2026-09-04']);
-  check('Sista 30 dagarna exposes the exact active x-domain',
+  check('Senaste 30 dagarna exposes the exact active x-domain',
     view.section?.range === 'short' && view.section?.rangeStart === start && view.section?.rangeEnd === end &&
     view.svg?.range === 'short' && view.svg?.xMin === start && view.svg?.xMax === end,
   { section: view.section, svg: view.svg });
@@ -1408,7 +1408,7 @@ async function exercise(viewport, history, siteRoot) {
       [view.svg?.range, view.svg?.xMin, view.svg?.xMax],
       ['full', fullRangeStart(history, 'seats'), fullRangeEnd(history, 'seats')]);
     const seatFullBeforeRange = structuredClone(view);
-    equal('Mandatandel switches to Sista 30 dagarna', await clickButton(browser, 'Sista 30 dagarna'), true);
+    equal('Mandatandel switches to Senaste 30 dagarna', await clickButton(browser, 'Senaste 30 dagarna'), true);
     await settle();
     let seatShortRoundTrip = await readPage(browser);
     check('Mandatandel short round-trip has the last-30-days domain',
@@ -1437,7 +1437,7 @@ async function exercise(viewport, history, siteRoot) {
 
     // Exercise the same renderer in the election-relative viewport.  All
     // assertions below observe the built page after real button interaction.
-    equal('switch to Sista 30 dagarna', await clickButton(browser, 'Sista 30 dagarna'), true);
+    equal('switch to Senaste 30 dagarna', await clickButton(browser, 'Senaste 30 dagarna'), true);
     await settle();
     view = await readPage(browser);
     assertShortRange(view, history, fullVoteView, 'vote');
@@ -1450,7 +1450,7 @@ async function exercise(viewport, history, siteRoot) {
     await browser.evaluate(() => document.getElementById('election-timeseries-range-short')?.focus());
     await pressKey(browser, ' ', 'Space');
     view = await readPage(browser);
-    check('Space activates the focused Sista 30 dagarna range button',
+    check('Space activates the focused Senaste 30 dagarna range button',
       view.svg?.range === 'short' && view.ranges[1]?.pressed === 'true', view.ranges);
 
     const shortSeriesBefore = view.series.filter((series) => series.visible).length;
@@ -1507,7 +1507,7 @@ async function exercise(viewport, history, siteRoot) {
         candidate.textContent.replace(/[\t\n\r ]+/g, ' ').trim() === shortLabel);
       button?.click();
       return { before, after: svg?.getAttribute('data-selected-date') || '' };
-    }, { oldDate: history.series[0].date, shortLabel: 'Sista 30 dagarna' });
+    }, { oldDate: history.series[0].date, shortLabel: 'Senaste 30 dagarna' });
     await settle();
     view = await readPage(browser);
     equal('stale-selection fixture starts outside the short range',
@@ -1786,7 +1786,7 @@ async function exerciseUnusedForwardArtifacts() {
   const shortView = await scenarioView(shortWithout, 'forward-artifacts-absent-short',
     async (browser) => {
       equal('the short range is reachable without any forward artifact',
-        await clickButton(browser, 'Sista 30 dagarna'), true);
+        await clickButton(browser, 'Senaste 30 dagarna'), true);
       await settle();
     });
   const start = shortRangeStart(shortWithout.history);

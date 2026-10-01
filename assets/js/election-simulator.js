@@ -2023,7 +2023,7 @@
       : { left: 72, right: 880, top: 40, bottom: 490 };
     plot.width = plot.right - plot.left;
     plot.height = plot.bottom - plot.top;
-    // The chart ends at the latest certified forecast, so "Sista 30 dagarna"
+    // The chart ends at the latest certified forecast, so "Senaste 30 dagarna"
     // is the last 30 days of published history rather than the 30 days before
     // election day: otherwise a third of that window would be empty space to
     // the right of the last point.
