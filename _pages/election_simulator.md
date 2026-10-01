@@ -64,7 +64,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       </div>
       <div class="election-timeseries__range" id="election-timeseries-range" role="group" aria-label="Tidsintervall">
         <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-full" data-range="full" aria-pressed="true" aria-controls="election-timeseries-svg">Sedan 2022</button>
-        <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Sista 30 dagarna</button>
+        <button type="button" class="election-timeseries__control election-timeseries__range-button" id="election-timeseries-range-short" data-range="short" aria-pressed="false" aria-controls="election-timeseries-svg">Senaste 30 dagarna</button>
       </div>
       <div class="election-timeseries__coalitions" id="election-timeseries-coalitions" role="group" aria-label="Välj koalitioner"></div>
       <div class="election-timeseries__party-actions" id="election-timeseries-party-actions" hidden></div>
