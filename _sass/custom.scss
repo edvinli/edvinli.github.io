@@ -418,6 +418,18 @@ canvas {
   white-space: nowrap;
 }
 
+@media (max-width: 46em) {
+  .election-timeseries__range {
+    border-radius: 1rem;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .election-timeseries__range-button {
+    flex: 1 1 auto;
+  }
+}
+
 // A single on/off toggle: its pressed state is shown by the shared control
 // style, with a mark so the state is not carried by colour alone.
 .election-timeseries__uncertainty-button::before {
@@ -579,7 +591,6 @@ canvas {
   display: block;
   height: auto;
   max-width: 100%;
-  min-height: 18rem;
   outline-offset: -2px;
   touch-action: manipulation;
   width: 100%;
@@ -636,6 +647,15 @@ canvas {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.5;
+}
+
+.election-timeseries__cycle-bridge {
+  fill: none;
+  opacity: 0.75;
+  pointer-events: none;
+  stroke-dasharray: 3 3;
+  stroke-linecap: round;
+  stroke-width: 2;
 }
 
 .election-timeseries__series-group.is-primary .election-timeseries__median {
@@ -1390,11 +1410,25 @@ canvas {
 }
 
 .ev-threshold-prob {
+  align-items: flex-end;
   color: var(--el-ink-soft);
+  display: flex;
+  flex-direction: column;
   font-family: var(--el-mono);
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
+  gap: 0.08rem;
   grid-area: thr;
+  text-align: right;
+}
+
+.ev-threshold-prob__label {
+  color: var(--el-muted);
+  font-family: var(--el-body, inherit);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.1;
+  max-width: 100%;
   text-align: right;
 }
 
@@ -2824,7 +2858,7 @@ canvas {
   }
 
   .election-timeseries__svg {
-    min-height: 22rem;
+    min-height: 0;
   }
 
   .election-timeseries__svg text {

@@ -996,8 +996,8 @@ async function sourceGuard() {
   check('one noise-floor rule and one chip renderer serve both row kinds',
     (source.match(/function deltaShape/g) || []).length === 1 &&
     (source.match(/function inlineDelta\b/g) || []).length === 1 &&
-    source.includes('inlineDelta(voteChange[name], VOTE_CHANGE.floor, VOTE_CHANGE.digits)') &&
-    source.includes('inlineDelta(seatChange[name], SEAT_CHANGE.floor, SEAT_CHANGE.digits)'));
+    source.includes('inlineDelta(voteDelta, VOTE_CHANGE.floor, VOTE_CHANGE.digits)') &&
+    source.includes('inlineDelta(seatDelta, SEAT_CHANGE.floor, SEAT_CHANGE.digits)'));
   // The floor the caption states and the floor the chip applies are one
   // number, so the sentence cannot drift from the rule it describes.
   check('each section states the floor its own chip applies',

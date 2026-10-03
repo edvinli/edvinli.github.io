@@ -525,6 +525,12 @@ function readPage(browser) {
         title: title?.textContent?.trim() || '',
         description: description?.textContent?.trim() || '',
         metric: svg.getAttribute('data-metric') || '',
+        viewBox: (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number),
+        drawingBox: box(svg),
+        endpointBoxes: Array.from(svg.querySelectorAll('[data-endpoint-label="true"]')).map((node) => {
+          const rect = node.getBoundingClientRect();
+          return { left: rect.left, right: rect.right };
+        }),
         yMin: Number(svg.getAttribute('data-y-min')),
         yMax: Number(svg.getAttribute('data-y-max')),
         selectedDate: svg.getAttribute('data-selected-date') || '',
@@ -544,6 +550,7 @@ function readPage(browser) {
         pressed: button.getAttribute('aria-pressed'),
         tag: button.tagName,
         type: button.getAttribute('type'),
+        box: box(button),
       })),
       rangeGroup: rangeGroup ? {
         role: rangeGroup.getAttribute('role'),
@@ -556,6 +563,7 @@ function readPage(browser) {
         controls: button.getAttribute('aria-controls'),
         tag: button.tagName,
         type: button.getAttribute('type'),
+        box: box(button),
       })),
       coalitions: coalitions.map((button) => ({
         text: buttonText(button),
@@ -908,20 +916,26 @@ function assertStructure(view, history, publication) {
   equal('the timeline heading uses the election-day-first label', view.section?.heading, 'Vägen till valdagen');
   equal('the chart opens on Partier', view.section?.openingView, 'parties');
   const order = view.sectionOrder;
-  // The timeline leads. The result and the forecast-against-result panel
-  // follow it in the DOM, hidden unless the publication postdates a published
-  // election result; the forecast panels come after them.
-  equal('the primary sections use the exact chart-first DOM order',
-    order.slice(0, 9), [
+  // The timeline leads, followed immediately by the two party summaries.
+  // The comparison panel closes the page after the methodology disclosures.
+  equal('the first three content sections lead with the timeline and party summaries',
+    order.slice(0, 3), [
       'election-timeseries',
+      'election-headline',
+      'election-seats',
+    ]);
+  equal('the result comparison is the final content section',
+    order.at(-1), 'election-result-delta');
+  check('method and technical disclosures precede the result comparison',
+    order.indexOf('election-validation') < order.indexOf('election-result-delta') &&
+    order.indexOf('election-meta') < order.indexOf('election-result-delta'), order);
+  equal('the main forecast sections follow the party summaries',
+    order.slice(3, 8), [
       'election-result',
-      'election-result-delta',
       'election-blocs',
       'election-alternatives',
       'election-government-builder',
       'election-threshold',
-      'election-headline',
-      'election-seats',
     ]);
   const decided = publication.decided;
   equal('the hero marks the election decided exactly when the published forecast targets the certified result',
@@ -931,22 +945,23 @@ function assertStructure(view, history, publication) {
       { href: '#election-timeseries', text: 'Vägen till valdagen' },
       // The latest-polls table sits inside the chart section.
       { href: '#election-latest-poll', text: 'Senaste mätningarna' },
-      // The result and the comparison with it stay on the page after the
-      // forecast moves on to the next election (a new cycle), so they follow
-      // whether a certified result is shown, not whether it is decided.
+      { href: '#election-headline', text: 'Röstandelar på valdagen' },
+      { href: '#election-seats', text: 'Mandat på valdagen' },
+      // The result link follows the party summaries. The final comparison is
+      // appended after method and technical links.
       ...(publication.resultShown ? [
         { href: '#election-result', text: `Valresultatet ${publication.result.election_date.slice(0, 4)}` },
-        { href: '#election-result-delta', text: 'Sista prognosen mot valresultatet' },
       ] : []),
       { href: '#election-blocs', text: 'Chansen till egen majoritet' },
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
       { href: '#election-government-builder', text: 'Bygg din egen regering' },
       { href: '#election-threshold', text: '4 %-spärren' },
-      { href: '#election-headline', text: 'Röstandelar på valdagen' },
-      { href: '#election-seats', text: 'Mandat på valdagen' },
       { href: '#election-model', text: 'Så fungerar modellen' },
       { href: '#election-methodology', text: 'Metod och utvärdering' },
       { href: '#election-technical', text: 'Teknisk information' },
+      ...(publication.resultShown ? [
+        { href: '#election-result-delta', text: 'Sista prognosen mot valresultatet' },
+      ] : []),
     ], view.navigation);
   const facts = view.hero?.facts || [];
   const publishedSamples = history.series?.at(-1)?.samples;
@@ -1278,6 +1293,24 @@ async function exercise(viewport, history, siteRoot) {
   try {
     // ---- the chart's one claim: history up to today, and nothing after ---
     let view = await readPage(browser);
+    for (const width of [360, 390, 1280]) {
+      await browser.setViewport(width, 900);
+      await settle(220);
+      view = await readPage(browser);
+      check(`live resize to ${width}px matches SVG coordinates to the drawing width`,
+        view.svg && Math.abs(view.svg.viewBox[2] - view.svg.drawingBox.width) <= 2,
+        { viewBox: view.svg?.viewBox, box: view.svg?.drawingBox });
+      check(`all time range buttons fit their group at ${width}px`,
+        view.rangeGroup && view.ranges.every((range) => range.box &&
+          range.box.left >= view.rangeGroup.box.left - 1 &&
+          range.box.right <= view.rangeGroup.box.right + 1),
+        { group: view.rangeGroup, ranges: view.ranges });
+      check(`the resized chart has no horizontal overflow at ${width}px`,
+        view.overflow <= 0, view.overflow);
+    }
+    await browser.setViewport(viewport.width, viewport.height);
+    await settle(220);
+    view = await readPage(browser);
     equal('the published full range is the opening range and ends at today',
       [view.svg?.range, view.svg?.xMin, view.svg?.xMax],
       ['full', fullRangeStart(history, 'vote'), fullRangeEnd(history, 'vote')]);

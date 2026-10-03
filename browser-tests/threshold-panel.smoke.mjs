@@ -218,10 +218,10 @@ async function published(generation, title, documented) {
 
     equal('the panel is visible', [page.exists, page.hidden], [true, false]);
     check('the panel is painted, not just unhidden', page.display !== 'none', page.display);
-    equal('the panel sits directly above the full vote-share list',
+    equal('the threshold panel follows the full vote-share list',
       page.sectionOrder.filter((id) =>
         id === 'election-threshold' || id === 'election-headline'),
-      ['election-threshold', 'election-headline']);
+      ['election-headline', 'election-threshold']);
 
     // --- selection ---
     equal('exactly the threshold-relevant parties are shown',
