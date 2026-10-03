@@ -111,6 +111,11 @@ function readChart(browser) {
         segments: Number(group.getAttribute('data-curve-segments')),
         medianSubpaths: (group.querySelector('.election-timeseries__median')?.getAttribute('d')
           .match(/M/g) || []).length,
+        bridges: Array.from(group.querySelectorAll('[data-cycle-bridge="true"]')).map((node) => ({
+          from: node.getAttribute('data-from-date'),
+          to: node.getAttribute('data-to-date'),
+          medianOnly: node.getAttribute('data-median-only'),
+        })),
         current: Array.from(group.querySelectorAll('.election-timeseries__current'))
           .map((node) => node.getAttribute('data-date')),
         finals: Array.from(group.querySelectorAll('[data-provenance="final_production"]'))
@@ -156,6 +161,11 @@ async function joined(viewport, name) {
     check('the axis starts with the 2026 history', chart.xMin <= archive.series[0].date, chart.xMin);
     check('every series breaks on election day',
       chart.groups.length > 0 && chart.groups.every((g) => g.segments >= 2 && g.medianSubpaths >= 2), chart.groups);
+    // The synthetic cycle starts a week after election day. Even with no
+    // omittedDates entry, that is not an adjacent observed boundary and must
+    // remain visibly unjoined.
+    check('a non-adjacent cycle start does not receive a median bridge',
+      chart.groups.length > 0 && chart.groups.every((g) => g.bridges.length === 0), chart.groups);
     check('no forecast is drawn between election day and the first live point',
       chart.groups.every((g) => g.between === 0), chart.groups);
     check('only the live forecast is the current one',

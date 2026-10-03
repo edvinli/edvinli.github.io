@@ -60,9 +60,12 @@ export async function historyFixture(path) {
   return { body: JSON.stringify(history), source: history.poll_source_sha256, newest, path };
 }
 
-export async function serve(siteRoot, { port = 4000, pointer = null, history = null } = {}) {
+export async function serve(siteRoot, { port = 4000, pointer = null, history = null, delayResultMs = 0 } = {}) {
   const server = createServer(async (req, res) => {
     const path = decodeURIComponent(req.url.split('?')[0]);
+    if (delayResultMs > 0 && path === '/files/election-simulator/results/2026.json') {
+      await new Promise(resolve => setTimeout(resolve, delayResultMs));
+    }
     if (pointer && path === POINTER_PATH) {
       const body = JSON.stringify(pointer, null, 2);
       res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' });

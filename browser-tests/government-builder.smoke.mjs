@@ -385,26 +385,22 @@ async function testSchema12(viewport, pointer, expected) {
     eq('no legacy card-list containers in DOM', panel.legacyIds, []);
     eq('the removed Majoritetsscenarier nodes are gone', panel.legacyGroups, []);
 
-    // Vägen till valdagen -> Valresultatet -> Prognosen mot valresultatet ->
-    // Chansen till egen majoritet -> Regeringsalternativ -> Bygg din egen
-    // regering -> 4 %-spärren -> Röstandelar på valdagen -> Mandat på
-    // valdagen. The chart leads; the result and the comparison sit between it
-    // and the forecast panels, hidden until the publication postdates an
-    // election whose result is published. The threshold triage sits
-    // immediately before the full vote-share list it triages.
+    // Vägen till valdagen -> Röstandelar på valdagen -> Mandat på valdagen,
+    // followed by the other forecast panels and disclosures. The final-result
+    // comparison is last, after methodology and technical details.
     eq('page section order', panel.sectionOrder, [
       'election-timeseries',
+      'election-headline',
+      'election-seats',
       'election-result',
-      'election-result-delta',
       'election-blocs',
       'election-alternatives',
       'election-government-builder',
       'election-threshold',
-      'election-headline',
-      'election-seats',
       'election-how-it-works',
       'election-validation',
       'election-meta',
+      'election-result-delta',
     ]);
 
     // --- Preset governments -------------------------------------------------

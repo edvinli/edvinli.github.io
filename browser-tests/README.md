@@ -113,10 +113,9 @@ Tests the coalition builder across all published schema generations:
   - Manual dragging still works after a preset has been used.
   - The `Mandatfördelning` view prints the four published summaries for the
     same entry it drew: `median_seats`, `p25–p75`, `p10–p90`, `p05–p95`.
-  - Page section order: Vägen till valdagen → Regeringsalternativ →
-    Bygg din egen regering → Röstandelar på valdagen → Mandat på valdagen, and
-    nothing left of the removed
-    Majoritetsscenarier.
+  - Page section order starts with Vägen till valdagen → Röstandelar på
+    valdagen → Mandat på valdagen; the result comparison follows the
+    methodology and technical disclosures.
 
 ### 2. `builder-blocks.smoke.mjs` — mandate block interaction
 

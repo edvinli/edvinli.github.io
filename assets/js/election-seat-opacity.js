@@ -15,24 +15,38 @@
     S: "#ED1B34", V: "#A81420", MP: "#4C983E", SD: "#A87F00"
   };
 
-  // Keep the source DOM and visual order aligned: the reader first sees the
-  // route to election day, then the last certified result and the forecast
-  // against it, then the coalition comparison, builder and forecast views.
+  // Keep the DOM order aligned with the reading sequence. The timeline is
+  // followed immediately by the two election-day party summaries; the
+  // comparison with the final result closes the forecast panels.
   function placeElectionSections() {
-    var alternatives = document.getElementById("election-alternatives");
-    var builder = document.getElementById("election-government-builder");
-    if (!alternatives || !builder) return;
-
-    var children = Array.prototype.slice.call(app.children);
-    // The page now carries the intended order in its source, so do not create
-    // a second responsive ordering system with flexbox. Clear any stale
-    // inline order left by a hot reload and let keyboard, screen-reader and
-    // visual navigation follow the same sequence.
-    children.forEach(function (child) { child.style.order = ""; });
+    var ids = [
+      "election-timeseries", "election-headline", "election-seats",
+      "election-result", "election-blocs", "election-alternatives",
+      "election-government-builder", "election-threshold"
+    ];
+    var disclosure = document.getElementById("election-how-it-works");
+    if (!disclosure) return;
+    var cursor = disclosure;
+    ids.forEach(function (id) {
+      var section = document.getElementById(id);
+      if (!section || section.parentNode !== app) return;
+      app.insertBefore(section, cursor);
+      cursor = section.nextSibling;
+    });
+    // Keep the result comparison as the page's final section, after the
+    // methodology and technical disclosures.
+    var meta = document.getElementById("election-meta");
+    var delta = document.getElementById("election-result-delta");
+    var divider = document.getElementById("election-forecast-divider");
+    if (delta && delta.parentNode === app) {
+      var afterDisclosures = meta ? meta.nextSibling : null;
+      app.insertBefore(delta, afterDisclosures);
+      if (divider) app.insertBefore(divider, delta);
+    }
   }
 
-  // The result and the comparison links are added next to the chart link by
-  // the app, and only when those sections are shown.
+  // The result link is added beside the seat link by the app when that
+  // section is shown; the final comparison link is appended after disclosures.
   function updateHeroLinks() {
     var nav = app.querySelector(".election-hero__links");
     if (!nav) return;
@@ -40,12 +54,12 @@
     var links = [
       ["election-timeseries", "Vägen till valdagen"],
       ["election-latest-poll", "Senaste mätningarna"],
+      ["election-headline", "Röstandelar på valdagen"],
+      ["election-seats", "Mandat på valdagen"],
       ["election-blocs", "Chansen till egen majoritet"],
       ["election-alternatives", "Regeringsalternativ"],
       ["election-government-builder", "Bygg din egen regering"],
       ["election-threshold", "4 %-spärren"],
-      ["election-headline", "Röstandelar på valdagen"],
-      ["election-seats", "Mandat på valdagen"],
       ["election-model", "Så fungerar modellen"],
       ["election-methodology", "Metod och utvärdering"],
       ["election-technical", "Teknisk information"]

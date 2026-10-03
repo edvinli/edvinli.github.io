@@ -600,6 +600,7 @@
   var publicationContext = {
     electionDate: null,
     generationDay: null,
+    generatedAtUtc: null,
     forecast: null
   };
 
@@ -701,6 +702,7 @@
     var generatedStamp = stockholmDateTime(generatedAt);
     publicationContext.electionDate = electionDate;
     publicationContext.generationDay = (generatedStamp && generatedStamp.day) || null;
+    publicationContext.generatedAtUtc = generatedAt;
     publicationContext.forecast = forecast;
 
     // Days to election day, counted from the day the forecast was computed --
@@ -1672,6 +1674,25 @@
     return segments;
   }
 
+  // A cycle boundary is the one place where the displayed time series may
+  // show an explicit median bridge. It uses the two real adjacent
+  // observations only; uncertainty bands stay in their separate cycles, and
+  // an actually omitted date remains a gap even when it falls at the boundary.
+  function historyCycleBridges(points, omittedDates) {
+    var bridges = [];
+    for (var index = 1; index < points.length; index += 1) {
+      var previous = points[index - 1];
+      var current = points[index];
+      var previousTime = Date.parse(previous.date + "T00:00:00Z");
+      var currentTime = Date.parse(current.date + "T00:00:00Z");
+      if (previous.cycle !== current.cycle && currentTime - previousTime === 86400000 &&
+        !historyOmittedBetween(omittedDates || [], previous.date, current.date)) {
+        bridges.push({ previous: previous, current: current });
+      }
+    }
+    return bridges;
+  }
+
   // One `d` per segment, concatenated into a single multi-subpath attribute.
   // Fills stay correct because each band segment is closed on its own, and a
   // stroked median cannot bridge two subpaths -- which is the whole point.
@@ -1946,6 +1967,7 @@
   function renderForecastHistory(payload, electionResult, archivedPayloads) {
     var section = byId("election-timeseries");
     var svg = byId("election-timeseries-svg");
+    var chartFrame = byId("election-timeseries-frame");
     if (!section || !svg) return false;
     var history = normalizeHistoryPayload(payload);
     if (!history) return false;
@@ -2008,19 +2030,17 @@
     var keyboardSelect = function () {};
     var activeDomain = null;
     var compactChart = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
-    var width = compactChart ? 600 : 960;
+    var width = 960;
     // Taller than the chart is wide would be odd, but 430 was too flat for
     // the party view: eight lines inside 320px of plot sit on top of each
     // other, and the whole reason to open that view is to compare them. The
     // extra height goes entirely to the plot -- the gutter below it still
     // holds only the date axis, at 70px desktop and 85px compact.
-    var height = compactChart ? 620 : 560;
+    var height = compactChart ? 520 : 560;
     // Keep a quiet right-hand gutter for the current-value labels.  The
     // generous top/bottom margins also make the chart read like the site's
     // histogram sections rather than a boxed dashboard widget.
-    var plot = compactChart
-      ? { left: 62, right: 520, top: 50, bottom: 535 }
-      : { left: 72, right: 880, top: 40, bottom: 490 };
+    var plot = { left: 72, right: 880, top: 40, bottom: 490 };
     plot.width = plot.right - plot.left;
     plot.height = plot.bottom - plot.top;
     // The chart ends at the latest certified forecast, so "Senaste 30 dagarna"
@@ -2040,7 +2060,7 @@
       setText("election-timeseries-intro", "Till v\u00e4nster prognoserna inf\u00f6r valet den " + priorDay +
         ", till h\u00f6ger prognoserna inf\u00f6r valet " + liveYear +
         (electionResult && electionResult.electionDate === priorElection.iso ? ". Romberna p\u00e5 valdagen visar valresultatet" : "") +
-        ". S\u00e5 skulle modellen ha bed\u00f6mt l\u00e4get vid olika tidpunkter; historiken \u00e4r rekonstruerad i efterhand och den sista punkten \u00e4r den aktuella publicerade prognosen.");
+        ". S\u00e5 skulle modellen ha bed\u00f6mt l\u00e4get vid olika tidpunkter; historiken \u00e4r rekonstruerad i efterhand och den sista punkten \u00e4r den aktuella publicerade prognosen. Streckad linje markerar bytet till prognosen f\u00f6r " + liveYear + "; os\u00e4kerhetsbanden h\u00e5lls \u00e5tskilda.");
       var capStart = historyDateOffset(history.electionDate, -HISTORY_DYNAMICS_CAP);
       setText("election-timeseries-dynamics-note", "Mer \u00e4n " + HISTORY_DYNAMICS_CAP +
         " dagar f\u00f6re ett val" + (capStart ? " \u2013 inf\u00f6r valet " + liveYear + " f\u00f6re " +
@@ -2368,6 +2388,18 @@
     clearTimeseriesSelection = clearSelection;
 
     function renderChart() {
+      // Match the SVG coordinate width to the actual drawing area. On phones
+      // this prevents a 600-unit drawing from being scaled into a narrow
+      // column, which made labels small and left unused viewBox margins.
+      compactChart = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
+      var measuredWidth = chartFrame && chartFrame.clientWidth;
+      if (measuredWidth > 0) width = Math.max(320, Math.round(measuredWidth));
+      height = compactChart ? 520 : 560;
+      plot = compactChart
+        ? { left: 46, right: width - 82, top: 38, bottom: height - 66 }
+        : { left: 72, right: width - 80, top: 40, bottom: height - 70 };
+      plot.width = plot.right - plot.left;
+      plot.height = plot.bottom - plot.top;
       // Keep an inspected date stable while the metric or visible coalitions
       // change. The detail panel is rebuilt from the newly active series below,
       // avoiding a distracting collapse-and-expand layout jump.
@@ -2449,6 +2481,7 @@
       svg.setAttribute("data-omitted-date-count", String(omittedInView.length));
       svg.appendChild(svgNode("title", { id: "election-timeseries-title" },
         "Vägen till valdagen, " + historyMetricLabel(selectedMetric)));
+      var cycleBridgeInView = historyCycleBridges(visibleHistoryPoints, history.omittedDates).length > 0;
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
         "Vår simulering med median och 50- samt 90-procentiga prognosintervall från " +
         (swedishDate(activeDomain.minIso) || activeDomain.minIso) + " till " +
@@ -2456,7 +2489,8 @@
         ". Skalan är anpassad efter de valda serierna." +
         (viewMode === "parties" && activeDefinitions().length
           ? " Visar " + activeDefinitions()[0].label + "." : "") +
-        (selectedMetric === "vote" ? " Enskilda mätningar visas som jämförelse." : "")));
+        (selectedMetric === "vote" ? " Enskilda mätningar visas som jämförelse." : "") +
+        (cycleBridgeInView ? " Den streckade bryggan vid valcykelns gräns förenar bara medianen vid två intilliggande observerade datum; prognosintervallen förblir åtskilda. Den nya prognosen gäller valdagen " + history.electionDate.slice(0, 4) + "." : "")));
 
       var plotDefs = svgNode("defs");
       var plotClip = svgNode("clipPath", { id: "election-timeseries-plot-clip" });
@@ -2602,6 +2636,23 @@
           class: "election-timeseries__line election-timeseries__median", d: medianPath, stroke: definition.color,
           "data-coalition": definition.id, "data-quantile": "p50"
         }));
+        var cycleBridges = historyCycleBridges(curvePoints, history.omittedDates);
+        cycleBridges.forEach(function (bridge) {
+          var before = bridge.previous.groups && bridge.previous.groups[definition.id];
+          var after = bridge.current.groups && bridge.current.groups[definition.id];
+          var beforeMedian = historyMetricValue(before, selectedMetric, "p50");
+          var afterMedian = historyMetricValue(after, selectedMetric, "p50");
+          if (beforeMedian === null || afterMedian === null) return;
+          group.appendChild(svgNode("path", {
+            class: "election-timeseries__cycle-bridge",
+            d: "M" + xScale(bridge.previous.time).toFixed(2) + "," + yScale(beforeMedian).toFixed(2) +
+              "L" + xScale(bridge.current.time).toFixed(2) + "," + yScale(afterMedian).toFixed(2),
+            stroke: definition.color,
+            "data-cycle-bridge": "true", "data-from-date": bridge.previous.date,
+            "data-to-date": bridge.current.date, "data-from-cycle": bridge.previous.cycle,
+            "data-to-cycle": bridge.current.cycle, "data-median-only": "true"
+          }));
+        });
         var currentPoints = curvePoints.filter(function (point) {
           return point.provenance === "current_production";
         });
@@ -3115,15 +3166,29 @@
       showPartyTimeline = null;
     }
     setViewButtons();
-    renderChart();
     section.hidden = false;
+    renderChart();
+    var lastResponsiveWidth = width;
+    var responsiveChart = function () {
+      var nextWidth = chartFrame && chartFrame.clientWidth;
+      var nextCompact = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
+      if (nextWidth > 0 && (Math.abs(nextWidth - lastResponsiveWidth) > 1 || nextCompact !== compactChart)) {
+        lastResponsiveWidth = Math.max(320, Math.round(nextWidth));
+        renderChart();
+      }
+    };
+    if (window.ResizeObserver && chartFrame) {
+      var chartResizeObserver = new ResizeObserver(responsiveChart);
+      chartResizeObserver.observe(chartFrame);
+    }
+    window.addEventListener("resize", responsiveChart);
     return true;
   }
 
   // ---------------------------------------------------------------------
   // 2. National vote forecast
   // ---------------------------------------------------------------------
-  function renderVotes(forecast, parties) {
+  function renderVotes(forecast, parties, resultBaseline) {
     reveal("election-headline");
     var host = byId("election-party-cards");
     if (!host) return;
@@ -3154,6 +3219,10 @@
       var thresholdValue = forecast.threshold_probabilities_4pct && forecast.threshold_probabilities_4pct[name];
       var thresholdKnown = name !== "REST" && thresholdValue !== undefined;
       var thresholdLabel = thresholdKnown ? probability(thresholdValue) : "g\u00e4ller inte";
+      var voteDelta = resultBaseline
+        ? (resultBaseline.parties[name] && num(resultBaseline.parties[name].share) !== null
+          ? num(party.vote_share_median) - resultBaseline.parties[name].share : null)
+        : voteChange[name];
 
       var p05 = pct(party.vote_share_p05, scale);
       var p95 = pct(party.vote_share_p95, scale);
@@ -3168,7 +3237,8 @@
         " procent, 90-procentigt prognosintervall " + format(party.vote_share_p05, 1) + " till " +
         format(party.vote_share_p95, 1) + " procent" +
         (thresholdKnown ? ", sannolikhet att n\u00e5 fyraprocentssp\u00e4rren " + thresholdLabel : "") +
-        inlineDeltaLabel(voteChange[name], 0.05, 1, "procentenheter") +
+        inlineDeltaLabel(voteDelta, 0.05, 1, "procentenheter",
+          resultBaseline ? "valresultatet " + resultBaseline.year : null) +
         ". \u00d6ppna f\u00f6r samtliga intervall.";
 
       row.innerHTML =
@@ -3176,7 +3246,7 @@
         " aria-controls=\"" + detailId + "\" aria-label=\"" + escapeHtml(label) + "\">" +
           "<span class=\"ev-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
           "<span class=\"ev-median\"><span class=\"ev-median__value\">" + format(party.vote_share_median, 1) + "</span><span class=\"ev-unit\">" + NBSP + "%</span>" +
-            inlineDelta(voteChange[name], VOTE_CHANGE.floor, VOTE_CHANGE.digits) + "</span>" +
+            inlineDelta(voteDelta, VOTE_CHANGE.floor, VOTE_CHANGE.digits) + "</span>" +
           "<span class=\"ev-chart\" aria-hidden=\"true\">" +
             "<span class=\"ev-track\">" +
               "<span class=\"ev-threshold\" style=\"left:" + thresholdLeft.toFixed(3) + "%\"></span>" +
@@ -3185,7 +3255,11 @@
               "<span class=\"ev-median-mark\" style=\"left:" + median.toFixed(3) + "%\"></span>" +
             "</span>" +
           "</span>" +
-          "<span class=\"ev-threshold-prob" + (thresholdKnown ? "" : " ev-threshold-prob--na") + "\">" + escapeHtml(thresholdLabel) + "</span>" +
+          "<span class=\"ev-threshold-prob" + (thresholdKnown ? "" : " ev-threshold-prob--na") + "\">" +
+            (thresholdKnown
+              ? "<span class=\"ev-threshold-prob__label\">Chans att n\u00e5 4&#160;%</span>"
+              : "<span class=\"ev-threshold-prob__label\">" + (name === "REST" ? "\u00d6vriga" : "Sp\u00e4rr") + "</span>") +
+            "<span>" + escapeHtml(thresholdLabel) + "</span></span>" +
         "</button>" +
         "<div class=\"ev-detail\" id=\"" + detailId + "\" hidden>" +
           "<p class=\"ev-detail__name\">" + escapeHtml(fullName) + "</p>" +
@@ -3253,7 +3327,7 @@
   // ---------------------------------------------------------------------
   // 3. Seats
   // ---------------------------------------------------------------------
-  function renderSeats(seats, requireRepresentative, forecast) {
+  function renderSeats(seats, requireRepresentative, forecast, resultBaseline) {
     reveal("election-seats");
     var order = seats.party_order || Object.keys(seats.seat_summary);
 
@@ -3284,11 +3358,13 @@
         var median = pct(summary.median, scale);
         var low = pct(summary.p05, scale);
         var high = pct(summary.p95, scale);
+        var seatDelta = resultBaseline && resultBaseline.parties[name]
+          ? summary.median - resultBaseline.parties[name].seats : seatChange[name];
         var row = document.createElement("div");
         row.innerHTML =
           "<span class=\"es-abbr\"><span class=\"ev-swatch\" style=\"background:" + color + "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(name)) + "</span>" +
           "<span class=\"es-median\"><span class=\"es-median__value\">" + format(summary.median, 0) + "</span>" +
-            inlineDelta(seatChange[name], SEAT_CHANGE.floor, SEAT_CHANGE.digits) + "</span>" +
+            inlineDelta(seatDelta, SEAT_CHANGE.floor, SEAT_CHANGE.digits) + "</span>" +
           "<span class=\"es-chart\" aria-hidden=\"true\">" +
             "<span class=\"es-track\">" +
               "<span class=\"es-majority\" style=\"left:" + majorityLeft.toFixed(3) + "%\"></span>" +
@@ -3301,7 +3377,8 @@
         row.setAttribute("aria-label", (partyNames[name] || name) + " (" + abbr(name) + "): median " +
           format(summary.median, 0) + " mandat, 90-procentigt prognosintervall " +
           format(summary.p05, 0) + " till " + format(summary.p95, 0) + " mandat" +
-          inlineDeltaLabel(seatChange[name], 0.5, 0, "mandat") + ".");
+          inlineDeltaLabel(seatDelta, 0.5, 0, "mandat",
+            resultBaseline ? "valresultatet " + resultBaseline.year : null) + ".");
         track(name, row, "es-row");
         bars.appendChild(row);
       });
@@ -5093,10 +5170,16 @@
   // "Efter", not "under": the chip stacks below the median on wide screens and
   // sits beside it on narrow ones, and reading order is what both layouts
   // share.
-  function renderChangeCaption(id, forecast, prior, kind) {
+  function renderChangeCaption(id, forecast, prior, kind, resultBaseline) {
     var node = byId(id);
     if (!node) return;
     var change = forecast.change_since_prior || {};
+    if (resultBaseline) {
+      node.textContent = "Efter varje median visas f\u00f6r\u00e4ndringen " + kind.unit +
+        " j\u00e4mf\u00f6rt med valresultatet " + resultBaseline.year + ".";
+      node.hidden = false;
+      return;
+    }
     if (change.status !== "AVAILABLE" || !change[kind.field]) {
       node.textContent = "";
       node.hidden = true;
@@ -5159,14 +5242,15 @@
   // Each row is a single element carrying its own aria-label, so that label --
   // not the chip's markup -- is what a screen reader reads.  The chip is
   // decorative; the change is spoken here, with its unit, in full.
-  function inlineDeltaLabel(value, noiseFloor, digits, unit) {
+  function inlineDeltaLabel(value, noiseFloor, digits, unit, baselineLabel) {
     var shape = deltaShape(value, noiseFloor);
     if (!shape) return "";
     if (shape.direction === "flat") {
-      return ", ingen tydlig f\u00f6r\u00e4ndring sedan j\u00e4mf\u00f6relseprognosen";
+      return ", ingen tydlig f\u00f6r\u00e4ndring " +
+        (baselineLabel ? "j\u00e4mf\u00f6rt med " + baselineLabel : "sedan j\u00e4mf\u00f6relseprognosen");
     }
     return ", " + shape.word + " " + format(Math.abs(shape.value), digits) +
-      " " + unit + " sedan j\u00e4mf\u00f6relseprognosen";
+      " " + unit + " " + (baselineLabel ? "j\u00e4mf\u00f6rt med " + baselineLabel : "sedan j\u00e4mf\u00f6relseprognosen");
   }
 
   // ---------------------------------------------------------------------
@@ -5318,6 +5402,17 @@
       shareTotal += share;
     }
     if (seatTotal !== CHAMBER || shareTotal > 100.0001) return null;
+    var otherParties = null;
+    if (payload.other_parties !== undefined) {
+      var other = payload.other_parties;
+      var otherShare = other ? num(other.vote_share_pct) : null;
+      var otherSeats = other ? num(other.seats) : null;
+      var otherVotes = other ? num(other.votes) : null;
+      if (otherShare === null || otherShare < 0 || otherShare > 100 ||
+        otherSeats === null || otherSeats < 0 || Math.floor(otherSeats) !== otherSeats ||
+        otherVotes === null || otherVotes < 0) return null;
+      otherParties = { share: otherShare, seats: otherSeats, votes: otherVotes };
+    }
     return {
       electionDate: electionDate.iso,
       electionTime: electionDate.time,
@@ -5326,10 +5421,31 @@
       authority: typeof payload.authority === "string" ? payload.authority : null,
       sourceUrl: typeof payload.source_url === "string" ? payload.source_url : null,
       rawSha256: typeof payload.raw_sha256 === "string" ? payload.raw_sha256 : null,
+      retrievedAtUtc: typeof payload.retrieved_at_utc === "string" ? payload.retrieved_at_utc : null,
+      retrievedAtInstant: parseInstant(payload.retrieved_at_utc),
       turnout: num(payload.turnout_pct),
       validVotes: num(payload.valid_national_votes),
-      parties: parties
+      parties: parties,
+      otherParties: otherParties
     };
+  }
+
+  // A completed result is a useful baseline only for a later election's
+  // forecast. A pinned forecast for the election that produced the result
+  // keeps its original published comparison semantics.
+  function resultBaselineForForecast(result, forecast) {
+    var generatedInstant = parseInstant(publicationContext.generatedAtUtc);
+    if (!result || !forecast || !publicationContext.generationDay ||
+      publicationContext.generationDay < result.electionDate ||
+      !publicationContext.electionDate || publicationContext.electionDate <= result.electionDate ||
+      result.retrievedAtInstant === null || generatedInstant === null ||
+      generatedInstant <= result.retrievedAtInstant) return null;
+    var parties = {};
+    Object.keys(result.parties).forEach(function (party) {
+      parties[party] = result.parties[party];
+    });
+    if (result.otherParties) parties.REST = result.otherParties;
+    return { year: result.year, parties: parties };
   }
 
   // The result on the chart's own scale for one series.  A party is its share
@@ -5522,7 +5638,7 @@
     var divider = byId("election-forecast-divider");
     if (divider && decided) {
       var calculated = swedishDate(publicationContext.generationDay);
-      divider.textContent = "Allt nedan \u00e4r den sista prognosen f\u00f6re valet" +
+      divider.textContent = "J\u00e4mf\u00f6relsen nedan anv\u00e4nder den sista prognosen f\u00f6re valet" +
         (calculated ? ", ber\u00e4knad " + calculated : "") +
         ". Den st\u00e5r kvar som den publicerades tills prognosen f\u00f6r n\u00e4sta val tar vid.";
       divider.hidden = false;
@@ -5633,28 +5749,29 @@
     setText("election-result-delta-source", "Staplarna visar prognosens intervall minus valresultatet, i procentenheter. Mandat: prognosens median minus mandaten i valet." +
       (result.authority ? " Valresultat: " + result.authority + ", slutligt resultat." : ""));
     reveal("election-result-delta");
-    // The hero's section links follow the page: the result and the comparison
-    // sit right after the chart.
+    // The certified result follows the two party summaries in the navigation;
+    // its forecast comparison is the final destination, after disclosures.
     var nav = document.querySelector("#election-hero .election-hero__links");
-    // After the chart's own entries: its heading and the latest-polls table
-    // that sits inside it.
-    var chartLink = nav && (nav.querySelector("a[href=\"#election-latest-poll\"]") ||
-      nav.querySelector("a[href=\"#election-timeseries\"]"));
-    if (nav && chartLink && !nav.querySelector("a[href=\"#election-result-delta\"]")) {
-      var anchorNode = chartLink;
-      [["#election-result", "Valresultatet " + result.year],
-        ["#election-result-delta", "Sista prognosen mot valresultatet"]]
-        .forEach(function (entry) {
-          var separator = document.createElement("span");
-          separator.setAttribute("aria-hidden", "true");
-          separator.textContent = " \u00b7 ";
-          var link = document.createElement("a");
-          link.href = entry[0];
-          link.textContent = entry[1];
-          nav.insertBefore(separator, anchorNode.nextSibling);
-          nav.insertBefore(link, separator.nextSibling);
-          anchorNode = link;
-        });
+    var seatLink = nav && nav.querySelector("a[href=\"#election-seats\"]");
+    if (nav && seatLink && !nav.querySelector("a[href=\"#election-result\"]")) {
+      var separator = document.createElement("span");
+      separator.setAttribute("aria-hidden", "true");
+      separator.textContent = " \u00b7 ";
+      var link = document.createElement("a");
+      link.href = "#election-result";
+      link.textContent = "Valresultatet " + result.year;
+      nav.insertBefore(separator, seatLink.nextSibling);
+      nav.insertBefore(link, separator.nextSibling);
+    }
+    if (nav && !nav.querySelector("a[href=\"#election-result-delta\"]")) {
+      var finalSeparator = document.createElement("span");
+      finalSeparator.setAttribute("aria-hidden", "true");
+      finalSeparator.textContent = " \u00b7 ";
+      var finalLink = document.createElement("a");
+      finalLink.href = "#election-result-delta";
+      finalLink.textContent = "Sista prognosen mot valresultatet";
+      nav.appendChild(finalSeparator);
+      nav.appendChild(finalLink);
     }
   }
 
@@ -5674,8 +5791,16 @@
       renderBlocSummary(data[3]);
       // Threshold triage reads the same party contract the vote rows render.
       renderThresholdPanel(data[1]);
-      renderVotes(data[0], data[1]);
-      renderSeats(data[2], Boolean(publication.pointer), data[0]);
+      // The seat opacity enhancement observes the original party rows once.
+      // Resolve the certified result before creating those rows so a late
+      // result cannot force a destructive second render after enhancement.
+      var resultBaselinePromise = electionResultPromise.then(function (result) {
+        return resultBaselineForForecast(result, data[0]);
+      });
+      resultBaselinePromise.then(function (resultBaseline) {
+        renderVotes(data[0], data[1], resultBaseline);
+        renderSeats(data[2], Boolean(publication.pointer), data[0], resultBaseline);
+      });
       var coalitionTable = validatedCoalitionBuilder(data[3], data[0] && data[0].total_samples);
       renderGovernmentBuilder(coalitionTable, data[0] && data[0].total_samples);
       renderAlternatives(coalitionTable);
@@ -5697,13 +5822,15 @@
       return Promise.all([
         resolvePriorPublication(data[0]).catch(function () { return null; }),
         loadPrecedingPublication(publication.pointer &&
-          publication.pointer.publication_generation).catch(function () { return null; })
+          publication.pointer.publication_generation).catch(function () { return null; }),
+        resultBaselinePromise
       ])
         .then(function (resolved) {
           var prior = resolved[0];
+          var resultBaseline = resolved[2];
           renderPollFreshness(data[5], resolved[1]);
-          renderChangeCaption("election-vote-change-note", data[0], prior, VOTE_CHANGE);
-          renderChangeCaption("election-seat-change-note", data[0], prior, SEAT_CHANGE);
+          renderChangeCaption("election-vote-change-note", data[0], prior, VOTE_CHANGE, resultBaseline);
+          renderChangeCaption("election-seat-change-note", data[0], prior, SEAT_CHANGE, resultBaseline);
           // The status strings stay in the DOM as the published load contract,
           // but a successful load has no news for the reader, so it is hidden.
           status.textContent = certified ? "Certified forecast loaded." : "Forecast loaded, but it is not certified.";

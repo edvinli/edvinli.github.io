@@ -89,8 +89,8 @@ async function waitForApp(browser) {
   await settle(400);
 }
 
-async function open(viewport, { root = SITE, pointer = null, history = null } = {}) {
-  const server = await serve(root, { port: 4000, pointer, history });
+async function open(viewport, { root = SITE, pointer = null, history = null, delayResultMs = 0 } = {}) {
+  const server = await serve(root, { port: 4000, pointer, history, delayResultMs });
   const browser = await launch(viewport);
   await browser.goto(`http://localhost:${server.port}${PAGE}`);
   await waitForApp(browser);
@@ -133,6 +133,29 @@ function readPage(browser) {
       blocs: Array.from(document.querySelectorAll('#election-result-blocs .election-result__bloc'))
         .map((node) => ({ id: node.dataset.coalition, text: node.textContent.replace(/\s+/g, ' ').trim() })),
       opinionChange: document.getElementById('election-result-bars')?.getAttribute('data-opinion-change'),
+      voteChangeCaption: text('election-vote-change-note'),
+      seatChangeCaption: text('election-seat-change-note'),
+      voteDeltas: Array.from(document.querySelectorAll('#election-party-cards .ev-head')).map((node) => ({
+        party: node.querySelector('.ev-abbr')?.textContent.trim(),
+        value: node.querySelector('.ed-delta__value')?.textContent.trim() || '',
+        direction: (node.querySelector('.ed-delta')?.className.match(/ed-delta--([a-z]+)/) || [])[1] || null,
+        label: node.getAttribute('aria-label') || '',
+      })),
+      seatDeltas: Array.from(document.querySelectorAll('#election-seat-bars .es-row')).map((node) => ({
+        party: node.querySelector('.es-abbr')?.textContent.trim(),
+        value: node.querySelector('.ed-delta__value')?.textContent.trim() || '',
+        direction: (node.querySelector('.ed-delta')?.className.match(/ed-delta--([a-z]+)/) || [])[1] || null,
+        label: node.getAttribute('aria-label') || '',
+      })),
+      seatOpacity: {
+        rows: document.querySelectorAll('#election-seat-bars .es-row[data-opacity-bands="true"]').length,
+        p50: document.querySelectorAll('#election-seat-bars .es-row .es-range--50').length,
+        p90: document.querySelectorAll('#election-seat-bars .es-row .es-range--90').length,
+        medians: document.querySelectorAll('#election-seat-bars .es-row .es-median-mark').length,
+        legend: Boolean(document.getElementById('election-seat-opacity-legend')),
+      },
+      thresholdLabels: Array.from(document.querySelectorAll('.ev-threshold-prob__label'))
+        .map((node) => node.textContent.trim()),
       barsTitle: text('election-result-bars-title'),
       barsKey: text('election-result-bars-key'),
       deltaIntro: text('election-result-delta-intro'),
@@ -182,6 +205,12 @@ function readChart(browser) {
       currentPoints: svg.querySelectorAll('.election-timeseries__current').length,
       keyHidden: document.getElementById('election-timeseries-key-result')?.hidden !== false,
       intro: (document.getElementById('election-timeseries-intro')?.textContent || '').trim(),
+      description: svg.querySelector('desc')?.textContent || '',
+      bridges: Array.from(svg.querySelectorAll('[data-cycle-bridge="true"]')).map((node) => ({
+        from: node.getAttribute('data-from-date'),
+        to: node.getAttribute('data-to-date'),
+        medianOnly: node.getAttribute('data-median-only'),
+      })),
     };
   });
 }
@@ -201,6 +230,7 @@ const result = await readJson(SITE, RESULT);
 // joins the archived 2026 history to its left and the chart runs on past the
 // result (forecast-cycles.smoke.mjs owns that join).
 const liveHistory = await readJson(SITE, 'files/election-simulator/history/coalition-timeseries.json');
+const archivedHistory = await readJson(SITE, 'files/election-simulator/history/2026/coalition-timeseries.json');
 const historyIsDecided = liveHistory.election_date === result.election_date;
 const liveLatest = liveHistory.series.at(-1).date;
 const decidedForecast = await readJson(SITE, VERSIONS, DECIDED_GENERATION, 'forecast.json');
@@ -225,7 +255,8 @@ async function decided(viewport, name) {
     check('the result section is shown', !page.resultHidden);
     equal('the chart leads, then the result, then the comparison, then the forecast',
       page.order.slice(0, 4),
-      ['election-timeseries', 'election-result', 'election-result-delta', 'election-blocs']);
+      ['election-timeseries', 'election-headline', 'election-seats', 'election-result']);
+    equal('the result comparison is last after the disclosures', page.order.at(-1), 'election-result-delta');
     check('the simulated parliament is gone from the page', !page.simulatedChamber);
     equal('the kicker names the result', page.kicker, `Sverige · Riksdagen · valresultat ${result.election_date.slice(0, 4)}`);
     equal('the countdown cell names the next election', [page.countdownLabel, page.countdown],
@@ -281,7 +312,8 @@ async function decided(viewport, name) {
       page.rows.every((row) => /valresultat \d+,\d procent/.test(row.label) && /(högre|lägre|i nivå)/.test(row.label)));
     equal('the hero navigation follows the page',
       page.nav.slice(0, 5),
-      ['#election-timeseries', '#election-latest-poll', '#election-result', '#election-result-delta', '#election-blocs']);
+      ['#election-timeseries', '#election-latest-poll', '#election-headline', '#election-seats', '#election-result']);
+    equal('the comparison navigation link is last', page.nav.at(-1), '#election-result-delta');
     check('no horizontal scroll', page.overflow <= 0, page.overflow);
 
     // The chart: the result sits on the last day of the 2026 series, never
@@ -297,6 +329,23 @@ async function decided(viewport, name) {
     }
     check('the result key is shown', !chart.keyHidden);
     equal('one result mark per drawn series', chart.marks.map((m) => m.series), chart.drawnSeries);
+    const archiveLastDate = archivedHistory.series
+      .filter((point) => point.provenance !== 'prospective_archived').at(-1)?.date;
+    const liveFirstDate = liveHistory.series
+      .filter((point) => point.provenance !== 'prospective_archived')[0]?.date;
+    const adjacentCycleStart = Date.parse(`${liveFirstDate}T00:00:00Z`) -
+      Date.parse(`${archiveLastDate}T00:00:00Z`) === 86400000;
+    check('only adjacent election-cycle endpoints receive a median bridge',
+      adjacentCycleStart
+        ? chart.bridges.length === chart.drawnSeries.length && chart.bridges.every((bridge) =>
+          bridge.from === archiveLastDate && bridge.to === liveFirstDate && bridge.medianOnly === 'true')
+        : chart.bridges.length === 0,
+      { archiveLastDate, liveFirstDate, bridges: chart.bridges });
+    if (adjacentCycleStart) {
+      check('the accessible chart description explains the median-only cycle bridge',
+        /streckade bryggan/.test(chart.description) && /prognosintervallen förblir åtskilda/.test(chart.description),
+        chart.description);
+    }
     check('the result marks are not forecast endpoints', chart.currentPoints === chart.drawnSeries.length,
       { current: chart.currentPoints, series: chart.drawnSeries.length });
     // The chart opens on Partier: the party marks are the certified shares.
@@ -359,8 +408,11 @@ async function nextElection(viewport, name) {
     await cp(SITE, root, { recursive: true });
     await cp(NEXT_GENERATION_DIR, join(root, VERSIONS, NEXT_GENERATION), { recursive: true });
     const next = JSON.parse(await readFile(new URL('forecast.json', NEXT_GENERATION_DIR), 'utf8'));
+    const nextSeats = JSON.parse(await readFile(new URL('seats.json', NEXT_GENERATION_DIR), 'utf8'));
     const pointer = await pointerFor(root, NEXT_GENERATION);
-    const { server, browser } = await open(viewport, { root, pointer, history: await historyFixture(NEXT_HISTORY) });
+    const { server, browser } = await open(viewport, {
+      root, pointer, history: await historyFixture(NEXT_HISTORY), delayResultMs: 800,
+    });
     try {
       const page = await readPage(browser);
       equal('the fixture forecasts the next election', next.election_date, result.next_election_date);
@@ -368,6 +420,46 @@ async function nextElection(viewport, name) {
         `Sverige · Riksdagen · valresultat ${result.election_date.slice(0, 4)} · valprognos ${result.next_election_date.slice(0, 4)}`);
       equal('the bars carry the opinion change', [page.opinionChange, page.barsTitle],
         ['true', 'Röstandel och opinionsförändring']);
+      check('party summaries immediately follow the timeline',
+        page.order.slice(0, 3).join('|') === 'election-timeseries|election-headline|election-seats', page.order);
+      equal('the result comparison follows technical disclosures and ends the page',
+        page.order.at(-1), 'election-result-delta');
+      check('the comparison link is last in the hero navigation',
+        page.nav.at(-1) === '#election-result-delta' && page.nav.indexOf('#election-result') < page.nav.indexOf('#election-blocs'), page.nav);
+      check('vote and seat captions name the certified 2026 result baseline',
+        page.voteChangeCaption.includes('jämfört med valresultatet 2026') &&
+        page.seatChangeCaption.includes('jämfört med valresultatet 2026'),
+        [page.voteChangeCaption, page.seatChangeCaption]);
+      equal('delayed result/prior lookups preserve every enhanced seat interval and median marker',
+        page.seatOpacity, {
+          rows: PARTIES.length, p50: PARTIES.length, p90: PARTIES.length,
+          medians: PARTIES.length, legend: true,
+        });
+      const formatChip = (delta, floor, digits) => Math.abs(delta) < floor ? '' :
+        `${delta > 0 ? '+' : '-'}${Math.abs(delta).toFixed(digits).replace('.', ',')}`;
+      const direction = (delta, floor) => Math.abs(delta) < floor ? 'flat' : delta > 0 ? 'up' : 'down';
+      const expectedVotes = Object.entries(next.parties).map(([party, published]) => {
+        const resultShare = party === 'REST'
+          ? result.other_parties?.vote_share_pct : result.parties[party]?.vote_share_pct;
+        return [party === 'REST' ? 'Övr.' : party,
+          resultShare === undefined ? null : published.vote_share_median - resultShare];
+      });
+      check('every vote median delta uses the certified result, including Övriga when published',
+        expectedVotes.every(([party, delta]) => {
+          const row = page.voteDeltas.find((candidate) => candidate.party === party);
+          return delta === null ? !row?.direction : row &&
+            row.value === formatChip(delta, 0.05, 1) && row.direction === direction(delta, 0.05) &&
+            row.label.includes('jämfört med valresultatet 2026');
+        }), { expectedVotes, actual: page.voteDeltas });
+      check('every seat median delta uses the certified result',
+        page.seatDeltas.length === PARTIES.length && page.seatDeltas.every((row) => {
+          const delta = nextSeats.seat_summary[row.party].median - result.parties[row.party].seats;
+          return row.value === formatChip(delta, 0.5, 0) && row.direction === direction(delta, 0.5) &&
+            row.label.includes('jämfört med valresultatet 2026');
+        }), page.seatDeltas);
+      check('collapsed party rows visibly label passing probability and exclude Övriga',
+        page.thresholdLabels.some((label) => /Chans att nå 4\s*%/.test(label)) &&
+        page.thresholdLabels.includes('Övriga'), page.thresholdLabels);
       check('each change is today\'s published median minus the certified result',
         page.bars.length === PARTIES.length && page.bars.every((bar) =>
           near(bar.forecastMedian, next.parties[bar.party].vote_share_median) &&
@@ -388,6 +480,42 @@ async function nextElection(viewport, name) {
         }), page.rows.map((row) => [row.party, row.delta]));
       check('the divider is not shown: the panels below are the 2030 forecast', page.dividerHidden);
       check('no horizontal scroll', page.overflow <= 0, page.overflow);
+      equal('no console errors', appErrors(browser).map((e) => e.text), []);
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
+async function resultNotYetAvailable() {
+  console.log('\n[certified result retrieved after forecast] desktop');
+  const root = await mkdtemp(join(tmpdir(), 'election-result-not-yet-available-'));
+  try {
+    await cp(SITE, root, { recursive: true });
+    await cp(NEXT_GENERATION_DIR, join(root, VERSIONS, NEXT_GENERATION), { recursive: true });
+    const notYetAvailable = structuredClone(result);
+    notYetAvailable.retrieved_at_utc = '2026-10-06T00:00:00Z';
+    await writeFile(join(root, RESULT), `${JSON.stringify(notYetAvailable)}\n`);
+    const pointer = await pointerFor(root, NEXT_GENERATION);
+    const { server, browser } = await open(DESKTOP, {
+      root, pointer, history: await historyFixture(NEXT_HISTORY),
+    });
+    try {
+      const page = await readPage(browser);
+      const next = JSON.parse(await readFile(new URL('forecast.json', NEXT_GENERATION_DIR), 'utf8'));
+      check('the election result remains available for its result panel', !page.resultHidden);
+      check('a future-retrieved result does not become the forecast delta baseline',
+        !page.voteChangeCaption.includes('jämfört med valresultatet 2026') &&
+        !page.seatChangeCaption.includes('jämfört med valresultatet 2026'),
+        [page.voteChangeCaption, page.seatChangeCaption]);
+      check('no unavailable published-prior values are replaced by the future result',
+        next.change_since_prior.status !== 'AVAILABLE' &&
+        page.voteDeltas.every((row) => !row.direction && !row.value && !row.label.includes('valresultatet 2026')),
+        { status: next.change_since_prior.status, deltas: page.voteDeltas });
+      equal('the later result comparison panel stays visible independently', page.deltaHidden, false);
       equal('no console errors', appErrors(browser).map((e) => e.text), []);
     } finally {
       await browser.close();
@@ -432,6 +560,7 @@ await decided(MOBILE, 'mobile');
 await preElection();
 await nextElection(DESKTOP, 'desktop');
 await nextElection(MOBILE, 'mobile');
+await resultNotYetAvailable();
 await invalidResult();
 
 console.log(`\n${failures ? `FAIL (${failures})` : 'PASS'} ${checks} checks`);
