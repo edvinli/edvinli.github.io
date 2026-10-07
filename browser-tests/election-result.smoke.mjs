@@ -156,6 +156,7 @@ function readPage(browser) {
       },
       thresholdLabels: Array.from(document.querySelectorAll('.ev-threshold-prob__label'))
         .map((node) => node.textContent.trim()),
+      thresholdHeader: document.querySelector('#election-headline .ev-colhead__thr')?.textContent.trim() ?? null,
       barsTitle: text('election-result-bars-title'),
       barsKey: text('election-result-bars-key'),
       deltaIntro: text('election-result-delta-intro'),
@@ -457,9 +458,11 @@ async function nextElection(viewport, name) {
           return row.value === formatChip(delta, 0.5, 0) && row.direction === direction(delta, 0.5) &&
             row.label.includes('jämfört med valresultatet 2026');
         }), page.seatDeltas);
-      check('collapsed party rows visibly label passing probability and exclude Övriga',
-        page.thresholdLabels.some((label) => /Chans att nå 4\s*%/.test(label)) &&
-        page.thresholdLabels.includes('Övriga'), page.thresholdLabels);
+      check('one column header labels passing probability and the rows do not repeat it',
+        /^Chans att nå 4\s*%$/.test(page.thresholdHeader ?? '') &&
+        !page.thresholdLabels.some((label) => /Chans att nå/.test(label)),
+        { header: page.thresholdHeader, rows: page.thresholdLabels });
+      check('collapsed party rows exclude Övriga', page.thresholdLabels.includes('Övriga'), page.thresholdLabels);
       check('each change is today\'s published median minus the certified result',
         page.bars.length === PARTIES.length && page.bars.every((bar) =>
           near(bar.forecastMedian, next.parties[bar.party].vote_share_median) &&

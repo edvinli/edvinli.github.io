@@ -1247,7 +1247,26 @@ canvas {
 
 .election-vote-rows {
   border-top: 1px solid var(--el-rule);
+}
+
+/* One header for the threshold column instead of a label repeated in every
+   row. Sized from --ev-cols like the rows, and placed in the last column so
+   it follows the threshold cell at every breakpoint. */
+.ev-colhead {
+  display: grid;
+  gap: var(--ev-gap);
+  grid-template-columns: var(--ev-cols);
   margin-top: 1.2rem;
+  padding: 0 0.15rem 0.3rem;
+}
+
+.ev-colhead__thr {
+  color: var(--el-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  grid-column: -2 / -1;
+  line-height: 1.1;
+  text-align: right;
 }
 
 .ev-row {

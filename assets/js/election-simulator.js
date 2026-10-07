@@ -3256,8 +3256,10 @@
             "</span>" +
           "</span>" +
           "<span class=\"ev-threshold-prob" + (thresholdKnown ? "" : " ev-threshold-prob--na") + "\">" +
+            // The column header above the rows names the probability, so
+            // only the rows where it does not apply carry a label of their own.
             (thresholdKnown
-              ? "<span class=\"ev-threshold-prob__label\">Chans att n\u00e5 4&#160;%</span>"
+              ? ""
               : "<span class=\"ev-threshold-prob__label\">" + (name === "REST" ? "\u00d6vriga" : "Sp\u00e4rr") + "</span>") +
             "<span>" + escapeHtml(thresholdLabel) + "</span></span>" +
         "</button>" +

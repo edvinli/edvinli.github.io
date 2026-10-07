@@ -237,6 +237,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       <p class="election-muted">Median röstandel med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Klicka på ett parti för mer information.</p>
       <p class="election-muted" id="election-vote-change-note" hidden></p>
     </div>
+    <div class="ev-colhead" aria-hidden="true"><span class="ev-colhead__thr">Chans att nå 4&#160;%</span></div>
     <div id="election-party-cards" class="election-vote-rows"></div>
     <div id="election-vote-axis" class="ev-axis"></div>
     <p class="election-legend-note election-muted"><span class="election-key"><span class="election-key__mark election-key__mark--median" aria-hidden="true"></span>median</span><span class="election-key"><span class="election-key__mark election-key__mark--p50" aria-hidden="true"></span>50 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--p90" aria-hidden="true"></span>90 % intervall</span><span class="election-key"><span class="election-key__mark election-key__mark--threshold" aria-hidden="true"></span>4 %-spärr</span></p>
