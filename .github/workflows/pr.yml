@@ -27,7 +27,7 @@ permissions:
 jobs:
   plan:
     name: Plan affected suites
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -86,7 +86,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build:
     name: Jekyll build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -131,7 +131,7 @@ jobs:
   # ---------------------------------------------------------------------------
   browser:
     name: ${{ matrix.suite }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [plan, build]
     if: needs.plan.outputs.empty == 'false'
@@ -212,7 +212,7 @@ jobs:
   # enforced one -- it is what makes the gap tolerable, not what closes it.
   required:
     name: Website PR required checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [plan, build, browser]
     if: always()

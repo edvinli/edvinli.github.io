@@ -20,7 +20,7 @@ permissions:
 jobs:
   plan:
     name: Plan suites
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -44,7 +44,7 @@ jobs:
 
   build:
     name: Jekyll build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -80,7 +80,7 @@ jobs:
 
   browser:
     name: ${{ matrix.suite }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [plan, build]
     strategy:
@@ -125,7 +125,7 @@ jobs:
 
   required:
     name: Website full CI required checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [plan, build, browser]
     if: always()
