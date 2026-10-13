@@ -1,0 +1,1615 @@
+{
+ "schema_version": "1.0",
+ "role": "valu_demographics",
+ "election_date": "2026-09-13",
+ "source": {
+  "title": "SVT/Valu: Vallokalsundersökningen riksdagsvalet 2026 (seminarium 15 september 2026)",
+  "url": "https://omoss.svt.se/download/18.c7d6c981a0a583535d1535/1789484134179/Valu%202026%20seminarium%20260915.pdf",
+  "pages": "20–34",
+  "respondents": 13709,
+  "polling_places": "93 vallokaler och 68 förtida röstningslokaler, 26 augusti–13 september 2026",
+  "weighting": "Vägd för valresultaten 1991–2022 och det preliminära valnattsresultatet 2026",
+  "retrieved_at_utc": "2026-10-13T11:20:41Z",
+  "raw_sha256": "591d9c04d9010675a54088671f8a9b45954bb5fa6a9cd1dbbe4d7b361c4413c2"
+ },
+ "unit": "percent",
+ "rounding_note": "Varje rad summerar till ungefär 100 eftersom varje parti är avrundat för sig.",
+ "parties": [
+  "V",
+  "S",
+  "MP",
+  "C",
+  "L",
+  "KD",
+  "M",
+  "SD",
+  "Övr"
+ ],
+ "cross_sections": [
+  {
+   "id": "kon-alder",
+   "title": "Kön och ålder",
+   "page": 20,
+   "sections": [
+    {
+     "title": "Kön",
+     "groups": [
+      {
+       "label": "Kvinnor",
+       "shares": [
+        9,
+        33,
+        8,
+        7,
+        5,
+        6,
+        18,
+        13,
+        1
+       ]
+      },
+      {
+       "label": "Män",
+       "shares": [
+        7,
+        23,
+        4,
+        7,
+        6,
+        6,
+        21,
+        22,
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Ålder",
+     "groups": [
+      {
+       "label": "18–21 år",
+       "shares": [
+        13,
+        21,
+        7,
+        6,
+        2,
+        4,
+        29,
+        15,
+        2
+       ]
+      },
+      {
+       "label": "22–30 år",
+       "shares": [
+        14,
+        23,
+        7,
+        6,
+        3,
+        5,
+        22,
+        17,
+        2
+       ]
+      },
+      {
+       "label": "31–64 år",
+       "shares": [
+        8,
+        27,
+        6,
+        7,
+        6,
+        7,
+        19,
+        19,
+        2
+       ]
+      },
+      {
+       "label": "65+ år",
+       "shares": [
+        4,
+        36,
+        5,
+        7,
+        7,
+        6,
+        17,
+        16,
+        1
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kon-och-alder",
+   "title": "Kön och ålder kombinerat",
+   "page": 21,
+   "sections": [
+    {
+     "title": "Kvinnor",
+     "groups": [
+      {
+       "label": "Kvinnor 18–30 år",
+       "shares": [
+        16,
+        27,
+        10,
+        7,
+        3,
+        5,
+        21,
+        11,
+        1
+       ]
+      },
+      {
+       "label": "Kvinnor 31–64 år",
+       "shares": [
+        9,
+        32,
+        8,
+        7,
+        5,
+        6,
+        18,
+        14,
+        1
+       ]
+      },
+      {
+       "label": "Kvinnor 65+ år",
+       "shares": [
+        4,
+        40,
+        6,
+        7,
+        6,
+        7,
+        16,
+        12,
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Män",
+     "groups": [
+      {
+       "label": "Män 18–30 år",
+       "shares": [
+        12,
+        18,
+        4,
+        6,
+        3,
+        5,
+        27,
+        22,
+        3
+       ]
+      },
+      {
+       "label": "Män 31–64 år",
+       "shares": [
+        7,
+        22,
+        5,
+        8,
+        6,
+        7,
+        21,
+        23,
+        2
+       ]
+      },
+      {
+       "label": "Män 65+ år",
+       "shares": [
+        4,
+        32,
+        4,
+        8,
+        9,
+        5,
+        18,
+        19,
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "yrke-fack",
+   "title": "Sysselsättning, yrke och fack",
+   "page": 22,
+   "sections": [
+    {
+     "title": "Sysselsättning",
+     "groups": [
+      {
+       "label": "Förvärvsarbetande",
+       "shares": [
+        8,
+        25,
+        7,
+        8,
+        6,
+        7,
+        21,
+        18,
+        2
+       ]
+      },
+      {
+       "label": "Arbetslös",
+       "shares": [
+        14,
+        27,
+        7,
+        5,
+        4,
+        3,
+        14,
+        22,
+        3
+       ]
+      },
+      {
+       "label": "Sjuk-/aktivitetsersättning",
+       "shares": [
+        16,
+        29,
+        3,
+        3,
+        5,
+        4,
+        12,
+        25,
+        2
+       ]
+      },
+      {
+       "label": "Studerande",
+       "shares": [
+        16,
+        24,
+        11,
+        7,
+        3,
+        5,
+        20,
+        12,
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Yrke",
+     "groups": [
+      {
+       "label": "Arbetare",
+       "shares": [
+        10,
+        31,
+        4,
+        4,
+        3,
+        6,
+        15,
+        25,
+        2
+       ]
+      },
+      {
+       "label": "Tjänsteman",
+       "shares": [
+        7,
+        28,
+        7,
+        9,
+        7,
+        7,
+        22,
+        12,
+        1
+       ]
+      },
+      {
+       "label": "Jordbrukare",
+       "shares": [
+        7,
+        17,
+        1,
+        29,
+        4,
+        10,
+        11,
+        20,
+        0
+       ]
+      },
+      {
+       "label": "Företagare",
+       "shares": [
+        6,
+        15,
+        6,
+        10,
+        8,
+        6,
+        24,
+        23,
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Fackförbund",
+     "groups": [
+      {
+       "label": "LO",
+       "shares": [
+        9,
+        38,
+        3,
+        3,
+        2,
+        6,
+        13,
+        24,
+        2
+       ]
+      },
+      {
+       "label": "TCO",
+       "shares": [
+        8,
+        34,
+        7,
+        8,
+        6,
+        7,
+        18,
+        10,
+        1
+       ]
+      },
+      {
+       "label": "SACO",
+       "shares": [
+        10,
+        30,
+        12,
+        11,
+        7,
+        6,
+        15,
+        7,
+        1
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "utbildning",
+   "title": "Utbildning",
+   "page": 23,
+   "sections": [
+    {
+     "title": "Högsta utbildning",
+     "groups": [
+      {
+       "label": "Ej fullständig grundskola",
+       "shares": [
+        3,
+        36,
+        1,
+        4,
+        3,
+        2,
+        14,
+        34,
+        2
+       ]
+      },
+      {
+       "label": "Grundskola eller motsvarande",
+       "shares": [
+        8,
+        31,
+        2,
+        5,
+        2,
+        5,
+        18,
+        27,
+        1
+       ]
+      },
+      {
+       "label": "Gymnasium, folkhögskola eller motsvarande",
+       "shares": [
+        7,
+        26,
+        3,
+        5,
+        4,
+        6,
+        22,
+        26,
+        2
+       ]
+      },
+      {
+       "label": "Eftergymnasial, ej högskola",
+       "shares": [
+        7,
+        28,
+        3,
+        6,
+        5,
+        7,
+        20,
+        23,
+        2
+       ]
+      },
+      {
+       "label": "Högskola eller universitet",
+       "shares": [
+        9,
+        29,
+        9,
+        9,
+        7,
+        7,
+        20,
+        11,
+        1
+       ]
+      },
+      {
+       "label": "Forskarutbildning",
+       "shares": [
+        13,
+        23,
+        15,
+        15,
+        9,
+        3,
+        13,
+        6,
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sektor",
+   "title": "Sektor",
+   "page": 24,
+   "sections": [
+    {
+     "title": "Arbetsgivare",
+     "groups": [
+      {
+       "label": "Statlig",
+       "shares": [
+        9,
+        31,
+        8,
+        8,
+        5,
+        6,
+        19,
+        13,
+        1
+       ]
+      },
+      {
+       "label": "Kommunal",
+       "shares": [
+        10,
+        36,
+        7,
+        6,
+        4,
+        6,
+        15,
+        15,
+        1
+       ]
+      },
+      {
+       "label": "Privat",
+       "shares": [
+        6,
+        23,
+        5,
+        8,
+        6,
+        6,
+        23,
+        20,
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Offentlig eller privat",
+     "groups": [
+      {
+       "label": "Offentlig",
+       "shares": [
+        10,
+        35,
+        7,
+        6,
+        5,
+        6,
+        16,
+        15,
+        1
+       ]
+      },
+      {
+       "label": "Privat",
+       "shares": [
+        6,
+        23,
+        5,
+        8,
+        6,
+        6,
+        23,
+        20,
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "uppvaxt",
+   "title": "Uppväxt",
+   "page": 32,
+   "question": "Var någonstans har Du huvudsakligen vuxit upp?",
+   "sections": [
+    {
+     "title": "Själv uppväxt",
+     "groups": [
+      {
+       "label": "I Sverige",
+       "shares": [
+        8,
+        27,
+        6,
+        7,
+        6,
+        6,
+        20,
+        18,
+        2
+       ],
+       "respondents": 12032
+      },
+      {
+       "label": "I Norden utanför Sverige",
+       "shares": [
+        12,
+        34,
+        6,
+        7,
+        4,
+        6,
+        16,
+        14,
+        2
+       ],
+       "respondents": 115
+      },
+      {
+       "label": "I Europa utanför Norden",
+       "shares": [
+        9,
+        32,
+        6,
+        7,
+        3,
+        8,
+        17,
+        14,
+        3
+       ],
+       "respondents": 257
+      },
+      {
+       "label": "Utanför Europa",
+       "shares": [
+        19,
+        43,
+        4,
+        3,
+        2,
+        4,
+        11,
+        13,
+        2
+       ],
+       "respondents": 390
+      },
+      {
+       "label": "Samtliga uppväxta utanför Sverige",
+       "shares": [
+        15,
+        38,
+        5,
+        5,
+        3,
+        6,
+        14,
+        13,
+        2
+       ],
+       "respondents": 762
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "uppvaxt-foraldrar",
+   "title": "Uppväxt, även föräldrar",
+   "page": 33,
+   "question": "Var någonstans har Du, Din far och Din mor huvudsakligen vuxit upp?",
+   "sections": [
+    {
+     "title": "Själv, far eller mor uppväxt",
+     "groups": [
+      {
+       "label": "Själv, far och mor i Sverige",
+       "shares": [
+        7,
+        27,
+        6,
+        8,
+        6,
+        7,
+        20,
+        18,
+        1
+       ],
+       "respondents": 10218
+      },
+      {
+       "label": "Någon i Norden utanför Sverige",
+       "shares": [
+        11,
+        26,
+        7,
+        7,
+        5,
+        4,
+        18,
+        20,
+        3
+       ],
+       "respondents": 399
+      },
+      {
+       "label": "Någon i Europa utanför Norden",
+       "shares": [
+        9,
+        28,
+        8,
+        7,
+        6,
+        7,
+        20,
+        11,
+        3
+       ],
+       "respondents": 650
+      },
+      {
+       "label": "Någon utanför Europa",
+       "shares": [
+        21,
+        37,
+        5,
+        4,
+        2,
+        3,
+        13,
+        10,
+        2
+       ],
+       "respondents": 943
+      },
+      {
+       "label": "Samtliga där någon är uppväxt utanför Sverige",
+       "shares": [
+        15,
+        32,
+        6,
+        6,
+        4,
+        5,
+        16,
+        13,
+        3
+       ],
+       "respondents": 1992
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kyrkogang",
+   "title": "Kyrkogång",
+   "page": 34,
+   "question": "Hur ofta brukar Du gå till gudstjänst eller på möte i någon kyrka/religiöst samfund?",
+   "sections": [
+    {
+     "title": "Kyrkogång",
+     "groups": [
+      {
+       "label": "Minst en gång i månaden",
+       "shares": [
+        9,
+        28,
+        6,
+        9,
+        4,
+        14,
+        12,
+        15,
+        4
+       ]
+      },
+      {
+       "label": "Några gånger om året",
+       "shares": [
+        6,
+        28,
+        6,
+        9,
+        6,
+        9,
+        19,
+        17,
+        1
+       ]
+      },
+      {
+       "label": "Mera sällan",
+       "shares": [
+        5,
+        28,
+        5,
+        7,
+        6,
+        6,
+        22,
+        18,
+        1
+       ]
+      },
+      {
+       "label": "Aldrig",
+       "shares": [
+        10,
+        28,
+        7,
+        6,
+        5,
+        4,
+        20,
+        18,
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "trends": {
+  "years": [
+   1991,
+   1994,
+   1998,
+   2002,
+   2006,
+   2010,
+   2014,
+   2018,
+   2022,
+   2026
+  ],
+  "note": "FP/L redovisas som L. SD redovisas från 2006.",
+  "groups": [
+   {
+    "id": "kvinnor",
+    "title": "Kvinnor",
+    "page": 25,
+    "series": {
+     "V": [
+      5,
+      7,
+      14,
+      10,
+      6,
+      6,
+      6,
+      9,
+      8,
+      9
+     ],
+     "S": [
+      39,
+      45,
+      35,
+      40,
+      35,
+      33,
+      32,
+      31,
+      34,
+      33
+     ],
+     "MP": [
+      5,
+      6,
+      6,
+      6,
+      6,
+      8,
+      8,
+      6,
+      6,
+      8
+     ],
+     "C": [
+      8,
+      8,
+      5,
+      6,
+      9,
+      7,
+      7,
+      10,
+      8,
+      7
+     ],
+     "L": [
+      9,
+      7,
+      5,
+      15,
+      8,
+      7,
+      5,
+      5,
+      4,
+      5
+     ],
+     "KD": [
+      9,
+      4,
+      13,
+      10,
+      7,
+      6,
+      5,
+      6,
+      6,
+      6
+     ],
+     "M": [
+      19,
+      20,
+      20,
+      12,
+      23,
+      28,
+      22,
+      19,
+      17,
+      18
+     ],
+     "SD": [
+      null,
+      null,
+      null,
+      null,
+      2,
+      4,
+      10,
+      12,
+      16,
+      13
+     ],
+     "Övr": [
+      6,
+      2,
+      2,
+      1,
+      3,
+      2,
+      5,
+      2,
+      1,
+      1
+     ]
+    }
+   },
+   {
+    "id": "man",
+    "title": "Män",
+    "page": 26,
+    "series": {
+     "V": [
+      4,
+      6,
+      10,
+      7,
+      5,
+      5,
+      6,
+      7,
+      6,
+      7
+     ],
+     "S": [
+      36,
+      45,
+      37,
+      40,
+      34,
+      27,
+      30,
+      25,
+      26,
+      23
+     ],
+     "MP": [
+      2,
+      4,
+      3,
+      4,
+      4,
+      6,
+      6,
+      3,
+      4,
+      4
+     ],
+     "C": [
+      9,
+      7,
+      5,
+      6,
+      7,
+      6,
+      5,
+      7,
+      6,
+      7
+     ],
+     "L": [
+      9,
+      7,
+      5,
+      13,
+      7,
+      7,
+      6,
+      6,
+      5,
+      6
+     ],
+     "KD": [
+      5,
+      4,
+      10,
+      9,
+      6,
+      6,
+      5,
+      6,
+      5,
+      6
+     ],
+     "M": [
+      25,
+      25,
+      26,
+      19,
+      30,
+      33,
+      25,
+      21,
+      21,
+      21
+     ],
+     "SD": [
+      null,
+      null,
+      null,
+      null,
+      4,
+      7,
+      16,
+      22,
+      25,
+      22
+     ],
+     "Övr": [
+      9,
+      2,
+      3,
+      2,
+      3,
+      1,
+      3,
+      1,
+      2,
+      2
+     ]
+    }
+   },
+   {
+    "id": "forstagangsvaljare",
+    "title": "Unga förstagångsväljare",
+    "page": 27,
+    "series": {
+     "V": [
+      4,
+      8,
+      17,
+      15,
+      8,
+      6,
+      7,
+      11,
+      10,
+      13
+     ],
+     "S": [
+      25,
+      34,
+      27,
+      34,
+      30,
+      32,
+      23,
+      22,
+      20,
+      21
+     ],
+     "MP": [
+      6,
+      12,
+      9,
+      8,
+      9,
+      12,
+      12,
+      6,
+      5,
+      7
+     ],
+     "C": [
+      6,
+      10,
+      5,
+      7,
+      6,
+      6,
+      7,
+      11,
+      6,
+      6
+     ],
+     "L": [
+      12,
+      7,
+      6,
+      12,
+      7,
+      6,
+      6,
+      5,
+      5,
+      2
+     ],
+     "KD": [
+      6,
+      4,
+      7,
+      6,
+      3,
+      3,
+      4,
+      6,
+      5,
+      4
+     ],
+     "M": [
+      28,
+      24,
+      28,
+      16,
+      27,
+      24,
+      21,
+      24,
+      26,
+      29
+     ],
+     "SD": [
+      null,
+      null,
+      null,
+      null,
+      4,
+      8,
+      12,
+      12,
+      22,
+      15
+     ],
+     "Övr": [
+      13,
+      2,
+      3,
+      3,
+      6,
+      3,
+      7,
+      3,
+      2,
+      2
+     ]
+    }
+   },
+   {
+    "id": "65-plus",
+    "title": "65 år och äldre",
+    "page": 28,
+    "series": {
+     "V": [
+      3,
+      3,
+      5,
+      3,
+      3,
+      3,
+      4,
+      6,
+      4,
+      4
+     ],
+     "S": [
+      47,
+      48,
+      43,
+      45,
+      37,
+      36,
+      38,
+      35,
+      38,
+      36
+     ],
+     "MP": [
+      2,
+      2,
+      2,
+      1,
+      1,
+      3,
+      2,
+      3,
+      4,
+      5
+     ],
+     "C": [
+      12,
+      10,
+      5,
+      8,
+      9,
+      7,
+      5,
+      7,
+      7,
+      7
+     ],
+     "L": [
+      6,
+      4,
+      4,
+      13,
+      8,
+      7,
+      6,
+      6,
+      6,
+      7
+     ],
+     "KD": [
+      9,
+      6,
+      18,
+      10,
+      12,
+      9,
+      6,
+      9,
+      5,
+      6
+     ],
+     "M": [
+      16,
+      24,
+      19,
+      17,
+      24,
+      29,
+      24,
+      17,
+      16,
+      17
+     ],
+     "SD": [
+      null,
+      null,
+      null,
+      null,
+      2,
+      5,
+      12,
+      17,
+      20,
+      16
+     ],
+     "Övr": [
+      4,
+      2,
+      4,
+      3,
+      4,
+      1,
+      2,
+      1,
+      1,
+      1
+     ]
+    }
+   },
+   {
+    "id": "lo",
+    "title": "LO-medlemmar",
+    "page": 29,
+    "series": {
+     "V": [
+      7,
+      8,
+      17,
+      10,
+      8,
+      7,
+      7,
+      9,
+      8,
+      9
+     ],
+     "S": [
+      60,
+      68,
+      58,
+      63,
+      59,
+      54,
+      53,
+      41,
+      42,
+      38
+     ],
+     "MP": [
+      2,
+      3,
+      3,
+      3,
+      3,
+      5,
+      4,
+      2,
+      3,
+      3
+     ],
+     "C": [
+      8,
+      5,
+      4,
+      4,
+      5,
+      3,
+      3,
+      5,
+      3,
+      3
+     ],
+     "L": [
+      4,
+      3,
+      1,
+      6,
+      3,
+      4,
+      2,
+      2,
+      1,
+      2
+     ],
+     "KD": [
+      4,
+      2,
+      7,
+      7,
+      4,
+      2,
+      1,
+      4,
+      5,
+      6
+     ],
+     "M": [
+      8,
+      8,
+      7,
+      5,
+      10,
+      16,
+      10,
+      11,
+      10,
+      13
+     ],
+     "SD": [
+      null,
+      null,
+      null,
+      null,
+      4,
+      8,
+      17,
+      24,
+      27,
+      24
+     ],
+     "Övr": [
+      8,
+      3,
+      3,
+      2,
+      4,
+      1,
+      2,
+      1,
+      2,
+      2
+     ]
+    }
+   },
+   {
+    "id": "foretagare",
+    "title": "Företagare",
+    "page": 30,
+    "series": {
+     "V": [
+      1,
+      5,
+      5,
+      5,
+      2,
+      3,
+      3,
+      5,
+      3,
+      6
+     ],
+     "S": [
+      16,
+      18,
+      16,
+      21,
+      16,
+      18,
+      16,
+      12,
+      19,
+      15
+     ],
+     "MP": [
+      3,
+      3,
+      4,
+      4,
+      4,
+      6,
+      6,
+      3,
+      6,
+      6
+     ],
+     "C": [
+      6,
+      6,
+      6,
+      13,
+      9,
+      11,
+      9,
+      10,
+      8,
+      10
+     ],
+     "L": [
+      13,
+      10,
+      6,
+      15,
+      7,
+      7,
+      6,
+      5,
+      7,
+      8
+     ],
+     "KD": [
+      4,
+      5,
+      17,
+      12,
+      8,
+      6,
+      5,
+      8,
+      6,
+      6
+     ],
+     "M": [
+      42,
+      51,
+      44,
+      29,
+      46,
+      42,
+      38,
+      30,
+      26,
+      24
+     ],
+     "SD": [
+      null,
+      null,
+      null,
+      null,
+      4,
+      6,
+      13,
+      24,
+      24,
+      23
+     ],
+     "Övr": [
+      14,
+      1,
+      3,
+      2,
+      4,
+      1,
+      3,
+      2,
+      2,
+      2
+     ]
+    }
+   }
+  ]
+ },
+ "wallet_voting": {
+  "page": 31,
+  "question": "Procent som anger att ”den egna ekonomin” är av mycket stor betydelse för valet av parti i riksdagsvalet.",
+  "overall": 39,
+  "parties": {
+   "V": 24,
+   "S": 28,
+   "MP": 7,
+   "C": 16,
+   "L": 40,
+   "KD": 47,
+   "M": 56,
+   "SD": 60
+  },
+  "sections": [
+   {
+    "title": "Ålder",
+    "groups": [
+     [
+      "18–21 år",
+      38
+     ],
+     [
+      "22–30 år",
+      38
+     ],
+     [
+      "31–64 år",
+      39
+     ],
+     [
+      "65+ år",
+      38
+     ]
+    ]
+   },
+   {
+    "title": "Kön",
+    "groups": [
+     [
+      "Kvinnor",
+      37
+     ],
+     [
+      "Män",
+      40
+     ]
+    ]
+   },
+   {
+    "title": "Grupper",
+    "groups": [
+     [
+      "LO-medlemmar",
+      47
+     ],
+     [
+      "Företagare",
+      44
+     ],
+     [
+      "Arbetslösa",
+      44
+     ],
+     [
+      "Sjuk-/aktivitetsersättning",
+      52
+     ]
+    ]
+   }
+  ]
+ }
+}

@@ -2,64 +2,7 @@
   "use strict";
 
   var root = document.getElementById("election-flows");
-  var forecast = document.getElementById("election-simulator-app");
-  var tablist = document.getElementById("election-tabs");
-  if (!root || !forecast || !tablist) return;
-
-  // ---------------------------------------------------------------------
-  // Tabs.  The forecast is the default view; #valjarfloden opens the flows
-  // view, so it can be linked to directly.
-  // ---------------------------------------------------------------------
-  var tabs = Array.prototype.slice.call(tablist.querySelectorAll("[role=tab]"));
-  var FLOWS_HASH = "#valjarfloden";
-
-  function panelFor(tab) {
-    return document.getElementById(tab.getAttribute("aria-controls"));
-  }
-
-  function activate(tab, updateHash) {
-    tabs.forEach(function (other) {
-      var selected = other === tab;
-      other.setAttribute("aria-selected", selected ? "true" : "false");
-      other.tabIndex = selected ? 0 : -1;
-      panelFor(other).hidden = !selected;
-    });
-    if (updateHash && window.history && window.history.replaceState) {
-      var hash = tab.getAttribute("data-tab-hash");
-      window.history.replaceState(null, "",
-        window.location.pathname + window.location.search + (hash ? "#" + hash : ""));
-    }
-  }
-
-  tabs.forEach(function (tab, index) {
-    tab.addEventListener("click", function () { activate(tab, true); });
-    tab.addEventListener("keydown", function (event) {
-      var next = null;
-      if (event.key === "ArrowRight") next = tabs[(index + 1) % tabs.length];
-      else if (event.key === "ArrowLeft") next = tabs[(index - 1 + tabs.length) % tabs.length];
-      else if (event.key === "Home") next = tabs[0];
-      else if (event.key === "End") next = tabs[tabs.length - 1];
-      if (!next) return;
-      event.preventDefault();
-      activate(next, true);
-      next.focus();
-    });
-  });
-
-  // A link into the forecast (the hero's "Så fungerar modellen" and the
-  // like) has to bring the forecast back if the flows view is showing.
-  function syncToHash() {
-    var hash = window.location.hash;
-    if (hash === FLOWS_HASH) {
-      activate(tabs[1], false);
-      return;
-    }
-    var target = null;
-    try { target = hash ? document.querySelector(hash) : null; } catch (error) { target = null; }
-    if (target && forecast.contains(target)) activate(tabs[0], false);
-  }
-  window.addEventListener("hashchange", syncToHash);
-  syncToHash();
+  if (!root) return;
 
   // ---------------------------------------------------------------------
   // Data: net flows 2022 -> 2026, thousands of voters.  SVT/Valu exit poll,

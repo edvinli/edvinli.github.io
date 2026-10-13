@@ -44,6 +44,7 @@ node browser-tests/bloc-summary.smoke.mjs
 node browser-tests/threshold-panel.smoke.mjs
 node browser-tests/election-result.smoke.mjs
 node browser-tests/forecast-cycles.smoke.mjs
+node browser-tests/demographics.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -778,6 +779,28 @@ have nothing to do with the panel. It now serves
 does. `election-result` reads which election the live history targets. It
 asserts "nothing past election day" only while that is the decided election;
 otherwise it asserts that the axis runs on to the latest forecast.
+
+### 14. `demographics.smoke.mjs` — the SVT/Valu dashboard and the tabs
+
+"Demografisk analys" draws SVT/Valu's exit poll for 2026 (pages 20–34 of the
+15 September seminar), transcribed into
+`files/election-simulator/valu/2026-demografi.json`, against the certified
+result in `results/2026.json`. The suite reads both files and checks:
+
+- **The tabs.** `#demografi` and `#valjarfloden` open their panels, only one
+  panel shows at a time, a link into the forecast brings it back, and End moves
+  to the last tab.
+- **Partival per grupp.** Every published table and group is drawn, each
+  party's segment is as wide as its share of the row and is spoken in the bar's
+  label. With one party chosen, every bar is at the party's share on one scale
+  and the reference line is at its election result.
+- **Utveckling 1991–2026.** One line per party, the legend hides and shows
+  them, the crosshair names the nearest election, and the other mode draws one
+  line per group.
+- **Plånboksröstning.** Every published figure, against the overall line.
+- **A data file that does not validate** shows an error and draws nothing.
+
+It does not pin a forecast generation: nothing it asserts depends on one.
 
 ## Determinism: pin the generation you assert against
 

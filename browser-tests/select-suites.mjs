@@ -34,6 +34,7 @@ export const SUITES = {
   'threshold-panel.smoke.mjs': { seconds: 18, area: 'summary' },
   'election-result.smoke.mjs': { seconds: 20, area: 'summary' },
   'forecast-cycles.smoke.mjs': { seconds: 20, area: 'cycles' },
+  'demographics.smoke.mjs': { seconds: 15, area: 'demographics' },
 };
 
 const ALL = Object.keys(SUITES);
@@ -53,6 +54,12 @@ const RULES = [
   // The forecast app powers every election view.
   { prefix: 'assets/js/election-simulator.js', suites: null },
   { prefix: 'assets/js/election-latest-poll.js', suites: byArea('forecast') },
+  // The SVT/Valu dashboard and its transcribed data. Nothing else reads them.
+  { prefix: 'assets/js/election-demographics.js', suites: byArea('demographics') },
+  { prefix: 'files/election-simulator/valu/', suites: byArea('demographics') },
+  // Shows one panel and hides the rest, the forecast included, so a fault
+  // here can blank any view a suite asserts on.
+  { prefix: 'assets/js/election-tabs.js', suites: null },
   // Reorders the election sections and rebuilds the hero's section nav, whose
   // entries have to track those sections' own headings -- the first of them
   // being the bloc summary.

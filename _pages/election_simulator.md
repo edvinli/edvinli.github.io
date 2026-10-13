@@ -15,6 +15,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
 <div class="election-app election-tabs" role="tablist" aria-label="Vy" id="election-tabs">
   <button type="button" role="tab" class="election-tabs__tab" id="election-tab-forecast" aria-controls="election-simulator-app" aria-selected="true" data-tab-hash="">Prognos</button>
   <button type="button" role="tab" class="election-tabs__tab" id="election-tab-flows" aria-controls="election-flows" aria-selected="false" tabindex="-1" data-tab-hash="valjarfloden">Väljarflöden 2022–2026</button>
+  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-demographics" aria-controls="election-demographics" aria-selected="false" tabindex="-1" data-tab-hash="demografi">Demografisk analys</button>
 </div>
 
 <div id="election-simulator-app" class="election-app" role="tabpanel" aria-labelledby="election-tab-forecast" data-publication-base="{{ site.baseurl }}/files/election-simulator">
@@ -457,8 +458,34 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   </div>
 </div>
 
+<!-- How groups of voters voted in 2026, and since 1991: SVT/Valu's exit
+     poll, pages 20-34 of the 15 September 2026 seminar, transcribed into
+     files/election-simulator/valu/2026-demografi.json and drawn by
+     election-demographics.js. -->
+<div id="election-demographics" class="election-app election-demographics" role="tabpanel" aria-labelledby="election-tab-demographics" data-source="{{ site.baseurl }}/files/election-simulator/valu/2026-demografi.json" data-result="{{ site.baseurl }}/files/election-simulator/results/2026.json" hidden>
+  <header class="election-hero">
+    <p class="election-hero__kicker">Sverige · Riksdagen · vallokalsundersökning 2026</p>
+    <h2 class="evf-title">Hur olika väljargrupper röstade</h2>
+    <p class="election-hero__lede">Partival efter kön, ålder, yrke, utbildning, uppväxt och mer i riksdagsvalet 2026, hur grupperna har röstat sedan 1991 och hur många som lät den egna ekonomin avgöra. Välj analys nedan.</p>
+  </header>
+  <div class="edm-nav" role="group" aria-label="Välj analys">
+    <button type="button" class="election-timeseries__control" data-analysis="groups" aria-pressed="true" aria-controls="edm-view">Partival per grupp</button>
+    <button type="button" class="election-timeseries__control" data-analysis="trends" aria-pressed="false" aria-controls="edm-view">Utveckling 1991–2026</button>
+    <button type="button" class="election-timeseries__control" data-analysis="wallet" aria-pressed="false" aria-controls="edm-view">Plånboksröstning</button>
+  </div>
+  <div class="election-panel edm-panel" id="edm-view" aria-live="polite">
+    <p class="election-status" id="edm-status">Läser in undersökningen…</p>
+  </div>
+  <div class="election-panel evf-source">
+    <p class="election-muted" id="edm-source">Källa: SVT/Valu, vallokalsundersökningen vid riksdagsvalet 2026, sidorna 20–34 i presentationen från seminariet den 15 september 2026. Undersökningen bygger på enkätsvar från 13 709 väljare vid 93 vallokaler och 68 förtida röstningslokaler mellan 26 augusti och 13 september 2026. Resultaten är vägda mot valresultaten 1991–2022 och det preliminära valnattsresultatet 2026.</p>
+    <p class="election-muted">Andelarna är procent av gruppens röster. Varje parti är avrundat för sig, så en rad kan summera till mellan 97 och 102. Referenslinjerna för valresultatet kommer från Valmyndighetens slutliga resultat.</p>
+  </div>
+</div>
+
 <script src="{{ site.baseurl }}/assets/js/election-simulator.js?v={{ site.time | date: '%s' }}"></script>
 <script src="{{ site.baseurl }}/assets/js/election-voter-flows.js?v={{ site.time | date: '%s' }}"></script>
+<script src="{{ site.baseurl }}/assets/js/election-demographics.js?v={{ site.time | date: '%s' }}"></script>
+<script src="{{ site.baseurl }}/assets/js/election-tabs.js?v={{ site.time | date: '%s' }}"></script>
 
 <!-- Equation typesetting for "Så fungerar modellen". MathJax 3.2.2 is pinned
      and loaded on this page only; the LaTeX sits in the markup as plain text,

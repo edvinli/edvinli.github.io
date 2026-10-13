@@ -3743,6 +3743,354 @@ canvas {
   }
 }
 
+/* --- Demografisk analys (SVT/Valu 2026) ------------------------------- */
+
+.edm-nav {
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  margin: 1.4rem 0 0;
+  overflow: hidden;
+}
+
+.edm-panel {
+  margin-top: 1.2rem;
+  position: relative;
+}
+
+.edm-controls {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.3rem;
+}
+
+.edm-controls .ep-filter {
+  min-width: min(100%, 16rem);
+}
+
+.edm-controls .ep-filter__select {
+  width: auto;
+  max-width: 100%;
+}
+
+.edm-title {
+  font-size: 1.15rem;
+  margin: 0 0 0.35rem;
+}
+
+.edm-section {
+  font-family: var(--el-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  margin: 1.3rem 0 0.4rem;
+  text-transform: uppercase;
+}
+
+.edm-subsection {
+  color: var(--el-muted);
+  font-size: 0.78rem;
+  margin: 0.9rem 0 0.2rem;
+}
+
+.edm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0.9rem 0 0.4rem;
+  padding: 0;
+}
+
+.page__content .edm-legend li {
+  margin: 0;
+}
+
+.edm-legend__item {
+  align-items: center;
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule);
+  border-radius: 3px;
+  color: var(--el-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--el-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.edm-legend__item:hover {
+  background: var(--el-fill);
+}
+
+.edm-legend__toggle[aria-pressed="false"] {
+  color: var(--el-muted);
+  font-weight: 400;
+  text-decoration: line-through;
+}
+
+.edm-legend__toggle[aria-pressed="false"] .ev-swatch {
+  opacity: 0.3;
+}
+
+/* 100 % stacked bars: one per group, a 2px gap between parties. */
+.edm-stack-row,
+.edm-bar-row {
+  align-items: center;
+  border-bottom: 1px solid var(--el-rule);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(8rem, 15rem) minmax(0, 1fr);
+  padding: 0.35rem 0.1rem;
+}
+
+.edm-bar-row {
+  grid-template-columns: minmax(8rem, 15rem) minmax(0, 1fr) 3.4rem;
+}
+
+.edm-bar-row:focus-visible {
+  outline-offset: 0;
+}
+
+.edm-bar-row--key {
+  border-bottom: 0;
+  padding: 0;
+}
+
+.edm-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.edm-label small {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.68rem;
+}
+
+.edm-stack {
+  display: flex;
+  gap: 2px;
+  height: 1.55rem;
+}
+
+.edm-seg {
+  align-items: center;
+  border-radius: 2px;
+  cursor: default;
+  display: flex;
+  font-family: var(--el-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  justify-content: center;
+  min-width: 2px;
+  overflow: hidden;
+}
+
+.edm-seg:hover {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+
+.edm-track {
+  background: var(--el-fill);
+  display: block;
+  height: 0.85rem;
+  position: relative;
+}
+
+.edm-track--key {
+  background: none;
+  height: 1.2rem;
+}
+
+.edm-bar {
+  border-radius: 0 2px 2px 0;
+  display: block;
+  height: 100%;
+}
+
+.edm-ref {
+  background: var(--el-ink);
+  bottom: -0.3rem;
+  position: absolute;
+  top: -0.3rem;
+  width: 2px;
+  transform: translateX(-1px);
+}
+
+.edm-ref-label {
+  bottom: 0;
+  color: var(--el-ink);
+  font-family: var(--el-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.edm-value {
+  font-family: var(--el-mono);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+.edm-back {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--el-rule-strong);
+  color: var(--el-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  margin-top: 1rem;
+  padding: 0;
+}
+
+.edm-wallet__block + .edm-wallet__block {
+  margin-top: 1.6rem;
+}
+
+/* The trend chart is drawn at its rendered width, so text stays at size. */
+.edm-line {
+  margin-top: 0.6rem;
+  min-height: 280px;
+}
+
+.edm-line__svg {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.edm-grid {
+  stroke: var(--el-rule);
+  stroke-width: 1;
+}
+
+.edm-axis,
+.edm-end {
+  fill: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 11px;
+}
+
+.edm-end {
+  fill: var(--el-ink);
+  font-weight: 700;
+}
+
+.edm-series {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.edm-point {
+  stroke: $background-color;
+  stroke-width: 1.5;
+}
+
+.edm-cross {
+  stroke: var(--el-ink);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.edm-hit {
+  cursor: crosshair;
+  fill: transparent;
+}
+
+.edm-tip .edm-tip__row {
+  align-items: center;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.edm-tip .edm-tip__row b {
+  font-family: var(--el-mono);
+  margin-left: auto;
+  padding-left: 0.8rem;
+}
+
+.edm-table {
+  margin-top: 1.2rem;
+}
+
+.edm-table summary {
+  color: var(--el-ink);
+  cursor: pointer;
+  font-size: 0.84rem;
+}
+
+.edm-table__scroll {
+  overflow-x: auto;
+}
+
+.edm-table table {
+  font-size: 0.8rem;
+  margin-top: 0.6rem;
+  min-width: 32rem;
+}
+
+.edm-table caption {
+  color: var(--el-muted);
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.edm-table th,
+.edm-table td {
+  border-bottom: 1px solid var(--el-rule);
+  padding: 0.25rem 0.4rem;
+}
+
+.edm-table .edm-num {
+  font-family: var(--el-mono);
+  text-align: right;
+}
+
+@media (max-width: 46em) {
+  .edm-stack-row,
+  .edm-bar-row {
+    gap: 0.2rem 0.6rem;
+    grid-template-columns: minmax(0, 1fr) 3rem;
+  }
+
+  .edm-stack-row .edm-label,
+  .edm-bar-row .edm-label {
+    grid-column: 1 / -1;
+  }
+
+  .edm-stack-row .edm-stack {
+    grid-column: 1 / -1;
+  }
+
+  .edm-bar-row--key > span:first-child,
+  .edm-bar-row--key > span:last-child {
+    display: none;
+  }
+
+  .edm-nav {
+    border-radius: 1rem;
+    overflow: visible;
+  }
+
+  .edm-nav .election-timeseries__control {
+    border-radius: 999px;
+    flex: 1 1 auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .election-app *,
   .election-app *::before,
