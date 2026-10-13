@@ -3490,6 +3490,175 @@
   }
 
   // ---------------------------------------------------------------------
+  // Who sits in each seat of the certified result.  results/2026-members.json
+  // joins Valmyndigheten (the elected members and the candidate file) with
+  // Sveriges riksdag (roles in the chamber); its "sources" list the files,
+  // when they were fetched and their sha256.  Fail-closed like the result: a file that does not match
+  // the drawn chamber party by party, seat for seat, leaves the chamber as
+  // the plain allocation, without hover.
+  // ---------------------------------------------------------------------
+  var ELECTED_MEMBERS_PATH = "results/2026-members.json";
+  var RIKSDAG_STATUS_NOTE = { on_leave: "Ledig från riksdagen", left: "Har lämnat riksdagen" };
+
+  function optionalString(value) {
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  }
+
+  function normalizeElectedMembers(payload, result) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    if (payload.schema_version !== "1.0" || payload.role !== "elected_members") return null;
+    if (payload.election_date !== result.electionDate || num(payload.total_seats) !== CHAMBER) return null;
+    var source = payload.parties;
+    if (!source || typeof source !== "object") return null;
+    var parties = {};
+    for (var index = 0; index < HISTORY_PARTIES.length; index += 1) {
+      var party = HISTORY_PARTIES[index];
+      var list = source[party];
+      if (!Array.isArray(list) || list.length !== result.parties[party].seats) return null;
+      var members = [];
+      for (var i = 0; i < list.length; i += 1) {
+        var entry = list[i];
+        var name = entry ? optionalString(entry.name) : null;
+        if (!name) return null;
+        var age = entry.age === null ? null : num(entry.age);
+        if (entry.age !== null && (age === null || age < 18 || Math.floor(age) !== age)) return null;
+        var roles = Array.isArray(entry.riksdag_roles) ? entry.riksdag_roles.map(optionalString).filter(Boolean) : [];
+        members.push({
+          name: name,
+          age: age,
+          title: optionalString(entry.title),
+          municipality: optionalString(entry.municipality),
+          constituency: optionalString(entry.constituency),
+          roles: roles,
+          status: RIKSDAG_STATUS_NOTE[entry.riksdag_status] ? entry.riksdag_status : null
+        });
+      }
+      parties[party] = members;
+    }
+    return parties;
+  }
+
+  function memberLines(party, member) {
+    return {
+      meta: (partyNames[party] || party) + (member.age !== null ? " · " + member.age + " år" : ""),
+      title: member.title,
+      home: member.municipality ? "Bor i " + member.municipality : null,
+      riksdag: member.roles.concat(member.status ? [RIKSDAG_STATUS_NOTE[member.status]] : []).join(" · ") || null
+    };
+  }
+
+  function showChamberMembers(host, result) {
+    if (!host || host.getAttribute("data-members") === "true") return;
+    getJson(ELECTED_MEMBERS_PATH).then(function (payload) {
+      var members = normalizeElectedMembers(payload, result);
+      if (!members) return;
+      var seats = Array.prototype.slice.call(host.querySelectorAll(".election-seat[data-party]"));
+      if (seats.length !== CHAMBER) return;
+      var taken = {};
+      seats.forEach(function (seat) {
+        var party = seat.getAttribute("data-party");
+        taken[party] = (taken[party] || 0) + 1;
+        seat.memberParty = party;
+        seat.member = members[party][taken[party] - 1];
+      });
+      if (seats.some(function (seat) { return !seat.member; })) return;
+      bindChamberMembers(host, seats);
+    }).catch(function (error) {
+      console.warn("Ledamöterna kunde inte visas.", error);
+    });
+  }
+
+  function bindChamberMembers(host, seats) {
+    var frame = host.parentNode;
+    var status = byId("election-result-member-status");
+    var tip = document.createElement("div");
+    tip.className = "ep-tip";
+    tip.id = "election-result-member-tip";
+    tip.setAttribute("role", "tooltip");
+    tip.hidden = true;
+    frame.appendChild(tip);
+    var current = -1;
+
+    function show(index, announce) {
+      var seat = seats[index];
+      if (!seat) return;
+      if (seats[current]) seats[current].classList.remove("is-current");
+      current = index;
+      seat.classList.add("is-current");
+      var lines = memberLines(seat.memberParty, seat.member);
+      tip.innerHTML =
+        "<span class=\"ep-tip__name\"><span class=\"ev-swatch\" style=\"background:" + (partyColors[seat.memberParty] || "#777") +
+          "\" aria-hidden=\"true\"></span>" + escapeHtml(seat.member.name) + "</span>" +
+        "<span class=\"ep-tip__meta\">" + escapeHtml(lines.meta) + "</span>" +
+        (lines.title ? "<span class=\"ep-tip__line\">" + escapeHtml(lines.title) + "</span>" : "") +
+        (lines.home ? "<span class=\"ep-tip__line\">" + escapeHtml(lines.home) + "</span>" : "") +
+        (lines.riksdag ? "<span class=\"ep-tip__role\">" + escapeHtml(lines.riksdag) + "</span>" : "");
+      tip.hidden = false;
+      // Above the seat, kept inside the frame; below it for the top rows.
+      var box = frame.getBoundingClientRect();
+      var dot = seat.getBoundingClientRect();
+      var x = dot.left + dot.width / 2 - box.left;
+      var half = tip.offsetWidth / 2;
+      tip.style.left = Math.max(half, Math.min(box.width - half, x)) + "px";
+      var above = dot.top - box.top - tip.offsetHeight - 8;
+      tip.style.top = (above >= 0 ? above : dot.bottom - box.top + 8) + "px";
+      if (announce && status) {
+        status.textContent = [seat.member.name, lines.meta, lines.title, lines.home, lines.riksdag]
+          .filter(Boolean).join(", ") + ". Mandat " + (index + 1) + " av " + CHAMBER + ".";
+      }
+    }
+
+    function hide() {
+      if (seats[current]) seats[current].classList.remove("is-current");
+      current = -1;
+      tip.hidden = true;
+    }
+
+    function seatAt(event) {
+      var target = event.target;
+      return target && target.classList && target.classList.contains("election-seat") ? seats.indexOf(target) : -1;
+    }
+
+    host.addEventListener("mouseover", function (event) {
+      var index = seatAt(event);
+      if (index >= 0) show(index, false);
+    });
+    host.addEventListener("mouseleave", function () {
+      if (document.activeElement !== host) hide();
+    });
+    // A tap shows the seat; tapping anywhere else closes it.
+    host.addEventListener("click", function (event) {
+      var index = seatAt(event);
+      if (index >= 0) show(index, true);
+    });
+    document.addEventListener("click", function (event) {
+      if (current >= 0 && !host.contains(event.target)) hide();
+    });
+    host.addEventListener("focus", function () {
+      show(current >= 0 ? current : 0, true);
+    });
+    host.addEventListener("blur", hide);
+    host.addEventListener("keydown", function (event) {
+      var next = null;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") next = current + 1;
+      else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = current - 1;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = seats.length - 1;
+      else if (event.key === "Escape") { hide(); return; }
+      if (next === null) return;
+      event.preventDefault();
+      show(Math.max(0, Math.min(seats.length - 1, next)), true);
+    });
+
+    host.setAttribute("data-members", "true");
+    host.setAttribute("role", "group");
+    host.setAttribute("aria-describedby", "election-result-members-note");
+    host.tabIndex = 0;
+    var note = byId("election-result-members-note");
+    if (note) note.hidden = false;
+  }
+
+  // ---------------------------------------------------------------------
   // 4. Build your own government
   //
   // This view is deliberately lookup-only.  The published coalition_builder
@@ -5643,6 +5812,7 @@
         "<span class=\"ep-legend__seats\">" + entry.seats + "</span></li>";
     }).join(""));
     reveal("election-result");
+    showChamberMembers(parliament, result);
 
     var divider = byId("election-forecast-divider");
     if (divider && decided) {

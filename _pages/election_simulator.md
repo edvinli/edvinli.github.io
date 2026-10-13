@@ -119,6 +119,10 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
     </div>
     <ul id="election-result-legend" class="ep-legend"></ul>
+    <!-- Shown once results/2026-members.json has matched the chamber seat for
+         seat; until then the chamber is the plain allocation. -->
+    <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Källor: Sveriges riksdag och Valmyndigheten.</p>
+    <p id="election-result-member-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
   </section>
   <!-- The current forecast against the last certified result, party by
        party. Every number is read from forecast.json and results/<year>.json;

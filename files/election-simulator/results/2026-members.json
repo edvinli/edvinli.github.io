@@ -1,0 +1,3353 @@
+{
+ "schema_version": "1.0",
+ "role": "elected_members",
+ "election_date": "2026-09-13",
+ "total_seats": 349,
+ "party_order": [
+  "M",
+  "L",
+  "C",
+  "KD",
+  "S",
+  "V",
+  "MP",
+  "SD"
+ ],
+ "age_definition": "age_on_election_day",
+ "municipality_definition": "folkbokforingskommun_else_ballot_place",
+ "riksdag_roles_as_of": "2026-10-13",
+ "sources": [
+  {
+   "url": "https://resultat.val.se/data/resultat/val2026/RD_S.json",
+   "title": "Valmyndigheten: Val till riksdagen - Slutligt valresultat",
+   "retrieved_at_utc": "2026-10-13T08:13:35Z",
+   "raw_sha256": "1998afdc723a83b325c729faf68063c8731e33496fc274bf9fbb80499e0afb08"
+  },
+  {
+   "url": "https://data.val.se/filer/val2026/parti/kandidaturer.csv",
+   "title": "Valmyndigheten: Kandidaturer i val 2026",
+   "retrieved_at_utc": "2026-10-13T08:13:35Z",
+   "raw_sha256": "84fc6b2d83abc51815eb39c95f02a4870db717b0bb7e3c8f8a1caba5c50719c6"
+  },
+  {
+   "url": "https://data.riksdagen.se/personlista/?rdlstatus=tjanst&utformat=json",
+   "title": "Sveriges riksdag: Ledamöter (personlista)",
+   "retrieved_at_utc": "2026-10-13T08:13:35Z",
+   "raw_sha256": "f6c2e7e0995ec621ecd8d1c91fd6fc5c84f55ad14cebe681f8a620b3ca8b8f74"
+  }
+ ],
+ "parties": {
+  "M": [
+   {
+    "name": "Carl Nordblom",
+    "age": 32,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Gunnar Strömmer",
+    "age": 53,
+    "title": "Justitieminister",
+    "municipality": null,
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Justitieminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Jessica Rosencrantz",
+    "age": 38,
+    "title": "EU-minister",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "EU-minister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Johan Forssell",
+    "age": 46,
+    "title": "Migrationsminister",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Migrationsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Benjamin Dousa",
+    "age": 33,
+    "title": "Bistånds- och utrikeshandelsminister",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Bistånds- och utrikeshandelsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Kristina Axén Olin",
+    "age": 63,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Adam Reuterskiöld",
+    "age": 60,
+    "title": "Lantbrukare",
+    "municipality": "Ekerö",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Parisa Liljestrand",
+    "age": 43,
+    "title": "Kulturminister",
+    "municipality": "Vallentuna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Kulturminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Niklas Wykman",
+    "age": 45,
+    "title": "Finansmarknadsminister",
+    "municipality": "Solna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Finansmarknadsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Karin Enström",
+    "age": 60,
+    "title": "Riksdagsledamot, kapten",
+    "municipality": "Vaxholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Partisekreterare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Erik Ottoson",
+    "age": 36,
+    "title": "Riksdagsledamot",
+    "municipality": "Huddinge",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Josefin Malmqvist",
+    "age": 39,
+    "title": "Riksdagsledamot",
+    "municipality": "Sundbyberg",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Fredrik Kärrholm",
+    "age": 41,
+    "title": "Kriminolog",
+    "municipality": "Österåker",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ida Drougge",
+    "age": 36,
+    "title": "Riksdagsledamot",
+    "municipality": "Lidingö",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Alexandra Anstrell",
+    "age": 51,
+    "title": "Riksdagsledamot",
+    "municipality": "Haninge",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Joanna Lewerentz",
+    "age": 33,
+    "title": "Lärare",
+    "municipality": "Sollentuna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Stefan Olsson",
+    "age": 58,
+    "title": "Riksdagsledamot",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Fredrik Ahlstedt",
+    "age": 58,
+    "title": "Riksdagsledamot",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [
+     "Vice ordförande i utrikesutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ulf Kristersson",
+    "age": 62,
+    "title": "Statsminister, partiledare",
+    "municipality": "Strängnäs",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [
+     "Statsminister",
+     "Partiledare"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Anna af Sillén",
+    "age": 50,
+    "title": "Riksdagsledamot",
+    "municipality": "Nyköping",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Andreas Norlén",
+    "age": 53,
+    "title": "Riksdagens talman",
+    "municipality": "Norrköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [
+     "Talman"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Matilda Ekeblad",
+    "age": 30,
+    "title": "Projektledare",
+    "municipality": "Boxholm",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "John E. Weinerhall",
+    "age": 31,
+    "title": "Riksdagsledamot",
+    "municipality": "Linköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mats Green",
+    "age": 47,
+    "title": "Riksdagsledamot",
+    "municipality": "Jönköping",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Susanne Wahlström",
+    "age": 53,
+    "title": "Kommunikatör",
+    "municipality": "Habo",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Oliver Rosengren",
+    "age": 34,
+    "title": "Riksdagsledamot",
+    "municipality": "Växjö",
+    "constituency": "Kronobergs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Thomas Ragnarsson",
+    "age": 56,
+    "title": "Ambulanssjuksköterska",
+    "municipality": "Ljungby",
+    "constituency": "Kronobergs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Olle Olson",
+    "age": 31,
+    "title": "Lärare",
+    "municipality": "Kalmar",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Marie Nicholson",
+    "age": 49,
+    "title": "Riksdagsledamot",
+    "municipality": "Kalmar",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jesper Skalberg Karlsson",
+    "age": 33,
+    "title": "Riksdagsledamot",
+    "municipality": "Gotland",
+    "constituency": "Gotlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Åsa Coenraads",
+    "age": 48,
+    "title": "Näringspolitisk expert",
+    "municipality": "Karlshamn",
+    "constituency": "Blekinge län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Noria Manouchi",
+    "age": 35,
+    "title": "Riksdagsledamot",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Peter Ollén",
+    "age": 67,
+    "title": "Riksdagsledamot",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Alexander Svensson",
+    "age": 30,
+    "title": "Kommunalråd",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mats Sander",
+    "age": 63,
+    "title": "Flygvapenofficer",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Boriana Åberg",
+    "age": 57,
+    "title": "Riksdagsledamot, socionom",
+    "municipality": "Kävlinge",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [
+     "Ordförande i skatteutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Louise Meijer",
+    "age": 36,
+    "title": "Riksdagsledamot, jurist",
+    "municipality": "Lund",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Amanda Thonander",
+    "age": 29,
+    "title": "Kriminolog",
+    "municipality": "Lund",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Maria Malmer Stenergard",
+    "age": 45,
+    "title": "Utrikesmin., jurist",
+    "municipality": "Åhus",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [
+     "Utrikesminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Daniel Lyckestam",
+    "age": 34,
+    "title": "Samhällsvetare",
+    "municipality": "Östra Göinge",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Helena Storckenfeldt",
+    "age": 31,
+    "title": "Riksdagsledamot",
+    "municipality": "Kungsbacka",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Hanna Netterberg",
+    "age": 43,
+    "title": "Ingenjör",
+    "municipality": "Varberg",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Lars Püss",
+    "age": 60,
+    "title": "Riksdagsledamot",
+    "municipality": "Halmstad",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Marie-Louise Hänel Sandström",
+    "age": 57,
+    "title": "Läkare",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Gustaf Göthberg",
+    "age": 32,
+    "title": "Riksdagsledamot",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "David Josefsson",
+    "age": 42,
+    "title": "Riksdagsledamot",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Camilla Waltersson Grönvall",
+    "age": 57,
+    "title": "Socialtjänstminister",
+    "municipality": "Lilla Edet",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [
+     "Socialtjänstminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Johanna Rantsi",
+    "age": 36,
+    "title": "Riksdagsledamot",
+    "municipality": "Mölndal",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anna Vedin",
+    "age": 60,
+    "title": "Resurspedagog",
+    "municipality": "Kungälv",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ann-Sofie Alm",
+    "age": 54,
+    "title": "Riksdagsledamot",
+    "municipality": "Munkedal",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jennie Bergius Eriksson",
+    "age": 44,
+    "title": "Civilekonom",
+    "municipality": "Trollhättan",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ulrik Nilsson",
+    "age": 63,
+    "title": "Riksdagsledamot",
+    "municipality": "Borås",
+    "constituency": "Västra Götalands läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Annelie Hastig Olsson",
+    "age": 52,
+    "title": "Företagare",
+    "municipality": "Vårgårda",
+    "constituency": "Västra Götalands läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Sten Bergheden",
+    "age": 61,
+    "title": "Riksdagsledamot",
+    "municipality": "Mariestad",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Charlotte Nordström",
+    "age": 62,
+    "title": "Riksdagsledamot",
+    "municipality": "Skara",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Pål Jonson",
+    "age": 54,
+    "title": "Försvarsminister",
+    "municipality": "Arvika",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [
+     "Försvarsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Magnus Resare",
+    "age": 39,
+    "title": "Riksdagsledamot/Advokat",
+    "municipality": "Karlstad",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Elisabeth Svantesson",
+    "age": 58,
+    "title": "Finansminister",
+    "municipality": "Örebro",
+    "constituency": "Örebro län",
+    "riksdag_roles": [
+     "Finansminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Oskar Svärd",
+    "age": 30,
+    "title": "Riksdagsledamot",
+    "municipality": "Örebro",
+    "constituency": "Örebro län",
+    "riksdag_roles": [
+     "Vice ordförande i miljö- och jordbruksutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Caroline Högström",
+    "age": 34,
+    "title": "Riksdagsledamot",
+    "municipality": "Västerås",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mikael Damsgaard",
+    "age": 49,
+    "title": "Riksdagsledamot",
+    "municipality": "Västerås",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Carl-Oskar Bohlin",
+    "age": 40,
+    "title": "Statsråd",
+    "municipality": "Borlänge",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [
+     "Minister för civilt försvar"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Crister Carlsson",
+    "age": 62,
+    "title": "Ambulanssjuksköterska",
+    "municipality": "Falun",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Viktor Wärnick",
+    "age": 35,
+    "title": "Riksdagsledamot/jurist",
+    "municipality": "Söderhamn",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Lars Beckman",
+    "age": 58,
+    "title": "Riksdagsledamot/regionchef",
+    "municipality": "Gävle",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jörgen Berglund",
+    "age": 52,
+    "title": null,
+    "municipality": "Sundsvall",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [
+     "Ordförande i försvarsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Elise Ryder Wikén",
+    "age": 57,
+    "title": "F.d. regionråd",
+    "municipality": "Berg",
+    "constituency": "Jämtlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Edward Riedl",
+    "age": 50,
+    "title": "Riksdagsledamot",
+    "municipality": "Umeå",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [
+     "Vice ordförande i finansutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mattias Karlsson",
+    "age": 54,
+    "title": "Riksdagsledamot",
+    "municipality": "Luleå",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Linda Frohm",
+    "age": 49,
+    "title": "Regionråd",
+    "municipality": "Kalix",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ],
+  "L": [
+   {
+    "name": "Lotta Edholm",
+    "age": 61,
+    "title": "Gymnasie-, högskole- och forskningsminister",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Gymnasie-, högskole- och forskningsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Romina Pourmokhtari",
+    "age": 30,
+    "title": "Klimat- och miljöminister",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Klimat- och miljöminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Joar Forssell",
+    "age": 33,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Förste vice gruppledare",
+     "Vice ordförande i näringsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Nina Larsson",
+    "age": 49,
+    "title": "Jämställdhetsminister/reservofficer",
+    "municipality": "Haninge",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Jämställdhetsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Johan Britz",
+    "age": 51,
+    "title": "Arbetsmarknadsminister/civilingenjör",
+    "municipality": "Stockholms stad",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Arbetsmarknadsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Karin Karlsbro",
+    "age": 55,
+    "title": "Europaparlamentariker",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "left"
+   },
+   {
+    "name": "Lina Nordquist",
+    "age": 48,
+    "title": "Docent i fysiologi, författare",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Patrik Karlson",
+    "age": 39,
+    "title": null,
+    "municipality": "Norrköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Erik Nygårds",
+    "age": 61,
+    "title": "Näringslivsutvecklare",
+    "municipality": "Tranås",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Lars Leijonborg",
+    "age": 76,
+    "title": "Tidigare partiledare",
+    "municipality": "Stockholm",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mauricio Rojas Mullor",
+    "age": 76,
+    "title": null,
+    "municipality": "Lund",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Camilla Mårtensen",
+    "age": 56,
+    "title": null,
+    "municipality": "Landskrona",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Marianne Littke",
+    "age": 61,
+    "title": null,
+    "municipality": "Hässleholm",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Hanna Schölander",
+    "age": 47,
+    "title": "Tjl Enhetschef",
+    "municipality": "Kungsbacka",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Simona Mohamsson",
+    "age": 31,
+    "title": "Partiledare",
+    "municipality": "Stockholm",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [
+     "Utbildnings- och integrationsminister",
+     "Partiledare"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Elin Andersson",
+    "age": 44,
+    "title": "Civilingenjör",
+    "municipality": "Mölndal",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Cecilia Prins",
+    "age": 47,
+    "title": "Frisör",
+    "municipality": "Vänersborg",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Willhelm Sundman",
+    "age": 34,
+    "title": "Oppositionsråd",
+    "municipality": "Örebro",
+    "constituency": "Örebro län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Roger Haddad",
+    "age": 48,
+    "title": "Statsvetare",
+    "municipality": "Västerås",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ],
+  "C": [
+   {
+    "name": "Elisabeth Thand Ringqvist",
+    "age": 54,
+    "title": "Partiledare",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Partiledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Birgitta Ohlsson",
+    "age": 51,
+    "title": "Fd Minister/Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Martin Ådahl",
+    "age": 56,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Kerstin Lundgren",
+    "age": 71,
+    "title": "Riksdagsledamot",
+    "municipality": "Södertälje",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Tredje vice talman"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anna Lasses",
+    "age": 49,
+    "title": "Statsvetare",
+    "municipality": "Nacka",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Rasmus Elfström",
+    "age": 29,
+    "title": "Jurist",
+    "municipality": "Solna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Catarina Deremar",
+    "age": 60,
+    "title": "Riksdagsledamot",
+    "municipality": "Tierp",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Martina Johansson",
+    "age": 51,
+    "title": "Riksdagsledamot",
+    "municipality": "Trosa",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Muharrem Demirok",
+    "age": 49,
+    "title": "Riksdagsledamot",
+    "municipality": "Linköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Emma Brihall",
+    "age": 29,
+    "title": "Agronom",
+    "municipality": "Jönköping",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Emmy Ahlstedt",
+    "age": 45,
+    "title": "Regionråd",
+    "municipality": "Mörbylånga",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Niels Paarup-Petersen",
+    "age": 48,
+    "title": "Riksdagsledamot",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Magnus Haara",
+    "age": 53,
+    "title": "Jurist",
+    "municipality": "Höör",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Stina Larsson",
+    "age": 49,
+    "title": "Riksdagsledamot",
+    "municipality": "Kävlinge",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [
+     "Förste vice gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Birte Sandberg",
+    "age": 61,
+    "title": "Fil.master utb.vetenskap",
+    "municipality": "Tomelilla",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Christofer Bergenblock",
+    "age": 51,
+    "title": "Riksdagsledamot",
+    "municipality": "Varberg",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Rickard Nordin",
+    "age": 43,
+    "title": "Riksdagsledamot, vice partiledare",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anders Ådahl",
+    "age": 54,
+    "title": "Riksdagsledamot",
+    "municipality": "Mölndal",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [
+     "Andre vice gruppledare",
+     "Ordförande i näringsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ulrika Heie",
+    "age": 61,
+    "title": "Riksdagsledamot",
+    "municipality": "Skövde",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [
+     "Vice ordförande i trafikutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Daniel Bäckström",
+    "age": 50,
+    "title": "Riksdagsledamot",
+    "municipality": "Säffle",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Helena Vilhelmsson",
+    "age": 61,
+    "title": "Riksdagsledamot",
+    "municipality": "Nora",
+    "constituency": "Örebro län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ulrika Liljeberg",
+    "age": 57,
+    "title": "Kammaråklagare",
+    "municipality": "Leksand",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Caroline Schmidt",
+    "age": 65,
+    "title": "Oppositionsråd",
+    "municipality": "Hudiksvall",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anne-Li Sjölund",
+    "age": 60,
+    "title": null,
+    "municipality": "Sundsvall",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Julia Algotsson",
+    "age": 30,
+    "title": "Sakkunnig skog och lantbruk",
+    "municipality": "Umeå",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ],
+  "KD": [
+   {
+    "name": "Camilla Brodin",
+    "age": 47,
+    "title": "Riksdagsledamot",
+    "municipality": "Täby",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Christian Carlsson",
+    "age": 39,
+    "title": "Riksdagsledamot, jurist",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jakob Forssmed",
+    "age": 51,
+    "title": "Socialminister",
+    "municipality": "Sollentuna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Socialminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Mikael Oscarsson",
+    "age": 59,
+    "title": "Riksdagsledamot",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Paul Sabo",
+    "age": 25,
+    "title": "Jurist",
+    "municipality": "Eskilstuna",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Magnus Oscarsson",
+    "age": 56,
+    "title": "Riksdagsledamot",
+    "municipality": "Ödeshög",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Camilla Rinaldo Miller",
+    "age": 57,
+    "title": "Riksdagsledamot",
+    "municipality": "Värnamo",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Carl Wiktor Svensson",
+    "age": 36,
+    "title": "Skogstekniker",
+    "municipality": "Högsby",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Cecilia Engström",
+    "age": 53,
+    "title": "Riksdagsledamot",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Martin Hallander",
+    "age": 33,
+    "title": "Regionpolitiker",
+    "municipality": "Malmö",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Larry Söder",
+    "age": 57,
+    "title": "Riksdagsledamot",
+    "municipality": "Kungsbacka",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Elisabet Lann",
+    "age": 49,
+    "title": "Sjukvårdsminister",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [
+     "Sjukvårdsminister"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Magnus Berntsson",
+    "age": 53,
+    "title": "Riksdagsledamot",
+    "municipality": "Öckerö",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Magnus Jacobsson",
+    "age": 58,
+    "title": "Riksdagsledamot",
+    "municipality": "Uddevalla",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ingemar Kihlström",
+    "age": 60,
+    "title": "Riksdagsledamot",
+    "municipality": "Herrljunga",
+    "constituency": "Västra Götalands läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Dan Hovskär",
+    "age": 56,
+    "title": "Riksdagsledamot",
+    "municipality": "Falköping",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Kjell-Arne Ottosson",
+    "age": 51,
+    "title": "Riksdagsledamot",
+    "municipality": "Årjäng",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [
+     "Ordförande i civilutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ebba Busch",
+    "age": 39,
+    "title": "Partiledare, Vice statsminister",
+    "municipality": "Uppsala",
+    "constituency": "Örebro län",
+    "riksdag_roles": [
+     "Energi- och näringsminister",
+     "Partiledare"
+    ],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Mathias Bengtsson",
+    "age": 28,
+    "title": "Riksdagsledamot",
+    "municipality": "Falun",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Lili André",
+    "age": 56,
+    "title": "Ingenjör, Riksdagsledamot",
+    "municipality": "Gävle",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Liza-Maria Norlin",
+    "age": 46,
+    "title": "Partisekreterare",
+    "municipality": "Sundsvall",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [
+     "Partisekreterare",
+     "Vice ordförande i utbildningsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Veronica Kerr",
+    "age": 56,
+    "title": "Gruppledare",
+    "municipality": "Umeå",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ],
+  "S": [
+   {
+    "name": "Anders Ygeman",
+    "age": 56,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Lawen Redar",
+    "age": 36,
+    "title": "Riksdagsledamot",
+    "municipality": null,
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mattias Vepsä",
+    "age": 46,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Talla Alkurdi",
+    "age": 42,
+    "title": "Regionråd",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Kadir Kasirga",
+    "age": 51,
+    "title": "Stationsvärd",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jytte Guteland",
+    "age": 46,
+    "title": "Riksdagsledamot",
+    "municipality": null,
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Markus Kallifatides",
+    "age": 54,
+    "title": "Ekonom",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mirja Räihä",
+    "age": 67,
+    "title": "Undersköterska",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Daniel Vencu Velasquez Castro",
+    "age": 31,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Magdalena Andersson",
+    "age": 59,
+    "title": "Partiledare",
+    "municipality": "Nacka",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Partiledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mikael Damberg",
+    "age": 54,
+    "title": "Riksdagsledamot",
+    "municipality": "Solna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Ordförande i finansutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Åsa Westlund",
+    "age": 50,
+    "title": "Riksdagsledamot",
+    "municipality": "Haninge",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Sarkis Khatchadourian",
+    "age": 29,
+    "title": "Civilingenjör",
+    "municipality": "Södertälje",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Alexandra Völker",
+    "age": 37,
+    "title": "Statsvetare",
+    "municipality": "Sundbyberg",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Leif Nysmed",
+    "age": 55,
+    "title": "Byggnadsarbetare",
+    "municipality": "Huddinge",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Azadeh Rojhan",
+    "age": 40,
+    "title": "Riksdagsledamot",
+    "municipality": "Upplands Väsby",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mathias Tegnér",
+    "age": 47,
+    "title": "Civilekonom",
+    "municipality": "Tyresö",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Katarina Berggren",
+    "age": 58,
+    "title": "Ombudsman Kommunal",
+    "municipality": "Botkyrka",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Markus Selin",
+    "age": 47,
+    "title": "Civilingenjör/civilekonom",
+    "municipality": "Täby",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Andrine Winther",
+    "age": 49,
+    "title": "Avdelningschef",
+    "municipality": "Värmdö",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Emil Högberg",
+    "age": 50,
+    "title": "Jurist/kommunalråd",
+    "municipality": "Huddinge",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ardalan Shekarabi",
+    "age": 47,
+    "title": "Riksdagsledamot",
+    "municipality": "Knivsta",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [
+     "Ordförande i arbetsmarknadsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ylva Stadell",
+    "age": 44,
+    "title": "Ombudsman",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Gustaf Lantz",
+    "age": 45,
+    "title": "Riksdagsledamot",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Åsa Andersson",
+    "age": 55,
+    "title": "Stödassistent",
+    "municipality": "Enköping",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Fredrik Olovsson",
+    "age": 53,
+    "title": "Riksdagsledamot",
+    "municipality": "Katrineholm",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Sofia Amloh",
+    "age": 40,
+    "title": "Stålverksarbetare",
+    "municipality": "Nyköping",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jimmy Jansson",
+    "age": 48,
+    "title": "Lärare",
+    "municipality": "Eskilstuna",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Teresa Carvalho",
+    "age": 42,
+    "title": "Riksdagsledamot",
+    "municipality": "Norrköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [
+     "Ordförande i justitieutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Johan Andersson",
+    "age": 64,
+    "title": "Riksdagsledamot",
+    "municipality": "Motala",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Eva Lindh",
+    "age": 54,
+    "title": "Riksdagsledamot",
+    "municipality": "Linköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Elias Aguirre",
+    "age": 42,
+    "title": "Kommunalråd",
+    "municipality": "Linköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Johanna Haraldsson",
+    "age": 46,
+    "title": "Riksdagsledamot",
+    "municipality": "Vetlanda",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [
+     "Förste vice talman"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ilan De Basso",
+    "age": 56,
+    "title": "Fd. EU-parlamentariker",
+    "municipality": "Jönköping",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Azra Muranovic",
+    "age": 39,
+    "title": "Riksdagsledamot",
+    "municipality": "Värnamo",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Monica Haider",
+    "age": 63,
+    "title": null,
+    "municipality": "Älmhult",
+    "constituency": "Kronobergs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Robert Olesen",
+    "age": 51,
+    "title": null,
+    "municipality": "Alvesta",
+    "constituency": "Kronobergs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Lena Hallengren",
+    "age": 52,
+    "title": "Riksdagsledamot",
+    "municipality": "Kalmar",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Marcus Fridlund",
+    "age": 34,
+    "title": "Drifttekniker",
+    "municipality": "Västervik",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Meit Fohlin",
+    "age": 55,
+    "title": null,
+    "municipality": "Gotland",
+    "constituency": "Gotlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "left"
+   },
+   {
+    "name": "Heléne Björklund",
+    "age": 53,
+    "title": "Riksdagsledamot",
+    "municipality": "Sölvesborg",
+    "constituency": "Blekinge län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Magnus Johansson",
+    "age": 59,
+    "title": "Regionråd",
+    "municipality": "Karlskrona",
+    "constituency": "Blekinge län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Joakim Sandell",
+    "age": 51,
+    "title": "Riksdagsledamot",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Rose-Marie Carlsson",
+    "age": 71,
+    "title": "Riksdagsledamot",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Arwin Sohrabi",
+    "age": 32,
+    "title": "Projektledare",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Niklas Karlsson",
+    "age": 52,
+    "title": "Riksdagsledamot",
+    "municipality": "Landskrona",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [
+     "Vice ordförande i skatteutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "My Rosell",
+    "age": 41,
+    "title": "Enhetschef äldreomsorg",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ola Möller",
+    "age": 43,
+    "title": "Riksdagsledamot",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Morgan Johansson",
+    "age": 56,
+    "title": "Riksdagsledamot",
+    "municipality": "Lund",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [
+     "Ordförande i utrikesutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Cilla Dahl Andersson",
+    "age": 54,
+    "title": "Folkhögskollärare",
+    "municipality": "Trelleborg",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Adrian Magnusson",
+    "age": 31,
+    "title": "Riksdagsledamot",
+    "municipality": "Ystad",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anna Wallentheim",
+    "age": 41,
+    "title": "Riksdagsledamot",
+    "municipality": "Hässleholm",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Per-Arne Håkansson",
+    "age": 63,
+    "title": "Riksdagsledamot",
+    "municipality": "Ängelholm",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ewa Pihl Krabbe",
+    "age": 78,
+    "title": "Leg. Psykolog",
+    "municipality": "Kristianstad",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jennie Nilsson",
+    "age": 54,
+    "title": null,
+    "municipality": "Halmstad",
+    "constituency": "Hallands län",
+    "riksdag_roles": [
+     "Vice ordförande i konstitutionsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Arber Gashi",
+    "age": 31,
+    "title": null,
+    "municipality": "Halmstad",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Aida Birinxhiku",
+    "age": 27,
+    "title": null,
+    "municipality": "Falkenberg",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mattias Jonsson",
+    "age": 52,
+    "title": "Ombudsman IF Metall",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Amalia Rud Stenlöf",
+    "age": 33,
+    "title": "Riksdagsledamot",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Johan Büser",
+    "age": 43,
+    "title": "Riksdagsledamot",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ingrid Andreae",
+    "age": 65,
+    "title": "Pensionär",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Robert Andersson Hammarstrand",
+    "age": 54,
+    "title": "Ombudsman",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Aylin Nouri",
+    "age": 34,
+    "title": "Riksdagsledamot",
+    "municipality": "Mölndal",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Joakim Järrebring",
+    "age": 50,
+    "title": "Facklig ombudsman",
+    "municipality": "Alingsås",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Katarina Bosetti-Kristoffersson",
+    "age": 47,
+    "title": "Ombudsman LO",
+    "municipality": "Partille",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jonathan Svensson",
+    "age": 26,
+    "title": "Riksdagsledamot",
+    "municipality": "Vänersborg",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Louise Thunström",
+    "age": 53,
+    "title": "Riksdagsledamot",
+    "municipality": "Tanum",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Michael Melby",
+    "age": 56,
+    "title": "Metallindustriarbetare",
+    "municipality": "Mellerud",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Petter Löberg",
+    "age": 58,
+    "title": null,
+    "municipality": "Borås",
+    "constituency": "Västra Götalands läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jessica Rodén",
+    "age": 49,
+    "title": "Tostared",
+    "municipality": "Mark",
+    "constituency": "Västra Götalands läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Erik Ezelius",
+    "age": 39,
+    "title": null,
+    "municipality": "Tidaholm",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Therese Kristiansson",
+    "age": 31,
+    "title": null,
+    "municipality": "Lidköping",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Marcus Andersson",
+    "age": 39,
+    "title": null,
+    "municipality": "Skövde",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mikael Dahlkvist",
+    "age": 58,
+    "title": null,
+    "municipality": "Hagfors",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Sofia Skönnbrink",
+    "age": 34,
+    "title": null,
+    "municipality": "Eda",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Peter Söderström",
+    "age": 51,
+    "title": null,
+    "municipality": "Arvika",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Matilda Ernkrans",
+    "age": 53,
+    "title": null,
+    "municipality": "Hallsberg",
+    "constituency": "Örebro län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Denis Begic",
+    "age": 55,
+    "title": null,
+    "municipality": "Örebro",
+    "constituency": "Örebro län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Karin Sundin",
+    "age": 54,
+    "title": null,
+    "municipality": "Örebro",
+    "constituency": "Örebro län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Åsa Eriksson",
+    "age": 54,
+    "title": null,
+    "municipality": "Norberg",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jonas Cronert",
+    "age": 46,
+    "title": null,
+    "municipality": "Västerås",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Amanda Lindblad",
+    "age": 35,
+    "title": null,
+    "municipality": "Sala",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Peter Hultqvist",
+    "age": 67,
+    "title": null,
+    "municipality": "Borlänge",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [
+     "Vice ordförande i försvarsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Marie Olsson",
+    "age": 59,
+    "title": null,
+    "municipality": "Orsa",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Lars Isacsson",
+    "age": 56,
+    "title": null,
+    "municipality": "Avesta",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Patrik Lundqvist",
+    "age": 42,
+    "title": "Mekaniker",
+    "municipality": "Sandviken",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Sanna Backeskog",
+    "age": 41,
+    "title": "Ombudsman",
+    "municipality": "Gävle",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Kristoffer Lindberg",
+    "age": 34,
+    "title": "Verksamhetsutvecklare",
+    "municipality": "Bollnäs",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Malin Larsson",
+    "age": 46,
+    "title": null,
+    "municipality": "Sundsvall",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Peter Hedberg",
+    "age": 35,
+    "title": null,
+    "municipality": "Kramfors",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anna-Belle Strömberg",
+    "age": 61,
+    "title": null,
+    "municipality": "Örnsköldsvik",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Kalle Olsson",
+    "age": 42,
+    "title": "Ledarskribent",
+    "municipality": "Östersund",
+    "constituency": "Jämtlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anna-Caren Sätherberg",
+    "age": 61,
+    "title": "Bartender",
+    "municipality": "Åre",
+    "constituency": "Jämtlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Isak From",
+    "age": 59,
+    "title": "Processtekniker",
+    "municipality": "Norsjö",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Malin Malm",
+    "age": 32,
+    "title": "Psykologstudent",
+    "municipality": "Umeå",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Björn Wiechel",
+    "age": 42,
+    "title": "Samhällsvetare",
+    "municipality": "Umeå",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ida Karkiainen",
+    "age": 38,
+    "title": null,
+    "municipality": "Haparanda",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Fredrik Lundh Sammeli",
+    "age": 49,
+    "title": null,
+    "municipality": "Luleå",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [
+     "Vice ordförande i socialutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Samuel Pettersson",
+    "age": 25,
+    "title": null,
+    "municipality": "Piteå",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ],
+  "V": [
+   {
+    "name": "Malin Björk",
+    "age": 54,
+    "title": "Fd EU-parlamentariker",
+    "municipality": "Göteborg",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ilyas Hassan",
+    "age": 34,
+    "title": "Samordnare ABF",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ida Gabrielsson",
+    "age": 44,
+    "title": "Riksdagsledamot",
+    "municipality": "Nacka",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Andreas Lennkvist Manriquez",
+    "age": 32,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Nooshi Dadgostar",
+    "age": 41,
+    "title": "Partiordförande",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Partiledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jonas Lindberg",
+    "age": 43,
+    "title": "Specialistsjuksköterska",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Sandra Sönnergren",
+    "age": 35,
+    "title": "Folkhögskolelärare",
+    "municipality": "Solna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Andrea Andersson Tay",
+    "age": 37,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Tobias Smedberg",
+    "age": 48,
+    "title": "Kommunalråd",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [
+     "Andre vice gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Maria Forsberg",
+    "age": 51,
+    "title": "Grundskollärare",
+    "municipality": "Eskilstuna",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [
+     "Partisekreterare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Malin Östh",
+    "age": 54,
+    "title": "Riksdagsledamot",
+    "municipality": "Söderköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ciczie Weidby",
+    "age": 52,
+    "title": "Riksdagsledamot/butiksanställd",
+    "municipality": "Jönköping",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anfal Mahdi",
+    "age": 37,
+    "title": "Socionom",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [
+     "Vice ordförande i civilutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Banesa Martinez Roldán",
+    "age": 44,
+    "title": "Kommunikatör",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Umihana Rasovic",
+    "age": 39,
+    "title": "Biträdande enhetschef",
+    "municipality": "Eslöv",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Hanna Gunnarsson",
+    "age": 42,
+    "title": "Riksdagsledamot/Lärare",
+    "municipality": "Lund",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Linnea Bengtsson",
+    "age": 26,
+    "title": "Enhetschef",
+    "municipality": "Kristianstad",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Agnes Hultén",
+    "age": 53,
+    "title": null,
+    "municipality": "Varberg",
+    "constituency": "Hallands län",
+    "riksdag_roles": [
+     "Förste vice gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Daniel Bernmar",
+    "age": 43,
+    "title": "Doktorand",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jennifer Merelaid Hankins",
+    "age": 41,
+    "title": "Utvecklingsledare",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Frida Tånghag",
+    "age": 37,
+    "title": "Kock",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Carina Örgård",
+    "age": 56,
+    "title": "Socionom",
+    "municipality": "Partille",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "David Höglund Velasquez",
+    "age": 36,
+    "title": "Kriminalvårdare",
+    "municipality": "Uddevalla",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Håkan Svenneling",
+    "age": 40,
+    "title": "Riksdagsledamot",
+    "municipality": "Karlstad",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Nadja Awad",
+    "age": 35,
+    "title": "Riksdagsledamot/lärare",
+    "municipality": "Örebro",
+    "constituency": "Örebro län",
+    "riksdag_roles": [
+     "Ordförande i socialförsäkringsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Hawar Asaiesh",
+    "age": 40,
+    "title": "Kommunalråd",
+    "municipality": "Västerås",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [
+     "Ordförande i utbildningsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mohamed Ali",
+    "age": 30,
+    "title": null,
+    "municipality": "Borlänge",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Samuel Gonzalez Westling",
+    "age": 43,
+    "title": "Brevbärare/riksdagsledamot",
+    "municipality": "Hofors",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Caroline Täljeblad",
+    "age": 39,
+    "title": "Statsvetare",
+    "municipality": "Umeå",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Birger Lahti",
+    "age": 61,
+    "title": null,
+    "municipality": "Pajala",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ],
+  "MP": [
+   {
+    "name": "Daniel Helldén",
+    "age": 61,
+    "title": "Språkrör",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [
+     "Språkrör"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Åsa Lindhagen",
+    "age": 46,
+    "title": "Miljö- och klimatborgarråd",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ulrika Westerlund",
+    "age": 53,
+    "title": "Riksdagsledamot, sakkunnig hbtqi",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Gurgin Bakircioglu",
+    "age": 42,
+    "title": "Journalist",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Nila Vikhe Patil",
+    "age": 41,
+    "title": "Revisor",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Amanda Lind",
+    "age": 46,
+    "title": "Språkrör",
+    "municipality": "Härnösand",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Språkrör"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Annika Hirvonen",
+    "age": 37,
+    "title": "Riksdagsledamot",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ajda Asgari",
+    "age": 36,
+    "title": "Lärare",
+    "municipality": "Tyresö",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jacob Risberg",
+    "age": 53,
+    "title": "Riksdagsledamot",
+    "municipality": "Knivsta",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mohamed Abdukani",
+    "age": 46,
+    "title": "Arbetsförmedlare",
+    "municipality": "Eskilstuna",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Rebecka Le Moine",
+    "age": 36,
+    "title": "Biolog",
+    "municipality": "Nacka",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Rikard Salander",
+    "age": 45,
+    "title": "Komvuxlärare",
+    "municipality": "Nässjö",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Bassem Nasr",
+    "age": 45,
+    "title": "Ordförande Miljöpartiet i Malmö",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Marcus Friberg",
+    "age": 39,
+    "title": "Lärare",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Hanna Lindqvist",
+    "age": 22,
+    "title": "Språkrör Grön Ungdom",
+    "municipality": "Lund",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jan Riise",
+    "age": 68,
+    "title": "Riksdagsledamot",
+    "municipality": "Kungsbacka",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Leila Ali Elmi",
+    "age": 38,
+    "title": "Riksdagsledamot",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [
+     "Vice ordförande i kulturutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Emma Nohrén",
+    "age": 46,
+    "title": "Marinbiolog/riksdagsledamot",
+    "municipality": "Lysekil",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [
+     "Ordförande i miljö- och jordbruksutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Janine Alm Ericson",
+    "age": 52,
+    "title": "Riksdagsledamot",
+    "municipality": "Alingsås",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Camilla Hansén",
+    "age": 50,
+    "title": "Riksdagsledamot",
+    "municipality": "Örebro",
+    "constituency": "Örebro län",
+    "riksdag_roles": [
+     "Förste vice gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mursal Isa",
+    "age": 44,
+    "title": "Tolk/översättare",
+    "municipality": "Borlänge",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Nils Seye Larsen",
+    "age": 46,
+    "title": "Riksdagsledamot",
+    "municipality": "Umeå",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ],
+  "SD": [
+   {
+    "name": "Johan Tireland",
+    "age": 38,
+    "title": "Administrativ chef",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Henrik Vinge",
+    "age": 38,
+    "title": "Jurist",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Linus Bylund",
+    "age": 48,
+    "title": "Stabschef",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Martin Westmont",
+    "age": 47,
+    "title": "Konstvetare",
+    "municipality": "Stockholm",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Fredrik Lindahl",
+    "age": 39,
+    "title": "Väktare",
+    "municipality": "Vallentuna",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ludvig Aspling",
+    "age": 43,
+    "title": "Jur. kand.",
+    "municipality": "Upplands Väsby",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Julia Kronlid",
+    "age": 46,
+    "title": "Socialpedagog",
+    "municipality": "Täby",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [
+     "Andre vice talman"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Martin Kinnunen",
+    "age": 43,
+    "title": "Fil.kand nationalekonomi",
+    "municipality": "Botkyrka",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Andrea Kronvall",
+    "age": 41,
+    "title": "Inköpsansvarig",
+    "municipality": "Norrtälje",
+    "constituency": "Stockholms län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Emil Eneblad",
+    "age": 25,
+    "title": "Politiskt sakkunnig",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "David Perez",
+    "age": 36,
+    "title": "Civilekonom",
+    "municipality": "Uppsala",
+    "constituency": "Uppsala län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mikael Strömberg",
+    "age": 46,
+    "title": "Pressekreterare",
+    "municipality": "Eskilstuna",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Adam Marttinen",
+    "age": 42,
+    "title": "Yrkesförare",
+    "municipality": "Eskilstuna",
+    "constituency": "Södermanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jonas Andersson",
+    "age": 36,
+    "title": "Fil.kand. statsvetenskap",
+    "municipality": "Linköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Clara Aranda",
+    "age": 38,
+    "title": "Riksdagsledamot",
+    "municipality": "Norrköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Aron Emilsson",
+    "age": 36,
+    "title": "Kulturarvsvetare",
+    "municipality": "Söderköping",
+    "constituency": "Östergötlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Yasmine Eriksson",
+    "age": 37,
+    "title": "Pressassistent",
+    "municipality": "Partille",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ida Kors",
+    "age": 44,
+    "title": "Habiliteringspedagog",
+    "municipality": "Jönköping",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Eric Westroth",
+    "age": 55,
+    "title": "Familjeföretagare",
+    "municipality": "Gnosjö",
+    "constituency": "Jönköpings län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Ann-Christine Frohm",
+    "age": 53,
+    "title": "Vårdbiträde/redovisningsassistent",
+    "municipality": "Västerås",
+    "constituency": "Kronobergs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mattias Karlsson Bergman",
+    "age": 49,
+    "title": "Riksdagsledamot",
+    "municipality": "Uppvidinge",
+    "constituency": "Kronobergs län",
+    "riksdag_roles": [
+     "Ordförande i kulturutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Johnny Svedin",
+    "age": 57,
+    "title": "Specialistsjuksköterska",
+    "municipality": "Kalmar",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mattias Bäckström Johansson",
+    "age": 41,
+    "title": "Reaktoroperatör",
+    "municipality": "Oskarshamn",
+    "constituency": "Kalmar län",
+    "riksdag_roles": [
+     "Partisekreterare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Karolina Widerberg",
+    "age": 42,
+    "title": "Lärare",
+    "municipality": "Sölvesborg",
+    "constituency": "Blekinge län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Richard Jomshof",
+    "age": 57,
+    "title": "SO-lärare",
+    "municipality": "Karlskrona",
+    "constituency": "Blekinge län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Patrick Reslow",
+    "age": 56,
+    "title": "Jur.kand., pol.mag.",
+    "municipality": "Malmö",
+    "constituency": "Malmö kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Pontus Andersson Garpvall",
+    "age": 34,
+    "title": "Politisk sekreterare",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Linda Lindberg",
+    "age": 51,
+    "title": "Gruppledare",
+    "municipality": "Helsingborg",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [
+     "Förste vice gruppledare",
+     "Ordförande i socialutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Bo Broman",
+    "age": 57,
+    "title": "Ekonomichef",
+    "municipality": "Eslöv",
+    "constituency": "Skåne läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jessica Stegrud",
+    "age": 55,
+    "title": "Controller",
+    "municipality": "Vellinge",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [
+     "Vice ordförande i socialförsäkringsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Victoria Tiblom",
+    "age": 56,
+    "title": "Kommunikatör/PR-konsult",
+    "municipality": "Staffanstorp",
+    "constituency": "Skåne läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Magnus Persson",
+    "age": 55,
+    "title": "Byggnadsarbetare",
+    "municipality": "Bromölla",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [
+     "Vice ordförande i arbetsmarknadsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Björn Söder",
+    "age": 50,
+    "title": "Civilingenjör",
+    "municipality": "Kristianstad",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mikael Eskilandersson",
+    "age": 49,
+    "title": "Skoglig maskinförare",
+    "municipality": "Örkelljunga",
+    "constituency": "Skåne läns norra och östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Patrik Jönsson",
+    "age": 53,
+    "title": "Eldriftledare",
+    "municipality": "Hässleholm",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Andreas Ahlqvist",
+    "age": 52,
+    "title": "Företagare",
+    "municipality": "Halmstad",
+    "constituency": "Hallands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Emma Altenhammar",
+    "age": 28,
+    "title": "Företagssäljare",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Dennis Dioukarev",
+    "age": 33,
+    "title": "Riksdagsledamot",
+    "municipality": "Göteborg",
+    "constituency": "Göteborgs kommun",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Gunilla Gomér",
+    "age": 66,
+    "title": "Egenföretagare",
+    "municipality": "Alingsås",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Alexander Christiansson",
+    "age": 45,
+    "title": "Företagare/säljare",
+    "municipality": "Lerum",
+    "constituency": "Västra Götalands läns västra",
+    "riksdag_roles": [
+     "Vice ordförande i justitieutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Terje Skaarnes",
+    "age": 54,
+    "title": "Företagare",
+    "municipality": "Munkedal",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Matheus Enholm",
+    "age": 47,
+    "title": "Egenföretagare",
+    "municipality": "Munkedal",
+    "constituency": "Västra Götalands läns norra",
+    "riksdag_roles": [
+     "Gruppledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Denice Westerberg",
+    "age": 24,
+    "title": "Kommunikatör",
+    "municipality": "Solna",
+    "constituency": "Västra Götalands läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Anders Alftberg",
+    "age": 53,
+    "title": "Lärare",
+    "municipality": "Borås",
+    "constituency": "Västra Götalands läns södra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Josef Fransson",
+    "age": 47,
+    "title": "Högskoleingenjör",
+    "municipality": "Skövde",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Tobias Andersson",
+    "age": 30,
+    "title": "Ekonom",
+    "municipality": "Skövde",
+    "constituency": "Västra Götalands läns östra",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Robin Lennartsson",
+    "age": 32,
+    "title": "Statsvetare",
+    "municipality": "Karlstad",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Runar Filper",
+    "age": 62,
+    "title": "Riksdagsledamot",
+    "municipality": "Sunne",
+    "constituency": "Värmlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Jimmie Åkesson",
+    "age": 47,
+    "title": "Partiledare",
+    "municipality": "Sölvesborg",
+    "constituency": "Örebro län",
+    "riksdag_roles": [
+     "Partiledare"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Per Söderlund",
+    "age": 54,
+    "title": "Datortekniker",
+    "municipality": "Lindesberg",
+    "constituency": "Örebro län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Tomas Brandberg",
+    "age": 54,
+    "title": "Teknologie doktor",
+    "municipality": "Borås",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Oscar Sjöstedt",
+    "age": 45,
+    "title": "Nationalekonom",
+    "municipality": "Skinnskatteberg",
+    "constituency": "Västmanlands län",
+    "riksdag_roles": [
+     "Ordförande i konstitutionsutskottet"
+    ],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Liselotte Forsberg",
+    "age": 53,
+    "title": "Driftledare",
+    "municipality": "Mora",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Rasmus Giertz",
+    "age": 32,
+    "title": "Riksdagsledamot",
+    "municipality": "Falun",
+    "constituency": "Dalarnas län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Mattias Eriksson Falk",
+    "age": 36,
+    "title": "Yrkeschaufför",
+    "municipality": "Gävle",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Roger Hedlund",
+    "age": 46,
+    "title": "Industrirobotoperatör",
+    "municipality": "Gävle",
+    "constituency": "Gävleborgs län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Angelika Bengtsson",
+    "age": 36,
+    "title": "Dansare",
+    "municipality": "Stockholm",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "on_leave"
+   },
+   {
+    "name": "Kevin Sahlin",
+    "age": 25,
+    "title": "Sekreterare",
+    "municipality": "Sundsvall",
+    "constituency": "Västernorrlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Peter Eriksson",
+    "age": 67,
+    "title": "Skogsbrukare",
+    "municipality": "Ragunda",
+    "constituency": "Jämtlands län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Sara Gille",
+    "age": 45,
+    "title": "Undersköterska",
+    "municipality": "Dorotea",
+    "constituency": "Västerbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Leonid Yurkovskiy",
+    "age": 30,
+    "title": "Politisk sekreterare",
+    "municipality": "Nacka",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   },
+   {
+    "name": "Eric Palmqvist",
+    "age": 55,
+    "title": "Gruvarbetare",
+    "municipality": "Luleå",
+    "constituency": "Norrbottens län",
+    "riksdag_roles": [],
+    "riksdag_status": "serving"
+   }
+  ]
+ }
+}

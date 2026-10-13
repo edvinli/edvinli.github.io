@@ -687,6 +687,13 @@ election-day generation and checks, against the files on disk:
   the 2026 one they show the result alone, with a note. The chamber draws all 349 certified
   seats in seating order, and the legend and bloc totals are sums of certified
   seats.
+- **The members.** Each seat names its member from
+  `files/election-simulator/results/2026-members.json` (Valmyndigheten's
+  elected members and candidate file, with roles from Sveriges riksdag): a
+  party's seats are its list in file order. Hovering a seat shows the card for that member, focus and End announce
+  the first and last seat, and the sources are named under the chamber. A
+  members file that does not match the chamber seat for seat leaves the chamber
+  as the plain allocation.
 - **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
   is `forecast.json`'s median minus the certified share, and whether the result
   lies inside the 90 % interval is computed from `vote_share_p05`/`p95`, as is

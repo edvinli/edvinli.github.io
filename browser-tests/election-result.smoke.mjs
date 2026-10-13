@@ -29,6 +29,7 @@ const DESKTOP = { width: 1280, height: 1000 };
 const MOBILE = { width: 360, height: 800 };
 const VERSIONS = 'files/election-simulator/versions';
 const RESULT = 'files/election-simulator/results/2026.json';
+const MEMBERS = 'files/election-simulator/results/2026-members.json';
 
 // The election-day publication: the last forecast made for 2026, computed on
 // the morning of the election. Its result is the one the page compares to.
@@ -226,6 +227,7 @@ const click = (browser, id) => browser.evaluate((wanted) => {
 // --- expectations from the files ------------------------------------------
 
 const result = await readJson(SITE, RESULT);
+const members = await readJson(SITE, MEMBERS);
 // The live history is replaced by every sync. Until the first history for the
 // next election it ends on the decided election day; after that the page
 // joins the archived 2026 history to its left and the chart runs on past the
@@ -243,6 +245,52 @@ function expectedChartValue(members, metric, kind) {
   if (kind === 'party') return { value: result.parties[members[0]].vote_share_pct, seats };
   const votes = members.reduce((sum, party) => sum + result.parties[party].votes, 0);
   return { value: 100 * votes / parliamentaryVotes, seats };
+}
+
+// --- the members in the result chamber ------------------------------------
+//
+// Each seat of the certified chamber names its member from
+// results/2026-members.json: seats of a party are that party's list in file
+// order, parties in seating order. Hover and the keyboard both show it.
+
+async function checkMembers(browser) {
+  const bound = await browser.waitFor(() =>
+    document.getElementById('election-result-parliament')?.getAttribute('data-members') === 'true', 10000);
+  check('the chamber knows its members', bound);
+  const seating = ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD'];
+  const expected = seating.flatMap((party) => members.parties[party].map((member) => member.name));
+  equal('one member per certified seat', expected.length, CHAMBER);
+  const seen = await browser.evaluate((indices) => {
+    const host = document.getElementById('election-result-parliament');
+    const seats = host.querySelectorAll('.election-seat');
+    const tip = () => document.getElementById('election-result-member-tip');
+    const hovered = indices.map((index) => {
+      seats[index].dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      return {
+        name: tip().querySelector('.ep-tip__name')?.textContent.trim(),
+        shown: !tip().hidden,
+        current: seats[index].classList.contains('is-current'),
+      };
+    });
+    host.dispatchEvent(new MouseEvent('mouseleave'));
+    const afterLeave = tip().hidden;
+    host.focus();
+    const first = document.getElementById('election-result-member-status').textContent;
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    const last = document.getElementById('election-result-member-status').textContent;
+    host.blur();
+    const note = document.getElementById('election-result-members-note');
+    return { hovered, afterLeave, first, last, noteShown: !note.hidden, note: note.textContent, focusable: host.tabIndex === 0 };
+  }, [0, 174, 348]);
+  equal('hovering a seat names its member', seen.hovered.map((seat) => seat.name),
+    [expected[0], expected[174], expected[348]]);
+  check('the hovered seat is marked and its card shown', seen.hovered.every((seat) => seat.shown && seat.current));
+  check('leaving the chamber hides the card', seen.afterLeave);
+  check('the chamber is focusable', seen.focusable);
+  check('focus announces the first seat', seen.first.startsWith(expected[0] + ',') && /Mandat 1 av 349/.test(seen.first), seen.first);
+  check('End announces the last seat', seen.last.startsWith(expected[348] + ',') && /Mandat 349 av 349/.test(seen.last), seen.last);
+  check('the sources are named under the chamber',
+    seen.noteShown && seen.note.includes('Källor: Sveriges riksdag och Valmyndigheten.'), seen.note);
 }
 
 // --- 1. decided: the election-day publication against its result ---------
@@ -315,6 +363,7 @@ async function decided(viewport, name) {
       page.nav.slice(0, 5),
       ['#election-timeseries', '#election-latest-poll', '#election-headline', '#election-seats', '#election-result']);
     equal('the comparison navigation link is last', page.nav.at(-1), '#election-result-delta');
+    await checkMembers(browser);
     check('no horizontal scroll', page.overflow <= 0, page.overflow);
 
     // The chart: the result sits on the last day of the 2026 series, never
@@ -558,6 +607,43 @@ async function invalidResult() {
   }
 }
 
+// --- 5. a members file that does not match the chamber ----------------------
+
+async function invalidMembers() {
+  console.log('\n[invalid members file] desktop');
+  const root = await mkdtemp(join(tmpdir(), 'election-result-site-'));
+  try {
+    await cp(SITE, root, { recursive: true });
+    const broken = structuredClone(members);
+    broken.parties.M.pop();
+    await writeFile(join(root, MEMBERS), `${JSON.stringify(broken)}\n`);
+    const pointer = await pointerFor(SITE, DECIDED_GENERATION);
+    const { server, browser } = await open(DESKTOP, { root, pointer });
+    try {
+      await settle(800);
+      const page = await readPage(browser);
+      const state = await browser.evaluate(() => {
+        const host = document.getElementById('election-result-parliament');
+        return {
+          bound: host.getAttribute('data-members'),
+          tabIndex: host.tabIndex,
+          tip: Boolean(document.getElementById('election-result-member-tip')),
+          noteHidden: document.getElementById('election-result-members-note').hidden,
+        };
+      });
+      check('the result is still shown', !page.resultHidden);
+      equal('the chamber still draws every certified seat', page.chamber.reduce((sum, run) => sum + run.seats, 0), CHAMBER);
+      equal('the chamber is left without members', state, { bound: null, tabIndex: -1, tip: false, noteHidden: true });
+      equal('no console errors', appErrors(browser).map((e) => e.text), []);
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 await decided(DESKTOP, 'desktop');
 await decided(MOBILE, 'mobile');
 await preElection();
@@ -565,6 +651,7 @@ await nextElection(DESKTOP, 'desktop');
 await nextElection(MOBILE, 'mobile');
 await resultNotYetAvailable();
 await invalidResult();
+await invalidMembers();
 
 console.log(`\n${failures ? `FAIL (${failures})` : 'PASS'} ${checks} checks`);
 process.exit(failures ? 1 : 0);
