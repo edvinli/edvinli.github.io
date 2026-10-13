@@ -31,6 +31,13 @@
   // Display-only short label.  The payload key REST stays the internal
   // identity; the reader sees a Swedish abbreviation.
   var partyAbbr = { REST: "\u00d6vr." };
+  // The voter-flows view on the same page draws with this palette too, so
+  // a party keeps one colour across both views.
+  window.electionPartyPalette = {
+    colors: partyColors,
+    names: partyNames,
+    readableInk: readableInk
+  };
 
   function abbr(name) {
     return partyAbbr[name] || name;

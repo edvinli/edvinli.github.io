@@ -7,7 +7,17 @@ classes: wide
 excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med prognosintervall, mandatfördelning och utvärdering."
 ---
 
-<div id="election-simulator-app" class="election-app" data-publication-base="{{ site.baseurl }}/files/election-simulator">
+<!-- Two views on one page: the forecast app and the 2022 → 2026 voter flows.
+     The flows view sits beside the forecast container rather than inside it,
+     so the forecast's own section order and DOM stay exactly as they were.
+     Both carry .election-app for the shared tokens; neither has a <section>
+     child the other could pick up. -->
+<div class="election-app election-tabs" role="tablist" aria-label="Vy" id="election-tabs">
+  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-forecast" aria-controls="election-simulator-app" aria-selected="true" data-tab-hash="">Prognos</button>
+  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-flows" aria-controls="election-flows" aria-selected="false" tabindex="-1" data-tab-hash="valjarfloden">Väljarflöden 2022–2026</button>
+</div>
+
+<div id="election-simulator-app" class="election-app" role="tabpanel" aria-labelledby="election-tab-forecast" data-publication-base="{{ site.baseurl }}/files/election-simulator">
   <noscript>
     <p class="notice--warning">Prognosen behöver JavaScript för att läsa in sina data. JSON-filerna finns kvar för nedladdning i publiceringskatalogen.</p>
   </noscript>
@@ -365,7 +375,45 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   </section>
 </div>
 
+<!-- Net voter flows between the 2022 and 2026 elections. Static data from
+     the SVT/Valu exit poll, drawn by election-voter-flows.js. -->
+<div id="election-flows" class="election-app election-flows" role="tabpanel" aria-labelledby="election-tab-flows" hidden>
+  <header class="election-hero">
+    <p class="election-hero__kicker">Sverige · Riksdagen · vallokalsundersökning 2026</p>
+    <h2 class="evf-title">Vart väljarna gick mellan valen 2022 och 2026</h2>
+    <p class="election-hero__lede">Kalibrerade nettoflöden mellan partierna, i tusentals väljare. Varje pil går från partiet som tappade väljare till partiet som vann dem, och tjockleken visar hur stort nettoflödet är. Välj ett parti för att se dess väljarbalans.</p>
+  </header>
+  <div class="election-panel evf-main">
+    <div class="evf-chart" id="election-flows-chart">
+      <div class="evf-controls">
+        <label class="evf-threshold" for="election-flows-threshold">Dölj flöden under
+          <input type="range" id="election-flows-threshold" min="1" max="40" step="1" value="4">
+          <output id="election-flows-threshold-value" for="election-flows-threshold">4 000</output>
+        </label>
+        <span class="evf-hint election-muted">Klicka på ett parti för att låsa vyn</span>
+      </div>
+      <svg id="election-flows-svg" class="evf-svg" viewBox="0 0 820 680" role="group" aria-labelledby="election-flows-svg-title">
+        <title id="election-flows-svg-title">Nettoflöden av väljare mellan riksdagspartierna 2022–2026</title>
+      </svg>
+      <div class="evf-tip" id="election-flows-tip" aria-hidden="true"></div>
+    </div>
+    <div class="evf-panel" id="election-flows-panel" aria-live="polite"></div>
+  </div>
+  <div class="election-panel">
+    <div class="election-panel__head">
+      <h2>Nettoresultat per parti</h2>
+      <p class="election-muted">Summan av varje partis inflöden och utflöden, med förändringen i röstandel. Klicka på ett parti för att visa det i hjulet.</p>
+    </div>
+    <div class="evf-net" id="election-flows-net" role="list"></div>
+  </div>
+  <div class="election-panel evf-source">
+    <p class="election-muted">Källa: SVT/Valus vallokalsundersökning 2026, Valforskningsprogrammet vid Göteborgs universitet. Nettoflödena är skattade ur den viktade 9×9-matrisen över partibyten och kalibrerade med iterativ proportionell anpassning (raking), så att partiernas summor stämmer med de officiella valresultaten 2022 och 2026.</p>
+    <p class="election-muted">Ett nettoflöde är skillnaden mellan de två motriktade bruttoflödena mellan ett par partier, så det faktiska antalet väljare som bytt parti åt vardera hållet är större. Rörelser till och från soffan går inte att observera i en vallokalsundersökning och ingår inte. Summorna kan avvika något från summan av flödena på grund av avrundning.</p>
+  </div>
+</div>
+
 <script src="{{ site.baseurl }}/assets/js/election-simulator.js?v={{ site.time | date: '%s' }}"></script>
+<script src="{{ site.baseurl }}/assets/js/election-voter-flows.js?v={{ site.time | date: '%s' }}"></script>
 
 <!-- Equation typesetting for "Så fungerar modellen". MathJax 3.2.2 is pinned
      and loaded on this page only; the LaTeX sits in the markup as plain text,

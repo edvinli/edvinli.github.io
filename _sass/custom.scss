@@ -3126,6 +3126,436 @@ canvas {
   }
 }
 
+/* --- View tabs: forecast / voter flows ----------------------------------- */
+
+.election-tabs {
+  border-bottom: 1px solid var(--el-rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.4rem;
+  margin: 0 0 1.6rem;
+}
+
+.election-tabs__tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--el-muted);
+  cursor: pointer;
+  font-family: var(--el-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: -1px;
+  padding: 0.55rem 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.election-tabs__tab:hover {
+  color: var(--el-ink);
+}
+
+.election-tabs__tab[aria-selected="true"] {
+  border-bottom-color: var(--el-ink);
+  color: var(--el-ink);
+}
+
+/* --- Voter flows 2022 -> 2026 ------------------------------------------- */
+
+.evf-title {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  margin: 0 0 0.7rem;
+  max-width: 30ch;
+}
+
+/* The page column is too narrow for a side-by-side panel to leave the wheel
+   legible, so the balance sheet sits under it. */
+.evf-main {
+  display: grid;
+  gap: 1.2rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.evf-chart {
+  position: relative;
+}
+
+.evf-controls {
+  align-items: center;
+  color: var(--el-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+  gap: 0.4rem 1.2rem;
+}
+
+.evf-threshold {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.evf-threshold input[type="range"] {
+  accent-color: var(--el-ink);
+  width: 9rem;
+}
+
+.evf-threshold output {
+  color: var(--el-ink);
+  font-family: var(--el-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 5ch;
+}
+
+.evf-hint {
+  font-size: 0.8rem;
+  margin: 0 0 0 auto;
+}
+
+.evf-svg {
+  display: block;
+  height: auto;
+  margin-top: 0.6rem;
+  max-width: 100%;
+  width: 100%;
+}
+
+.evf-flow {
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+
+.evf-flow-label {
+  fill: var(--el-ink);
+  font-family: var(--el-mono);
+  font-size: 13px;
+  font-weight: 700;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: $background-color;
+  stroke-linejoin: round;
+  stroke-width: 4px;
+  transition: opacity 0.18s ease;
+}
+
+.evf-node {
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.18s ease;
+}
+
+.evf-node__dot {
+  stroke: $background-color;
+  stroke-width: 3;
+}
+
+.evf-node__ring {
+  fill: none;
+  opacity: 0;
+  stroke: var(--el-ink);
+  stroke-width: 2;
+}
+
+.evf-node:focus-visible .evf-node__ring,
+.evf-node.is-selected .evf-node__ring {
+  opacity: 1;
+}
+
+.evf-node__abbr {
+  font-family: var(--el-mono);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.evf-node__name {
+  fill: var(--el-ink);
+  font-family: var(--el-sans);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.evf-node__net {
+  fill: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.evf-node__net.is-gain,
+.evf-panel__big.is-gain,
+.evf-net__value.is-gain {
+  color: var(--el-good);
+  fill: var(--el-good);
+}
+
+.evf-node__net.is-loss,
+.evf-panel__big.is-loss,
+.evf-net__value.is-loss {
+  color: var(--el-bad);
+  fill: var(--el-bad);
+}
+
+.evf-tip {
+  background: var(--el-ink);
+  border-radius: 3px;
+  color: var(--el-panel);
+  font-size: 0.8rem;
+  left: 0;
+  opacity: 0;
+  padding: 0.3rem 0.6rem;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, calc(-100% - 12px));
+  transition: opacity 0.12s;
+  white-space: nowrap;
+}
+
+.evf-tip.is-visible {
+  opacity: 1;
+}
+
+.evf-panel {
+  border-top: 1px solid var(--el-rule);
+  padding-top: 1.2rem;
+}
+
+.evf-panel__title {
+  align-items: center;
+  display: flex;
+  font-size: 1.1rem;
+  gap: 0.55rem;
+  margin: 0 0 0.25rem;
+}
+
+.evf-panel__title .ev-swatch {
+  height: 0.9rem;
+  width: 0.9rem;
+}
+
+.evf-panel__big {
+  font-family: var(--el-mono);
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0.6rem 0 0.2rem;
+}
+
+.evf-panel__subhead {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  margin: 1.3rem 0 0.4rem;
+  text-transform: uppercase;
+}
+
+.evf-rows {
+  border-top: 1px solid var(--el-rule);
+  margin-top: 0.6rem;
+}
+
+.evf-row {
+  align-items: center;
+  border-bottom: 1px solid var(--el-rule);
+  display: grid;
+  font-size: 0.86rem;
+  gap: 0.6rem;
+  grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) 2.4rem;
+  padding: 0.3rem 0.1rem;
+}
+
+.evf-row--pair {
+  grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr) 2.4rem;
+}
+
+.evf-row--pair .evf-row__label {
+  font-family: var(--el-mono);
+}
+
+.evf-row__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evf-row__track {
+  background: var(--el-fill);
+  display: block;
+  height: 0.6rem;
+}
+
+.evf-row__bar {
+  display: block;
+  height: 100%;
+}
+
+.evf-row__value {
+  font-family: var(--el-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+.evf-clear {
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  margin-top: 1.2rem;
+}
+
+.evf-net {
+  border-top: 1px solid var(--el-rule);
+  margin-top: 1rem;
+}
+
+.evf-net__row {
+  align-items: center;
+  border-bottom: 1px solid var(--el-rule);
+  cursor: pointer;
+  display: grid;
+  gap: 0 0.7rem;
+  grid-template-columns: minmax(6rem, 12rem) minmax(0, 1fr) 4.6rem 6.6rem;
+  min-height: 2.4rem;
+  padding: 0.3rem 0.15rem;
+}
+
+.evf-net__row:hover {
+  background: var(--el-fill-soft);
+}
+
+.evf-net__row--head {
+  cursor: default;
+  min-height: 0;
+}
+
+.evf-net__row--head:hover {
+  background: none;
+}
+
+.evf-net__colhead {
+  color: var(--el-muted);
+  font-size: 0.72rem;
+  hyphens: manual;
+  letter-spacing: 0.07em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.evf-net__colhead--bars {
+  text-align: center;
+}
+
+.evf-net__name {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.evf-net__full {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evf-net__abbr {
+  display: none;
+  font-family: var(--el-mono);
+  font-weight: 700;
+}
+
+.evf-net__bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 1.15rem;
+}
+
+.evf-net__side {
+  display: flex;
+  height: 100%;
+}
+
+.evf-net__side--loss {
+  border-right: 1px solid var(--el-ink);
+  justify-content: flex-end;
+}
+
+.evf-net__side--loss span {
+  background: var(--el-bad);
+}
+
+.evf-net__side--gain span {
+  background: var(--el-good);
+}
+
+.evf-net__value,
+.evf-net__pe {
+  font-family: var(--el-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.evf-net__value {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.evf-net__pe {
+  color: var(--el-ink-soft);
+  font-size: 0.86rem;
+}
+
+.evf-source {
+  margin-top: 2rem;
+}
+
+@media (max-width: 34em) {
+  .evf-hint {
+    margin-left: 0;
+  }
+
+  /* The wheel scales to under half size on a phone, so the full party names
+     give way to larger numbers; the name is in the circle and the panel. */
+  .evf-node__name,
+  .evf-node__unit {
+    display: none;
+  }
+
+  .evf-node__abbr {
+    font-size: 20px;
+  }
+
+  .evf-node__net,
+  .evf-flow-label {
+    font-size: 22px;
+  }
+
+  .evf-net__row {
+    gap: 0 0.5rem;
+    grid-template-columns: 2.8rem minmax(0, 1fr) 3.4rem 4.6rem;
+  }
+
+  .evf-net__full {
+    display: none;
+  }
+
+  .evf-net__abbr {
+    display: inline;
+  }
+
+  .evf-net__colhead {
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .election-app *,
   .election-app *::before,
@@ -3146,7 +3576,10 @@ canvas {
   .eg-preset__swatch,
   .egh-histogram__party-chip,
   .egh-histogram__key-mark,
-  .eg-bar__segment {
+  .eg-bar__segment,
+  .evf-svg,
+  .evf-row__bar,
+  .evf-net__side span {
     forced-color-adjust: none;
   }
 
