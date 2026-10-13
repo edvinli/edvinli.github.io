@@ -3498,7 +3498,11 @@
   // the plain allocation, without hover.
   // ---------------------------------------------------------------------
   var ELECTED_MEMBERS_PATH = "results/2026-members.json";
-  var RIKSDAG_STATUS_NOTE = { on_leave: "Ledig fr\u00e5n riksdagen", left: "Har l\u00e4mnat riksdagen" };
+  // Where each numbered seat is in the plenary hall, read from Riksdagen's
+  // seating chart for the session.  Optional: without it the chamber keeps
+  // the party view only.
+  var SEATING_PLAN_PATH = "results/2026-seating.json";
+  var RIKSDAG_STATUS_NOTE = { on_leave: "Ledig från riksdagen", left: "Har lämnat riksdagen" };
 
   function optionalString(value) {
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -3511,6 +3515,8 @@
     var source = payload.parties;
     if (!source || typeof source !== "object") return null;
     var parties = {};
+    var seatNumbers = {};
+    var seatsKnown = true;
     for (var index = 0; index < HISTORY_PARTIES.length; index += 1) {
       var party = HISTORY_PARTIES[index];
       var list = source[party];
@@ -3524,7 +3530,15 @@
         if (entry.age !== null && (age === null || age < 18 || Math.floor(age) !== age)) return null;
         var roles = Array.isArray(entry.riksdag_roles) ? entry.riksdag_roles.map(optionalString).filter(Boolean) : [];
         if (entry.newly_elected !== undefined && entry.newly_elected !== null && typeof entry.newly_elected !== "boolean") return null;
+        // The numbered seat in the hall: 1..349, each exactly once, or the
+        // seating view is not offered.
+        var seat = num(entry.seat);
+        if (seat === null || Math.floor(seat) !== seat || seat < 1 || seat > CHAMBER || seatNumbers[seat]) seatsKnown = false;
+        else seatNumbers[seat] = true;
+        var replaces = entry.replaces && typeof entry.replaces === "object" && optionalString(entry.replaces.name)
+          ? { name: optionalString(entry.replaces.name), from: historyDate(entry.replaces.from) } : null;
         members.push({
+          seat: seat,
           name: name,
           age: age,
           title: optionalString(entry.title),
@@ -3532,30 +3546,56 @@
           constituency: optionalString(entry.constituency),
           constituencyCode: optionalString(entry.constituency_code),
           newlyElected: typeof entry.newly_elected === "boolean" ? entry.newly_elected : null,
+          replaces: replaces,
           roles: roles,
           status: RIKSDAG_STATUS_NOTE[entry.riksdag_status] ? entry.riksdag_status : null
         });
       }
       parties[party] = members;
     }
-    return parties;
+    return { parties: parties, seatsKnown: seatsKnown };
+  }
+
+  function normalizeSeatingPlan(payload) {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    if (payload.schema_version !== "1.0" || payload.role !== "riksdag_seating_plan") return null;
+    var aspect = num(payload.aspect_ratio);
+    var spacing = num(payload.seat_spacing_pct_of_width);
+    if (aspect === null || aspect < 1 || aspect > 4 || spacing === null || spacing <= 0 || spacing > 5) return null;
+    var point = function (value) {
+      return Array.isArray(value) && value.length === 2 && value.every(function (v) {
+        return num(v) !== null && v >= 0 && v <= 100;
+      }) ? { x: value[0], y: value[1] } : null;
+    };
+    var seats = {};
+    for (var n = 1; n <= CHAMBER; n += 1) {
+      seats[n] = point(payload.seats && payload.seats[String(n)]);
+      if (!seats[n]) return null;
+    }
+    return { aspect: aspect, spacing: spacing, speaker: point(payload.speaker), seats: seats };
   }
 
   function memberLines(party, member) {
+    var since = member.replaces && member.replaces.from ? swedishDate(member.replaces.from.iso) : null;
     return {
-      meta: (partyNames[party] || party) + (member.age !== null ? " \u00b7 " + member.age + " \u00e5r" : "") +
-        (member.newlyElected ? " \u00b7 nyinvald" : ""),
+      meta: (partyNames[party] || party) + (member.age !== null ? " · " + member.age + " år" : "") +
+        (member.newlyElected ? " · nyinvald" : ""),
       title: member.title,
       home: member.municipality ? "Bor i " + member.municipality : null,
-      riksdag: member.roles.concat(member.status ? [RIKSDAG_STATUS_NOTE[member.status]] : []).join(" \u00b7 ") || null
+      riksdag: member.roles.concat(member.status ? [RIKSDAG_STATUS_NOTE[member.status]] : [])
+        .concat(member.replaces ? ["Ersätter " + member.replaces.name + (since ? " sedan " + since : "")] : [])
+        .join(" · ") || null
     };
   }
 
   function showChamberMembers(host, result) {
     if (!host || host.getAttribute("data-members") === "true") return;
-    getJson(ELECTED_MEMBERS_PATH).then(function (payload) {
-      var members = normalizeElectedMembers(payload, result);
-      if (!members) return;
+    Promise.all([
+      getJson(ELECTED_MEMBERS_PATH),
+      getJson(SEATING_PLAN_PATH).catch(function () { return null; })
+    ]).then(function (payloads) {
+      var roster = normalizeElectedMembers(payloads[0], result);
+      if (!roster) return;
       var seats = Array.prototype.slice.call(host.querySelectorAll(".election-seat[data-party]"));
       if (seats.length !== CHAMBER) return;
       var taken = {};
@@ -3563,16 +3603,17 @@
         var party = seat.getAttribute("data-party");
         taken[party] = (taken[party] || 0) + 1;
         seat.memberParty = party;
-        seat.member = members[party][taken[party] - 1];
+        seat.member = roster.parties[party][taken[party] - 1];
       });
       if (seats.some(function (seat) { return !seat.member; })) return;
-      bindChamberMembers(host, seats);
+      var plan = roster.seatsKnown ? normalizeSeatingPlan(payloads[1]) : null;
+      bindChamberMembers(host, seats, plan);
     }).catch(function (error) {
-      console.warn("Ledam\u00f6terna kunde inte visas.", error);
+      console.warn("Ledamöterna kunde inte visas.", error);
     });
   }
 
-  function bindChamberMembers(host, seats) {
+  function bindChamberMembers(host, seats, plan) {
     var frame = host.parentNode;
     var status = byId("election-result-member-status");
     var tip = document.createElement("div");
@@ -3581,13 +3622,16 @@
     tip.setAttribute("role", "tooltip");
     tip.hidden = true;
     frame.appendChild(tip);
-    var current = -1;
+    // Keyboard order follows the view: the party blocks as drawn, or the
+    // numbered seats of the hall.
+    var order = seats;
+    var seating = false;
+    var current = null;
 
-    function show(index, announce) {
-      var seat = seats[index];
+    function show(seat, announce) {
       if (!seat) return;
-      if (seats[current]) seats[current].classList.remove("is-current");
-      current = index;
+      if (current) current.classList.remove("is-current");
+      current = seat;
       seat.classList.add("is-current");
       var lines = memberLines(seat.memberParty, seat.member);
       tip.innerHTML =
@@ -3607,51 +3651,53 @@
       var above = dot.top - box.top - tip.offsetHeight - 8;
       tip.style.top = (above >= 0 ? above : dot.bottom - box.top + 8) + "px";
       if (announce && status) {
+        var place = seating ? "Plats " + seat.member.seat + " i kammaren." : "Mandat " + (order.indexOf(seat) + 1) + " av " + CHAMBER + ".";
         status.textContent = [seat.member.name, lines.meta, lines.title, lines.home, lines.riksdag]
-          .filter(Boolean).join(", ") + ". Mandat " + (index + 1) + " av " + CHAMBER + ".";
+          .filter(Boolean).join(", ") + ". " + place;
       }
     }
 
     function hide() {
-      if (seats[current]) seats[current].classList.remove("is-current");
-      current = -1;
+      if (current) current.classList.remove("is-current");
+      current = null;
       tip.hidden = true;
     }
 
     function seatAt(event) {
       var target = event.target;
-      return target && target.classList && target.classList.contains("election-seat") ? seats.indexOf(target) : -1;
+      return target && target.classList && target.classList.contains("election-seat") && target.member ? target : null;
     }
 
     host.addEventListener("mouseover", function (event) {
-      var index = seatAt(event);
-      if (index >= 0) show(index, false);
+      var seat = seatAt(event);
+      if (seat) show(seat, false);
     });
     host.addEventListener("mouseleave", function () {
       if (document.activeElement !== host) hide();
     });
     // A tap shows the seat; tapping anywhere else closes it.
     host.addEventListener("click", function (event) {
-      var index = seatAt(event);
-      if (index >= 0) show(index, true);
+      var seat = seatAt(event);
+      if (seat) show(seat, true);
     });
     document.addEventListener("click", function (event) {
-      if (current >= 0 && !host.contains(event.target)) hide();
+      if (current && !host.contains(event.target)) hide();
     });
     host.addEventListener("focus", function () {
-      show(current >= 0 ? current : 0, true);
+      show(current || order[0], true);
     });
     host.addEventListener("blur", hide);
     host.addEventListener("keydown", function (event) {
+      var at = current ? order.indexOf(current) : -1;
       var next = null;
-      if (event.key === "ArrowRight" || event.key === "ArrowDown") next = current + 1;
-      else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = current - 1;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") next = at + 1;
+      else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = at - 1;
       else if (event.key === "Home") next = 0;
-      else if (event.key === "End") next = seats.length - 1;
+      else if (event.key === "End") next = order.length - 1;
       else if (event.key === "Escape") { hide(); return; }
       if (next === null) return;
       event.preventDefault();
-      show(Math.max(0, Math.min(seats.length - 1, next)), true);
+      show(order[Math.max(0, Math.min(order.length - 1, next))], true);
     });
 
     host.setAttribute("data-members", "true");
@@ -3661,6 +3707,66 @@
     var note = byId("election-result-members-note");
     if (note) note.hidden = false;
     bindMemberFilters(seats);
+    if (plan) bindSeatingView(host, seats, plan, function (isSeating) {
+      seating = isSeating;
+      order = isSeating ? seats.slice().sort(function (a, b) { return a.member.seat - b.member.seat; }) : seats;
+      hide();
+    });
+  }
+
+  // "Partivis" draws the party blocks of the result; "Som i kammaren" moves
+  // the same dots to the members' numbered seats in the plenary hall, so the
+  // card, the filters and the keyboard carry over unchanged.
+  function bindSeatingView(host, seats, plan, onChange) {
+    var frame = host.parentNode;
+    var toggle = byId("election-result-view");
+    var seatingNote = byId("election-result-seating-note");
+    if (!toggle) return;
+    var buttons = Array.prototype.slice.call(toggle.querySelectorAll("button[data-view]"));
+    seats.forEach(function (seat) {
+      seat.partyPlace = { left: seat.style.left, top: seat.style.top, width: seat.style.width };
+      var point = plan.seats[seat.member.seat];
+      seat.hallPlace = {
+        left: point.x.toFixed(3) + "%",
+        top: point.y.toFixed(3) + "%",
+        width: (plan.spacing * 0.78).toFixed(3) + "%"
+      };
+    });
+    var speaker = document.createElement("span");
+    speaker.className = "ep-speaker";
+    speaker.setAttribute("aria-hidden", "true");
+    speaker.textContent = "Talman";
+    if (plan.speaker) {
+      speaker.style.left = plan.speaker.x + "%";
+      speaker.style.top = plan.speaker.y + "%";
+    }
+    host.appendChild(speaker);
+
+    function setView(view) {
+      var hall = view === "seating";
+      frame.classList.toggle("is-seating", hall);
+      host.style.aspectRatio = hall ? String(plan.aspect) : "";
+      seats.forEach(function (seat) {
+        var place = hall ? seat.hallPlace : seat.partyPlace;
+        seat.style.left = place.left;
+        seat.style.top = place.top;
+        seat.style.width = place.width;
+      });
+      buttons.forEach(function (button) {
+        button.setAttribute("aria-pressed", button.getAttribute("data-view") === view ? "true" : "false");
+      });
+      if (seatingNote) seatingNote.hidden = !hall;
+      host.setAttribute("aria-label", hall
+        ? "Riksdagen som den sitter i plenisalen, 349 platser, valkretsvis."
+        : host.getAttribute("data-party-label") || host.getAttribute("aria-label"));
+      onChange(hall);
+    }
+
+    host.setAttribute("data-party-label", host.getAttribute("aria-label") || "");
+    buttons.forEach(function (button) {
+      button.addEventListener("click", function () { setView(button.getAttribute("data-view")); });
+    });
+    toggle.hidden = false;
   }
 
   // Party, constituency, age band and newly elected, combined with AND.  A

@@ -30,6 +30,7 @@ const MOBILE = { width: 360, height: 800 };
 const VERSIONS = 'files/election-simulator/versions';
 const RESULT = 'files/election-simulator/results/2026.json';
 const MEMBERS = 'files/election-simulator/results/2026-members.json';
+const SEATING = 'files/election-simulator/results/2026-seating.json';
 
 // The election-day publication: the last forecast made for 2026, computed on
 // the morning of the election. Its result is the one the page compares to.
@@ -228,6 +229,7 @@ const click = (browser, id) => browser.evaluate((wanted) => {
 
 const result = await readJson(SITE, RESULT);
 const members = await readJson(SITE, MEMBERS);
+const seatingPlan = await readJson(SITE, SEATING);
 // The live history is replaced by every sync. Until the first history for the
 // next election it ends on the decided election day; after that the page
 // joins the archived 2026 history to its left and the chart runs on past the
@@ -332,6 +334,61 @@ async function checkMembers(browser) {
   equal('reset clears every filter', filtered.reset, { lit: CHAMBER, count: `Alla ${CHAMBER} ledamöter`, reset: false, party: '' });
   equal('constituency and returning members combine', filtered.constituencyReturning.lit,
     count((m) => m.constituency === 'Göteborgs kommun' && m.newly_elected === false));
+
+  // A member who has left is shown as the successor in the same seat.
+  check('nobody who has left is shown', flat.every((m) => m.riksdag_status !== 'left'));
+  const successor = flat.find((m) => m.replaces);
+  if (successor) {
+    const card = await browser.evaluate((name) => {
+      const seat = Array.from(document.querySelectorAll('#election-result-parliament .election-seat'))
+        .find((node) => node.member && node.member.name === name);
+      seat.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      const text = document.getElementById('election-result-member-tip').innerText;
+      document.getElementById('election-result-parliament').dispatchEvent(new MouseEvent('mouseleave'));
+      return text;
+    }, successor.name);
+    check('a successor\'s card names the member they replace',
+      card.includes(`Ersätter ${successor.replaces.name}`), card);
+  }
+
+  // "Som i kammaren": every dot moves to its member's numbered seat in the
+  // hall, keyboard order follows the seat numbers, and "Partivis" restores
+  // the party blocks.
+  const hall = await browser.evaluate(async () => {
+    const host = document.getElementById('election-result-parliament');
+    const seats = Array.from(host.querySelectorAll('.election-seat'));
+    const before = seats.map((seat) => [seat.style.left, seat.style.top]);
+    const button = (view) => document.querySelector(`#election-result-view [data-view="${view}"]`);
+    const toggleShown = !document.getElementById('election-result-view').hidden;
+    button('seating').click();
+    const placed = seats.map((seat) => ({ seat: seat.member.seat, left: parseFloat(seat.style.left), top: parseFloat(seat.style.top) }));
+    const state = {
+      pressed: button('seating').getAttribute('aria-pressed'),
+      noteShown: !document.getElementById('election-result-seating-note').hidden,
+      centreHidden: getComputedStyle(document.querySelector('.election-parliament__centre')).display === 'none',
+    };
+    host.focus();
+    const first = document.getElementById('election-result-member-status').textContent;
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    const last = document.getElementById('election-result-member-status').textContent;
+    host.blur();
+    button('party').click();
+    const restored = seats.every((seat, index) => seat.style.left === before[index][0] && seat.style.top === before[index][1]);
+    return { toggleShown, placed, state, first, last, restored };
+  });
+  check('the seating toggle is shown', hall.toggleShown);
+  const misplaced = hall.placed.filter((dot) => {
+    const [x, y] = seatingPlan.seats[String(dot.seat)];
+    return Math.abs(dot.left - x) > 0.01 || Math.abs(dot.top - y) > 0.01;
+  });
+  equal('every member sits at their numbered seat in the hall', misplaced, []);
+  equal('each numbered seat holds one member',
+    hall.placed.map((dot) => dot.seat).sort((a, b) => a - b), Array.from({ length: CHAMBER }, (_, i) => i + 1));
+  equal('the hall view is marked and explained', hall.state, { pressed: 'true', noteShown: true, centreHidden: true });
+  const bySeat = (n) => flat.find((m) => m.seat === n).name;
+  check('focus starts at seat 1', hall.first.startsWith(bySeat(1) + ',') && /Plats 1 i kammaren/.test(hall.first), hall.first);
+  check('End reaches seat 349', hall.last.startsWith(bySeat(CHAMBER) + ',') && /Plats 349 i kammaren/.test(hall.last), hall.last);
+  check('Partivis restores the party blocks', hall.restored);
 }
 
 // --- 1. decided: the election-day publication against its result ---------
@@ -687,6 +744,38 @@ async function invalidMembers() {
   }
 }
 
+// --- 6. a seating plan that does not validate --------------------------------
+
+async function invalidSeating() {
+  console.log('\n[invalid seating plan] desktop');
+  const root = await mkdtemp(join(tmpdir(), 'election-result-site-'));
+  try {
+    await cp(SITE, root, { recursive: true });
+    const broken = structuredClone(seatingPlan);
+    delete broken.seats['200'];
+    await writeFile(join(root, SEATING), `${JSON.stringify(broken)}\n`);
+    const pointer = await pointerFor(SITE, DECIDED_GENERATION);
+    const { server, browser } = await open(DESKTOP, { root, pointer });
+    try {
+      await browser.waitFor(() =>
+        document.getElementById('election-result-parliament')?.getAttribute('data-members') === 'true', 10000);
+      const state = await browser.evaluate(() => ({
+        members: document.getElementById('election-result-parliament').getAttribute('data-members'),
+        filters: !document.getElementById('election-result-filters').hidden,
+        toggle: !document.getElementById('election-result-view').hidden,
+      }));
+      equal('members and filters stay, the seating toggle does not appear', state,
+        { members: 'true', filters: true, toggle: false });
+      equal('no console errors', appErrors(browser).map((e) => e.text), []);
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 await decided(DESKTOP, 'desktop');
 await decided(MOBILE, 'mobile');
 await preElection();
@@ -695,6 +784,7 @@ await nextElection(MOBILE, 'mobile');
 await resultNotYetAvailable();
 await invalidResult();
 await invalidMembers();
+await invalidSeating();
 
 console.log(`\n${failures ? `FAIL (${failures})` : 'PASS'} ${checks} checks`);
 process.exit(failures ? 1 : 0);

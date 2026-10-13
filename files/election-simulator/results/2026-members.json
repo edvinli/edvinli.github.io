@@ -17,29 +17,31 @@
  "municipality_definition": "folkbokforingskommun_else_ballot_place",
  "riksdag_roles_as_of": "2026-10-13",
  "newly_elected_definition": "no_seat_in_chamber_before_2026-09-28",
+ "seat_definition": "riksdagen_ordningsnummer_2026-09-28",
  "sources": [
   {
    "url": "https://resultat.val.se/data/resultat/val2026/RD_S.json",
    "title": "Valmyndigheten: Val till riksdagen - Slutligt valresultat",
-   "retrieved_at_utc": "2026-10-13T08:32:25Z",
+   "retrieved_at_utc": "2026-10-13T09:41:01Z",
    "raw_sha256": "1998afdc723a83b325c729faf68063c8731e33496fc274bf9fbb80499e0afb08"
   },
   {
    "url": "https://data.val.se/filer/val2026/parti/kandidaturer.csv",
    "title": "Valmyndigheten: Kandidaturer i val 2026",
-   "retrieved_at_utc": "2026-10-13T08:32:25Z",
+   "retrieved_at_utc": "2026-10-13T09:41:01Z",
    "raw_sha256": "84fc6b2d83abc51815eb39c95f02a4870db717b0bb7e3c8f8a1caba5c50719c6"
   },
   {
    "url": "https://data.riksdagen.se/personlista/?rdlstatus=tjanst&utformat=json",
    "title": "Sveriges riksdag: Ledamöter (personlista)",
-   "retrieved_at_utc": "2026-10-13T08:32:25Z",
-   "raw_sha256": "22fd0f96af4c350999ffe387c77f487c53fe4d2e7603f1d6fa23d5fa88f3eb5f"
+   "retrieved_at_utc": "2026-10-13T09:41:01Z",
+   "raw_sha256": "8a14b32bae6f1165a5cf3cac6bbf6c4b88a2d249a5fe847750e630354379eb8d"
   }
  ],
  "parties": {
   "M": [
    {
+    "seat": 242,
     "name": "Carl Nordblom",
     "age": 32,
     "title": "Riksdagsledamot",
@@ -48,9 +50,10 @@
     "constituency_code": "01",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 279,
     "name": "Gunnar Strömmer",
     "age": 53,
     "title": "Justitieminister",
@@ -64,6 +67,7 @@
     "newly_elected": true
    },
    {
+    "seat": 24,
     "name": "Jessica Rosencrantz",
     "age": 38,
     "title": "EU-minister",
@@ -77,6 +81,7 @@
     "newly_elected": false
    },
    {
+    "seat": 5,
     "name": "Johan Forssell",
     "age": 46,
     "title": "Migrationsminister",
@@ -90,6 +95,7 @@
     "newly_elected": false
    },
    {
+    "seat": 317,
     "name": "Benjamin Dousa",
     "age": 33,
     "title": "Bistånds- och utrikeshandelsminister",
@@ -103,6 +109,7 @@
     "newly_elected": true
    },
    {
+    "seat": 50,
     "name": "Kristina Axén Olin",
     "age": 63,
     "title": "Riksdagsledamot",
@@ -114,6 +121,7 @@
     "newly_elected": false
    },
    {
+    "seat": 212,
     "name": "Adam Reuterskiöld",
     "age": 60,
     "title": "Lantbrukare",
@@ -125,6 +133,7 @@
     "newly_elected": false
    },
    {
+    "seat": 283,
     "name": "Parisa Liljestrand",
     "age": 43,
     "title": "Kulturminister",
@@ -138,6 +147,7 @@
     "newly_elected": true
    },
    {
+    "seat": 53,
     "name": "Niklas Wykman",
     "age": 45,
     "title": "Finansmarknadsminister",
@@ -151,6 +161,7 @@
     "newly_elected": false
    },
    {
+    "seat": 7,
     "name": "Karin Enström",
     "age": 60,
     "title": "Riksdagsledamot, kapten",
@@ -164,6 +175,7 @@
     "newly_elected": false
    },
    {
+    "seat": 113,
     "name": "Erik Ottoson",
     "age": 36,
     "title": "Riksdagsledamot",
@@ -175,6 +187,7 @@
     "newly_elected": false
    },
    {
+    "seat": 143,
     "name": "Josefin Malmqvist",
     "age": 39,
     "title": "Riksdagsledamot",
@@ -186,6 +199,7 @@
     "newly_elected": false
    },
    {
+    "seat": 177,
     "name": "Fredrik Kärrholm",
     "age": 41,
     "title": "Kriminolog",
@@ -197,6 +211,7 @@
     "newly_elected": false
    },
    {
+    "seat": 83,
     "name": "Ida Drougge",
     "age": 36,
     "title": "Riksdagsledamot",
@@ -208,6 +223,7 @@
     "newly_elected": false
    },
    {
+    "seat": 114,
     "name": "Alexandra Anstrell",
     "age": 51,
     "title": "Riksdagsledamot",
@@ -219,6 +235,7 @@
     "newly_elected": false
    },
    {
+    "seat": 213,
     "name": "Joanna Lewerentz",
     "age": 33,
     "title": "Lärare",
@@ -227,9 +244,10 @@
     "constituency_code": "02",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 86,
     "name": "Stefan Olsson",
     "age": 58,
     "title": "Riksdagsledamot",
@@ -241,6 +259,7 @@
     "newly_elected": false
    },
    {
+    "seat": 116,
     "name": "Fredrik Ahlstedt",
     "age": 58,
     "title": "Riksdagsledamot",
@@ -254,6 +273,7 @@
     "newly_elected": false
    },
    {
+    "seat": 214,
     "name": "Ulf Kristersson",
     "age": 62,
     "title": "Statsminister, partiledare",
@@ -268,6 +288,7 @@
     "newly_elected": false
    },
    {
+    "seat": 286,
     "name": "Anna af Sillén",
     "age": 50,
     "title": "Riksdagsledamot",
@@ -276,9 +297,10 @@
     "constituency_code": "04",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 32,
     "name": "Andreas Norlén",
     "age": 53,
     "title": "Riksdagens talman",
@@ -292,6 +314,7 @@
     "newly_elected": false
    },
    {
+    "seat": 180,
     "name": "Matilda Ekeblad",
     "age": 30,
     "title": "Projektledare",
@@ -303,6 +326,7 @@
     "newly_elected": true
    },
    {
+    "seat": 91,
     "name": "John E. Weinerhall",
     "age": 31,
     "title": "Riksdagsledamot",
@@ -314,6 +338,7 @@
     "newly_elected": false
    },
    {
+    "seat": 181,
     "name": "Mats Green",
     "age": 47,
     "title": "Riksdagsledamot",
@@ -325,6 +350,7 @@
     "newly_elected": false
    },
    {
+    "seat": 253,
     "name": "Susanne Wahlström",
     "age": 53,
     "title": "Kommunikatör",
@@ -336,6 +362,7 @@
     "newly_elected": true
    },
    {
+    "seat": 62,
     "name": "Oliver Rosengren",
     "age": 34,
     "title": "Riksdagsledamot",
@@ -347,6 +374,7 @@
     "newly_elected": false
    },
    {
+    "seat": 35,
     "name": "Thomas Ragnarsson",
     "age": 56,
     "title": "Ambulanssjuksköterska",
@@ -358,6 +386,7 @@
     "newly_elected": false
    },
    {
+    "seat": 153,
     "name": "Olle Olson",
     "age": 31,
     "title": "Lärare",
@@ -369,6 +398,7 @@
     "newly_elected": true
    },
    {
+    "seat": 123,
     "name": "Marie Nicholson",
     "age": 49,
     "title": "Riksdagsledamot",
@@ -380,6 +410,7 @@
     "newly_elected": false
    },
    {
+    "seat": 92,
     "name": "Jesper Skalberg Karlsson",
     "age": 33,
     "title": "Riksdagsledamot",
@@ -391,6 +422,7 @@
     "newly_elected": false
    },
    {
+    "seat": 290,
     "name": "Åsa Coenraads",
     "age": 48,
     "title": "Näringspolitisk expert",
@@ -402,6 +434,7 @@
     "newly_elected": false
    },
    {
+    "seat": 256,
     "name": "Noria Manouchi",
     "age": 35,
     "title": "Riksdagsledamot",
@@ -413,6 +446,7 @@
     "newly_elected": false
    },
    {
+    "seat": 292,
     "name": "Peter Ollén",
     "age": 67,
     "title": "Riksdagsledamot",
@@ -424,6 +458,7 @@
     "newly_elected": false
    },
    {
+    "seat": 155,
     "name": "Alexander Svensson",
     "age": 30,
     "title": "Kommunalråd",
@@ -435,6 +470,7 @@
     "newly_elected": true
    },
    {
+    "seat": 65,
     "name": "Mats Sander",
     "age": 63,
     "title": "Flygvapenofficer",
@@ -446,6 +482,7 @@
     "newly_elected": false
    },
    {
+    "seat": 187,
     "name": "Boriana Åberg",
     "age": 57,
     "title": "Riksdagsledamot, socionom",
@@ -459,6 +496,7 @@
     "newly_elected": false
    },
    {
+    "seat": 223,
     "name": "Louise Meijer",
     "age": 36,
     "title": "Riksdagsledamot, jurist",
@@ -470,6 +508,7 @@
     "newly_elected": false
    },
    {
+    "seat": 332,
     "name": "Amanda Thonander",
     "age": 29,
     "title": "Kriminolog",
@@ -481,6 +520,7 @@
     "newly_elected": true
    },
    {
+    "seat": 260,
     "name": "Maria Malmer Stenergard",
     "age": 45,
     "title": "Utrikesmin., jurist",
@@ -494,6 +534,7 @@
     "newly_elected": false
    },
    {
+    "seat": 299,
     "name": "Daniel Lyckestam",
     "age": 34,
     "title": "Samhällsvetare",
@@ -505,6 +546,7 @@
     "newly_elected": true
    },
    {
+    "seat": 67,
     "name": "Helena Storckenfeldt",
     "age": 31,
     "title": "Riksdagsledamot",
@@ -516,6 +558,7 @@
     "newly_elected": false
    },
    {
+    "seat": 189,
     "name": "Hanna Netterberg",
     "age": 43,
     "title": "Ingenjör",
@@ -527,6 +570,7 @@
     "newly_elected": true
    },
    {
+    "seat": 39,
     "name": "Lars Püss",
     "age": 60,
     "title": "Riksdagsledamot",
@@ -538,6 +582,7 @@
     "newly_elected": false
    },
    {
+    "seat": 230,
     "name": "Marie-Louise Hänel Sandström",
     "age": 57,
     "title": "Läkare",
@@ -549,6 +594,7 @@
     "newly_elected": false
    },
    {
+    "seat": 267,
     "name": "Gustaf Göthberg",
     "age": 32,
     "title": "Riksdagsledamot",
@@ -560,6 +606,7 @@
     "newly_elected": false
    },
    {
+    "seat": 231,
     "name": "David Josefsson",
     "age": 42,
     "title": "Riksdagsledamot",
@@ -571,6 +618,7 @@
     "newly_elected": false
    },
    {
+    "seat": 16,
     "name": "Camilla Waltersson Grönvall",
     "age": 57,
     "title": "Socialtjänstminister",
@@ -584,6 +632,7 @@
     "newly_elected": false
    },
    {
+    "seat": 98,
     "name": "Johanna Rantsi",
     "age": 36,
     "title": "Riksdagsledamot",
@@ -595,6 +644,7 @@
     "newly_elected": false
    },
    {
+    "seat": 129,
     "name": "Anna Vedin",
     "age": 60,
     "title": "Resurspedagog",
@@ -603,9 +653,10 @@
     "constituency_code": "17",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 101,
     "name": "Ann-Sofie Alm",
     "age": 54,
     "title": "Riksdagsledamot",
@@ -617,6 +668,7 @@
     "newly_elected": false
    },
    {
+    "seat": 196,
     "name": "Jennie Bergius Eriksson",
     "age": 44,
     "title": "Civilekonom",
@@ -628,6 +680,7 @@
     "newly_elected": true
    },
    {
+    "seat": 42,
     "name": "Ulrik Nilsson",
     "age": 63,
     "title": "Riksdagsledamot",
@@ -639,6 +692,7 @@
     "newly_elected": false
    },
    {
+    "seat": 70,
     "name": "Annelie Hastig Olsson",
     "age": 52,
     "title": "Företagare",
@@ -650,6 +704,7 @@
     "newly_elected": true
    },
    {
+    "seat": 233,
     "name": "Sten Bergheden",
     "age": 61,
     "title": "Riksdagsledamot",
@@ -661,6 +716,7 @@
     "newly_elected": false
    },
    {
+    "seat": 305,
     "name": "Charlotte Nordström",
     "age": 62,
     "title": "Riksdagsledamot",
@@ -672,6 +728,7 @@
     "newly_elected": false
    },
    {
+    "seat": 102,
     "name": "Pål Jonson",
     "age": 54,
     "title": "Försvarsminister",
@@ -685,6 +742,7 @@
     "newly_elected": false
    },
    {
+    "seat": 133,
     "name": "Magnus Resare",
     "age": 39,
     "title": "Riksdagsledamot/Advokat",
@@ -693,9 +751,10 @@
     "constituency_code": "21",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 21,
     "name": "Elisabeth Svantesson",
     "age": 58,
     "title": "Finansminister",
@@ -709,6 +768,7 @@
     "newly_elected": false
    },
    {
+    "seat": 164,
     "name": "Oskar Svärd",
     "age": 30,
     "title": "Riksdagsledamot",
@@ -722,6 +782,7 @@
     "newly_elected": false
    },
    {
+    "seat": 270,
     "name": "Caroline Högström",
     "age": 34,
     "title": "Riksdagsledamot",
@@ -733,6 +794,7 @@
     "newly_elected": false
    },
    {
+    "seat": 235,
     "name": "Mikael Damsgaard",
     "age": 49,
     "title": "Riksdagsledamot",
@@ -744,6 +806,7 @@
     "newly_elected": false
    },
    {
+    "seat": 200,
     "name": "Carl-Oskar Bohlin",
     "age": 40,
     "title": "Statsråd",
@@ -757,6 +820,7 @@
     "newly_elected": false
    },
    {
+    "seat": 273,
     "name": "Crister Carlsson",
     "age": 62,
     "title": "Ambulanssjuksköterska",
@@ -765,9 +829,10 @@
     "constituency_code": "24",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 239,
     "name": "Viktor Wärnick",
     "age": 35,
     "title": "Riksdagsledamot/jurist",
@@ -779,6 +844,7 @@
     "newly_elected": false
    },
    {
+    "seat": 202,
     "name": "Lars Beckman",
     "age": 58,
     "title": "Riksdagsledamot/regionchef",
@@ -790,6 +856,7 @@
     "newly_elected": false
    },
    {
+    "seat": 76,
     "name": "Jörgen Berglund",
     "age": 52,
     "title": null,
@@ -803,6 +870,7 @@
     "newly_elected": false
    },
    {
+    "seat": 205,
     "name": "Elise Ryder Wikén",
     "age": 57,
     "title": "F.d. regionråd",
@@ -814,6 +882,7 @@
     "newly_elected": true
    },
    {
+    "seat": 23,
     "name": "Edward Riedl",
     "age": 50,
     "title": "Riksdagsledamot",
@@ -827,6 +896,7 @@
     "newly_elected": false
    },
    {
+    "seat": 312,
     "name": "Mattias Karlsson",
     "age": 54,
     "title": "Riksdagsledamot",
@@ -840,6 +910,7 @@
     "newly_elected": false
    },
    {
+    "seat": 348,
     "name": "Linda Frohm",
     "age": 49,
     "title": "Regionråd",
@@ -853,6 +924,7 @@
   ],
   "L": [
    {
+    "seat": 244,
     "name": "Lotta Edholm",
     "age": 61,
     "title": "Gymnasie-, högskole- och forskningsminister",
@@ -863,9 +935,10 @@
      "Gymnasie-, högskole- och forskningsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 208,
     "name": "Romina Pourmokhtari",
     "age": 30,
     "title": "Klimat- och miljöminister",
@@ -879,6 +952,7 @@
     "newly_elected": false
    },
    {
+    "seat": 111,
     "name": "Joar Forssell",
     "age": 33,
     "title": "Riksdagsledamot",
@@ -893,6 +967,7 @@
     "newly_elected": false
    },
    {
+    "seat": 145,
     "name": "Nina Larsson",
     "age": 49,
     "title": "Jämställdhetsminister/reservofficer",
@@ -906,6 +981,7 @@
     "newly_elected": false
    },
    {
+    "seat": 248,
     "name": "Johan Britz",
     "age": 51,
     "title": "Arbetsmarknadsminister/civilingenjör",
@@ -919,17 +995,23 @@
     "newly_elected": true
    },
    {
-    "name": "Karin Karlsbro",
-    "age": 55,
-    "title": "Europaparlamentariker",
-    "municipality": "Stockholm",
+    "seat": 246,
+    "name": "Anders Ekegren",
+    "age": 69,
+    "title": "Riksdagsledamot",
+    "municipality": "Solna",
     "constituency": "Stockholms län",
     "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "left",
-    "newly_elected": true
+    "riksdag_status": "serving",
+    "newly_elected": false,
+    "replaces": {
+     "name": "Karin Karlsbro",
+     "from": "2026-09-29"
+    }
    },
    {
+    "seat": 31,
     "name": "Lina Nordquist",
     "age": 48,
     "title": "Docent i fysiologi, författare",
@@ -943,6 +1025,7 @@
     "newly_elected": false
    },
    {
+    "seat": 119,
     "name": "Patrik Karlson",
     "age": 39,
     "title": null,
@@ -954,6 +1037,7 @@
     "newly_elected": false
    },
    {
+    "seat": 252,
     "name": "Erik Nygårds",
     "age": 61,
     "title": "Näringslivsutvecklare",
@@ -965,6 +1049,7 @@
     "newly_elected": true
    },
    {
+    "seat": 184,
     "name": "Lars Leijonborg",
     "age": 76,
     "title": "Tidigare partiledare",
@@ -976,6 +1061,7 @@
     "newly_elected": false
    },
    {
+    "seat": 14,
     "name": "Mauricio Rojas Mullor",
     "age": 76,
     "title": null,
@@ -987,6 +1073,7 @@
     "newly_elected": false
    },
    {
+    "seat": 297,
     "name": "Camilla Mårtensen",
     "age": 56,
     "title": null,
@@ -998,6 +1085,7 @@
     "newly_elected": false
    },
    {
+    "seat": 298,
     "name": "Marianne Littke",
     "age": 61,
     "title": null,
@@ -1009,6 +1097,7 @@
     "newly_elected": true
    },
    {
+    "seat": 188,
     "name": "Hanna Schölander",
     "age": 47,
     "title": "Tjl Enhetschef",
@@ -1020,6 +1109,7 @@
     "newly_elected": true
    },
    {
+    "seat": 338,
     "name": "Simona Mohamsson",
     "age": 31,
     "title": "Partiledare",
@@ -1034,6 +1124,7 @@
     "newly_elected": true
    },
    {
+    "seat": 191,
     "name": "Elin Andersson",
     "age": 44,
     "title": "Civilingenjör",
@@ -1045,6 +1136,7 @@
     "newly_elected": true
    },
    {
+    "seat": 195,
     "name": "Cecilia Prins",
     "age": 47,
     "title": "Frisör",
@@ -1056,6 +1148,7 @@
     "newly_elected": true
    },
    {
+    "seat": 165,
     "name": "Willhelm Sundman",
     "age": 34,
     "title": "Oppositionsråd",
@@ -1067,6 +1160,7 @@
     "newly_elected": true
    },
    {
+    "seat": 199,
     "name": "Roger Haddad",
     "age": 48,
     "title": "Statsvetare",
@@ -1080,6 +1174,7 @@
   ],
   "C": [
    {
+    "seat": 171,
     "name": "Elisabeth Thand Ringqvist",
     "age": 54,
     "title": "Partiledare",
@@ -1093,6 +1188,7 @@
     "newly_elected": false
    },
    {
+    "seat": 6,
     "name": "Birgitta Ohlsson",
     "age": 51,
     "title": "Fd Minister/Riksdagsledamot",
@@ -1104,6 +1200,7 @@
     "newly_elected": false
    },
    {
+    "seat": 51,
     "name": "Martin Ådahl",
     "age": 56,
     "title": "Riksdagsledamot",
@@ -1115,6 +1212,7 @@
     "newly_elected": false
    },
    {
+    "seat": 3,
     "name": "Kerstin Lundgren",
     "age": 71,
     "title": "Riksdagsledamot",
@@ -1128,6 +1226,7 @@
     "newly_elected": false
    },
    {
+    "seat": 175,
     "name": "Anna Lasses",
     "age": 49,
     "title": "Statsvetare",
@@ -1139,6 +1238,7 @@
     "newly_elected": false
    },
    {
+    "seat": 320,
     "name": "Rasmus Elfström",
     "age": 29,
     "title": "Jurist",
@@ -1150,6 +1250,7 @@
     "newly_elected": true
    },
    {
+    "seat": 57,
     "name": "Catarina Deremar",
     "age": 60,
     "title": "Riksdagsledamot",
@@ -1161,6 +1262,7 @@
     "newly_elected": false
    },
    {
+    "seat": 250,
     "name": "Martina Johansson",
     "age": 51,
     "title": "Riksdagsledamot",
@@ -1172,6 +1274,7 @@
     "newly_elected": false
    },
    {
+    "seat": 118,
     "name": "Muharrem Demirok",
     "age": 49,
     "title": "Riksdagsledamot",
@@ -1183,6 +1286,7 @@
     "newly_elected": false
    },
    {
+    "seat": 289,
     "name": "Emma Brihall",
     "age": 29,
     "title": "Agronom",
@@ -1194,6 +1298,7 @@
     "newly_elected": true
    },
    {
+    "seat": 150,
     "name": "Emmy Ahlstedt",
     "age": 45,
     "title": "Regionråd",
@@ -1205,6 +1310,7 @@
     "newly_elected": true
    },
    {
+    "seat": 221,
     "name": "Niels Paarup-Petersen",
     "age": 48,
     "title": "Riksdagsledamot",
@@ -1216,6 +1322,7 @@
     "newly_elected": false
    },
    {
+    "seat": 95,
     "name": "Magnus Haara",
     "age": 53,
     "title": "Jurist",
@@ -1227,6 +1334,7 @@
     "newly_elected": true
    },
    {
+    "seat": 258,
     "name": "Stina Larsson",
     "age": 49,
     "title": "Riksdagsledamot",
@@ -1240,6 +1348,7 @@
     "newly_elected": false
    },
    {
+    "seat": 263,
     "name": "Birte Sandberg",
     "age": 61,
     "title": "Fil.master utb.vetenskap",
@@ -1251,6 +1360,7 @@
     "newly_elected": true
    },
    {
+    "seat": 97,
     "name": "Christofer Bergenblock",
     "age": 51,
     "title": "Riksdagsledamot",
@@ -1262,6 +1372,7 @@
     "newly_elected": false
    },
    {
+    "seat": 193,
     "name": "Rickard Nordin",
     "age": 43,
     "title": "Riksdagsledamot, vice partiledare",
@@ -1273,6 +1384,7 @@
     "newly_elected": false
    },
    {
+    "seat": 99,
     "name": "Anders Ådahl",
     "age": 54,
     "title": "Riksdagsledamot",
@@ -1287,6 +1399,7 @@
     "newly_elected": false
    },
    {
+    "seat": 232,
     "name": "Ulrika Heie",
     "age": 61,
     "title": "Riksdagsledamot",
@@ -1300,6 +1413,7 @@
     "newly_elected": false
    },
    {
+    "seat": 19,
     "name": "Daniel Bäckström",
     "age": 50,
     "title": "Riksdagsledamot",
@@ -1313,6 +1427,7 @@
     "newly_elected": false
    },
    {
+    "seat": 47,
     "name": "Helena Vilhelmsson",
     "age": 61,
     "title": "Riksdagsledamot",
@@ -1324,6 +1439,7 @@
     "newly_elected": false
    },
    {
+    "seat": 236,
     "name": "Ulrika Liljeberg",
     "age": 57,
     "title": "Kammaråklagare",
@@ -1335,6 +1451,7 @@
     "newly_elected": false
    },
    {
+    "seat": 347,
     "name": "Caroline Schmidt",
     "age": 65,
     "title": "Oppositionsråd",
@@ -1346,6 +1463,7 @@
     "newly_elected": true
    },
    {
+    "seat": 106,
     "name": "Anne-Li Sjölund",
     "age": 60,
     "title": null,
@@ -1357,6 +1475,7 @@
     "newly_elected": false
    },
    {
+    "seat": 139,
     "name": "Julia Algotsson",
     "age": 30,
     "title": "Sakkunnig skog och lantbruk",
@@ -1370,6 +1489,7 @@
   ],
   "KD": [
    {
+    "seat": 80,
     "name": "Camilla Brodin",
     "age": 47,
     "title": "Riksdagsledamot",
@@ -1383,6 +1503,7 @@
     "newly_elected": false
    },
    {
+    "seat": 174,
     "name": "Christian Carlsson",
     "age": 39,
     "title": "Riksdagsledamot, jurist",
@@ -1394,6 +1515,7 @@
     "newly_elected": false
    },
    {
+    "seat": 27,
     "name": "Jakob Forssmed",
     "age": 51,
     "title": "Socialminister",
@@ -1407,6 +1529,7 @@
     "newly_elected": false
    },
    {
+    "seat": 9,
     "name": "Mikael Oscarsson",
     "age": 59,
     "title": "Riksdagsledamot",
@@ -1418,6 +1541,7 @@
     "newly_elected": false
    },
    {
+    "seat": 325,
     "name": "Paul Sabo",
     "age": 25,
     "title": "Jurist",
@@ -1429,6 +1553,7 @@
     "newly_elected": true
    },
    {
+    "seat": 58,
     "name": "Magnus Oscarsson",
     "age": 56,
     "title": "Riksdagsledamot",
@@ -1440,6 +1565,7 @@
     "newly_elected": false
    },
    {
+    "seat": 218,
     "name": "Camilla Rinaldo Miller",
     "age": 57,
     "title": "Riksdagsledamot",
@@ -1448,9 +1574,10 @@
     "constituency_code": "06",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 151,
     "name": "Carl Wiktor Svensson",
     "age": 36,
     "title": "Skogstekniker",
@@ -1462,6 +1589,7 @@
     "newly_elected": true
    },
    {
+    "seat": 259,
     "name": "Cecilia Engström",
     "age": 53,
     "title": "Riksdagsledamot",
@@ -1473,6 +1601,7 @@
     "newly_elected": false
    },
    {
+    "seat": 334,
     "name": "Martin Hallander",
     "age": 33,
     "title": "Regionpolitiker",
@@ -1484,6 +1613,7 @@
     "newly_elected": true
    },
    {
+    "seat": 38,
     "name": "Larry Söder",
     "age": 57,
     "title": "Riksdagsledamot",
@@ -1495,6 +1625,7 @@
     "newly_elected": false
    },
    {
+    "seat": 303,
     "name": "Elisabet Lann",
     "age": 49,
     "title": "Sjukvårdsminister",
@@ -1508,6 +1639,7 @@
     "newly_elected": true
    },
    {
+    "seat": 128,
     "name": "Magnus Berntsson",
     "age": 53,
     "title": "Riksdagsledamot",
@@ -1519,6 +1651,7 @@
     "newly_elected": false
    },
    {
+    "seat": 100,
     "name": "Magnus Jacobsson",
     "age": 58,
     "title": "Riksdagsledamot",
@@ -1530,6 +1663,7 @@
     "newly_elected": false
    },
    {
+    "seat": 18,
     "name": "Ingemar Kihlström",
     "age": 60,
     "title": "Riksdagsledamot",
@@ -1541,6 +1675,7 @@
     "newly_elected": false
    },
    {
+    "seat": 340,
     "name": "Dan Hovskär",
     "age": 56,
     "title": "Riksdagsledamot",
@@ -1549,9 +1684,10 @@
     "constituency_code": "20",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 103,
     "name": "Kjell-Arne Ottosson",
     "age": 51,
     "title": "Riksdagsledamot",
@@ -1565,6 +1701,7 @@
     "newly_elected": false
    },
    {
+    "seat": 75,
     "name": "Ebba Busch",
     "age": 39,
     "title": "Partiledare, Vice statsminister",
@@ -1579,6 +1716,7 @@
     "newly_elected": false
    },
    {
+    "seat": 272,
     "name": "Mathias Bengtsson",
     "age": 28,
     "title": "Riksdagsledamot",
@@ -1590,6 +1728,7 @@
     "newly_elected": false
    },
    {
+    "seat": 275,
     "name": "Lili André",
     "age": 56,
     "title": "Ingenjör, Riksdagsledamot",
@@ -1601,6 +1740,7 @@
     "newly_elected": false
    },
    {
+    "seat": 137,
     "name": "Liza-Maria Norlin",
     "age": 46,
     "title": "Partisekreterare",
@@ -1615,6 +1755,7 @@
     "newly_elected": false
    },
    {
+    "seat": 109,
     "name": "Veronica Kerr",
     "age": 56,
     "title": "Gruppledare",
@@ -1628,6 +1769,7 @@
   ],
   "S": [
    {
+    "seat": 4,
     "name": "Anders Ygeman",
     "age": 56,
     "title": "Riksdagsledamot",
@@ -1639,6 +1781,7 @@
     "newly_elected": false
    },
    {
+    "seat": 25,
     "name": "Lawen Redar",
     "age": 36,
     "title": "Riksdagsledamot",
@@ -1650,6 +1793,7 @@
     "newly_elected": false
    },
    {
+    "seat": 26,
     "name": "Mattias Vepsä",
     "age": 46,
     "title": "Riksdagsledamot",
@@ -1661,6 +1805,7 @@
     "newly_elected": false
    },
    {
+    "seat": 280,
     "name": "Talla Alkurdi",
     "age": 42,
     "title": "Regionråd",
@@ -1672,6 +1817,7 @@
     "newly_elected": true
    },
    {
+    "seat": 140,
     "name": "Kadir Kasirga",
     "age": 51,
     "title": "Stationsvärd",
@@ -1683,6 +1829,7 @@
     "newly_elected": false
    },
    {
+    "seat": 206,
     "name": "Jytte Guteland",
     "age": 46,
     "title": "Riksdagsledamot",
@@ -1694,6 +1841,7 @@
     "newly_elected": false
    },
    {
+    "seat": 172,
     "name": "Markus Kallifatides",
     "age": 54,
     "title": "Ekonom",
@@ -1705,6 +1853,7 @@
     "newly_elected": false
    },
    {
+    "seat": 141,
     "name": "Mirja Räihä",
     "age": 67,
     "title": "Undersköterska",
@@ -1716,6 +1865,7 @@
     "newly_elected": false
    },
    {
+    "seat": 207,
     "name": "Daniel Vencu Velasquez Castro",
     "age": 31,
     "title": "Riksdagsledamot",
@@ -1727,6 +1877,7 @@
     "newly_elected": false
    },
    {
+    "seat": 28,
     "name": "Magdalena Andersson",
     "age": 59,
     "title": "Partiledare",
@@ -1740,6 +1891,7 @@
     "newly_elected": false
    },
    {
+    "seat": 8,
     "name": "Mikael Damberg",
     "age": 54,
     "title": "Riksdagsledamot",
@@ -1753,6 +1905,7 @@
     "newly_elected": false
    },
    {
+    "seat": 52,
     "name": "Åsa Westlund",
     "age": 50,
     "title": "Riksdagsledamot",
@@ -1764,6 +1917,7 @@
     "newly_elected": false
    },
    {
+    "seat": 321,
     "name": "Sarkis Khatchadourian",
     "age": 29,
     "title": "Civilingenjör",
@@ -1775,6 +1929,7 @@
     "newly_elected": true
    },
    {
+    "seat": 82,
     "name": "Alexandra Völker",
     "age": 37,
     "title": "Statsvetare",
@@ -1786,6 +1941,7 @@
     "newly_elected": false
    },
    {
+    "seat": 29,
     "name": "Leif Nysmed",
     "age": 55,
     "title": "Byggnadsarbetare",
@@ -1797,6 +1953,7 @@
     "newly_elected": false
    },
    {
+    "seat": 84,
     "name": "Azadeh Rojhan",
     "age": 40,
     "title": "Riksdagsledamot",
@@ -1808,6 +1965,7 @@
     "newly_elected": false
    },
    {
+    "seat": 85,
     "name": "Mathias Tegnér",
     "age": 47,
     "title": "Civilekonom",
@@ -1819,6 +1977,7 @@
     "newly_elected": false
    },
    {
+    "seat": 247,
     "name": "Katarina Berggren",
     "age": 58,
     "title": "Ombudsman Kommunal",
@@ -1830,6 +1989,7 @@
     "newly_elected": true
    },
    {
+    "seat": 115,
     "name": "Markus Selin",
     "age": 47,
     "title": "Civilingenjör/civilekonom",
@@ -1841,6 +2001,7 @@
     "newly_elected": false
    },
    {
+    "seat": 282,
     "name": "Andrine Winther",
     "age": 49,
     "title": "Avdelningschef",
@@ -1852,6 +2013,7 @@
     "newly_elected": true
    },
    {
+    "seat": 249,
     "name": "Emil Högberg",
     "age": 50,
     "title": "Jurist/kommunalråd",
@@ -1863,6 +2025,7 @@
     "newly_elected": true
    },
    {
+    "seat": 10,
     "name": "Ardalan Shekarabi",
     "age": 47,
     "title": "Riksdagsledamot",
@@ -1876,6 +2039,7 @@
     "newly_elected": false
    },
    {
+    "seat": 147,
     "name": "Ylva Stadell",
     "age": 44,
     "title": "Ombudsman",
@@ -1887,6 +2051,7 @@
     "newly_elected": true
    },
    {
+    "seat": 30,
     "name": "Gustaf Lantz",
     "age": 45,
     "title": "Riksdagsledamot",
@@ -1898,6 +2063,7 @@
     "newly_elected": false
    },
    {
+    "seat": 117,
     "name": "Åsa Andersson",
     "age": 55,
     "title": "Stödassistent",
@@ -1909,6 +2075,7 @@
     "newly_elected": true
    },
    {
+    "seat": 179,
     "name": "Fredrik Olovsson",
     "age": 53,
     "title": "Riksdagsledamot",
@@ -1920,6 +2087,7 @@
     "newly_elected": false
    },
    {
+    "seat": 251,
     "name": "Sofia Amloh",
     "age": 40,
     "title": "Stålverksarbetare",
@@ -1931,6 +2099,7 @@
     "newly_elected": false
    },
    {
+    "seat": 322,
     "name": "Jimmy Jansson",
     "age": 48,
     "title": "Lärare",
@@ -1942,6 +2111,7 @@
     "newly_elected": true
    },
    {
+    "seat": 59,
     "name": "Teresa Carvalho",
     "age": 42,
     "title": "Riksdagsledamot",
@@ -1955,6 +2125,7 @@
     "newly_elected": false
    },
    {
+    "seat": 33,
     "name": "Johan Andersson",
     "age": 64,
     "title": "Riksdagsledamot",
@@ -1966,6 +2137,7 @@
     "newly_elected": false
    },
    {
+    "seat": 61,
     "name": "Eva Lindh",
     "age": 54,
     "title": "Riksdagsledamot",
@@ -1977,6 +2149,7 @@
     "newly_elected": false
    },
    {
+    "seat": 149,
     "name": "Elias Aguirre",
     "age": 42,
     "title": "Kommunalråd",
@@ -1988,6 +2161,7 @@
     "newly_elected": true
    },
    {
+    "seat": 1,
     "name": "Johanna Haraldsson",
     "age": 46,
     "title": "Riksdagsledamot",
@@ -2001,6 +2175,7 @@
     "newly_elected": false
    },
    {
+    "seat": 219,
     "name": "Ilan De Basso",
     "age": 56,
     "title": "Fd. EU-parlamentariker",
@@ -2012,6 +2187,7 @@
     "newly_elected": false
    },
    {
+    "seat": 217,
     "name": "Azra Muranovic",
     "age": 39,
     "title": "Riksdagsledamot",
@@ -2023,6 +2199,7 @@
     "newly_elected": false
    },
    {
+    "seat": 12,
     "name": "Monica Haider",
     "age": 63,
     "title": null,
@@ -2034,6 +2211,7 @@
     "newly_elected": false
    },
    {
+    "seat": 63,
     "name": "Robert Olesen",
     "age": 51,
     "title": null,
@@ -2045,6 +2223,7 @@
     "newly_elected": false
    },
    {
+    "seat": 120,
     "name": "Lena Hallengren",
     "age": 52,
     "title": "Riksdagsledamot",
@@ -2058,6 +2237,7 @@
     "newly_elected": false
    },
    {
+    "seat": 152,
     "name": "Marcus Fridlund",
     "age": 34,
     "title": "Drifttekniker",
@@ -2069,17 +2249,23 @@
     "newly_elected": true
    },
    {
-    "name": "Meit Fohlin",
-    "age": 55,
+    "seat": 93,
+    "name": "Filip Reinhag",
+    "age": 42,
     "title": null,
     "municipality": "Gotland",
     "constituency": "Gotlands län",
     "constituency_code": "09",
     "riksdag_roles": [],
-    "riksdag_status": "left",
-    "newly_elected": true
+    "riksdag_status": "serving",
+    "newly_elected": true,
+    "replaces": {
+     "name": "Meit Fohlin",
+     "from": "2026-10-06"
+    }
    },
    {
+    "seat": 291,
     "name": "Heléne Björklund",
     "age": 53,
     "title": "Riksdagsledamot",
@@ -2091,6 +2277,7 @@
     "newly_elected": false
    },
    {
+    "seat": 326,
     "name": "Magnus Johansson",
     "age": 59,
     "title": "Regionråd",
@@ -2102,6 +2289,7 @@
     "newly_elected": false
    },
    {
+    "seat": 220,
     "name": "Joakim Sandell",
     "age": 51,
     "title": "Riksdagsledamot",
@@ -2113,6 +2301,7 @@
     "newly_elected": false
    },
    {
+    "seat": 257,
     "name": "Rose-Marie Carlsson",
     "age": 71,
     "title": "Riksdagsledamot",
@@ -2124,6 +2313,7 @@
     "newly_elected": false
    },
    {
+    "seat": 328,
     "name": "Arwin Sohrabi",
     "age": 32,
     "title": "Projektledare",
@@ -2132,9 +2322,10 @@
     "constituency_code": "11",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 13,
     "name": "Niklas Karlsson",
     "age": 52,
     "title": "Riksdagsledamot",
@@ -2148,6 +2339,7 @@
     "newly_elected": false
    },
    {
+    "seat": 124,
     "name": "My Rosell",
     "age": 41,
     "title": "Enhetschef äldreomsorg",
@@ -2159,6 +2351,7 @@
     "newly_elected": true
    },
    {
+    "seat": 64,
     "name": "Ola Möller",
     "age": 43,
     "title": "Riksdagsledamot",
@@ -2170,6 +2363,7 @@
     "newly_elected": false
    },
    {
+    "seat": 186,
     "name": "Morgan Johansson",
     "age": 56,
     "title": "Riksdagsledamot",
@@ -2183,6 +2377,7 @@
     "newly_elected": false
    },
    {
+    "seat": 331,
     "name": "Cilla Dahl Andersson",
     "age": 54,
     "title": "Folkhögskollärare",
@@ -2191,9 +2386,10 @@
     "constituency_code": "13",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 296,
     "name": "Adrian Magnusson",
     "age": 31,
     "title": "Riksdagsledamot",
@@ -2205,6 +2401,7 @@
     "newly_elected": false
    },
    {
+    "seat": 261,
     "name": "Anna Wallentheim",
     "age": 41,
     "title": "Riksdagsledamot",
@@ -2216,6 +2413,7 @@
     "newly_elected": false
    },
    {
+    "seat": 225,
     "name": "Per-Arne Håkansson",
     "age": 63,
     "title": "Riksdagsledamot",
@@ -2227,6 +2425,7 @@
     "newly_elected": false
    },
    {
+    "seat": 262,
     "name": "Ewa Pihl Krabbe",
     "age": 78,
     "title": "Leg. Psykolog",
@@ -2238,6 +2437,7 @@
     "newly_elected": false
    },
    {
+    "seat": 15,
     "name": "Jennie Nilsson",
     "age": 54,
     "title": null,
@@ -2251,6 +2451,7 @@
     "newly_elected": false
    },
    {
+    "seat": 127,
     "name": "Arber Gashi",
     "age": 31,
     "title": null,
@@ -2262,6 +2463,7 @@
     "newly_elected": false
    },
    {
+    "seat": 126,
     "name": "Aida Birinxhiku",
     "age": 27,
     "title": null,
@@ -2273,6 +2475,7 @@
     "newly_elected": false
    },
    {
+    "seat": 192,
     "name": "Mattias Jonsson",
     "age": 52,
     "title": "Ombudsman IF Metall",
@@ -2284,6 +2487,7 @@
     "newly_elected": false
    },
    {
+    "seat": 266,
     "name": "Amalia Rud Stenlöf",
     "age": 33,
     "title": "Riksdagsledamot",
@@ -2295,6 +2499,7 @@
     "newly_elected": false
    },
    {
+    "seat": 228,
     "name": "Johan Büser",
     "age": 43,
     "title": "Riksdagsledamot",
@@ -2306,6 +2511,7 @@
     "newly_elected": false
    },
    {
+    "seat": 301,
     "name": "Ingrid Andreae",
     "age": 65,
     "title": "Pensionär",
@@ -2317,6 +2523,7 @@
     "newly_elected": true
    },
    {
+    "seat": 302,
     "name": "Robert Andersson Hammarstrand",
     "age": 54,
     "title": "Ombudsman",
@@ -2328,6 +2535,7 @@
     "newly_elected": true
    },
    {
+    "seat": 69,
     "name": "Aylin Nouri",
     "age": 34,
     "title": "Riksdagsledamot",
@@ -2339,6 +2547,7 @@
     "newly_elected": false
    },
    {
+    "seat": 41,
     "name": "Joakim Järrebring",
     "age": 50,
     "title": "Facklig ombudsman",
@@ -2350,6 +2559,7 @@
     "newly_elected": false
    },
    {
+    "seat": 190,
     "name": "Katarina Bosetti-Kristoffersson",
     "age": 47,
     "title": "Ombudsman LO",
@@ -2361,6 +2571,7 @@
     "newly_elected": true
    },
    {
+    "seat": 160,
     "name": "Jonathan Svensson",
     "age": 26,
     "title": "Riksdagsledamot",
@@ -2372,6 +2583,7 @@
     "newly_elected": false
    },
    {
+    "seat": 131,
     "name": "Louise Thunström",
     "age": 53,
     "title": "Riksdagsledamot",
@@ -2383,6 +2595,7 @@
     "newly_elected": false
    },
    {
+    "seat": 161,
     "name": "Michael Melby",
     "age": 56,
     "title": "Metallindustriarbetare",
@@ -2394,6 +2607,7 @@
     "newly_elected": true
    },
    {
+    "seat": 17,
     "name": "Petter Löberg",
     "age": 58,
     "title": null,
@@ -2405,6 +2619,7 @@
     "newly_elected": false
    },
    {
+    "seat": 44,
     "name": "Jessica Rodén",
     "age": 49,
     "title": "Tostared",
@@ -2416,6 +2631,7 @@
     "newly_elected": false
    },
    {
+    "seat": 269,
     "name": "Erik Ezelius",
     "age": 39,
     "title": null,
@@ -2427,6 +2643,7 @@
     "newly_elected": false
    },
    {
+    "seat": 342,
     "name": "Therese Kristiansson",
     "age": 31,
     "title": null,
@@ -2438,6 +2655,7 @@
     "newly_elected": true
    },
    {
+    "seat": 341,
     "name": "Marcus Andersson",
     "age": 39,
     "title": null,
@@ -2446,9 +2664,10 @@
     "constituency_code": "20",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 72,
     "name": "Mikael Dahlkvist",
     "age": 58,
     "title": null,
@@ -2460,6 +2679,7 @@
     "newly_elected": false
    },
    {
+    "seat": 132,
     "name": "Sofia Skönnbrink",
     "age": 34,
     "title": null,
@@ -2471,6 +2691,7 @@
     "newly_elected": false
    },
    {
+    "seat": 162,
     "name": "Peter Söderström",
     "age": 51,
     "title": null,
@@ -2482,6 +2703,7 @@
     "newly_elected": true
    },
    {
+    "seat": 20,
     "name": "Matilda Ernkrans",
     "age": 53,
     "title": null,
@@ -2493,6 +2715,7 @@
     "newly_elected": false
    },
    {
+    "seat": 74,
     "name": "Denis Begic",
     "age": 55,
     "title": null,
@@ -2504,6 +2727,7 @@
     "newly_elected": false
    },
    {
+    "seat": 134,
     "name": "Karin Sundin",
     "age": 54,
     "title": null,
@@ -2515,6 +2739,7 @@
     "newly_elected": false
    },
    {
+    "seat": 234,
     "name": "Åsa Eriksson",
     "age": 54,
     "title": null,
@@ -2526,6 +2751,7 @@
     "newly_elected": false
    },
    {
+    "seat": 306,
     "name": "Jonas Cronert",
     "age": 46,
     "title": null,
@@ -2537,6 +2763,7 @@
     "newly_elected": true
    },
    {
+    "seat": 343,
     "name": "Amanda Lindblad",
     "age": 35,
     "title": null,
@@ -2548,6 +2775,7 @@
     "newly_elected": true
    },
    {
+    "seat": 166,
     "name": "Peter Hultqvist",
     "age": 67,
     "title": null,
@@ -2561,6 +2789,7 @@
     "newly_elected": false
    },
    {
+    "seat": 308,
     "name": "Marie Olsson",
     "age": 59,
     "title": null,
@@ -2572,6 +2801,7 @@
     "newly_elected": false
    },
    {
+    "seat": 237,
     "name": "Lars Isacsson",
     "age": 56,
     "title": null,
@@ -2583,6 +2813,7 @@
     "newly_elected": false
    },
    {
+    "seat": 238,
     "name": "Patrik Lundqvist",
     "age": 42,
     "title": "Mekaniker",
@@ -2594,6 +2825,7 @@
     "newly_elected": false
    },
    {
+    "seat": 311,
     "name": "Sanna Backeskog",
     "age": 41,
     "title": "Ombudsman",
@@ -2605,6 +2837,7 @@
     "newly_elected": false
    },
    {
+    "seat": 274,
     "name": "Kristoffer Lindberg",
     "age": 34,
     "title": "Verksamhetsutvecklare",
@@ -2616,6 +2849,7 @@
     "newly_elected": false
    },
    {
+    "seat": 77,
     "name": "Malin Larsson",
     "age": 46,
     "title": null,
@@ -2627,6 +2861,7 @@
     "newly_elected": false
    },
    {
+    "seat": 136,
     "name": "Peter Hedberg",
     "age": 35,
     "title": null,
@@ -2638,6 +2873,7 @@
     "newly_elected": false
    },
    {
+    "seat": 107,
     "name": "Anna-Belle Strömberg",
     "age": 61,
     "title": null,
@@ -2649,6 +2885,7 @@
     "newly_elected": false
    },
    {
+    "seat": 169,
     "name": "Kalle Olsson",
     "age": 42,
     "title": "Ledarskribent",
@@ -2660,6 +2897,7 @@
     "newly_elected": false
    },
    {
+    "seat": 168,
     "name": "Anna-Caren Sätherberg",
     "age": 61,
     "title": "Bartender",
@@ -2671,6 +2909,7 @@
     "newly_elected": false
    },
    {
+    "seat": 22,
     "name": "Isak From",
     "age": 59,
     "title": "Processtekniker",
@@ -2682,6 +2921,7 @@
     "newly_elected": false
    },
    {
+    "seat": 138,
     "name": "Malin Malm",
     "age": 32,
     "title": "Psykologstudent",
@@ -2693,6 +2933,7 @@
     "newly_elected": true
    },
    {
+    "seat": 78,
     "name": "Björn Wiechel",
     "age": 42,
     "title": "Samhällsvetare",
@@ -2704,6 +2945,7 @@
     "newly_elected": false
    },
    {
+    "seat": 276,
     "name": "Ida Karkiainen",
     "age": 38,
     "title": null,
@@ -2715,6 +2957,7 @@
     "newly_elected": false
    },
    {
+    "seat": 240,
     "name": "Fredrik Lundh Sammeli",
     "age": 49,
     "title": null,
@@ -2728,6 +2971,7 @@
     "newly_elected": false
    },
    {
+    "seat": 349,
     "name": "Samuel Pettersson",
     "age": 25,
     "title": null,
@@ -2741,6 +2985,7 @@
   ],
   "V": [
    {
+    "seat": 278,
     "name": "Malin Björk",
     "age": 54,
     "title": "Fd EU-parlamentariker",
@@ -2752,6 +2997,7 @@
     "newly_elected": true
    },
    {
+    "seat": 316,
     "name": "Ilyas Hassan",
     "age": 34,
     "title": "Samordnare ABF",
@@ -2763,6 +3009,7 @@
     "newly_elected": true
    },
    {
+    "seat": 81,
     "name": "Ida Gabrielsson",
     "age": 44,
     "title": "Riksdagsledamot",
@@ -2774,6 +3021,7 @@
     "newly_elected": false
    },
    {
+    "seat": 243,
     "name": "Andreas Lennkvist Manriquez",
     "age": 32,
     "title": "Riksdagsledamot",
@@ -2785,6 +3033,7 @@
     "newly_elected": false
    },
    {
+    "seat": 55,
     "name": "Nooshi Dadgostar",
     "age": 41,
     "title": "Partiordförande",
@@ -2798,6 +3047,7 @@
     "newly_elected": false
    },
    {
+    "seat": 284,
     "name": "Jonas Lindberg",
     "age": 43,
     "title": "Specialistsjuksköterska",
@@ -2809,6 +3059,7 @@
     "newly_elected": true
    },
    {
+    "seat": 319,
     "name": "Sandra Sönnergren",
     "age": 35,
     "title": "Folkhögskolelärare",
@@ -2820,6 +3071,7 @@
     "newly_elected": true
    },
    {
+    "seat": 210,
     "name": "Andrea Andersson Tay",
     "age": 37,
     "title": "Riksdagsledamot",
@@ -2831,6 +3083,7 @@
     "newly_elected": false
    },
    {
+    "seat": 146,
     "name": "Tobias Smedberg",
     "age": 48,
     "title": "Kommunalråd",
@@ -2844,6 +3097,7 @@
     "newly_elected": true
    },
    {
+    "seat": 287,
     "name": "Maria Forsberg",
     "age": 51,
     "title": "Grundskollärare",
@@ -2857,6 +3111,7 @@
     "newly_elected": true
    },
    {
+    "seat": 148,
     "name": "Malin Östh",
     "age": 54,
     "title": "Riksdagsledamot",
@@ -2868,6 +3123,7 @@
     "newly_elected": false
    },
    {
+    "seat": 183,
     "name": "Ciczie Weidby",
     "age": 52,
     "title": "Riksdagsledamot/butiksanställd",
@@ -2879,6 +3135,7 @@
     "newly_elected": false
    },
    {
+    "seat": 330,
     "name": "Anfal Mahdi",
     "age": 37,
     "title": "Socionom",
@@ -2892,6 +3149,7 @@
     "newly_elected": true
    },
    {
+    "seat": 329,
     "name": "Banesa Martinez Roldán",
     "age": 44,
     "title": "Kommunikatör",
@@ -2903,6 +3161,7 @@
     "newly_elected": true
    },
    {
+    "seat": 125,
     "name": "Umihana Rasovic",
     "age": 39,
     "title": "Biträdande enhetschef",
@@ -2914,6 +3173,7 @@
     "newly_elected": true
    },
    {
+    "seat": 222,
     "name": "Hanna Gunnarsson",
     "age": 42,
     "title": "Riksdagsledamot/Lärare",
@@ -2925,6 +3185,7 @@
     "newly_elected": false
    },
    {
+    "seat": 335,
     "name": "Linnea Bengtsson",
     "age": 26,
     "title": "Enhetschef",
@@ -2936,6 +3197,7 @@
     "newly_elected": true
    },
    {
+    "seat": 156,
     "name": "Agnes Hultén",
     "age": 53,
     "title": null,
@@ -2949,6 +3211,7 @@
     "newly_elected": true
    },
    {
+    "seat": 336,
     "name": "Daniel Bernmar",
     "age": 43,
     "title": "Doktorand",
@@ -2960,6 +3223,7 @@
     "newly_elected": true
    },
    {
+    "seat": 337,
     "name": "Jennifer Merelaid Hankins",
     "age": 41,
     "title": "Utvecklingsledare",
@@ -2971,6 +3235,7 @@
     "newly_elected": true
    },
    {
+    "seat": 300,
     "name": "Frida Tånghag",
     "age": 37,
     "title": "Kock",
@@ -2979,9 +3244,10 @@
     "constituency_code": "16",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 159,
     "name": "Carina Örgård",
     "age": 56,
     "title": "Socionom",
@@ -2993,6 +3259,7 @@
     "newly_elected": true
    },
    {
+    "seat": 197,
     "name": "David Höglund Velasquez",
     "age": 36,
     "title": "Kriminalvårdare",
@@ -3004,6 +3271,7 @@
     "newly_elected": true
    },
    {
+    "seat": 73,
     "name": "Håkan Svenneling",
     "age": 40,
     "title": "Riksdagsledamot",
@@ -3015,6 +3283,7 @@
     "newly_elected": false
    },
    {
+    "seat": 135,
     "name": "Nadja Awad",
     "age": 35,
     "title": "Riksdagsledamot/lärare",
@@ -3028,6 +3297,7 @@
     "newly_elected": false
    },
    {
+    "seat": 307,
     "name": "Hawar Asaiesh",
     "age": 40,
     "title": "Kommunalråd",
@@ -3041,6 +3311,7 @@
     "newly_elected": true
    },
    {
+    "seat": 345,
     "name": "Mohamed Ali",
     "age": 30,
     "title": null,
@@ -3052,6 +3323,7 @@
     "newly_elected": true
    },
    {
+    "seat": 310,
     "name": "Samuel Gonzalez Westling",
     "age": 43,
     "title": "Brevbärare/riksdagsledamot",
@@ -3065,6 +3337,7 @@
     "newly_elected": false
    },
    {
+    "seat": 108,
     "name": "Caroline Täljeblad",
     "age": 39,
     "title": "Statsvetare",
@@ -3073,9 +3346,10 @@
     "constituency_code": "28",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 241,
     "name": "Birger Lahti",
     "age": 61,
     "title": null,
@@ -3089,6 +3363,7 @@
   ],
   "MP": [
    {
+    "seat": 170,
     "name": "Daniel Helldén",
     "age": 61,
     "title": "Språkrör",
@@ -3102,6 +3377,7 @@
     "newly_elected": false
    },
    {
+    "seat": 245,
     "name": "Åsa Lindhagen",
     "age": 46,
     "title": "Miljö- och klimatborgarråd",
@@ -3113,6 +3389,7 @@
     "newly_elected": false
    },
    {
+    "seat": 173,
     "name": "Ulrika Westerlund",
     "age": 53,
     "title": "Riksdagsledamot, sakkunnig hbtqi",
@@ -3124,6 +3401,7 @@
     "newly_elected": false
    },
    {
+    "seat": 281,
     "name": "Gurgin Bakircioglu",
     "age": 42,
     "title": "Journalist",
@@ -3135,6 +3413,7 @@
     "newly_elected": true
    },
    {
+    "seat": 314,
     "name": "Nila Vikhe Patil",
     "age": 41,
     "title": "Revisor",
@@ -3146,6 +3425,7 @@
     "newly_elected": true
    },
    {
+    "seat": 176,
     "name": "Amanda Lind",
     "age": 46,
     "title": "Språkrör",
@@ -3159,6 +3439,7 @@
     "newly_elected": false
    },
    {
+    "seat": 112,
     "name": "Annika Hirvonen",
     "age": 37,
     "title": "Riksdagsledamot",
@@ -3172,6 +3453,7 @@
     "newly_elected": false
    },
    {
+    "seat": 318,
     "name": "Ajda Asgari",
     "age": 36,
     "title": "Lärare",
@@ -3183,6 +3465,7 @@
     "newly_elected": true
    },
    {
+    "seat": 87,
     "name": "Jacob Risberg",
     "age": 53,
     "title": "Riksdagsledamot",
@@ -3194,6 +3477,7 @@
     "newly_elected": false
    },
    {
+    "seat": 323,
     "name": "Mohamed Abdukani",
     "age": 46,
     "title": "Arbetsförmedlare",
@@ -3205,6 +3489,7 @@
     "newly_elected": true
    },
    {
+    "seat": 90,
     "name": "Rebecka Le Moine",
     "age": 36,
     "title": "Biolog",
@@ -3216,6 +3501,7 @@
     "newly_elected": false
    },
    {
+    "seat": 254,
     "name": "Rikard Salander",
     "age": 45,
     "title": "Komvuxlärare",
@@ -3227,6 +3513,7 @@
     "newly_elected": true
    },
    {
+    "seat": 293,
     "name": "Bassem Nasr",
     "age": 45,
     "title": "Ordförande Miljöpartiet i Malmö",
@@ -3235,9 +3522,10 @@
     "constituency_code": "11",
     "riksdag_roles": [],
     "riksdag_status": "serving",
-    "newly_elected": true
+    "newly_elected": false
    },
    {
+    "seat": 154,
     "name": "Marcus Friberg",
     "age": 39,
     "title": "Lärare",
@@ -3249,6 +3537,7 @@
     "newly_elected": true
    },
    {
+    "seat": 333,
     "name": "Hanna Lindqvist",
     "age": 22,
     "title": "Språkrör Grön Ungdom",
@@ -3260,6 +3549,7 @@
     "newly_elected": true
    },
    {
+    "seat": 96,
     "name": "Jan Riise",
     "age": 68,
     "title": "Riksdagsledamot",
@@ -3271,6 +3561,7 @@
     "newly_elected": false
    },
    {
+    "seat": 264,
     "name": "Leila Ali Elmi",
     "age": 38,
     "title": "Riksdagsledamot",
@@ -3284,6 +3575,7 @@
     "newly_elected": false
    },
    {
+    "seat": 265,
     "name": "Emma Nohrén",
     "age": 46,
     "title": "Marinbiolog/riksdagsledamot",
@@ -3297,6 +3589,7 @@
     "newly_elected": false
    },
    {
+    "seat": 40,
     "name": "Janine Alm Ericson",
     "age": 52,
     "title": "Riksdagsledamot",
@@ -3308,6 +3601,7 @@
     "newly_elected": false
    },
    {
+    "seat": 105,
     "name": "Camilla Hansén",
     "age": 50,
     "title": "Riksdagsledamot",
@@ -3321,6 +3615,7 @@
     "newly_elected": false
    },
    {
+    "seat": 344,
     "name": "Mursal Isa",
     "age": 44,
     "title": "Tolk/översättare",
@@ -3332,6 +3627,7 @@
     "newly_elected": true
    },
    {
+    "seat": 49,
     "name": "Nils Seye Larsen",
     "age": 46,
     "title": "Riksdagsledamot",
@@ -3345,6 +3641,7 @@
   ],
   "SD": [
    {
+    "seat": 315,
     "name": "Johan Tireland",
     "age": 38,
     "title": "Administrativ chef",
@@ -3356,6 +3653,7 @@
     "newly_elected": true
    },
    {
+    "seat": 110,
     "name": "Henrik Vinge",
     "age": 38,
     "title": "Jurist",
@@ -3367,6 +3665,7 @@
     "newly_elected": false
    },
    {
+    "seat": 209,
     "name": "Linus Bylund",
     "age": 48,
     "title": "Stabschef",
@@ -3378,6 +3677,7 @@
     "newly_elected": false
    },
    {
+    "seat": 211,
     "name": "Martin Westmont",
     "age": 47,
     "title": "Konstvetare",
@@ -3389,6 +3689,7 @@
     "newly_elected": false
    },
    {
+    "seat": 144,
     "name": "Fredrik Lindahl",
     "age": 39,
     "title": "Väktare",
@@ -3400,6 +3701,7 @@
     "newly_elected": false
    },
    {
+    "seat": 142,
     "name": "Ludvig Aspling",
     "age": 43,
     "title": "Jur. kand.",
@@ -3411,6 +3713,7 @@
     "newly_elected": false
    },
    {
+    "seat": 2,
     "name": "Julia Kronlid",
     "age": 46,
     "title": "Socialpedagog",
@@ -3424,6 +3727,7 @@
     "newly_elected": false
    },
    {
+    "seat": 54,
     "name": "Martin Kinnunen",
     "age": 43,
     "title": "Fil.kand nationalekonomi",
@@ -3435,6 +3739,7 @@
     "newly_elected": false
    },
    {
+    "seat": 285,
     "name": "Andrea Kronvall",
     "age": 41,
     "title": "Inköpsansvarig",
@@ -3446,6 +3751,7 @@
     "newly_elected": true
    },
    {
+    "seat": 178,
     "name": "Emil Eneblad",
     "age": 25,
     "title": "Politiskt sakkunnig",
@@ -3457,6 +3763,7 @@
     "newly_elected": true
    },
    {
+    "seat": 56,
     "name": "David Perez",
     "age": 36,
     "title": "Civilekonom",
@@ -3468,6 +3775,7 @@
     "newly_elected": false
    },
    {
+    "seat": 324,
     "name": "Mikael Strömberg",
     "age": 46,
     "title": "Pressekreterare",
@@ -3479,6 +3787,7 @@
     "newly_elected": true
    },
    {
+    "seat": 215,
     "name": "Adam Marttinen",
     "age": 42,
     "title": "Yrkesförare",
@@ -3490,6 +3799,7 @@
     "newly_elected": false
    },
    {
+    "seat": 89,
     "name": "Jonas Andersson",
     "age": 36,
     "title": "Fil.kand. statsvetenskap",
@@ -3501,6 +3811,7 @@
     "newly_elected": false
    },
    {
+    "seat": 88,
     "name": "Clara Aranda",
     "age": 38,
     "title": "Riksdagsledamot",
@@ -3512,6 +3823,7 @@
     "newly_elected": false
    },
    {
+    "seat": 60,
     "name": "Aron Emilsson",
     "age": 36,
     "title": "Kulturarvsvetare",
@@ -3523,6 +3835,7 @@
     "newly_elected": false
    },
    {
+    "seat": 216,
     "name": "Yasmine Eriksson",
     "age": 37,
     "title": "Pressassistent",
@@ -3534,6 +3847,7 @@
     "newly_elected": false
    },
    {
+    "seat": 288,
     "name": "Ida Kors",
     "age": 44,
     "title": "Habiliteringspedagog",
@@ -3545,6 +3859,7 @@
     "newly_elected": true
    },
    {
+    "seat": 182,
     "name": "Eric Westroth",
     "age": 55,
     "title": "Familjeföretagare",
@@ -3556,6 +3871,7 @@
     "newly_elected": false
    },
    {
+    "seat": 34,
     "name": "Ann-Christine Frohm",
     "age": 53,
     "title": "Vårdbiträde/redovisningsassistent",
@@ -3567,6 +3883,7 @@
     "newly_elected": false
    },
    {
+    "seat": 11,
     "name": "Mattias Karlsson Bergman",
     "age": 49,
     "title": "Riksdagsledamot",
@@ -3580,6 +3897,7 @@
     "newly_elected": false
    },
    {
+    "seat": 122,
     "name": "Johnny Svedin",
     "age": 57,
     "title": "Specialistsjuksköterska",
@@ -3591,6 +3909,7 @@
     "newly_elected": false
    },
    {
+    "seat": 121,
     "name": "Mattias Bäckström Johansson",
     "age": 41,
     "title": "Reaktoroperatör",
@@ -3604,6 +3923,7 @@
     "newly_elected": false
    },
    {
+    "seat": 327,
     "name": "Karolina Widerberg",
     "age": 42,
     "title": "Lärare",
@@ -3615,6 +3935,7 @@
     "newly_elected": true
    },
    {
+    "seat": 255,
     "name": "Richard Jomshof",
     "age": 57,
     "title": "SO-lärare",
@@ -3626,6 +3947,7 @@
     "newly_elected": false
    },
    {
+    "seat": 185,
     "name": "Patrick Reslow",
     "age": 56,
     "title": "Jur.kand., pol.mag.",
@@ -3637,6 +3959,7 @@
     "newly_elected": false
    },
    {
+    "seat": 94,
     "name": "Pontus Andersson Garpvall",
     "age": 34,
     "title": "Politisk sekreterare",
@@ -3648,6 +3971,7 @@
     "newly_elected": false
    },
    {
+    "seat": 37,
     "name": "Linda Lindberg",
     "age": 51,
     "title": "Gruppledare",
@@ -3662,6 +3986,7 @@
     "newly_elected": false
    },
    {
+    "seat": 36,
     "name": "Bo Broman",
     "age": 57,
     "title": "Ekonomichef",
@@ -3673,6 +3998,7 @@
     "newly_elected": false
    },
    {
+    "seat": 295,
     "name": "Jessica Stegrud",
     "age": 55,
     "title": "Controller",
@@ -3686,6 +4012,7 @@
     "newly_elected": false
    },
    {
+    "seat": 294,
     "name": "Victoria Tiblom",
     "age": 56,
     "title": "Kommunikatör/PR-konsult",
@@ -3697,6 +4024,7 @@
     "newly_elected": false
    },
    {
+    "seat": 226,
     "name": "Magnus Persson",
     "age": 55,
     "title": "Byggnadsarbetare",
@@ -3710,6 +4038,7 @@
     "newly_elected": false
    },
    {
+    "seat": 224,
     "name": "Björn Söder",
     "age": 50,
     "title": "Civilingenjör",
@@ -3721,6 +4050,7 @@
     "newly_elected": false
    },
    {
+    "seat": 227,
     "name": "Mikael Eskilandersson",
     "age": 49,
     "title": "Skoglig maskinförare",
@@ -3732,6 +4062,7 @@
     "newly_elected": false
    },
    {
+    "seat": 66,
     "name": "Patrik Jönsson",
     "age": 53,
     "title": "Eldriftledare",
@@ -3743,6 +4074,7 @@
     "newly_elected": false
    },
    {
+    "seat": 157,
     "name": "Andreas Ahlqvist",
     "age": 52,
     "title": "Företagare",
@@ -3754,6 +4086,7 @@
     "newly_elected": true
    },
    {
+    "seat": 339,
     "name": "Emma Altenhammar",
     "age": 28,
     "title": "Företagssäljare",
@@ -3765,6 +4098,7 @@
     "newly_elected": true
    },
    {
+    "seat": 229,
     "name": "Dennis Dioukarev",
     "age": 33,
     "title": "Riksdagsledamot",
@@ -3776,6 +4110,7 @@
     "newly_elected": false
    },
    {
+    "seat": 158,
     "name": "Gunilla Gomér",
     "age": 66,
     "title": "Egenföretagare",
@@ -3787,6 +4122,7 @@
     "newly_elected": true
    },
    {
+    "seat": 68,
     "name": "Alexander Christiansson",
     "age": 45,
     "title": "Företagare/säljare",
@@ -3800,6 +4136,7 @@
     "newly_elected": false
    },
    {
+    "seat": 194,
     "name": "Terje Skaarnes",
     "age": 54,
     "title": "Företagare",
@@ -3811,6 +4148,7 @@
     "newly_elected": true
    },
    {
+    "seat": 130,
     "name": "Matheus Enholm",
     "age": 47,
     "title": "Egenföretagare",
@@ -3824,6 +4162,7 @@
     "newly_elected": false
    },
    {
+    "seat": 71,
     "name": "Denice Westerberg",
     "age": 24,
     "title": "Kommunikatör",
@@ -3835,6 +4174,7 @@
     "newly_elected": true
    },
    {
+    "seat": 43,
     "name": "Anders Alftberg",
     "age": 53,
     "title": "Lärare",
@@ -3846,6 +4186,7 @@
     "newly_elected": false
    },
    {
+    "seat": 268,
     "name": "Josef Fransson",
     "age": 47,
     "title": "Högskoleingenjör",
@@ -3857,6 +4198,7 @@
     "newly_elected": false
    },
    {
+    "seat": 304,
     "name": "Tobias Andersson",
     "age": 30,
     "title": "Ekonom",
@@ -3868,6 +4210,7 @@
     "newly_elected": false
    },
    {
+    "seat": 163,
     "name": "Robin Lennartsson",
     "age": 32,
     "title": "Statsvetare",
@@ -3879,6 +4222,7 @@
     "newly_elected": true
    },
    {
+    "seat": 45,
     "name": "Runar Filper",
     "age": 62,
     "title": "Riksdagsledamot",
@@ -3890,6 +4234,7 @@
     "newly_elected": false
    },
    {
+    "seat": 46,
     "name": "Jimmie Åkesson",
     "age": 47,
     "title": "Partiledare",
@@ -3903,6 +4248,7 @@
     "newly_elected": false
    },
    {
+    "seat": 104,
     "name": "Per Söderlund",
     "age": 54,
     "title": "Datortekniker",
@@ -3914,6 +4260,7 @@
     "newly_elected": false
    },
    {
+    "seat": 271,
     "name": "Tomas Brandberg",
     "age": 54,
     "title": "Teknologie doktor",
@@ -3925,6 +4272,7 @@
     "newly_elected": true
    },
    {
+    "seat": 198,
     "name": "Oscar Sjöstedt",
     "age": 45,
     "title": "Nationalekonom",
@@ -3938,6 +4286,7 @@
     "newly_elected": false
    },
    {
+    "seat": 309,
     "name": "Liselotte Forsberg",
     "age": 53,
     "title": "Driftledare",
@@ -3949,6 +4298,7 @@
     "newly_elected": true
    },
    {
+    "seat": 201,
     "name": "Rasmus Giertz",
     "age": 32,
     "title": "Riksdagsledamot",
@@ -3960,6 +4310,7 @@
     "newly_elected": false
    },
    {
+    "seat": 346,
     "name": "Mattias Eriksson Falk",
     "age": 36,
     "title": "Yrkeschaufför",
@@ -3971,6 +4322,7 @@
     "newly_elected": false
    },
    {
+    "seat": 203,
     "name": "Roger Hedlund",
     "age": 46,
     "title": "Industrirobotoperatör",
@@ -3982,6 +4334,7 @@
     "newly_elected": false
    },
    {
+    "seat": 48,
     "name": "Angelika Bengtsson",
     "age": 36,
     "title": "Dansare",
@@ -3993,6 +4346,7 @@
     "newly_elected": false
    },
    {
+    "seat": 167,
     "name": "Kevin Sahlin",
     "age": 25,
     "title": "Sekreterare",
@@ -4004,6 +4358,7 @@
     "newly_elected": true
    },
    {
+    "seat": 204,
     "name": "Peter Eriksson",
     "age": 67,
     "title": "Skogsbrukare",
@@ -4015,6 +4370,7 @@
     "newly_elected": true
    },
    {
+    "seat": 79,
     "name": "Sara Gille",
     "age": 45,
     "title": "Undersköterska",
@@ -4026,6 +4382,7 @@
     "newly_elected": false
    },
    {
+    "seat": 313,
     "name": "Leonid Yurkovskiy",
     "age": 30,
     "title": "Politisk sekreterare",
@@ -4037,6 +4394,7 @@
     "newly_elected": false
    },
    {
+    "seat": 277,
     "name": "Eric Palmqvist",
     "age": 55,
     "title": "Gruvarbetare",

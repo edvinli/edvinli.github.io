@@ -694,8 +694,13 @@ election-day generation and checks, against the files on disk:
   the first and last seat, and the sources are named under the chamber. The
   filters (party, constituency, age band, newly elected) light exactly the
   seats the file says match, combined, and fade legend parties with none; reset
-  lights all 349. A members file that does not match the chamber seat for seat
-  leaves the chamber as the plain allocation, without filters.
+  lights all 349. A member who has left is shown as the successor in the same
+  seat, and the card says whom they replace. "Som i kammaren" moves every dot
+  to its member's numbered seat from `results/2026-seating.json` (Riksdagen's
+  seating chart for 2026/27), keyboard order follows the seat numbers, and
+  "Partivis" restores the party blocks. A members file that does not match the
+  chamber seat for seat leaves the chamber as the plain allocation, without
+  filters; a seating plan that does not validate only hides the toggle.
 - **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
   is `forecast.json`'s median minus the certified share, and whether the result
   lies inside the 90 % interval is computed from `vote_share_p05`/`p95`, as is

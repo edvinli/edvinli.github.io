@@ -1729,6 +1729,44 @@ canvas {
   opacity: 0.22;
 }
 
+/* Party view or the seats of the plenary hall. The same dots move between
+   the two, so hover, filters and focus carry over. */
+.ep-view {
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  display: inline-flex;
+  margin: 0 0 0.4rem;
+  overflow: hidden;
+}
+
+.election-parliament[data-members="true"] .election-seat {
+  transition: left 0.6s ease, top 0.6s ease, width 0.6s ease, opacity 0.15s ease;
+}
+
+.election-parliament-frame.is-seating .election-parliament__centre {
+  display: none;
+}
+
+.ep-speaker {
+  color: var(--el-muted);
+  display: none;
+  font-family: var(--el-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  position: absolute;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%);
+}
+
+.is-seating .ep-speaker {
+  display: block;
+}
+
+.ep-seating-note {
+  margin-top: 0.6rem;
+}
+
 /* The result chamber once each seat knows its member. */
 .election-parliament[data-members="true"] .election-seat {
   cursor: pointer;
