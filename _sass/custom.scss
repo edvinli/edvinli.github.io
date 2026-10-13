@@ -1756,10 +1756,20 @@ canvas {
   letter-spacing: 0.06em;
   position: absolute;
   text-transform: uppercase;
+  transform: translateY(-50%);
+}
+
+.ep-vacant {
+  aspect-ratio: 1;
+  border: 1px dashed var(--el-rule-strong);
+  border-radius: 50%;
+  display: none;
+  position: absolute;
   transform: translate(-50%, -50%);
 }
 
-.is-seating .ep-speaker {
+.is-seating .ep-speaker,
+.is-seating .ep-vacant {
   display: block;
 }
 

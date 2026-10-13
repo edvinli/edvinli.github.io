@@ -3530,10 +3530,10 @@
         if (entry.age !== null && (age === null || age < 18 || Math.floor(age) !== age)) return null;
         var roles = Array.isArray(entry.riksdag_roles) ? entry.riksdag_roles.map(optionalString).filter(Boolean) : [];
         if (entry.newly_elected !== undefined && entry.newly_elected !== null && typeof entry.newly_elected !== "boolean") return null;
-        // The numbered seat in the hall: 1..349, each exactly once, or the
-        // seating view is not offered.
+        // The numbered seat in the hall (1..349) or the Speaker's chair (0),
+        // one member each, or the seating view is not offered.
         var seat = num(entry.seat);
-        if (seat === null || Math.floor(seat) !== seat || seat < 1 || seat > CHAMBER || seatNumbers[seat]) seatsKnown = false;
+        if (seat === null || Math.floor(seat) !== seat || seat < 0 || seat > CHAMBER || seatNumbers[seat]) seatsKnown = false;
         else seatNumbers[seat] = true;
         var replaces = entry.replaces && typeof entry.replaces === "object" && optionalString(entry.replaces.name)
           ? { name: optionalString(entry.replaces.name), from: historyDate(entry.replaces.from) } : null;
@@ -3651,7 +3651,8 @@
       var above = dot.top - box.top - tip.offsetHeight - 8;
       tip.style.top = (above >= 0 ? above : dot.bottom - box.top + 8) + "px";
       if (announce && status) {
-        var place = seating ? "Plats " + seat.member.seat + " i kammaren." : "Mandat " + (order.indexOf(seat) + 1) + " av " + CHAMBER + ".";
+        var place = !seating ? "Mandat " + (order.indexOf(seat) + 1) + " av " + CHAMBER + "."
+          : seat.member.seat === 0 ? "Talmansstolen." : "Plats " + seat.member.seat + " i kammaren.";
         status.textContent = [seat.member.name, lines.meta, lines.title, lines.home, lines.riksdag]
           .filter(Boolean).join(", ") + ". " + place;
       }
@@ -3723,24 +3724,42 @@
     var seatingNote = byId("election-result-seating-note");
     if (!toggle) return;
     var buttons = Array.prototype.slice.call(toggle.querySelectorAll("button[data-view]"));
+    // The Speaker's chair is place 0; without it in the plan the Speaker
+    // has nowhere to sit, so the hall view is not offered.
+    if (seats.some(function (seat) { return seat.member.seat === 0; }) && !plan.speaker) return;
+    var taken = {};
     seats.forEach(function (seat) {
+      taken[seat.member.seat] = true;
       seat.partyPlace = { left: seat.style.left, top: seat.style.top, width: seat.style.width };
-      var point = plan.seats[seat.member.seat];
+      var point = seat.member.seat === 0 ? plan.speaker : plan.seats[seat.member.seat];
       seat.hallPlace = {
         left: point.x.toFixed(3) + "%",
         top: point.y.toFixed(3) + "%",
         width: (plan.spacing * 0.78).toFixed(3) + "%"
       };
     });
+    var dotWidth = (plan.spacing * 0.78).toFixed(3) + "%";
     var speaker = document.createElement("span");
     speaker.className = "ep-speaker";
     speaker.setAttribute("aria-hidden", "true");
     speaker.textContent = "Talman";
     if (plan.speaker) {
-      speaker.style.left = plan.speaker.x + "%";
+      speaker.style.left = (plan.speaker.x + plan.spacing) + "%";
       speaker.style.top = plan.speaker.y + "%";
     }
     host.appendChild(speaker);
+    // A numbered seat no elected member sits in: the Speaker's own, which a
+    // substitute holds.  Drawn faintly so the row does not look broken.
+    for (var number = 1; number <= CHAMBER; number += 1) {
+      if (taken[number]) continue;
+      var vacant = document.createElement("span");
+      vacant.className = "ep-vacant";
+      vacant.setAttribute("aria-hidden", "true");
+      vacant.style.left = plan.seats[number].x + "%";
+      vacant.style.top = plan.seats[number].y + "%";
+      vacant.style.width = dotWidth;
+      host.appendChild(vacant);
+    }
 
     function setView(view) {
       var hall = view === "seating";

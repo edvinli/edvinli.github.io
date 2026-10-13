@@ -697,7 +697,9 @@ election-day generation and checks, against the files on disk:
   lights all 349. A member who has left is shown as the successor in the same
   seat, and the card says whom they replace. "Som i kammaren" moves every dot
   to its member's numbered seat from `results/2026-seating.json` (Riksdagen's
-  seating chart for 2026/27), keyboard order follows the seat numbers, and
+  seating chart for 2026/27) and the Speaker to the Speaker's chair (place 0),
+  the hall seat no elected member sits in is drawn empty, keyboard order
+  follows the seat numbers, and
   "Partivis" restores the party blocks. A members file that does not match the
   chamber seat for seat leaves the chamber as the plain allocation, without
   filters; a seating plan that does not validate only hides the toggle.

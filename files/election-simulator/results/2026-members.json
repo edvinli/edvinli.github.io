@@ -17,25 +17,25 @@
  "municipality_definition": "folkbokforingskommun_else_ballot_place",
  "riksdag_roles_as_of": "2026-10-13",
  "newly_elected_definition": "no_seat_in_chamber_before_2026-09-28",
- "seat_definition": "riksdagen_ordningsnummer_2026-09-28",
+ "seat_definition": "riksdagen_ordningsnummer_2026-09-28_speaker_0",
  "sources": [
   {
    "url": "https://resultat.val.se/data/resultat/val2026/RD_S.json",
    "title": "Valmyndigheten: Val till riksdagen - Slutligt valresultat",
-   "retrieved_at_utc": "2026-10-13T09:41:01Z",
+   "retrieved_at_utc": "2026-10-13T09:56:31Z",
    "raw_sha256": "1998afdc723a83b325c729faf68063c8731e33496fc274bf9fbb80499e0afb08"
   },
   {
    "url": "https://data.val.se/filer/val2026/parti/kandidaturer.csv",
    "title": "Valmyndigheten: Kandidaturer i val 2026",
-   "retrieved_at_utc": "2026-10-13T09:41:01Z",
+   "retrieved_at_utc": "2026-10-13T09:56:31Z",
    "raw_sha256": "84fc6b2d83abc51815eb39c95f02a4870db717b0bb7e3c8f8a1caba5c50719c6"
   },
   {
    "url": "https://data.riksdagen.se/personlista/?rdlstatus=tjanst&utformat=json",
    "title": "Sveriges riksdag: Ledamöter (personlista)",
-   "retrieved_at_utc": "2026-10-13T09:41:01Z",
-   "raw_sha256": "8a14b32bae6f1165a5cf3cac6bbf6c4b88a2d249a5fe847750e630354379eb8d"
+   "retrieved_at_utc": "2026-10-13T09:56:31Z",
+   "raw_sha256": "ef0275cb901b24f09c7dabe3ab7bdabdc272d8515810b48d21b77044271b5b71"
   }
  ],
  "parties": {
@@ -300,7 +300,7 @@
     "newly_elected": false
    },
    {
-    "seat": 32,
+    "seat": 0,
     "name": "Andreas Norlén",
     "age": 53,
     "title": "Riksdagens talman",

@@ -124,7 +124,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
     </div>
     <ul id="election-result-legend" class="ep-legend"></ul>
-    <p class="election-muted ep-seating-note" id="election-result-seating-note" hidden>Så sitter ledamöterna i plenisalen under riksmötet 2026/27: valkretsvis, och inom varje valkrets efter tid i riksdagen. Talmannen och talarstolen är överst, och de tre vice talmännen sitter på podiet bredvid. Källa: Sveriges riksdag, Placering i kammaren.</p>
+    <p class="election-muted ep-seating-note" id="election-result-seating-note" hidden>Så sitter ledamöterna i plenisalen under riksmötet 2026/27: valkretsvis, och inom varje valkrets efter tid i riksdagen. Talmannen sitter i talmansstolen överst och de tre vice talmännen på podiet bredvid. På talmannens egen plats i salen, den streckade, sitter en ersättare. Källa: Sveriges riksdag, Placering i kammaren.</p>
     <!-- Shown once results/2026-members.json has matched the chamber seat for
          seat; until then the chamber is the plain allocation. The filters
          fade the seats that do not match; every seat keeps its card. -->

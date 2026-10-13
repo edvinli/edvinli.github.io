@@ -362,6 +362,9 @@ async function checkMembers(browser) {
     const toggleShown = !document.getElementById('election-result-view').hidden;
     button('seating').click();
     const placed = seats.map((seat) => ({ seat: seat.member.seat, left: parseFloat(seat.style.left), top: parseFloat(seat.style.top) }));
+    const vacant = Array.from(host.querySelectorAll('.ep-vacant'))
+      .filter((node) => getComputedStyle(node).display !== 'none')
+      .map((node) => [parseFloat(node.style.left), parseFloat(node.style.top)]);
     const state = {
       pressed: button('seating').getAttribute('aria-pressed'),
       noteShown: !document.getElementById('election-result-seating-note').hidden,
@@ -374,19 +377,28 @@ async function checkMembers(browser) {
     host.blur();
     button('party').click();
     const restored = seats.every((seat, index) => seat.style.left === before[index][0] && seat.style.top === before[index][1]);
-    return { toggleShown, placed, state, first, last, restored };
+    return { toggleShown, placed, vacant, state, first, last, restored };
   });
   check('the seating toggle is shown', hall.toggleShown);
   const misplaced = hall.placed.filter((dot) => {
-    const [x, y] = seatingPlan.seats[String(dot.seat)];
+    const [x, y] = dot.seat === 0 ? seatingPlan.speaker : seatingPlan.seats[String(dot.seat)];
     return Math.abs(dot.left - x) > 0.01 || Math.abs(dot.top - y) > 0.01;
   });
   equal('every member sits at their numbered seat in the hall', misplaced, []);
-  equal('each numbered seat holds one member',
-    hall.placed.map((dot) => dot.seat).sort((a, b) => a - b), Array.from({ length: CHAMBER }, (_, i) => i + 1));
+  const places = hall.placed.map((dot) => dot.seat);
+  equal('no two members share a place', new Set(places).size, CHAMBER);
+  const speakers = flat.filter((m) => m.riksdag_roles.includes('Talman'));
+  equal('the Speaker sits in the Speaker\'s chair', speakers.map((m) => m.seat), speakers.length ? [0] : []);
+  // A hall seat with no elected member in it (the Speaker's own, held by a
+  // substitute) is drawn as an empty seat, so every one of the 349 is shown.
+  const empty = Array.from({ length: CHAMBER }, (_, i) => i + 1).filter((n) => !places.includes(n));
+  equal('every empty hall seat is drawn as empty', hall.vacant,
+    empty.map((n) => seatingPlan.seats[String(n)]));
   equal('the hall view is marked and explained', hall.state, { pressed: 'true', noteShown: true, centreHidden: true });
   const bySeat = (n) => flat.find((m) => m.seat === n).name;
-  check('focus starts at seat 1', hall.first.startsWith(bySeat(1) + ',') && /Plats 1 i kammaren/.test(hall.first), hall.first);
+  const firstPlace = Math.min(...places);
+  check('focus starts at the first place', hall.first.startsWith(bySeat(firstPlace) + ',') &&
+    (firstPlace === 0 ? /Talmansstolen\./ : /Plats 1 i kammaren/).test(hall.first), hall.first);
   check('End reaches seat 349', hall.last.startsWith(bySeat(CHAMBER) + ',') && /Plats 349 i kammaren/.test(hall.last), hall.last);
   check('Partivis restores the party blocks', hall.restored);
 }
