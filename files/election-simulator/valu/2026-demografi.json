@@ -10,7 +10,8 @@
   "polling_places": "93 vallokaler och 68 förtida röstningslokaler, 26 augusti–13 september 2026",
   "weighting": "Vägd för valresultaten 1991–2022 och det preliminära valnattsresultatet 2026",
   "retrieved_at_utc": "2026-10-13T11:20:41Z",
-  "raw_sha256": "591d9c04d9010675a54088671f8a9b45954bb5fa6a9cd1dbbe4d7b361c4413c2"
+  "raw_sha256": "591d9c04d9010675a54088671f8a9b45954bb5fa6a9cd1dbbe4d7b361c4413c2",
+  "local_copy": "valu-2026-seminarium-260915.pdf"
  },
  "unit": "percent",
  "rounding_note": "Varje rad summerar till ungefär 100 eftersom varje parti är avrundat för sig.",

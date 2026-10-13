@@ -794,10 +794,19 @@ result in `results/2026.json`. The suite reads both files and checks:
   party's segment is as wide as its share of the row and is spoken in the bar's
   label. With one party chosen, every bar is at the party's share on one scale
   and the reference line is at its election result.
+- **Kvinnor mot män.** For every age band on page 21, a butterfly row per bloc
+  (V + S + MP, M + SD) and per party: women's and men's shares as published,
+  every bar on one scale, the larger side in bold, the gap in the middle and
+  the summary sentence. The 18–30 band is pinned to the slide's 53 / 34 % and
+  32 / 49 %. A file whose page-21 table does not pair women with men leaves
+  this analysis out while the rest still draws.
 - **Utveckling 1991–2026.** One line per party, the legend hides and shows
   them, the crosshair names the nearest election, and the other mode draws one
   line per group.
 - **Plånboksröstning.** Every published figure, against the overall line.
+- **The presentation.** The copy in `valu/` has the SHA-256 recorded in the
+  data file's `source`, is served as a PDF, and the source note and each
+  analysis's "SVT/Valu, sidan N" link to it (at that page).
 - **A data file that does not validate** shows an error and draws nothing.
 
 It does not pin a forecast generation: nothing it asserts depends on one.

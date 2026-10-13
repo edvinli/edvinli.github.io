@@ -3959,6 +3959,111 @@ canvas {
   margin-top: 1.6rem;
 }
 
+/* Butterfly: women grow left from the centre line, men right, each bar
+   followed by its value; the centre column names the row and the gap. */
+.edm-fly__head,
+.edm-fly__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6.4rem minmax(0, 1fr);
+}
+
+.edm-fly__head {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  padding-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.edm-fly__head > span:first-child {
+  text-align: right;
+}
+
+.edm-fly__row {
+  align-items: center;
+  border-bottom: 1px solid var(--el-rule);
+  padding: 0.3rem 0;
+}
+
+.edm-fly__row:focus-visible {
+  outline-offset: 0;
+}
+
+.edm-fly__track {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  height: 0.95rem;
+}
+
+.edm-fly__track--women {
+  border-right: 1px solid var(--el-rule-strong);
+  justify-content: flex-end;
+}
+
+.edm-fly__track--men {
+  border-left: 1px solid var(--el-rule-strong);
+}
+
+.edm-fly__row--bloc .edm-fly__track {
+  height: 1.35rem;
+}
+
+.edm-fly__bar {
+  display: block;
+  flex: 0 0 auto;
+  height: 100%;
+  min-width: 2px;
+  /* --share is the bar's part of the scale; the value needs room beside it. */
+  width: calc((100% - 2.9rem) * var(--share));
+}
+
+.edm-fly__track--women .edm-fly__bar:first-of-type {
+  border-radius: 2px 0 0 2px;
+}
+
+.edm-fly__track--men .edm-fly__bar:last-of-type {
+  border-radius: 0 2px 2px 0;
+}
+
+.edm-fly__value {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.35rem;
+  white-space: nowrap;
+}
+
+.edm-fly__value.is-larger {
+  color: var(--el-ink);
+  font-weight: 700;
+}
+
+.edm-fly__mid {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--el-mono);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.edm-fly__mid b {
+  font-size: 0.82rem;
+}
+
+.edm-fly__mid small {
+  color: var(--el-muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.edm-note {
+  font-size: 0.78rem;
+  margin-top: 0.8rem;
+}
+
 /* The trend chart is drawn at its rendered width, so text stays at size. */
 .edm-line {
   margin-top: 0.6rem;
@@ -4114,7 +4219,8 @@ canvas {
   .eg-bar__segment,
   .evf-svg,
   .evf-row__bar,
-  .evf-net__side span {
+  .evf-net__side span,
+  .edm-fly__bar {
     forced-color-adjust: none;
   }
 

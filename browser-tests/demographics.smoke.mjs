@@ -12,9 +12,14 @@
 //   * "Partival per grupp": one stacked bar per published group, each
 //     party's segment as wide as its share of the row, and with one party
 //     chosen, each bar at the party's share and the line at its result;
+//   * "Kvinnor mot män": for every age band of page 21, women's and men's
+//     share per party and per bloc on one scale, the gap in the middle, and
+//     the analysis left out when the file does not pair women with men;
 //   * "Utveckling 1991-2026": one line per party, a legend that hides and
 //     shows them, the other mode with one line per group, and the crosshair;
 //   * "Plånboksröstning": every published figure, against the 39 % line;
+//   * the copy of the presentation is the file the data was read from, and
+//     each analysis links to its page in it;
 //   * a data file that does not validate shows an error, not a dashboard.
 //
 // Usage:
@@ -24,6 +29,7 @@
 import { launch } from './cdp.mjs';
 import { serve } from './server.mjs';
 import { readFile, writeFile, cp, mkdtemp, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -55,6 +61,9 @@ const readJson = async (...parts) => JSON.parse(await readFile(join(...parts), '
 
 const data = await readJson(SITE, DATA);
 const result = await readJson(SITE, RESULT);
+// The copy kept in the repository is the file the numbers were read from.
+const pdfBytes = await readFile(join(SITE, DATA.replace(/[^/]+$/, data.source.local_copy)));
+const pdfHash = createHash('sha256').update(pdfBytes).digest('hex');
 const resultShare = (party) => party === 'Övr' ? result.other_parties.vote_share_pct : result.parties[party].vote_share_pct;
 
 async function open(viewport, hash, root = SITE) {
@@ -77,6 +86,23 @@ async function dashboard(viewport, name) {
     equal('#demografi opens only the dashboard', await panels(browser), ['election-demographics']);
     equal('its tab is selected', await browser.evaluate(() =>
       document.getElementById('election-tab-demographics').getAttribute('aria-selected')), 'true');
+
+    // --- The presentation: served, and linked page by page.
+    const pdfPath = `/${DATA.replace(/[^/]+$/, data.source.local_copy)}`;
+    const links = await browser.evaluate(async (path) => {
+      const response = await fetch(path);
+      const head = new Uint8Array(await response.arrayBuffer()).slice(0, 5);
+      return {
+        status: response.status,
+        magic: String.fromCharCode(...head),
+        source: Array.from(document.querySelectorAll('#edm-source a')).map((a) => a.getAttribute('href')),
+        page: document.querySelector('#edm-view .election-panel__head a')?.getAttribute('href'),
+      };
+    }, pdfPath);
+    equal('the presentation is served as a PDF', [links.status, links.magic], [200, '%PDF-']);
+    check('the source note links the copy and SVT\'s original',
+      links.source[0]?.endsWith(pdfPath) && links.source[1] === data.source.url, links.source);
+    check('the analysis links its page in the copy', links.page?.endsWith(`${pdfPath}#page=${data.cross_sections[0].page}`), links.page);
 
     // --- Partival per grupp, all parties: every table, every group.
     const tables = await browser.evaluate(async (count) => {
@@ -149,6 +175,91 @@ async function dashboard(viewport, name) {
       focus.refs.every((left) => near(left, resultShare('SD') / scale * 100, 0.01)) &&
       focus.key === `Valresultat ${resultShare('SD').toFixed(1).replace('.', ',')} %`, { refs: focus.refs, key: focus.key });
     check('"Visa alla partier" returns to the stacked bars', focus.cleared);
+
+    // --- Kvinnor mot män: every age band, bloc and party, on one scale.
+    const pairing = data.cross_sections.find((t) => t.id === 'kon-och-alder');
+    const BLOCS = [['V', 'S', 'MP'], ['M', 'SD']];
+    const gender = await browser.evaluate(async () => {
+      document.querySelector('[data-analysis="gender"]').click();
+      // Each choice redraws the panel, so the buttons are looked up afresh.
+      const count = document.querySelectorAll('#edm-age-band button').length;
+      const out = [];
+      for (let i = 0; i < count; i += 1) {
+        document.querySelectorAll('#edm-age-band button')[i].click();
+        const button = document.querySelectorAll('#edm-age-band button')[i];
+        out.push({
+          band: button.textContent,
+          pressed: button.getAttribute('aria-pressed'),
+          title: document.querySelector('.edm-title').textContent,
+          lede: document.querySelector('#edm-view .election-panel__head p').textContent,
+          rows: Array.from(document.querySelectorAll('.edm-fly__row')).map((row) => ({
+            label: row.querySelector('.edm-fly__mid b').textContent,
+            gap: row.querySelector('.edm-fly__mid small').textContent,
+            spoken: row.getAttribute('aria-label'),
+            sides: ['women', 'men'].map((side) => {
+              const track = row.querySelector(`.edm-fly__track--${side}`);
+              return {
+                value: track.querySelector('.edm-fly__value').textContent,
+                larger: track.querySelector('.edm-fly__value').classList.contains('is-larger'),
+                // --share is the bar's part of the common scale.
+                bars: Array.from(track.querySelectorAll('.edm-fly__bar')).map((bar) => Number(bar.style.getPropertyValue('--share'))),
+              };
+            }),
+          })),
+        });
+      }
+      return out;
+    });
+    const bandCount = pairing.sections[0].groups.length;
+    equal('an age band per pair on page 21', gender.map((g) => g.band),
+      pairing.sections[0].groups.map((g) => g.label.replace(/^Kvinnor\s+/, '')));
+    const genderErrors = [];
+    const pct = (v) => `${v}\u00a0%`;
+    gender.forEach((view, b) => {
+      const women = pairing.sections[0].groups[b].shares;
+      const men = pairing.sections[1].groups[b].shares;
+      const share = (shares, party) => shares[data.parties.indexOf(party)];
+      const expected = BLOCS.map((list) => ({ label: list.join(' + '), list }))
+        .concat(data.parties.map((party) => ({ label: party, list: [party] })))
+        .map((row) => ({
+          label: row.label,
+          women: row.list.map((p) => share(women, p)),
+          men: row.list.map((p) => share(men, p)),
+        }));
+      if (view.pressed !== 'true' || view.title !== `Kvinnor och män ${view.band}`) genderErrors.push({ band: view.band, pressed: view.pressed, title: view.title });
+      if (view.rows.length !== expected.length) { genderErrors.push({ band: view.band, rows: view.rows.length }); return; }
+      // One scale for every bar: value / fraction is the same everywhere.
+      const scales = [];
+      expected.forEach((row, r) => {
+        const drawn = view.rows[r];
+        const w = row.women.reduce((a, c) => a + c, 0);
+        const m = row.men.reduce((a, c) => a + c, 0);
+        const gap = w === m ? 'lika' : w > m ? `← ${w - m}\u00a0p.e.` : `${m - w}\u00a0p.e. →`;
+        const [ws, ms] = drawn.sides;
+        // Women's bars are drawn outermost first, so the list reads back to front.
+        const womenBars = ws.bars.slice().reverse();
+        if (drawn.label !== row.label || ws.value !== pct(w) || ms.value !== pct(m) || drawn.gap !== gap ||
+            ws.larger !== (w > m) || ms.larger !== (m > w) ||
+            womenBars.length !== row.women.length || ms.bars.length !== row.men.length ||
+            !drawn.spoken.includes(`kvinnor ${w} procent, män ${m} procent`)) {
+          genderErrors.push({ band: view.band, row: row.label, drawn });
+          return;
+        }
+        row.women.forEach((v, i) => { if (v) scales.push(v / womenBars[i]); });
+        row.men.forEach((v, i) => { if (v) scales.push(v / ms.bars[i]); });
+      });
+      if (!scales.every((sc) => near(sc, scales[0], scales[0] * 0.002))) genderErrors.push({ band: view.band, scales });
+      const blocW = BLOCS.map((list) => list.reduce((a, p) => a + share(women, p), 0));
+      const blocM = BLOCS.map((list) => list.reduce((a, p) => a + share(men, p), 0));
+      if (!view.lede.startsWith(`${pct(blocW[0])} av kvinnorna röstade på V, S eller MP, mot ${pct(blocM[0])} av männen. M eller SD fick ${pct(blocM[1])} av männens röster och ${pct(blocW[1])} av kvinnornas.`)) {
+        genderErrors.push({ band: view.band, lede: view.lede });
+      }
+    });
+    equal('each band: every party and bloc, women left and men right, on one scale', genderErrors, []);
+    check('page 21 as published: 18–30 women 53 % and men 34 % for V+S+MP, 32 % and 49 % for M+SD',
+      gender[0] && gender[0].lede.startsWith(`${pct(53)} av kvinnorna röstade på V, S eller MP, mot ${pct(34)} av männen. M eller SD fick ${pct(49)} av männens röster och ${pct(32)} av kvinnornas.`),
+      gender[0] && gender[0].lede);
+    check('all bands offered', gender.length === bandCount && bandCount > 0, gender.length);
 
     // --- Utveckling: a line per party, a legend that hides them, the other mode.
     const trends = await browser.evaluate(async () => {
@@ -230,6 +341,8 @@ async function invalidData() {
     await cp(SITE, root, { recursive: true });
     const broken = structuredClone(data);
     broken.cross_sections[0].sections[0].groups[0].shares.pop();
+    const unpaired = structuredClone(data);
+    unpaired.cross_sections.find((t) => t.id === 'kon-och-alder').sections.reverse();
     await writeFile(join(root, DATA), `${JSON.stringify(broken)}\n`);
     const { server, browser } = await open(DESKTOP, '#demografi', root);
     try {
@@ -244,11 +357,34 @@ async function invalidData() {
       await browser.close();
       await server.close();
     }
+
+    console.log('\n[women and men not paired] desktop');
+    await writeFile(join(root, DATA), `${JSON.stringify(unpaired)}\n`);
+    const second = await open(DESKTOP, '#demografi', root);
+    try {
+      await second.browser.waitFor(() => document.querySelector('#edm-view .edm-stack-row'), 15000);
+      const state = await second.browser.evaluate(() => {
+        const button = document.querySelector('.edm-nav [data-analysis="gender"]');
+        button.click();
+        return {
+          hidden: button.hidden && getComputedStyle(button).display === 'none',
+          stillGroups: document.querySelectorAll('.edm-stack-row').length > 0,
+          butterflies: document.querySelectorAll('.edm-fly__row').length,
+        };
+      });
+      equal('the gender analysis is left out; the rest still draws', state, { hidden: true, stillGroups: true, butterflies: 0 });
+      equal('no uncaught exceptions', second.browser.exceptions.map((e) => e.text), []);
+    } finally {
+      await second.browser.close();
+      await second.server.close();
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 }
 
+console.log('\n[source]');
+equal('the copy of the presentation has the recorded SHA-256', pdfHash, data.source.raw_sha256);
 await dashboard(DESKTOP, 'desktop');
 await dashboard(MOBILE, 'mobile');
 await tabs();

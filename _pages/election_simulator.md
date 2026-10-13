@@ -462,7 +462,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
      poll, pages 20-34 of the 15 September 2026 seminar, transcribed into
      files/election-simulator/valu/2026-demografi.json and drawn by
      election-demographics.js. -->
-<div id="election-demographics" class="election-app election-demographics" role="tabpanel" aria-labelledby="election-tab-demographics" data-source="{{ site.baseurl }}/files/election-simulator/valu/2026-demografi.json" data-result="{{ site.baseurl }}/files/election-simulator/results/2026.json" hidden>
+<div id="election-demographics" class="election-app election-demographics" role="tabpanel" aria-labelledby="election-tab-demographics" data-source="{{ site.baseurl }}/files/election-simulator/valu/2026-demografi.json" data-pdf="{{ site.baseurl }}/files/election-simulator/valu/valu-2026-seminarium-260915.pdf" data-result="{{ site.baseurl }}/files/election-simulator/results/2026.json" hidden>
   <header class="election-hero">
     <p class="election-hero__kicker">Sverige · Riksdagen · vallokalsundersökning 2026</p>
     <h2 class="evf-title">Hur olika väljargrupper röstade</h2>
@@ -470,6 +470,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   </header>
   <div class="edm-nav" role="group" aria-label="Välj analys">
     <button type="button" class="election-timeseries__control" data-analysis="groups" aria-pressed="true" aria-controls="edm-view">Partival per grupp</button>
+    <button type="button" class="election-timeseries__control" data-analysis="gender" aria-pressed="false" aria-controls="edm-view">Kvinnor mot män</button>
     <button type="button" class="election-timeseries__control" data-analysis="trends" aria-pressed="false" aria-controls="edm-view">Utveckling 1991–2026</button>
     <button type="button" class="election-timeseries__control" data-analysis="wallet" aria-pressed="false" aria-controls="edm-view">Plånboksröstning</button>
   </div>
@@ -477,7 +478,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <p class="election-status" id="edm-status">Läser in undersökningen…</p>
   </div>
   <div class="election-panel evf-source">
-    <p class="election-muted" id="edm-source">Källa: SVT/Valu, vallokalsundersökningen vid riksdagsvalet 2026, sidorna 20–34 i presentationen från seminariet den 15 september 2026. Undersökningen bygger på enkätsvar från 13 709 väljare vid 93 vallokaler och 68 förtida röstningslokaler mellan 26 augusti och 13 september 2026. Resultaten är vägda mot valresultaten 1991–2022 och det preliminära valnattsresultatet 2026.</p>
+    <p class="election-muted" id="edm-source">Källa: SVT/Valu, vallokalsundersökningen vid riksdagsvalet 2026, sidorna 20–34 i <a href="{{ site.baseurl }}/files/election-simulator/valu/valu-2026-seminarium-260915.pdf">presentationen från seminariet den 15 september 2026</a> (PDF, 1 MB; <a href="https://omoss.svt.se/download/18.c7d6c981a0a583535d1535/1789484134179/Valu%202026%20seminarium%20260915.pdf">originalet hos SVT</a>). Undersökningen bygger på enkätsvar från 13 709 väljare vid 93 vallokaler och 68 förtida röstningslokaler mellan 26 augusti och 13 september 2026. Resultaten är vägda mot valresultaten 1991–2022 och det preliminära valnattsresultatet 2026.</p>
     <p class="election-muted">Andelarna är procent av gruppens röster. Varje parti är avrundat för sig, så en rad kan summera till mellan 97 och 102. Referenslinjerna för valresultatet kommer från Valmyndighetens slutliga resultat.</p>
   </div>
 </div>

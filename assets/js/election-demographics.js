@@ -3,9 +3,9 @@
 
   // ---------------------------------------------------------------------
   // "Demografisk analys": how groups of voters voted, from SVT/Valu's exit
-  // poll (pages 20-34 of the 2026 seminar).  Three analyses share one panel:
-  // party choice per group in 2026, the groups' party choice since 1991, and
-  // pocketbook voting.  Every number is read from 2026-demografi.json; the
+  // poll (pages 20-34 of the 2026 seminar).  Four analyses share one panel:
+  // party choice per group in 2026, women against men of the same age, the
+  // groups' party choice since 1991, and pocketbook voting.  Every number is read from 2026-demografi.json; the
   // reference lines are Valmyndigheten's final result.
   // ---------------------------------------------------------------------
   var root = document.getElementById("election-demographics");
@@ -18,13 +18,16 @@
   // The forecast chart's coalition palette, in its fixed order: a group keeps
   // its colour whichever groups are shown.
   var GROUP_COLORS = ["#bd3348", "#315fa8", "#35866f", "#7b5b9d", "#a26a1f", "#278597"];
-  var ANALYSES = ["groups", "trends", "wallet"];
+  var ANALYSES = ["groups", "gender", "trends", "wallet"];
+  // The two blocs the gender gap is read along on page 21, each listed from
+  // the centre line outwards.
+  var GENDER_BLOCS = [["V", "S", "MP"], ["M", "SD"]];
   // End-of-line labels in the trend chart, where a full title would not fit.
   var SHORT_GROUP = { kvinnor: "Kvinnor", man: "Män", forstagangsvaljare: "Förstag.", "65-plus": "65+", lo: "LO", foretagare: "Företagare" };
 
   var data = null;
   var result = null;
-  var state = { analysis: "groups", table: 0, focus: "", trendMode: "parties", trendGroup: 0, trendParty: "S", hidden: {} };
+  var state = { analysis: "groups", table: 0, focus: "", ageBand: 0, trendMode: "parties", trendGroup: 0, trendParty: "S", hidden: {} };
   var chartObserver = null;
 
   function partyColor(party) { return palette.colors[PARTY_KEY[party] || party] || "#8A8A8A"; }
@@ -43,6 +46,13 @@
       if (!response.ok) throw new Error("Could not load " + url + " (" + response.status + ")");
       return response.json();
     });
+  }
+  // "SVT/Valu, sidan N", linked to that page of the copy of the presentation
+  // kept beside the data.
+  var pdf = root.getAttribute("data-pdf");
+  function sourcePage(page) {
+    var text = "SVT/Valu, sidan " + page;
+    return pdf ? "<a href=\"" + escapeHtml(pdf) + "#page=" + page + "\">" + text + "</a>" : text;
   }
   function isShare(value) { return typeof value === "number" && isFinite(value) && value >= 0 && value <= 100; }
 
@@ -170,7 +180,7 @@
       "<p class=\"election-muted\">" + (current.question ? "Fråga: ”" + escapeHtml(current.question) + "” " : "") +
       (focus ? "Andel som röstade på " + escapeHtml(partyName(focus)) + " i varje grupp, jämfört med partiets valresultat."
         : "Partival i riksdagsvalet 2026, procent av gruppens röster. Klicka på ett parti för att jämföra det mellan grupperna.") +
-      " SVT/Valu, sidan " + current.page + ".</p></div>";
+      " " + sourcePage(current.page) + ".</p></div>";
     var body;
     if (!focus) {
       body = "<ul class=\"edm-legend\" aria-label=\"Partier\">" + parties.map(function (party) {
@@ -221,7 +231,96 @@
     return controls + head + body + table(current.title + ", procent", ["Grupp"].concat(parties), rows);
   }
 
-  // --- 2. Utveckling 1991-2026 -------------------------------------------
+  // --- 2. Kvinnor mot män ------------------------------------------------
+
+  // Page 21 pairs each women's age band with the men's of the same age.
+  // Without that pairing the analysis is left out rather than half drawn.
+  function genderPairs() {
+    var source = data.cross_sections.filter(function (t) { return t.id === "kon-och-alder"; })[0];
+    if (!source || source.sections.length !== 2) return null;
+    var women = source.sections[0];
+    var men = source.sections[1];
+    if (women.title !== "Kvinnor" || men.title !== "Män" || !women.groups.length || women.groups.length !== men.groups.length) return null;
+    var pairs = women.groups.map(function (group, i) {
+      var age = group.label.replace(/^Kvinnor\s+/, "");
+      return men.groups[i].label === "Män " + age ? { age: age, women: group, men: men.groups[i], page: source.page } : null;
+    });
+    return pairs.every(Boolean) ? pairs : null;
+  }
+
+  function sumOf(group, parties) {
+    return parties.reduce(function (sum, party) { return sum + group.shares[data.parties.indexOf(party)]; }, 0);
+  }
+
+  function gapText(women, men) {
+    var gap = Math.abs(women - men);
+    if (!gap) return "lika";
+    return women > men ? "← " + gap + NBSP + "p.e." : gap + NBSP + "p.e. →";
+  }
+
+  // One row of the butterfly: women grow left from the centre line, men
+  // right; each side is a list of [party, value] read from the centre out.
+  function flyRow(label, womenParts, menParts, scale, extra) {
+    var women = womenParts.reduce(function (sum, part) { return sum + part[1]; }, 0);
+    var men = menParts.reduce(function (sum, part) { return sum + part[1]; }, 0);
+    function side(parts, total, cls, larger) {
+      var bars = parts.map(function (part) {
+        // The bar's share of the track, leaving room for the value beside it.
+        return "<span class=\"edm-fly__bar\" style=\"--share:" + (part[1] / scale).toFixed(4) + ";background:" + partyColor(part[0]) + "\"></span>";
+      });
+      if (cls === "women") bars.reverse();
+      var value = "<span class=\"edm-fly__value" + (larger ? " is-larger" : "") + "\">" + percent(total) + "</span>";
+      return "<span class=\"edm-fly__track edm-fly__track--" + cls + "\" aria-hidden=\"true\">" +
+        (cls === "women" ? value + bars.join("") : bars.join("") + value) + "</span>";
+    }
+    var gap = men - women;
+    var spoken = label + ": kvinnor " + women + " procent, män " + men + " procent" +
+      (gap ? ", " + Math.abs(gap) + " procentenheter mer bland " + (gap > 0 ? "män" : "kvinnor") : ", lika") + ".";
+    return "<div class=\"edm-fly__row" + (extra || "") + "\" tabindex=\"0\" data-tip=\"" + escapeHtml(spoken) + "\" aria-label=\"" + escapeHtml(spoken) + "\">" +
+      side(womenParts, women, "women", women > men) +
+      "<span class=\"edm-fly__mid\" aria-hidden=\"true\"><b>" + escapeHtml(label) + "</b><small>" + escapeHtml(gapText(women, men)) + "</small></span>" +
+      side(menParts, men, "men", men > women) + "</div>";
+  }
+
+  function renderGender() {
+    var pairs = genderPairs();
+    var pair = pairs[state.ageBand] || pairs[0];
+    var parties = data.parties;
+    function parts(group, list) { return list.map(function (party) { return [party, group.shares[parties.indexOf(party)]]; }); }
+    var blocs = GENDER_BLOCS.map(function (list) {
+      return { label: list.join(" + "), list: list, women: sumOf(pair.women, list), men: sumOf(pair.men, list) };
+    });
+    var scale = niceMax(blocs.map(function (b) { return Math.max(b.women, b.men); }));
+    var controls = "<div class=\"edm-controls\">" +
+      segmented("edm-age-band", "Ålder", pairs.map(function (p, i) { return [String(i), p.age]; }), String(state.ageBand)) + "</div>";
+    var left = blocs[0];
+    var right = blocs[1];
+    function either(list) { return list.slice(0, -1).join(", ") + " eller " + list[list.length - 1]; }
+    var head = "<div class=\"election-panel__head\"><h3 class=\"edm-title\">Kvinnor och män " + escapeHtml(pair.age) + "</h3>" +
+      "<p class=\"election-muted\">" + percent(left.women) + " av kvinnorna röstade på " + escapeHtml(either(left.list)) + ", mot " + percent(left.men) +
+      " av männen. " + escapeHtml(either(right.list)) + " fick " + percent(right.men) + " av männens röster och " + percent(right.women) + " av kvinnornas." +
+      " Kvinnor åt vänster, män åt höger; i mitten skillnaden i procentenheter, med pilen mot den grupp där partiet är störst. " + sourcePage(pair.page) + ".</p></div>";
+    var axis = "<div class=\"edm-fly__head\" aria-hidden=\"true\"><span>Kvinnor</span><span></span><span>Män</span></div>";
+    var blocRows = blocs.map(function (bloc) {
+      return flyRow(bloc.label, parts(pair.women, bloc.list), parts(pair.men, bloc.list), scale, " edm-fly__row--bloc");
+    }).join("");
+    var partyRows = parties.map(function (party) {
+      return flyRow(party, parts(pair.women, [party]), parts(pair.men, [party]), scale, "");
+    }).join("");
+    var rows = blocs.map(function (b) { return [b.label, String(b.women), String(b.men), String(b.men - b.women)]; })
+      .concat(parties.map(function (party) {
+        var w = pair.women.shares[parties.indexOf(party)];
+        var m = pair.men.shares[parties.indexOf(party)];
+        return [partyName(party), String(w), String(m), String(m - w)];
+      }));
+    return controls + head +
+      "<div class=\"edm-fly\"><h4 class=\"edm-section\">Blocken</h4>" + axis + blocRows +
+      "<h4 class=\"edm-section\">Partierna</h4>" + axis + partyRows + "</div>" +
+      "<p class=\"election-muted edm-note\">Blocksummorna är summor av partiernas avrundade andelar. Staplarna delar skala, så partierna kan jämföras med blocken.</p>" +
+      table("Kvinnor och män " + pair.age + ", procent", ["Parti", "Kvinnor", "Män", "Män − kvinnor"], rows);
+  }
+
+  // --- 3. Utveckling 1991-2026 -------------------------------------------
 
   function trendSeries() {
     var trends = data.trends;
@@ -257,7 +356,7 @@
       (byParty ? escapeHtml(spec.title) + " i olika väljargrupper 1991–2026" : escapeHtml(spec.title) + ": partival 1991–2026") +
       "</h3><p class=\"election-muted\">" +
       (byParty ? "Andel av varje grupps röster som gick till " + escapeHtml(spec.title) + "."
-        : "Partival i varje riksdagsval, procent av gruppens röster. SVT/Valu, sidan " + spec.page + ".") +
+        : "Partival i varje riksdagsval, procent av gruppens röster. " + sourcePage(spec.page) + ".") +
       " Peka i diagrammet för värdena ett visst år; klicka på en serie nedan för att dölja eller visa den. " +
       escapeHtml(trends.note) + "</p></div>";
     var legend = "<ul class=\"edm-legend\" aria-label=\"Serier\">" + spec.series.map(function (series) {
@@ -407,7 +506,7 @@
     });
   }
 
-  // --- 3. Plånboksröstning -----------------------------------------------
+  // --- 4. Plånboksröstning -----------------------------------------------
 
   function renderWallet() {
     var wallet = data.wallet_voting;
@@ -421,7 +520,7 @@
     var scale = niceMax(partyRows.map(function (r) { return r.value; }).concat(groupValues, [overall]));
     var keyLabel = "Samtliga " + percent(overall);
     var head = "<div class=\"election-panel__head\"><h3 class=\"edm-title\">Plånboksröstning 2026</h3>" +
-      "<p class=\"election-muted\">" + escapeHtml(wallet.question) + " Linjen visar samtliga väljare, " + percent(overall) + ". SVT/Valu, sidan " + wallet.page + ".</p></div>";
+      "<p class=\"election-muted\">" + escapeHtml(wallet.question) + " Linjen visar samtliga väljare, " + percent(overall) + ". " + sourcePage(wallet.page) + ".</p></div>";
     var byParty = "<div class=\"edm-wallet__block\"><h4 class=\"edm-section\">Efter partival</h4><div class=\"edm-bars\">" +
       referenceKey(scale, overall, keyLabel) + barRows(partyRows, scale, overall) + "</div></div>";
     var byGroup = "<div class=\"edm-wallet__block\"><h4 class=\"edm-section\">Efter grupp</h4><div class=\"edm-bars\">" +
@@ -442,7 +541,8 @@
   function render() {
     hideTip();
     if (chartObserver) { chartObserver.disconnect(); chartObserver = null; }
-    var html = state.analysis === "trends" ? renderTrends() : state.analysis === "wallet" ? renderWallet() : renderGroups();
+    var html = state.analysis === "trends" ? renderTrends() : state.analysis === "wallet" ? renderWallet() :
+      state.analysis === "gender" ? renderGender() : renderGroups();
     view.innerHTML = html + "<div class=\"ep-tip edm-tip\" role=\"tooltip\" hidden></div>";
     tip = view.querySelector(".edm-tip");
     Array.prototype.forEach.call(root.querySelectorAll(".edm-nav [data-analysis]"), function (button) {
@@ -473,6 +573,11 @@
     if (!target || !view.contains(target)) return;
     if (target.id === "edm-focus-clear") { state.focus = ""; render(); return; }
     if (target.hasAttribute("data-party") && state.analysis === "groups") { state.focus = target.getAttribute("data-party"); render(); return; }
+    if (target.parentNode && target.parentNode.id === "edm-age-band") {
+      state.ageBand = Number(target.getAttribute("data-value"));
+      render();
+      return;
+    }
     if (target.parentNode && target.parentNode.id === "edm-trend-mode") {
       state.trendMode = target.getAttribute("data-value");
       state.hidden = {};
@@ -507,7 +612,7 @@
   Array.prototype.forEach.call(root.querySelectorAll(".edm-nav [data-analysis]"), function (button) {
     button.addEventListener("click", function () {
       var analysis = button.getAttribute("data-analysis");
-      if (ANALYSES.indexOf(analysis) < 0 || !data) return;
+      if (ANALYSES.indexOf(analysis) < 0 || !data || (analysis === "gender" && !genderPairs())) return;
       state.analysis = analysis;
       render();
     });
@@ -524,6 +629,10 @@
     data = validate(payloads[0]);
     result = payloads[1];
     if (!data) throw new Error("invalid demographics file");
+    if (!genderPairs()) {
+      var genderButton = root.querySelector(".edm-nav [data-analysis=\"gender\"]");
+      if (genderButton) genderButton.hidden = true;
+    }
     render();
   }).catch(function (error) {
     console.warn("Den demografiska analysen kunde inte visas.", error);
