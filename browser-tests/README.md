@@ -696,14 +696,18 @@ election-day generation and checks, against the files on disk:
   filters (party, constituency, age band, newly elected) light exactly the
   seats the file says match, combined, and fade legend parties with none; reset
   lights all 349. A member who has left is shown as the successor in the same
-  seat, and the card says whom they replace. "Som i kammaren" moves every dot
-  to its member's numbered seat from `results/2026-seating.json` (Riksdagen's
-  seating chart for 2026/27) and the Speaker to the Speaker's chair (place 0),
-  the hall seat no elected member sits in is drawn empty, keyboard order
-  follows the seat numbers, and
-  "Partivis" restores the party blocks. A members file that does not match the
-  chamber seat for seat leaves the chamber as the plain allocation, without
-  filters; a seating plan that does not validate only hides the toggle.
+  seat, and the card says whom they replace; a member on leave's card names
+  their substitute. "Som i kammaren" draws who sits in the hall, at the places
+  in `results/2026-seating.json` (Riksdagen's seating chart for 2026/27): every
+  seat 1-349 held exactly once, by a serving member or, for a member on leave
+  (minister, Speaker, parental leave), by their substitute as a ringed dot
+  whose card says whom they sit in for; the Speaker in the Speaker's chair
+  (place 0) and the Prime Minister at seat 350; other members on leave step
+  out. The count reads everyone in the hall, keyboard order follows the
+  places, and "Partivis" restores the 349 elected. A members file that does
+  not match the chamber seat for seat leaves the chamber as the plain
+  allocation, without filters; a seating plan that does not validate, or
+  substitutes that leave a seat held twice or empty, only hide the toggle.
 - **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
   is `forecast.json`'s median minus the certified share, and whether the result
   lies inside the 90 % interval is computed from `vote_share_p05`/`p95`, as is

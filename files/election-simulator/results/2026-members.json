@@ -18,24 +18,25 @@
  "riksdag_roles_as_of": "2026-10-13",
  "newly_elected_definition": "no_seat_in_chamber_before_2026-09-28",
  "seat_definition": "riksdagen_ordningsnummer_2026-09-28_speaker_0",
+ "substitute_definition": "current_substitute_of_member_on_leave_as_of_riksdag_roles_as_of",
  "sources": [
   {
    "url": "https://resultat.val.se/data/resultat/val2026/RD_S.json",
    "title": "Valmyndigheten: Val till riksdagen - Slutligt valresultat",
-   "retrieved_at_utc": "2026-10-13T09:56:31Z",
+   "retrieved_at_utc": "2026-10-13T20:02:47Z",
    "raw_sha256": "1998afdc723a83b325c729faf68063c8731e33496fc274bf9fbb80499e0afb08"
   },
   {
    "url": "https://data.val.se/filer/val2026/parti/kandidaturer.csv",
    "title": "Valmyndigheten: Kandidaturer i val 2026",
-   "retrieved_at_utc": "2026-10-13T09:56:31Z",
+   "retrieved_at_utc": "2026-10-13T20:02:47Z",
    "raw_sha256": "84fc6b2d83abc51815eb39c95f02a4870db717b0bb7e3c8f8a1caba5c50719c6"
   },
   {
    "url": "https://data.riksdagen.se/personlista/?rdlstatus=tjanst&utformat=json",
    "title": "Sveriges riksdag: Ledamöter (personlista)",
-   "retrieved_at_utc": "2026-10-13T09:56:31Z",
-   "raw_sha256": "ef0275cb901b24f09c7dabe3ab7bdabdc272d8515810b48d21b77044271b5b71"
+   "retrieved_at_utc": "2026-10-13T20:02:47Z",
+   "raw_sha256": "ca2c86ca66831e3a03447de4fff441ef1c605e3ac85ea92194b37a512857c84d"
   }
  ],
  "parties": {
@@ -64,7 +65,18 @@
      "Justitieminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": true
+    "newly_elected": true,
+    "substitute": {
+     "seat": 279,
+     "name": "Charlotte Broberg",
+     "age": 58,
+     "title": "Fil kand, sjukvårdspolitiker",
+     "municipality": "Stockholm",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 24,
@@ -78,7 +90,18 @@
      "EU-minister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 24,
+     "name": "Sophia Granswed Baat",
+     "age": 40,
+     "title": "Statsvetare",
+     "municipality": "Stockholm",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 5,
@@ -92,7 +115,18 @@
      "Migrationsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 5,
+     "name": "Lotta Högström",
+     "age": 64,
+     "title": "Country- och Operations Manager",
+     "municipality": "Stockholm",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 317,
@@ -106,7 +140,18 @@
      "Bistånds- och utrikeshandelsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": true
+    "newly_elected": true,
+    "substitute": {
+     "seat": 317,
+     "name": "Merit Frost Lindberg",
+     "age": 53,
+     "title": "Riksdagsledamot",
+     "municipality": "Stockholm",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": false
+    }
    },
    {
     "seat": 50,
@@ -144,7 +189,18 @@
      "Kulturminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": true
+    "newly_elected": true,
+    "substitute": {
+     "seat": 283,
+     "name": "Maria Stockhaus",
+     "age": 63,
+     "title": "Riksdagsledamot",
+     "municipality": "Sollentuna",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": false
+    }
    },
    {
     "seat": 53,
@@ -158,7 +214,18 @@
      "Finansmarknadsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 53,
+     "name": "Alexander Rosenberg",
+     "age": 38,
+     "title": "Kommunalråd",
+     "municipality": "Södertälje",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 7,
@@ -285,7 +352,18 @@
      "Partiledare"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 214,
+     "name": "Alice Landerholm",
+     "age": 23,
+     "title": "Civilingenjörsstudent",
+     "municipality": "Strängnäs",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 286,
@@ -311,7 +389,18 @@
      "Talman"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 32,
+     "name": "Magdalena Hermelin",
+     "age": 51,
+     "title": "Lantbrukare",
+     "municipality": "Mjölby",
+     "role": "Talmansersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 180,
@@ -441,9 +530,22 @@
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
     "constituency_code": "11",
-    "riksdag_roles": [],
+    "riksdag_roles": [
+     "Andre vice gruppledare"
+    ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 256,
+     "name": "Tony Rahm",
+     "age": 39,
+     "title": "Civilekonom",
+     "municipality": "Malmö",
+     "role": "Ersättare",
+     "from": "2026-10-07",
+     "to": "2026-11-06",
+     "newly_elected": false
+    }
    },
    {
     "seat": 292,
@@ -531,7 +633,18 @@
      "Utrikesminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 260,
+     "name": "Lars Johnsson",
+     "age": 62,
+     "title": "Riksdagsledamot, advokat",
+     "municipality": "Hässleholm",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": false
+    }
    },
    {
     "seat": 299,
@@ -555,7 +668,18 @@
     "constituency_code": "15",
     "riksdag_roles": [],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 67,
+     "name": "Niclas Nilsson",
+     "age": 60,
+     "title": "Retailchef",
+     "municipality": "Kungsbacka",
+     "role": "Ersättare",
+     "from": "2026-09-28",
+     "to": "2026-10-14",
+     "newly_elected": true
+    }
    },
    {
     "seat": 189,
@@ -629,7 +753,18 @@
      "Socialtjänstminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 16,
+     "name": "Dennis Alvdén",
+     "age": 29,
+     "title": "Kommunikatör",
+     "municipality": "Alingsås",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 98,
@@ -739,7 +874,18 @@
      "Försvarsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 102,
+     "name": "Lotta Björklund",
+     "age": 57,
+     "title": "Skolledare",
+     "municipality": "Karlstad",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 133,
@@ -765,7 +911,18 @@
      "Finansminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 21,
+     "name": "Tony Ring",
+     "age": 62,
+     "title": "Kommunstyrelseordförande",
+     "municipality": "Karlskoga",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 164,
@@ -817,7 +974,18 @@
      "Minister för civilt försvar"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 200,
+     "name": "Katarina Stenström Ros",
+     "age": 60,
+     "title": "Ekobrottsåklagare",
+     "municipality": "Borlänge",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 273,
@@ -864,6 +1032,7 @@
     "constituency": "Västernorrlands län",
     "constituency_code": "26",
     "riksdag_roles": [
+     "Förste vice gruppledare",
      "Ordförande i försvarsutskottet"
     ],
     "riksdag_status": "serving",
@@ -935,7 +1104,18 @@
      "Gymnasie-, högskole- och forskningsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 244,
+     "name": "Martin Melin",
+     "age": 59,
+     "title": "Riksdagsledamot",
+     "municipality": "Nacka",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-29",
+     "to": "2030-09-23",
+     "newly_elected": false
+    }
    },
    {
     "seat": 208,
@@ -949,7 +1129,18 @@
      "Klimat- och miljöminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 208,
+     "name": "Elin Hjelmestam",
+     "age": 27,
+     "title": "Student",
+     "municipality": "Stockholm",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-29",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 111,
@@ -978,7 +1169,18 @@
      "Jämställdhetsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 145,
+     "name": "Marcus Willershausen",
+     "age": 26,
+     "title": "Medievetare",
+     "municipality": "Solna",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-29",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 248,
@@ -992,7 +1194,18 @@
      "Arbetsmarknadsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": true
+    "newly_elected": true,
+    "substitute": {
+     "seat": 248,
+     "name": "Louise Minnhagen",
+     "age": 57,
+     "title": "Chef på flygtrafikledning",
+     "municipality": "Vaxholm",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-29",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 246,
@@ -1121,7 +1334,18 @@
      "Partiledare"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": true
+    "newly_elected": true,
+    "substitute": {
+     "seat": 338,
+     "name": "Pär Gustafsson",
+     "age": 43,
+     "title": "Tjänsteman",
+     "municipality": "Göteborg",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 191,
@@ -1526,7 +1750,18 @@
      "Socialminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 27,
+     "name": "Yusuf Aydin",
+     "age": 44,
+     "title": "Riksdagsledamot",
+     "municipality": "Botkyrka",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": false
+    }
    },
    {
     "seat": 9,
@@ -1636,7 +1871,18 @@
      "Sjukvårdsminister"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": true
+    "newly_elected": true,
+    "substitute": {
+     "seat": 303,
+     "name": "Johanna Holmdahl",
+     "age": 44,
+     "title": "Leg. Psykolog",
+     "municipality": "Göteborg",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": true
+    }
    },
    {
     "seat": 128,
@@ -1713,7 +1959,18 @@
      "Partiledare"
     ],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 75,
+     "name": "Hans Eklind",
+     "age": 59,
+     "title": "Riksdagsledamot",
+     "municipality": "Örebro",
+     "role": "Statsrådsersättare",
+     "from": "2026-09-28",
+     "to": "2030-09-23",
+     "newly_elected": false
+    }
    },
    {
     "seat": 272,
@@ -2310,7 +2567,18 @@
     "constituency_code": "11",
     "riksdag_roles": [],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 257,
+     "name": "Zinaida Kajevic",
+     "age": 46,
+     "title": "Ombudsman",
+     "municipality": "Malmö",
+     "role": "Ersättare",
+     "from": "2026-09-28",
+     "to": "2026-11-15",
+     "newly_elected": false
+    }
    },
    {
     "seat": 328,
@@ -2846,7 +3114,18 @@
     "constituency_code": "25",
     "riksdag_roles": [],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 274,
+     "name": "Linnéa Wickman",
+     "age": 33,
+     "title": "Statsvetare",
+     "municipality": "Gävle",
+     "role": "Ersättare",
+     "from": "2026-10-12",
+     "to": "2026-10-27",
+     "newly_elected": false
+    }
    },
    {
     "seat": 77,
@@ -4343,7 +4622,18 @@
     "constituency_code": "26",
     "riksdag_roles": [],
     "riksdag_status": "on_leave",
-    "newly_elected": false
+    "newly_elected": false,
+    "substitute": {
+     "seat": 48,
+     "name": "Mats Hellhoff",
+     "age": 72,
+     "title": "Polis",
+     "municipality": "Sundsvall",
+     "role": "Ersättare",
+     "from": "2026-10-01",
+     "to": "2027-04-30",
+     "newly_elected": false
+    }
    },
    {
     "seat": 167,

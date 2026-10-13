@@ -117,7 +117,7 @@ function readPage(browser) {
       lede: text('election-hero-lede'),
       updated: text('election-hero-updated'),
       // The chamber's dots in drawing order, run-length encoded by party.
-      chamber: Array.from(document.querySelectorAll('#election-result-parliament .election-seat'))
+      chamber: Array.from(document.querySelectorAll('#election-result-parliament .election-seat:not(.election-seat--substitute)'))
         .reduce((runs, node) => {
           const party = node.dataset.party || null;
           const last = runs[runs.length - 1];
@@ -299,7 +299,7 @@ async function checkMembers(browser) {
   const count = (test) => flat.filter(test).length;
   const filtered = await browser.evaluate(() => {
     const $ = (id) => document.getElementById(id);
-    const lit = () => document.querySelectorAll('#election-result-parliament .election-seat:not(.is-muted)').length;
+    const lit = () => document.querySelectorAll('#election-result-parliament .election-seat:not(.is-muted):not(.is-offstage)').length;
     const select = (id, value) => { $(id).value = value; $(id).dispatchEvent(new Event('change')); };
     const newButton = (value) => document.querySelector(`#election-filter-new button[data-new="${value}"]`);
     const read = () => ({ lit: lit(), count: $('election-filter-count').textContent, reset: !$('election-filter-reset').hidden });
@@ -351,55 +351,111 @@ async function checkMembers(browser) {
       card.includes(`Ersätter ${successor.replaces.name}`), card);
   }
 
-  // "Som i kammaren": every dot moves to its member's numbered seat in the
-  // hall, keyboard order follows the seat numbers, and "Partivis" restores
-  // the party blocks.
+  // A minister's card says who sits in for them.
+  const minister = flat.find((m) => m.substitute && m.riksdag_roles.length);
+  if (minister) {
+    const card = await browser.evaluate((name) => {
+      const seat = Array.from(document.querySelectorAll('#election-result-parliament .election-seat'))
+        .find((node) => node.member && node.member.name === name && !node.classList.contains('is-offstage'));
+      seat.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      const text = document.getElementById('election-result-member-tip').innerText;
+      document.getElementById('election-result-parliament').dispatchEvent(new MouseEvent('mouseleave'));
+      return text;
+    }, minister.name);
+    check('a member on leave names their substitute', card.includes(`Ersätts av ${minister.substitute.name}`), card);
+  }
+
+  // "Som i kammaren" draws who sits in the hall: every numbered seat held
+  // once, by a serving member or, for a member on leave (minister, Speaker,
+  // parental leave), by their substitute as a ringed dot; the Speaker in the
+  // Speaker's chair and the Prime Minister at seat 350 on the government
+  // bench. Keyboard order follows the places; "Partivis" restores the 349.
+  const PM_SEAT = CHAMBER + 1;
+  const isPrimeMinister = (m) => Boolean(m.substitute && seatingPlan.prime_minister && m.riksdag_roles.includes('Statsminister'));
+  const inHall = [];
+  flat.forEach((m) => {
+    if (m.seat === 0) inHall.push({ name: m.name, place: 0, ring: false });
+    else if (isPrimeMinister(m)) inHall.push({ name: m.name, place: PM_SEAT, ring: false });
+    else if (!m.substitute) inHall.push({ name: m.name, place: m.seat, ring: false });
+    if (m.substitute) inHall.push({ name: m.substitute.name, place: m.substitute.seat, ring: true });
+  });
+  inHall.sort((a, b) => a.place - b.place);
   const hall = await browser.evaluate(async () => {
     const host = document.getElementById('election-result-parliament');
-    const seats = Array.from(host.querySelectorAll('.election-seat'));
-    const before = seats.map((seat) => [seat.style.left, seat.style.top]);
+    const dots = Array.from(host.querySelectorAll('.election-seat'));
+    const before = dots.map((dot) => [dot.style.left, dot.style.top, dot.classList.contains('is-offstage')]);
     const button = (view) => document.querySelector(`#election-result-view [data-view="${view}"]`);
     const toggleShown = !document.getElementById('election-result-view').hidden;
+    const partyView = dots.filter((dot) => !dot.classList.contains('is-offstage')).length;
     button('seating').click();
-    const placed = seats.map((seat) => ({ seat: seat.member.seat, left: parseFloat(seat.style.left), top: parseFloat(seat.style.top) }));
-    const vacant = Array.from(host.querySelectorAll('.ep-vacant'))
-      .filter((node) => getComputedStyle(node).display !== 'none')
-      .map((node) => [parseFloat(node.style.left), parseFloat(node.style.top)]);
+    const placed = dots.filter((dot) => !dot.classList.contains('is-offstage')).map((dot) => ({
+      name: dot.member.name,
+      place: dot.hallSeat,
+      ring: dot.classList.contains('election-seat--substitute'),
+      left: parseFloat(dot.style.left),
+      top: parseFloat(dot.style.top),
+    }));
+    const offstage = dots.filter((dot) => dot.classList.contains('is-offstage')).map((dot) => dot.member.name);
     const state = {
       pressed: button('seating').getAttribute('aria-pressed'),
       noteShown: !document.getElementById('election-result-seating-note').hidden,
       centreHidden: getComputedStyle(document.querySelector('.election-parliament__centre')).display === 'none',
+      count: document.getElementById('election-filter-count').textContent,
+      labels: Array.from(host.querySelectorAll('.ep-speaker')).map((node) => node.textContent),
     };
+    const tipFor = (name) => {
+      const dot = dots.find((node) => node.member.name === name && !node.classList.contains('is-offstage'));
+      dot.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      const text = document.getElementById('election-result-member-tip').innerText;
+      host.dispatchEvent(new MouseEvent('mouseleave'));
+      return text;
+    };
+    const ring = dots.find((dot) => dot.classList.contains('election-seat--substitute') && dot.member.standsInFor.roles.includes('Talman'))
+      || dots.find((dot) => dot.classList.contains('election-seat--substitute'));
+    const ringCard = ring ? { name: ring.member.name, text: tipFor(ring.member.name) } : null;
     host.focus();
     const first = document.getElementById('election-result-member-status').textContent;
     host.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
     const last = document.getElementById('election-result-member-status').textContent;
     host.blur();
     button('party').click();
-    const restored = seats.every((seat, index) => seat.style.left === before[index][0] && seat.style.top === before[index][1]);
-    return { toggleShown, placed, vacant, state, first, last, restored };
+    const restored = dots.every((dot, index) => dot.style.left === before[index][0] && dot.style.top === before[index][1] &&
+      dot.classList.contains('is-offstage') === before[index][2]);
+    return { toggleShown, partyView, placed, offstage, state, ringCard, first, last, restored };
   });
   check('the seating toggle is shown', hall.toggleShown);
+  equal('the party view shows the 349 elected, no substitutes', hall.partyView, CHAMBER);
+  equal('the hall shows who sits there: members, substitutes, Speaker and Prime Minister',
+    hall.placed.map(({ name, place, ring }) => ({ name, place, ring })).sort((a, b) => a.place - b.place), inHall);
+  const numbered = hall.placed.map((dot) => dot.place).filter((n) => n >= 1 && n <= CHAMBER).sort((a, b) => a - b);
+  equal('every numbered seat 1-349 is held exactly once', numbered, Array.from({ length: CHAMBER }, (_, i) => i + 1));
+  const pointFor = (place) => place === 0 ? seatingPlan.speaker : place === PM_SEAT ? seatingPlan.prime_minister : seatingPlan.seats[String(place)];
   const misplaced = hall.placed.filter((dot) => {
-    const [x, y] = dot.seat === 0 ? seatingPlan.speaker : seatingPlan.seats[String(dot.seat)];
+    const [x, y] = pointFor(dot.place);
     return Math.abs(dot.left - x) > 0.01 || Math.abs(dot.top - y) > 0.01;
   });
-  equal('every member sits at their numbered seat in the hall', misplaced, []);
-  const places = hall.placed.map((dot) => dot.seat);
-  equal('no two members share a place', new Set(places).size, CHAMBER);
+  equal('everyone sits at their place in the hall', misplaced, []);
+  equal('members on leave step out of the hall, apart from the Speaker and the Prime Minister',
+    hall.offstage.sort(), flat.filter((m) => m.substitute && m.seat !== 0 && !isPrimeMinister(m)).map((m) => m.name).sort());
   const speakers = flat.filter((m) => m.riksdag_roles.includes('Talman'));
   equal('the Speaker sits in the Speaker\'s chair', speakers.map((m) => m.seat), speakers.length ? [0] : []);
-  // A hall seat with no elected member in it (the Speaker's own, held by a
-  // substitute) is drawn as an empty seat, so every one of the 349 is shown.
-  const empty = Array.from({ length: CHAMBER }, (_, i) => i + 1).filter((n) => !places.includes(n));
-  equal('every empty hall seat is drawn as empty', hall.vacant,
-    empty.map((n) => seatingPlan.seats[String(n)]));
-  equal('the hall view is marked and explained', hall.state, { pressed: 'true', noteShown: true, centreHidden: true });
-  const bySeat = (n) => flat.find((m) => m.seat === n).name;
-  const firstPlace = Math.min(...places);
-  check('focus starts at the first place', hall.first.startsWith(bySeat(firstPlace) + ',') &&
+  equal('the hall view is marked, explained and counted', hall.state, {
+    pressed: 'true', noteShown: true, centreHidden: true,
+    count: `Alla ${inHall.length} i kammaren`,
+    labels: ['Talman'].concat(inHall.some((d) => d.place === PM_SEAT) ? ['Statsminister'] : []),
+  });
+  if (hall.ringCard) {
+    const holder = flat.find((m) => m.substitute && m.substitute.name === hall.ringCard.name);
+    check('a substitute\'s card says whom they sit in for',
+      hall.ringCard.text.includes(`${holder.substitute.role} för ${holder.name}`), hall.ringCard.text);
+  }
+  const at = (place) => inHall.find((d) => d.place === place).name;
+  const firstPlace = inHall[0].place;
+  check('focus starts at the first place', hall.first.startsWith(at(firstPlace) + ',') &&
     (firstPlace === 0 ? /Talmansstolen\./ : /Plats 1 i kammaren/).test(hall.first), hall.first);
-  check('End reaches seat 349', hall.last.startsWith(bySeat(CHAMBER) + ',') && /Plats 349 i kammaren/.test(hall.last), hall.last);
+  const lastPlace = inHall.at(-1).place;
+  check('End reaches the last place', hall.last.startsWith(at(lastPlace) + ',') &&
+    (lastPlace === PM_SEAT ? /Statsministerns plats i regeringsbänken\./ : /Plats 349 i kammaren/).test(hall.last), hall.last);
   check('Partivis restores the party blocks', hall.restored);
 }
 
@@ -788,6 +844,41 @@ async function invalidSeating() {
   }
 }
 
+// --- 7. substitutes that do not fill the hall ------------------------------
+
+async function incompleteHall() {
+  console.log('\n[a seat held twice] desktop');
+  const root = await mkdtemp(join(tmpdir(), 'election-result-site-'));
+  try {
+    await cp(SITE, root, { recursive: true });
+    const broken = structuredClone(members);
+    const all = Object.values(broken.parties).flat();
+    const onLeave = all.find((m) => m.substitute && m.seat !== 0);
+    const other = all.find((m) => !m.substitute && m.seat > 0);
+    // The substitute moved onto a seat a serving member holds.
+    onLeave.substitute.seat = other.seat;
+    await writeFile(join(root, MEMBERS), `${JSON.stringify(broken)}\n`);
+    const pointer = await pointerFor(SITE, DECIDED_GENERATION);
+    const { server, browser } = await open(DESKTOP, { root, pointer });
+    try {
+      await browser.waitFor(() =>
+        document.getElementById('election-result-parliament')?.getAttribute('data-members') === 'true', 10000);
+      const state = await browser.evaluate(() => ({
+        members: document.getElementById('election-result-parliament').getAttribute('data-members'),
+        toggle: !document.getElementById('election-result-view').hidden,
+        rings: document.querySelectorAll('#election-result-parliament .election-seat--substitute').length,
+      }));
+      equal('members stay, the hall view is not offered', state, { members: 'true', toggle: false, rings: 0 });
+      equal('no console errors', appErrors(browser).map((e) => e.text), []);
+    } finally {
+      await browser.close();
+      await server.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 await decided(DESKTOP, 'desktop');
 await decided(MOBILE, 'mobile');
 await preElection();
@@ -797,6 +888,7 @@ await resultNotYetAvailable();
 await invalidResult();
 await invalidMembers();
 await invalidSeating();
+await incompleteHall();
 
 console.log(`\n${failures ? `FAIL (${failures})` : 'PASS'} ${checks} checks`);
 process.exit(failures ? 1 : 0);

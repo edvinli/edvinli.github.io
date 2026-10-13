@@ -3502,6 +3502,9 @@
   // seating chart for the session.  Optional: without it the chamber keeps
   // the party view only.
   var SEATING_PLAN_PATH = "results/2026-seating.json";
+  // The Prime Minister's place on the government bench, numbered 350 on
+  // Riksdagen's seating chart.
+  var PRIME_MINISTER_SEAT = CHAMBER + 1;
   var RIKSDAG_STATUS_NOTE = { on_leave: "Ledig från riksdagen", left: "Har lämnat riksdagen" };
 
   function optionalString(value) {
@@ -3537,6 +3540,11 @@
         else seatNumbers[seat] = true;
         var replaces = entry.replaces && typeof entry.replaces === "object" && optionalString(entry.replaces.name)
           ? { name: optionalString(entry.replaces.name), from: historyDate(entry.replaces.from) } : null;
+        var substitute = null;
+        if (entry.substitute !== undefined && entry.substitute !== null) {
+          substitute = normalizeSubstitute(entry.substitute, entry);
+          if (!substitute) return null;
+        }
         members.push({
           seat: seat,
           name: name,
@@ -3547,13 +3555,62 @@
           constituencyCode: optionalString(entry.constituency_code),
           newlyElected: typeof entry.newly_elected === "boolean" ? entry.newly_elected : null,
           replaces: replaces,
+          substitute: substitute,
           roles: roles,
           status: RIKSDAG_STATUS_NOTE[entry.riksdag_status] ? entry.riksdag_status : null
         });
+        if (substitute) substitute.standsInFor = { name: name, roles: roles };
       }
       parties[party] = members;
     }
+    // The hall as it sits: each numbered seat held once, by a serving member
+    // or by the substitute of one on leave. Anything else and the hall view
+    // is not offered.
+    var hall = {};
+    var held = 0;
+    HISTORY_PARTIES.forEach(function (name) {
+      parties[name].forEach(function (member) {
+        var number = member.substitute ? member.substitute.seat : member.seat;
+        if (number === null || number < 1) return;
+        if (hall[number]) seatsKnown = false;
+        hall[number] = true;
+        held += 1;
+      });
+    });
+    if (held !== CHAMBER) seatsKnown = false;
     return { parties: parties, seatsKnown: seatsKnown };
+  }
+
+  // Who sits in a member's seat while they are on leave: a minister's,
+  // the Speaker's, or one on parental or sick leave. Same party and
+  // constituency as the member; the role is Riksdagen's ("Statsrådsersättare",
+  // "Talmansersättare", "Ersättare").
+  function normalizeSubstitute(entry, member) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+    var name = optionalString(entry.name);
+    var seat = num(entry.seat);
+    var age = entry.age === null ? null : num(entry.age);
+    if (!name || seat === null || Math.floor(seat) !== seat || seat < 1 || seat > CHAMBER) return null;
+    if (entry.age !== null && (age === null || age < 18 || Math.floor(age) !== age)) return null;
+    if (typeof entry.newly_elected !== "boolean") return null;
+    return {
+      seat: seat,
+      name: name,
+      age: age,
+      title: optionalString(entry.title),
+      municipality: optionalString(entry.municipality),
+      constituency: optionalString(member.constituency),
+      constituencyCode: optionalString(member.constituency_code),
+      newlyElected: entry.newly_elected,
+      replaces: null,
+      substitute: null,
+      roles: [],
+      status: null,
+      role: optionalString(entry.role) || "Ersättare",
+      from: historyDate(entry.from),
+      to: historyDate(entry.to),
+      standsInFor: null
+    };
   }
 
   function normalizeSeatingPlan(payload) {
@@ -3572,18 +3629,33 @@
       seats[n] = point(payload.seats && payload.seats[String(n)]);
       if (!seats[n]) return null;
     }
-    return { aspect: aspect, spacing: spacing, speaker: point(payload.speaker), seats: seats };
+    return {
+      aspect: aspect,
+      spacing: spacing,
+      speaker: point(payload.speaker),
+      // Seat 350 on the government bench, marked "Statsministern".
+      primeMinister: point(payload.prime_minister),
+      seats: seats
+    };
   }
 
   function memberLines(party, member) {
     var since = member.replaces && member.replaces.from ? swedishDate(member.replaces.from.iso) : null;
+    var standsIn = member.standsInFor;
+    // A leave shorter than a year says when it ends; one for the term does not.
+    var until = standsIn && member.from && member.to && member.to.time - member.from.time < 365 * 86400000
+      ? swedishDate(member.to.iso) : null;
     return {
       meta: (partyNames[party] || party) + (member.age !== null ? " · " + member.age + " år" : "") +
-        (member.newlyElected ? " · nyinvald" : ""),
+        // A substitute is not elected; new to the chamber all the same.
+        (member.newlyElected ? (standsIn ? " · ny i riksdagen" : " · nyinvald") : ""),
       title: member.title,
       home: member.municipality ? "Bor i " + member.municipality : null,
       riksdag: member.roles.concat(member.status ? [RIKSDAG_STATUS_NOTE[member.status]] : [])
         .concat(member.replaces ? ["Ersätter " + member.replaces.name + (since ? " sedan " + since : "")] : [])
+        .concat(member.substitute ? ["Ersätts av " + member.substitute.name] : [])
+        .concat(standsIn ? [member.role + " för " + standsIn.name +
+          (standsIn.roles.length ? " (" + standsIn.roles[0].toLowerCase() + ")" : "") + (until ? " till " + until : "")] : [])
         .join(" · ") || null
     };
   }
@@ -3627,6 +3699,41 @@
     var order = seats;
     var seating = false;
     var current = null;
+    // The party view draws the 349 elected members. The hall view draws who
+    // sits there: a member on leave gives way to their substitute, as a
+    // ringed dot in the seat, while the Speaker takes the Speaker's chair
+    // and the Prime Minister seat 350 on the government bench.
+    var dots = seats.slice();
+    seats.forEach(function (seat) {
+      var member = seat.member;
+      seat.inParty = true;
+      seat.partyPlace = { left: seat.style.left, top: seat.style.top, width: seat.style.width };
+      if (!plan) return;
+      var sub = member.substitute;
+      var primeMinister = Boolean(sub && plan.primeMinister && member.roles.indexOf("Statsminister") >= 0);
+      seat.hallSeat = primeMinister ? PRIME_MINISTER_SEAT : member.seat === 0 ? 0 : sub ? sub.seat : member.seat;
+      seat.inHall = !sub || member.seat === 0 || primeMinister;
+      if (!sub) return;
+      var stand = document.createElement("span");
+      stand.className = "election-seat election-seat--substitute";
+      stand.style.backgroundColor = seat.style.backgroundColor;
+      stand.style.left = seat.partyPlace.left;
+      stand.style.top = seat.partyPlace.top;
+      stand.style.width = seat.partyPlace.width;
+      stand.setAttribute("aria-hidden", "true");
+      stand.memberParty = seat.memberParty;
+      stand.member = sub;
+      stand.inParty = false;
+      stand.inHall = true;
+      stand.hallSeat = sub.seat;
+      stand.partyPlace = seat.partyPlace;
+      host.appendChild(stand);
+      dots.push(stand);
+    });
+    function inView(dot) { return seating ? dot.inHall : dot.inParty; }
+    function stage() {
+      dots.forEach(function (dot) { dot.classList.toggle("is-offstage", !inView(dot)); });
+    }
 
     function show(seat, announce) {
       if (!seat) return;
@@ -3652,7 +3759,9 @@
       tip.style.top = (above >= 0 ? above : dot.bottom - box.top + 8) + "px";
       if (announce && status) {
         var place = !seating ? "Mandat " + (order.indexOf(seat) + 1) + " av " + CHAMBER + "."
-          : seat.member.seat === 0 ? "Talmansstolen." : "Plats " + seat.member.seat + " i kammaren.";
+          : seat.hallSeat === 0 ? "Talmansstolen."
+          : seat.hallSeat === PRIME_MINISTER_SEAT ? "Statsministerns plats i regeringsbänken."
+          : "Plats " + seat.hallSeat + " i kammaren.";
         status.textContent = [seat.member.name, lines.meta, lines.title, lines.home, lines.riksdag]
           .filter(Boolean).join(", ") + ". " + place;
       }
@@ -3666,7 +3775,8 @@
 
     function seatAt(event) {
       var target = event.target;
-      return target && target.classList && target.classList.contains("election-seat") && target.member ? target : null;
+      return target && target.classList && target.classList.contains("election-seat") && target.member &&
+        !target.classList.contains("is-offstage") ? target : null;
     }
 
     host.addEventListener("mouseover", function (event) {
@@ -3707,18 +3817,22 @@
     host.tabIndex = 0;
     var note = byId("election-result-members-note");
     if (note) note.hidden = false;
-    bindMemberFilters(seats);
-    if (plan) bindSeatingView(host, seats, plan, function (isSeating) {
+    stage();
+    var refilter = bindMemberFilters(dots, inView);
+    if (plan) bindSeatingView(host, dots, plan, function (isSeating) {
       seating = isSeating;
-      order = isSeating ? seats.slice().sort(function (a, b) { return a.member.seat - b.member.seat; }) : seats;
+      order = isSeating ? dots.filter(inView).sort(function (a, b) { return a.hallSeat - b.hallSeat; }) : seats;
+      stage();
+      if (refilter) refilter();
       hide();
     });
   }
 
   // "Partivis" draws the party blocks of the result; "Som i kammaren" moves
-  // the same dots to the members' numbered seats in the plenary hall, so the
-  // card, the filters and the keyboard carry over unchanged.
-  function bindSeatingView(host, seats, plan, onChange) {
+  // the dots to the numbered seats of the plenary hall, so the card, the
+  // filters and the keyboard carry over.  A member on leave fades out as
+  // their substitute fades in, moving the same way.
+  function bindSeatingView(host, dots, plan, onChange) {
     var frame = host.parentNode;
     var toggle = byId("election-result-view");
     var seatingNote = byId("election-result-seating-note");
@@ -3726,57 +3840,43 @@
     var buttons = Array.prototype.slice.call(toggle.querySelectorAll("button[data-view]"));
     // The Speaker's chair is place 0; without it in the plan the Speaker
     // has nowhere to sit, so the hall view is not offered.
-    if (seats.some(function (seat) { return seat.member.seat === 0; }) && !plan.speaker) return;
-    var taken = {};
-    seats.forEach(function (seat) {
-      taken[seat.member.seat] = true;
-      seat.partyPlace = { left: seat.style.left, top: seat.style.top, width: seat.style.width };
-      var point = seat.member.seat === 0 ? plan.speaker : plan.seats[seat.member.seat];
-      seat.hallPlace = {
-        left: point.x.toFixed(3) + "%",
-        top: point.y.toFixed(3) + "%",
-        width: (plan.spacing * 0.78).toFixed(3) + "%"
-      };
-    });
+    if (dots.some(function (dot) { return dot.hallSeat === 0; }) && !plan.speaker) return;
     var dotWidth = (plan.spacing * 0.78).toFixed(3) + "%";
-    var speaker = document.createElement("span");
-    speaker.className = "ep-speaker";
-    speaker.setAttribute("aria-hidden", "true");
-    speaker.textContent = "Talman";
-    if (plan.speaker) {
-      speaker.style.left = (plan.speaker.x + plan.spacing) + "%";
-      speaker.style.top = plan.speaker.y + "%";
+    dots.forEach(function (dot) {
+      var point = dot.hallSeat === 0 ? plan.speaker
+        : dot.hallSeat === PRIME_MINISTER_SEAT ? plan.primeMinister : plan.seats[dot.hallSeat];
+      dot.hallPlace = { left: point.x.toFixed(3) + "%", top: point.y.toFixed(3) + "%", width: dotWidth };
+    });
+    function label(text, point, side) {
+      var node = document.createElement("span");
+      node.className = "ep-speaker" + (side === "left" ? " ep-speaker--left" : "");
+      node.setAttribute("aria-hidden", "true");
+      node.textContent = text;
+      node.style.left = (side === "left" ? point.x - plan.spacing : point.x + plan.spacing) + "%";
+      node.style.top = point.y + "%";
+      host.appendChild(node);
     }
-    host.appendChild(speaker);
-    // A numbered seat no elected member sits in: the Speaker's own, which a
-    // substitute holds.  Drawn faintly so the row does not look broken.
-    for (var number = 1; number <= CHAMBER; number += 1) {
-      if (taken[number]) continue;
-      var vacant = document.createElement("span");
-      vacant.className = "ep-vacant";
-      vacant.setAttribute("aria-hidden", "true");
-      vacant.style.left = plan.seats[number].x + "%";
-      vacant.style.top = plan.seats[number].y + "%";
-      vacant.style.width = dotWidth;
-      host.appendChild(vacant);
+    if (plan.speaker) label("Talman", plan.speaker, "right");
+    if (plan.primeMinister && dots.some(function (dot) { return dot.hallSeat === PRIME_MINISTER_SEAT; })) {
+      label("Statsminister", plan.primeMinister, "left");
     }
 
     function setView(view) {
       var hall = view === "seating";
       frame.classList.toggle("is-seating", hall);
       host.style.aspectRatio = hall ? String(plan.aspect) : "";
-      seats.forEach(function (seat) {
-        var place = hall ? seat.hallPlace : seat.partyPlace;
-        seat.style.left = place.left;
-        seat.style.top = place.top;
-        seat.style.width = place.width;
+      dots.forEach(function (dot) {
+        var place = hall ? dot.hallPlace : dot.partyPlace;
+        dot.style.left = place.left;
+        dot.style.top = place.top;
+        dot.style.width = place.width;
       });
       buttons.forEach(function (button) {
         button.setAttribute("aria-pressed", button.getAttribute("data-view") === view ? "true" : "false");
       });
       if (seatingNote) seatingNote.hidden = !hall;
       host.setAttribute("aria-label", hall
-        ? "Riksdagen som den sitter i plenisalen, 349 platser, valkretsvis."
+        ? "Riksdagen som den sitter i plenisalen, 349 platser, valkretsvis, med talmannen och statsministern."
         : host.getAttribute("data-party-label") || host.getAttribute("aria-label"));
       onChange(hall);
     }
@@ -3791,7 +3891,7 @@
   // Party, constituency, age band and newly elected, combined with AND.  A
   // seat that does not match is faded, not removed, so the chamber keeps its
   // shape and every seat still opens its card.
-  function bindMemberFilters(seats) {
+  function bindMemberFilters(seats, inView) {
     var bar = byId("election-result-filters");
     var party = byId("election-filter-party");
     var constituency = byId("election-filter-constituency");
@@ -3799,7 +3899,7 @@
     var count = byId("election-filter-count");
     var reset = byId("election-filter-reset");
     var newGroup = byId("election-filter-new");
-    if (!bar || !party || !constituency || !age || !count || !reset || !newGroup) return;
+    if (!bar || !party || !constituency || !age || !count || !reset || !newGroup) return null;
     var newButtons = Array.prototype.slice.call(newGroup.querySelectorAll("button[data-new]"));
     newGroup.hidden = !seats.every(function (seat) { return seat.member.newlyElected !== null; });
     var state = { party: "", constituency: "", age: "", newlyElected: "" };
@@ -3834,10 +3934,13 @@
     function apply() {
       var active = Boolean(state.party || state.constituency || state.age || state.newlyElected);
       var shown = 0;
+      var total = 0;
       var partiesShown = {};
       seats.forEach(function (seat) {
         var hit = matches(seat);
         seat.classList.toggle("is-muted", active && !hit);
+        if (!inView(seat)) return;
+        total += 1;
         if (hit) {
           shown += 1;
           partiesShown[seat.memberParty] = true;
@@ -3846,9 +3949,12 @@
       Array.prototype.forEach.call(document.querySelectorAll("#election-result-legend .ep-legend__item"), function (item) {
         item.classList.toggle("is-muted", active && !partiesShown[item.getAttribute("data-party")]);
       });
-      count.textContent = !active ? "Alla " + CHAMBER + " ledamöter"
-        : shown === 0 ? "Inga ledamöter matchar filtret"
-        : shown + " av " + CHAMBER + " ledamöter";
+      // The party view counts the 349 elected; the hall view everyone in
+      // it, substitutes, the Speaker and the Prime Minister included.
+      var noun = total === CHAMBER ? " ledamöter" : " i kammaren";
+      count.textContent = !active ? "Alla " + total + noun
+        : shown === 0 ? (total === CHAMBER ? "Inga ledamöter matchar filtret" : "Ingen i kammaren matchar filtret")
+        : shown + " av " + total + noun;
       reset.hidden = !active;
       newButtons.forEach(function (button) {
         button.setAttribute("aria-pressed", button.getAttribute("data-new") === state.newlyElected ? "true" : "false");
@@ -3873,6 +3979,7 @@
     });
     apply();
     bar.hidden = false;
+    return apply;
   }
 
   // ---------------------------------------------------------------------

@@ -125,7 +125,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
     </div>
     <ul id="election-result-legend" class="ep-legend"></ul>
-    <p class="election-muted ep-seating-note" id="election-result-seating-note" hidden>Så sitter ledamöterna i plenisalen under riksmötet 2026/27: valkretsvis, och inom varje valkrets efter tid i riksdagen. Talmannen sitter i talmansstolen överst och de tre vice talmännen på podiet bredvid. På talmannens egen plats i salen, den streckade, sitter en ersättare. Källa: Sveriges riksdag, Placering i kammaren.</p>
+    <p class="election-muted ep-seating-note" id="election-result-seating-note" hidden>Så sitter ledamöterna i plenisalen under riksmötet 2026/27: valkretsvis, och inom varje valkrets efter tid i riksdagen. Talmannen sitter i talmansstolen överst och de tre vice talmännen på podiet bredvid; statsministern har plats 350 i regeringsbänken. En ring är en ersättare som sitter i stället för en ledamot som är ledig: talmannen, statsråden eller den som har längre ledighet, till exempel föräldraledighet. Övriga statsråd sitter i regeringsbänken när de deltar och visas inte här. Källa: Sveriges riksdag, Placering i kammaren och ledamotslistan.</p>
     <!-- Shown once results/2026-members.json has matched the chamber seat for
          seat; until then the chamber is the plain allocation. The filters
          fade the seats that do not match; every seat keeps its card. -->
@@ -163,7 +163,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
         <button type="button" class="ep-filters__reset" id="election-filter-reset" hidden>Rensa filter</button>
       </div>
     </div>
-    <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Nyinvald betyder att ledamoten inte har suttit i riksdagen tidigare, varken som ledamot eller ersättare. En ledamot som har lämnat riksdagen visas med sin efterträdare. Källor: Sveriges riksdag och Valmyndigheten.</p>
+    <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Nyinvald betyder att ledamoten inte har suttit i riksdagen tidigare, varken som ledamot eller ersättare. En ledamot som har lämnat riksdagen visas med sin efterträdare; i vyn Som i kammaren visas också ersättarna för dem som är lediga. Källor: Sveriges riksdag och Valmyndigheten.</p>
     <p id="election-result-member-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
   </section>
   <!-- The current forecast against the last certified result, party by
