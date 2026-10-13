@@ -291,6 +291,47 @@ async function checkMembers(browser) {
   check('End announces the last seat', seen.last.startsWith(expected[348] + ',') && /Mandat 349 av 349/.test(seen.last), seen.last);
   check('the sources are named under the chamber',
     seen.noteShown && seen.note.includes('Källor: Sveriges riksdag och Valmyndigheten.'), seen.note);
+
+  // The filters fade every seat that does not match, combined with AND.
+  const flat = seating.flatMap((party) => members.parties[party].map((member) => ({ party, ...member })));
+  const count = (test) => flat.filter(test).length;
+  const filtered = await browser.evaluate(() => {
+    const $ = (id) => document.getElementById(id);
+    const lit = () => document.querySelectorAll('#election-result-parliament .election-seat:not(.is-muted)').length;
+    const select = (id, value) => { $(id).value = value; $(id).dispatchEvent(new Event('change')); };
+    const newButton = (value) => document.querySelector(`#election-filter-new button[data-new="${value}"]`);
+    const read = () => ({ lit: lit(), count: $('election-filter-count').textContent, reset: !$('election-filter-reset').hidden });
+    const out = {
+      shown: !$('election-result-filters').hidden,
+      constituencies: Array.from($('election-filter-constituency').options).slice(1).map((o) => o.value),
+      initial: read(),
+    };
+    select('election-filter-party', 'M'); out.party = read();
+    select('election-filter-age', '30'); out.partyAge = read();
+    newButton('true').click(); out.partyAgeNew = { ...read(), pressed: newButton('true').getAttribute('aria-pressed') };
+    out.mutedLegend = Array.from(document.querySelectorAll('#election-result-legend .ep-legend__item.is-muted'))
+      .map((item) => item.dataset.party);
+    $('election-filter-reset').click(); out.reset = { ...read(), party: $('election-filter-party').value };
+    select('election-filter-constituency', 'Göteborgs kommun'); newButton('false').click(); out.constituencyReturning = read();
+    $('election-filter-reset').click();
+    return out;
+  });
+  check('the filter bar is shown', filtered.shown);
+  equal('constituencies are offered in Valmyndigheten order',
+    filtered.constituencies, [...new Map(flat.slice().sort((a, b) => a.constituency_code.localeCompare(b.constituency_code))
+      .map((member) => [member.constituency, true])).keys()]);
+  equal('no filter lights every seat', filtered.initial, { lit: CHAMBER, count: `Alla ${CHAMBER} ledamöter`, reset: false });
+  const nM = count((m) => m.party === 'M');
+  equal('a party lights its seats', filtered.party, { lit: nM, count: `${nM} av ${CHAMBER} ledamöter`, reset: true });
+  const nMAge = count((m) => m.party === 'M' && m.age >= 30 && m.age <= 39);
+  equal('party and age band combine', filtered.partyAge.lit, nMAge);
+  const nMAgeNew = count((m) => m.party === 'M' && m.age >= 30 && m.age <= 39 && m.newly_elected);
+  equal('and newly elected on top', [filtered.partyAgeNew.lit, filtered.partyAgeNew.pressed], [nMAgeNew, 'true']);
+  equal('parties with no match are faded in the legend',
+    filtered.mutedLegend, seating.filter((party) => party !== 'M'));
+  equal('reset clears every filter', filtered.reset, { lit: CHAMBER, count: `Alla ${CHAMBER} ledamöter`, reset: false, party: '' });
+  equal('constituency and returning members combine', filtered.constituencyReturning.lit,
+    count((m) => m.constituency === 'Göteborgs kommun' && m.newly_elected === false));
 }
 
 // --- 1. decided: the election-day publication against its result ---------
@@ -629,11 +670,13 @@ async function invalidMembers() {
           tabIndex: host.tabIndex,
           tip: Boolean(document.getElementById('election-result-member-tip')),
           noteHidden: document.getElementById('election-result-members-note').hidden,
+          filtersHidden: document.getElementById('election-result-filters').hidden,
         };
       });
       check('the result is still shown', !page.resultHidden);
       equal('the chamber still draws every certified seat', page.chamber.reduce((sum, run) => sum + run.seats, 0), CHAMBER);
-      equal('the chamber is left without members', state, { bound: null, tabIndex: -1, tip: false, noteHidden: true });
+      equal('the chamber is left without members', state,
+        { bound: null, tabIndex: -1, tip: false, noteHidden: true, filtersHidden: true });
       equal('no console errors', appErrors(browser).map((e) => e.text), []);
     } finally {
       await browser.close();

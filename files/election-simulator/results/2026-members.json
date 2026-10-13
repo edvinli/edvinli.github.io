@@ -16,24 +16,25 @@
  "age_definition": "age_on_election_day",
  "municipality_definition": "folkbokforingskommun_else_ballot_place",
  "riksdag_roles_as_of": "2026-10-13",
+ "newly_elected_definition": "no_seat_in_chamber_before_2026-09-28",
  "sources": [
   {
    "url": "https://resultat.val.se/data/resultat/val2026/RD_S.json",
    "title": "Valmyndigheten: Val till riksdagen - Slutligt valresultat",
-   "retrieved_at_utc": "2026-10-13T08:13:35Z",
+   "retrieved_at_utc": "2026-10-13T08:32:25Z",
    "raw_sha256": "1998afdc723a83b325c729faf68063c8731e33496fc274bf9fbb80499e0afb08"
   },
   {
    "url": "https://data.val.se/filer/val2026/parti/kandidaturer.csv",
    "title": "Valmyndigheten: Kandidaturer i val 2026",
-   "retrieved_at_utc": "2026-10-13T08:13:35Z",
+   "retrieved_at_utc": "2026-10-13T08:32:25Z",
    "raw_sha256": "84fc6b2d83abc51815eb39c95f02a4870db717b0bb7e3c8f8a1caba5c50719c6"
   },
   {
    "url": "https://data.riksdagen.se/personlista/?rdlstatus=tjanst&utformat=json",
    "title": "Sveriges riksdag: Ledamöter (personlista)",
-   "retrieved_at_utc": "2026-10-13T08:13:35Z",
-   "raw_sha256": "f6c2e7e0995ec621ecd8d1c91fd6fc5c84f55ad14cebe681f8a620b3ca8b8f74"
+   "retrieved_at_utc": "2026-10-13T08:32:25Z",
+   "raw_sha256": "22fd0f96af4c350999ffe387c77f487c53fe4d2e7603f1d6fa23d5fa88f3eb5f"
   }
  ],
  "parties": {
@@ -44,8 +45,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Gunnar Strömmer",
@@ -53,10 +56,12 @@
     "title": "Justitieminister",
     "municipality": null,
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Justitieminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": true
    },
    {
     "name": "Jessica Rosencrantz",
@@ -64,10 +69,12 @@
     "title": "EU-minister",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "EU-minister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Johan Forssell",
@@ -75,10 +82,12 @@
     "title": "Migrationsminister",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Migrationsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Benjamin Dousa",
@@ -86,10 +95,12 @@
     "title": "Bistånds- och utrikeshandelsminister",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Bistånds- och utrikeshandelsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": true
    },
    {
     "name": "Kristina Axén Olin",
@@ -97,8 +108,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Adam Reuterskiöld",
@@ -106,8 +119,10 @@
     "title": "Lantbrukare",
     "municipality": "Ekerö",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Parisa Liljestrand",
@@ -115,10 +130,12 @@
     "title": "Kulturminister",
     "municipality": "Vallentuna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Kulturminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": true
    },
    {
     "name": "Niklas Wykman",
@@ -126,10 +143,12 @@
     "title": "Finansmarknadsminister",
     "municipality": "Solna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Finansmarknadsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Karin Enström",
@@ -137,10 +156,12 @@
     "title": "Riksdagsledamot, kapten",
     "municipality": "Vaxholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Partisekreterare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Erik Ottoson",
@@ -148,8 +169,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Huddinge",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Josefin Malmqvist",
@@ -157,8 +180,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Sundbyberg",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Fredrik Kärrholm",
@@ -166,8 +191,10 @@
     "title": "Kriminolog",
     "municipality": "Österåker",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ida Drougge",
@@ -175,8 +202,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Lidingö",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Alexandra Anstrell",
@@ -184,8 +213,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Haninge",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Joanna Lewerentz",
@@ -193,8 +224,10 @@
     "title": "Lärare",
     "municipality": "Sollentuna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Stefan Olsson",
@@ -202,8 +235,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Fredrik Ahlstedt",
@@ -211,10 +246,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [
      "Vice ordförande i utrikesutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ulf Kristersson",
@@ -222,11 +259,13 @@
     "title": "Statsminister, partiledare",
     "municipality": "Strängnäs",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [
      "Statsminister",
      "Partiledare"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Anna af Sillén",
@@ -234,8 +273,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Nyköping",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Andreas Norlén",
@@ -243,10 +284,12 @@
     "title": "Riksdagens talman",
     "municipality": "Norrköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [
      "Talman"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Matilda Ekeblad",
@@ -254,8 +297,10 @@
     "title": "Projektledare",
     "municipality": "Boxholm",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "John E. Weinerhall",
@@ -263,8 +308,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Linköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mats Green",
@@ -272,8 +319,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Jönköping",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Susanne Wahlström",
@@ -281,8 +330,10 @@
     "title": "Kommunikatör",
     "municipality": "Habo",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Oliver Rosengren",
@@ -290,8 +341,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Växjö",
     "constituency": "Kronobergs län",
+    "constituency_code": "07",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Thomas Ragnarsson",
@@ -299,8 +352,10 @@
     "title": "Ambulanssjuksköterska",
     "municipality": "Ljungby",
     "constituency": "Kronobergs län",
+    "constituency_code": "07",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Olle Olson",
@@ -308,8 +363,10 @@
     "title": "Lärare",
     "municipality": "Kalmar",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Marie Nicholson",
@@ -317,8 +374,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Kalmar",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jesper Skalberg Karlsson",
@@ -326,8 +385,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Gotland",
     "constituency": "Gotlands län",
+    "constituency_code": "09",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Åsa Coenraads",
@@ -335,8 +396,10 @@
     "title": "Näringspolitisk expert",
     "municipality": "Karlshamn",
     "constituency": "Blekinge län",
+    "constituency_code": "10",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Noria Manouchi",
@@ -344,8 +407,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Peter Ollén",
@@ -353,8 +418,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Alexander Svensson",
@@ -362,8 +429,10 @@
     "title": "Kommunalråd",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Mats Sander",
@@ -371,8 +440,10 @@
     "title": "Flygvapenofficer",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Boriana Åberg",
@@ -380,10 +451,12 @@
     "title": "Riksdagsledamot, socionom",
     "municipality": "Kävlinge",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [
      "Ordförande i skatteutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Louise Meijer",
@@ -391,8 +464,10 @@
     "title": "Riksdagsledamot, jurist",
     "municipality": "Lund",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Amanda Thonander",
@@ -400,8 +475,10 @@
     "title": "Kriminolog",
     "municipality": "Lund",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Maria Malmer Stenergard",
@@ -409,10 +486,12 @@
     "title": "Utrikesmin., jurist",
     "municipality": "Åhus",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [
      "Utrikesminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Daniel Lyckestam",
@@ -420,8 +499,10 @@
     "title": "Samhällsvetare",
     "municipality": "Östra Göinge",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Helena Storckenfeldt",
@@ -429,8 +510,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Kungsbacka",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Hanna Netterberg",
@@ -438,8 +521,10 @@
     "title": "Ingenjör",
     "municipality": "Varberg",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Lars Püss",
@@ -447,8 +532,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Halmstad",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Marie-Louise Hänel Sandström",
@@ -456,8 +543,10 @@
     "title": "Läkare",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Gustaf Göthberg",
@@ -465,8 +554,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "David Josefsson",
@@ -474,8 +565,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Camilla Waltersson Grönvall",
@@ -483,10 +576,12 @@
     "title": "Socialtjänstminister",
     "municipality": "Lilla Edet",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [
      "Socialtjänstminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Johanna Rantsi",
@@ -494,8 +589,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Mölndal",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Anna Vedin",
@@ -503,8 +600,10 @@
     "title": "Resurspedagog",
     "municipality": "Kungälv",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Ann-Sofie Alm",
@@ -512,8 +611,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Munkedal",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jennie Bergius Eriksson",
@@ -521,8 +622,10 @@
     "title": "Civilekonom",
     "municipality": "Trollhättan",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Ulrik Nilsson",
@@ -530,8 +633,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Borås",
     "constituency": "Västra Götalands läns södra",
+    "constituency_code": "19",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Annelie Hastig Olsson",
@@ -539,8 +644,10 @@
     "title": "Företagare",
     "municipality": "Vårgårda",
     "constituency": "Västra Götalands läns södra",
+    "constituency_code": "19",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Sten Bergheden",
@@ -548,8 +655,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Mariestad",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Charlotte Nordström",
@@ -557,8 +666,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Skara",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Pål Jonson",
@@ -566,10 +677,12 @@
     "title": "Försvarsminister",
     "municipality": "Arvika",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [
      "Försvarsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Magnus Resare",
@@ -577,8 +690,10 @@
     "title": "Riksdagsledamot/Advokat",
     "municipality": "Karlstad",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Elisabeth Svantesson",
@@ -586,10 +701,12 @@
     "title": "Finansminister",
     "municipality": "Örebro",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [
      "Finansminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Oskar Svärd",
@@ -597,10 +714,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Örebro",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [
      "Vice ordförande i miljö- och jordbruksutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Caroline Högström",
@@ -608,8 +727,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Västerås",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mikael Damsgaard",
@@ -617,8 +738,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Västerås",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Carl-Oskar Bohlin",
@@ -626,10 +749,12 @@
     "title": "Statsråd",
     "municipality": "Borlänge",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [
      "Minister för civilt försvar"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Crister Carlsson",
@@ -637,8 +762,10 @@
     "title": "Ambulanssjuksköterska",
     "municipality": "Falun",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Viktor Wärnick",
@@ -646,8 +773,10 @@
     "title": "Riksdagsledamot/jurist",
     "municipality": "Söderhamn",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Lars Beckman",
@@ -655,8 +784,10 @@
     "title": "Riksdagsledamot/regionchef",
     "municipality": "Gävle",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jörgen Berglund",
@@ -664,10 +795,12 @@
     "title": null,
     "municipality": "Sundsvall",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [
      "Ordförande i försvarsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Elise Ryder Wikén",
@@ -675,8 +808,10 @@
     "title": "F.d. regionråd",
     "municipality": "Berg",
     "constituency": "Jämtlands län",
+    "constituency_code": "27",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Edward Riedl",
@@ -684,10 +819,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Umeå",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [
      "Vice ordförande i finansutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mattias Karlsson",
@@ -695,10 +832,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Luleå",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Linda Frohm",
@@ -706,8 +845,10 @@
     "title": "Regionråd",
     "municipality": "Kalix",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    }
   ],
   "L": [
@@ -717,10 +858,12 @@
     "title": "Gymnasie-, högskole- och forskningsminister",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Gymnasie-, högskole- och forskningsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": true
    },
    {
     "name": "Romina Pourmokhtari",
@@ -728,10 +871,12 @@
     "title": "Klimat- och miljöminister",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Klimat- och miljöminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Joar Forssell",
@@ -739,11 +884,13 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Förste vice gruppledare",
      "Vice ordförande i näringsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Nina Larsson",
@@ -751,10 +898,12 @@
     "title": "Jämställdhetsminister/reservofficer",
     "municipality": "Haninge",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Jämställdhetsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Johan Britz",
@@ -762,10 +911,12 @@
     "title": "Arbetsmarknadsminister/civilingenjör",
     "municipality": "Stockholms stad",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Arbetsmarknadsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": true
    },
    {
     "name": "Karin Karlsbro",
@@ -773,8 +924,10 @@
     "title": "Europaparlamentariker",
     "municipality": "Stockholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "left"
+    "riksdag_status": "left",
+    "newly_elected": true
    },
    {
     "name": "Lina Nordquist",
@@ -782,10 +935,12 @@
     "title": "Docent i fysiologi, författare",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Patrik Karlson",
@@ -793,8 +948,10 @@
     "title": null,
     "municipality": "Norrköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Erik Nygårds",
@@ -802,8 +959,10 @@
     "title": "Näringslivsutvecklare",
     "municipality": "Tranås",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Lars Leijonborg",
@@ -811,8 +970,10 @@
     "title": "Tidigare partiledare",
     "municipality": "Stockholm",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mauricio Rojas Mullor",
@@ -820,8 +981,10 @@
     "title": null,
     "municipality": "Lund",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Camilla Mårtensen",
@@ -829,8 +992,10 @@
     "title": null,
     "municipality": "Landskrona",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Marianne Littke",
@@ -838,8 +1003,10 @@
     "title": null,
     "municipality": "Hässleholm",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Hanna Schölander",
@@ -847,8 +1014,10 @@
     "title": "Tjl Enhetschef",
     "municipality": "Kungsbacka",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Simona Mohamsson",
@@ -856,11 +1025,13 @@
     "title": "Partiledare",
     "municipality": "Stockholm",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [
      "Utbildnings- och integrationsminister",
      "Partiledare"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": true
    },
    {
     "name": "Elin Andersson",
@@ -868,8 +1039,10 @@
     "title": "Civilingenjör",
     "municipality": "Mölndal",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Cecilia Prins",
@@ -877,8 +1050,10 @@
     "title": "Frisör",
     "municipality": "Vänersborg",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Willhelm Sundman",
@@ -886,8 +1061,10 @@
     "title": "Oppositionsråd",
     "municipality": "Örebro",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Roger Haddad",
@@ -895,8 +1072,10 @@
     "title": "Statsvetare",
     "municipality": "Västerås",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    }
   ],
   "C": [
@@ -906,10 +1085,12 @@
     "title": "Partiledare",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Partiledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Birgitta Ohlsson",
@@ -917,8 +1098,10 @@
     "title": "Fd Minister/Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Martin Ådahl",
@@ -926,8 +1109,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Kerstin Lundgren",
@@ -935,10 +1120,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Södertälje",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Tredje vice talman"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Anna Lasses",
@@ -946,8 +1133,10 @@
     "title": "Statsvetare",
     "municipality": "Nacka",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Rasmus Elfström",
@@ -955,8 +1144,10 @@
     "title": "Jurist",
     "municipality": "Solna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Catarina Deremar",
@@ -964,8 +1155,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Tierp",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Martina Johansson",
@@ -973,8 +1166,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Trosa",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Muharrem Demirok",
@@ -982,8 +1177,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Linköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Emma Brihall",
@@ -991,8 +1188,10 @@
     "title": "Agronom",
     "municipality": "Jönköping",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Emmy Ahlstedt",
@@ -1000,8 +1199,10 @@
     "title": "Regionråd",
     "municipality": "Mörbylånga",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Niels Paarup-Petersen",
@@ -1009,8 +1210,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Magnus Haara",
@@ -1018,8 +1221,10 @@
     "title": "Jurist",
     "municipality": "Höör",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Stina Larsson",
@@ -1027,10 +1232,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Kävlinge",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [
      "Förste vice gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Birte Sandberg",
@@ -1038,8 +1245,10 @@
     "title": "Fil.master utb.vetenskap",
     "municipality": "Tomelilla",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Christofer Bergenblock",
@@ -1047,8 +1256,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Varberg",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Rickard Nordin",
@@ -1056,8 +1267,10 @@
     "title": "Riksdagsledamot, vice partiledare",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Anders Ådahl",
@@ -1065,11 +1278,13 @@
     "title": "Riksdagsledamot",
     "municipality": "Mölndal",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [
      "Andre vice gruppledare",
      "Ordförande i näringsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ulrika Heie",
@@ -1077,10 +1292,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Skövde",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [
      "Vice ordförande i trafikutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Daniel Bäckström",
@@ -1088,10 +1305,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Säffle",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Helena Vilhelmsson",
@@ -1099,8 +1318,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Nora",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ulrika Liljeberg",
@@ -1108,8 +1329,10 @@
     "title": "Kammaråklagare",
     "municipality": "Leksand",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Caroline Schmidt",
@@ -1117,8 +1340,10 @@
     "title": "Oppositionsråd",
     "municipality": "Hudiksvall",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Anne-Li Sjölund",
@@ -1126,8 +1351,10 @@
     "title": null,
     "municipality": "Sundsvall",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Julia Algotsson",
@@ -1135,8 +1362,10 @@
     "title": "Sakkunnig skog och lantbruk",
     "municipality": "Umeå",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    }
   ],
   "KD": [
@@ -1146,10 +1375,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Täby",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Christian Carlsson",
@@ -1157,8 +1388,10 @@
     "title": "Riksdagsledamot, jurist",
     "municipality": "Stockholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jakob Forssmed",
@@ -1166,10 +1399,12 @@
     "title": "Socialminister",
     "municipality": "Sollentuna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Socialminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Mikael Oscarsson",
@@ -1177,8 +1412,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Paul Sabo",
@@ -1186,8 +1423,10 @@
     "title": "Jurist",
     "municipality": "Eskilstuna",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Magnus Oscarsson",
@@ -1195,8 +1434,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Ödeshög",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Camilla Rinaldo Miller",
@@ -1204,8 +1445,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Värnamo",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Carl Wiktor Svensson",
@@ -1213,8 +1456,10 @@
     "title": "Skogstekniker",
     "municipality": "Högsby",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Cecilia Engström",
@@ -1222,8 +1467,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Martin Hallander",
@@ -1231,8 +1478,10 @@
     "title": "Regionpolitiker",
     "municipality": "Malmö",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Larry Söder",
@@ -1240,8 +1489,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Kungsbacka",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Elisabet Lann",
@@ -1249,10 +1500,12 @@
     "title": "Sjukvårdsminister",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [
      "Sjukvårdsminister"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": true
    },
    {
     "name": "Magnus Berntsson",
@@ -1260,8 +1513,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Öckerö",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Magnus Jacobsson",
@@ -1269,8 +1524,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Uddevalla",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ingemar Kihlström",
@@ -1278,8 +1535,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Herrljunga",
     "constituency": "Västra Götalands läns södra",
+    "constituency_code": "19",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Dan Hovskär",
@@ -1287,8 +1546,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Falköping",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Kjell-Arne Ottosson",
@@ -1296,10 +1557,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Årjäng",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [
      "Ordförande i civilutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ebba Busch",
@@ -1307,11 +1570,13 @@
     "title": "Partiledare, Vice statsminister",
     "municipality": "Uppsala",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [
      "Energi- och näringsminister",
      "Partiledare"
     ],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Mathias Bengtsson",
@@ -1319,8 +1584,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Falun",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Lili André",
@@ -1328,8 +1595,10 @@
     "title": "Ingenjör, Riksdagsledamot",
     "municipality": "Gävle",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Liza-Maria Norlin",
@@ -1337,11 +1606,13 @@
     "title": "Partisekreterare",
     "municipality": "Sundsvall",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [
      "Partisekreterare",
      "Vice ordförande i utbildningsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Veronica Kerr",
@@ -1349,8 +1620,10 @@
     "title": "Gruppledare",
     "municipality": "Umeå",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    }
   ],
   "S": [
@@ -1360,8 +1633,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Lawen Redar",
@@ -1369,8 +1644,10 @@
     "title": "Riksdagsledamot",
     "municipality": null,
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mattias Vepsä",
@@ -1378,8 +1655,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Talla Alkurdi",
@@ -1387,8 +1666,10 @@
     "title": "Regionråd",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Kadir Kasirga",
@@ -1396,8 +1677,10 @@
     "title": "Stationsvärd",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jytte Guteland",
@@ -1405,8 +1688,10 @@
     "title": "Riksdagsledamot",
     "municipality": null,
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Markus Kallifatides",
@@ -1414,8 +1699,10 @@
     "title": "Ekonom",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mirja Räihä",
@@ -1423,8 +1710,10 @@
     "title": "Undersköterska",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Daniel Vencu Velasquez Castro",
@@ -1432,8 +1721,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Magdalena Andersson",
@@ -1441,10 +1732,12 @@
     "title": "Partiledare",
     "municipality": "Nacka",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Partiledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mikael Damberg",
@@ -1452,10 +1745,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Solna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Ordförande i finansutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Åsa Westlund",
@@ -1463,8 +1758,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Haninge",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Sarkis Khatchadourian",
@@ -1472,8 +1769,10 @@
     "title": "Civilingenjör",
     "municipality": "Södertälje",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Alexandra Völker",
@@ -1481,8 +1780,10 @@
     "title": "Statsvetare",
     "municipality": "Sundbyberg",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Leif Nysmed",
@@ -1490,8 +1791,10 @@
     "title": "Byggnadsarbetare",
     "municipality": "Huddinge",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Azadeh Rojhan",
@@ -1499,8 +1802,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Upplands Väsby",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mathias Tegnér",
@@ -1508,8 +1813,10 @@
     "title": "Civilekonom",
     "municipality": "Tyresö",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Katarina Berggren",
@@ -1517,8 +1824,10 @@
     "title": "Ombudsman Kommunal",
     "municipality": "Botkyrka",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Markus Selin",
@@ -1526,8 +1835,10 @@
     "title": "Civilingenjör/civilekonom",
     "municipality": "Täby",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Andrine Winther",
@@ -1535,8 +1846,10 @@
     "title": "Avdelningschef",
     "municipality": "Värmdö",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Emil Högberg",
@@ -1544,8 +1857,10 @@
     "title": "Jurist/kommunalråd",
     "municipality": "Huddinge",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Ardalan Shekarabi",
@@ -1553,10 +1868,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Knivsta",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [
      "Ordförande i arbetsmarknadsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ylva Stadell",
@@ -1564,8 +1881,10 @@
     "title": "Ombudsman",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Gustaf Lantz",
@@ -1573,8 +1892,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Åsa Andersson",
@@ -1582,8 +1903,10 @@
     "title": "Stödassistent",
     "municipality": "Enköping",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Fredrik Olovsson",
@@ -1591,8 +1914,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Katrineholm",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Sofia Amloh",
@@ -1600,8 +1925,10 @@
     "title": "Stålverksarbetare",
     "municipality": "Nyköping",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jimmy Jansson",
@@ -1609,8 +1936,10 @@
     "title": "Lärare",
     "municipality": "Eskilstuna",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Teresa Carvalho",
@@ -1618,10 +1947,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Norrköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [
      "Ordförande i justitieutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Johan Andersson",
@@ -1629,8 +1960,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Motala",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Eva Lindh",
@@ -1638,8 +1971,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Linköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Elias Aguirre",
@@ -1647,8 +1982,10 @@
     "title": "Kommunalråd",
     "municipality": "Linköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Johanna Haraldsson",
@@ -1656,10 +1993,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Vetlanda",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [
      "Förste vice talman"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ilan De Basso",
@@ -1667,8 +2006,10 @@
     "title": "Fd. EU-parlamentariker",
     "municipality": "Jönköping",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Azra Muranovic",
@@ -1676,8 +2017,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Värnamo",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Monica Haider",
@@ -1685,8 +2028,10 @@
     "title": null,
     "municipality": "Älmhult",
     "constituency": "Kronobergs län",
+    "constituency_code": "07",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Robert Olesen",
@@ -1694,8 +2039,10 @@
     "title": null,
     "municipality": "Alvesta",
     "constituency": "Kronobergs län",
+    "constituency_code": "07",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Lena Hallengren",
@@ -1703,10 +2050,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Kalmar",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Marcus Fridlund",
@@ -1714,8 +2063,10 @@
     "title": "Drifttekniker",
     "municipality": "Västervik",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Meit Fohlin",
@@ -1723,8 +2074,10 @@
     "title": null,
     "municipality": "Gotland",
     "constituency": "Gotlands län",
+    "constituency_code": "09",
     "riksdag_roles": [],
-    "riksdag_status": "left"
+    "riksdag_status": "left",
+    "newly_elected": true
    },
    {
     "name": "Heléne Björklund",
@@ -1732,8 +2085,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Sölvesborg",
     "constituency": "Blekinge län",
+    "constituency_code": "10",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Magnus Johansson",
@@ -1741,8 +2096,10 @@
     "title": "Regionråd",
     "municipality": "Karlskrona",
     "constituency": "Blekinge län",
+    "constituency_code": "10",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Joakim Sandell",
@@ -1750,8 +2107,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Rose-Marie Carlsson",
@@ -1759,8 +2118,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Arwin Sohrabi",
@@ -1768,8 +2129,10 @@
     "title": "Projektledare",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Niklas Karlsson",
@@ -1777,10 +2140,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Landskrona",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [
      "Vice ordförande i skatteutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "My Rosell",
@@ -1788,8 +2153,10 @@
     "title": "Enhetschef äldreomsorg",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Ola Möller",
@@ -1797,8 +2164,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Morgan Johansson",
@@ -1806,10 +2175,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Lund",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [
      "Ordförande i utrikesutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Cilla Dahl Andersson",
@@ -1817,8 +2188,10 @@
     "title": "Folkhögskollärare",
     "municipality": "Trelleborg",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Adrian Magnusson",
@@ -1826,8 +2199,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Ystad",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Anna Wallentheim",
@@ -1835,8 +2210,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Hässleholm",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Per-Arne Håkansson",
@@ -1844,8 +2221,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Ängelholm",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ewa Pihl Krabbe",
@@ -1853,8 +2232,10 @@
     "title": "Leg. Psykolog",
     "municipality": "Kristianstad",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jennie Nilsson",
@@ -1862,10 +2243,12 @@
     "title": null,
     "municipality": "Halmstad",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [
      "Vice ordförande i konstitutionsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Arber Gashi",
@@ -1873,8 +2256,10 @@
     "title": null,
     "municipality": "Halmstad",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Aida Birinxhiku",
@@ -1882,8 +2267,10 @@
     "title": null,
     "municipality": "Falkenberg",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mattias Jonsson",
@@ -1891,8 +2278,10 @@
     "title": "Ombudsman IF Metall",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Amalia Rud Stenlöf",
@@ -1900,8 +2289,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Johan Büser",
@@ -1909,8 +2300,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ingrid Andreae",
@@ -1918,8 +2311,10 @@
     "title": "Pensionär",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Robert Andersson Hammarstrand",
@@ -1927,8 +2322,10 @@
     "title": "Ombudsman",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Aylin Nouri",
@@ -1936,8 +2333,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Mölndal",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Joakim Järrebring",
@@ -1945,8 +2344,10 @@
     "title": "Facklig ombudsman",
     "municipality": "Alingsås",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Katarina Bosetti-Kristoffersson",
@@ -1954,8 +2355,10 @@
     "title": "Ombudsman LO",
     "municipality": "Partille",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Jonathan Svensson",
@@ -1963,8 +2366,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Vänersborg",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Louise Thunström",
@@ -1972,8 +2377,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Tanum",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Michael Melby",
@@ -1981,8 +2388,10 @@
     "title": "Metallindustriarbetare",
     "municipality": "Mellerud",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Petter Löberg",
@@ -1990,8 +2399,10 @@
     "title": null,
     "municipality": "Borås",
     "constituency": "Västra Götalands läns södra",
+    "constituency_code": "19",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jessica Rodén",
@@ -1999,8 +2410,10 @@
     "title": "Tostared",
     "municipality": "Mark",
     "constituency": "Västra Götalands läns södra",
+    "constituency_code": "19",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Erik Ezelius",
@@ -2008,8 +2421,10 @@
     "title": null,
     "municipality": "Tidaholm",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Therese Kristiansson",
@@ -2017,8 +2432,10 @@
     "title": null,
     "municipality": "Lidköping",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Marcus Andersson",
@@ -2026,8 +2443,10 @@
     "title": null,
     "municipality": "Skövde",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Mikael Dahlkvist",
@@ -2035,8 +2454,10 @@
     "title": null,
     "municipality": "Hagfors",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Sofia Skönnbrink",
@@ -2044,8 +2465,10 @@
     "title": null,
     "municipality": "Eda",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Peter Söderström",
@@ -2053,8 +2476,10 @@
     "title": null,
     "municipality": "Arvika",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Matilda Ernkrans",
@@ -2062,8 +2487,10 @@
     "title": null,
     "municipality": "Hallsberg",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Denis Begic",
@@ -2071,8 +2498,10 @@
     "title": null,
     "municipality": "Örebro",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Karin Sundin",
@@ -2080,8 +2509,10 @@
     "title": null,
     "municipality": "Örebro",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Åsa Eriksson",
@@ -2089,8 +2520,10 @@
     "title": null,
     "municipality": "Norberg",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jonas Cronert",
@@ -2098,8 +2531,10 @@
     "title": null,
     "municipality": "Västerås",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Amanda Lindblad",
@@ -2107,8 +2542,10 @@
     "title": null,
     "municipality": "Sala",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Peter Hultqvist",
@@ -2116,10 +2553,12 @@
     "title": null,
     "municipality": "Borlänge",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [
      "Vice ordförande i försvarsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Marie Olsson",
@@ -2127,8 +2566,10 @@
     "title": null,
     "municipality": "Orsa",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Lars Isacsson",
@@ -2136,8 +2577,10 @@
     "title": null,
     "municipality": "Avesta",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Patrik Lundqvist",
@@ -2145,8 +2588,10 @@
     "title": "Mekaniker",
     "municipality": "Sandviken",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Sanna Backeskog",
@@ -2154,8 +2599,10 @@
     "title": "Ombudsman",
     "municipality": "Gävle",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Kristoffer Lindberg",
@@ -2163,8 +2610,10 @@
     "title": "Verksamhetsutvecklare",
     "municipality": "Bollnäs",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Malin Larsson",
@@ -2172,8 +2621,10 @@
     "title": null,
     "municipality": "Sundsvall",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Peter Hedberg",
@@ -2181,8 +2632,10 @@
     "title": null,
     "municipality": "Kramfors",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Anna-Belle Strömberg",
@@ -2190,8 +2643,10 @@
     "title": null,
     "municipality": "Örnsköldsvik",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Kalle Olsson",
@@ -2199,8 +2654,10 @@
     "title": "Ledarskribent",
     "municipality": "Östersund",
     "constituency": "Jämtlands län",
+    "constituency_code": "27",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Anna-Caren Sätherberg",
@@ -2208,8 +2665,10 @@
     "title": "Bartender",
     "municipality": "Åre",
     "constituency": "Jämtlands län",
+    "constituency_code": "27",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Isak From",
@@ -2217,8 +2676,10 @@
     "title": "Processtekniker",
     "municipality": "Norsjö",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Malin Malm",
@@ -2226,8 +2687,10 @@
     "title": "Psykologstudent",
     "municipality": "Umeå",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Björn Wiechel",
@@ -2235,8 +2698,10 @@
     "title": "Samhällsvetare",
     "municipality": "Umeå",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ida Karkiainen",
@@ -2244,8 +2709,10 @@
     "title": null,
     "municipality": "Haparanda",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Fredrik Lundh Sammeli",
@@ -2253,10 +2720,12 @@
     "title": null,
     "municipality": "Luleå",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [
      "Vice ordförande i socialutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Samuel Pettersson",
@@ -2264,8 +2733,10 @@
     "title": null,
     "municipality": "Piteå",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    }
   ],
   "V": [
@@ -2275,8 +2746,10 @@
     "title": "Fd EU-parlamentariker",
     "municipality": "Göteborg",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Ilyas Hassan",
@@ -2284,8 +2757,10 @@
     "title": "Samordnare ABF",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Ida Gabrielsson",
@@ -2293,8 +2768,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Nacka",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Andreas Lennkvist Manriquez",
@@ -2302,8 +2779,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Nooshi Dadgostar",
@@ -2311,10 +2790,12 @@
     "title": "Partiordförande",
     "municipality": "Stockholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Partiledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jonas Lindberg",
@@ -2322,8 +2803,10 @@
     "title": "Specialistsjuksköterska",
     "municipality": "Stockholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Sandra Sönnergren",
@@ -2331,8 +2814,10 @@
     "title": "Folkhögskolelärare",
     "municipality": "Solna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Andrea Andersson Tay",
@@ -2340,8 +2825,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Tobias Smedberg",
@@ -2349,10 +2836,12 @@
     "title": "Kommunalråd",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [
      "Andre vice gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Maria Forsberg",
@@ -2360,10 +2849,12 @@
     "title": "Grundskollärare",
     "municipality": "Eskilstuna",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [
      "Partisekreterare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Malin Östh",
@@ -2371,8 +2862,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Söderköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ciczie Weidby",
@@ -2380,8 +2873,10 @@
     "title": "Riksdagsledamot/butiksanställd",
     "municipality": "Jönköping",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Anfal Mahdi",
@@ -2389,10 +2884,12 @@
     "title": "Socionom",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [
      "Vice ordförande i civilutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Banesa Martinez Roldán",
@@ -2400,8 +2897,10 @@
     "title": "Kommunikatör",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Umihana Rasovic",
@@ -2409,8 +2908,10 @@
     "title": "Biträdande enhetschef",
     "municipality": "Eslöv",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Hanna Gunnarsson",
@@ -2418,8 +2919,10 @@
     "title": "Riksdagsledamot/Lärare",
     "municipality": "Lund",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Linnea Bengtsson",
@@ -2427,8 +2930,10 @@
     "title": "Enhetschef",
     "municipality": "Kristianstad",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Agnes Hultén",
@@ -2436,10 +2941,12 @@
     "title": null,
     "municipality": "Varberg",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [
      "Förste vice gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Daniel Bernmar",
@@ -2447,8 +2954,10 @@
     "title": "Doktorand",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Jennifer Merelaid Hankins",
@@ -2456,8 +2965,10 @@
     "title": "Utvecklingsledare",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Frida Tånghag",
@@ -2465,8 +2976,10 @@
     "title": "Kock",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Carina Örgård",
@@ -2474,8 +2987,10 @@
     "title": "Socionom",
     "municipality": "Partille",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "David Höglund Velasquez",
@@ -2483,8 +2998,10 @@
     "title": "Kriminalvårdare",
     "municipality": "Uddevalla",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Håkan Svenneling",
@@ -2492,8 +3009,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Karlstad",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Nadja Awad",
@@ -2501,10 +3020,12 @@
     "title": "Riksdagsledamot/lärare",
     "municipality": "Örebro",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [
      "Ordförande i socialförsäkringsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Hawar Asaiesh",
@@ -2512,10 +3033,12 @@
     "title": "Kommunalråd",
     "municipality": "Västerås",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [
      "Ordförande i utbildningsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Mohamed Ali",
@@ -2523,8 +3046,10 @@
     "title": null,
     "municipality": "Borlänge",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Samuel Gonzalez Westling",
@@ -2532,10 +3057,12 @@
     "title": "Brevbärare/riksdagsledamot",
     "municipality": "Hofors",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Caroline Täljeblad",
@@ -2543,8 +3070,10 @@
     "title": "Statsvetare",
     "municipality": "Umeå",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Birger Lahti",
@@ -2552,8 +3081,10 @@
     "title": null,
     "municipality": "Pajala",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    }
   ],
   "MP": [
@@ -2563,10 +3094,12 @@
     "title": "Språkrör",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [
      "Språkrör"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Åsa Lindhagen",
@@ -2574,8 +3107,10 @@
     "title": "Miljö- och klimatborgarråd",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ulrika Westerlund",
@@ -2583,8 +3118,10 @@
     "title": "Riksdagsledamot, sakkunnig hbtqi",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Gurgin Bakircioglu",
@@ -2592,8 +3129,10 @@
     "title": "Journalist",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Nila Vikhe Patil",
@@ -2601,8 +3140,10 @@
     "title": "Revisor",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Amanda Lind",
@@ -2610,10 +3151,12 @@
     "title": "Språkrör",
     "municipality": "Härnösand",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Språkrör"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Annika Hirvonen",
@@ -2621,10 +3164,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Stockholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ajda Asgari",
@@ -2632,8 +3177,10 @@
     "title": "Lärare",
     "municipality": "Tyresö",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Jacob Risberg",
@@ -2641,8 +3188,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Knivsta",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mohamed Abdukani",
@@ -2650,8 +3199,10 @@
     "title": "Arbetsförmedlare",
     "municipality": "Eskilstuna",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Rebecka Le Moine",
@@ -2659,8 +3210,10 @@
     "title": "Biolog",
     "municipality": "Nacka",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Rikard Salander",
@@ -2668,8 +3221,10 @@
     "title": "Komvuxlärare",
     "municipality": "Nässjö",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Bassem Nasr",
@@ -2677,8 +3232,10 @@
     "title": "Ordförande Miljöpartiet i Malmö",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Marcus Friberg",
@@ -2686,8 +3243,10 @@
     "title": "Lärare",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Hanna Lindqvist",
@@ -2695,8 +3254,10 @@
     "title": "Språkrör Grön Ungdom",
     "municipality": "Lund",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Jan Riise",
@@ -2704,8 +3265,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Kungsbacka",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Leila Ali Elmi",
@@ -2713,10 +3276,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [
      "Vice ordförande i kulturutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Emma Nohrén",
@@ -2724,10 +3289,12 @@
     "title": "Marinbiolog/riksdagsledamot",
     "municipality": "Lysekil",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [
      "Ordförande i miljö- och jordbruksutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Janine Alm Ericson",
@@ -2735,8 +3302,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Alingsås",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Camilla Hansén",
@@ -2744,10 +3313,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Örebro",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [
      "Förste vice gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mursal Isa",
@@ -2755,8 +3326,10 @@
     "title": "Tolk/översättare",
     "municipality": "Borlänge",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Nils Seye Larsen",
@@ -2764,8 +3337,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Umeå",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    }
   ],
   "SD": [
@@ -2775,8 +3350,10 @@
     "title": "Administrativ chef",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Henrik Vinge",
@@ -2784,8 +3361,10 @@
     "title": "Jurist",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Linus Bylund",
@@ -2793,8 +3372,10 @@
     "title": "Stabschef",
     "municipality": "Stockholm",
     "constituency": "Stockholms kommun",
+    "constituency_code": "01",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Martin Westmont",
@@ -2802,8 +3383,10 @@
     "title": "Konstvetare",
     "municipality": "Stockholm",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Fredrik Lindahl",
@@ -2811,8 +3394,10 @@
     "title": "Väktare",
     "municipality": "Vallentuna",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ludvig Aspling",
@@ -2820,8 +3405,10 @@
     "title": "Jur. kand.",
     "municipality": "Upplands Väsby",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Julia Kronlid",
@@ -2829,10 +3416,12 @@
     "title": "Socialpedagog",
     "municipality": "Täby",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [
      "Andre vice talman"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Martin Kinnunen",
@@ -2840,8 +3429,10 @@
     "title": "Fil.kand nationalekonomi",
     "municipality": "Botkyrka",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Andrea Kronvall",
@@ -2849,8 +3440,10 @@
     "title": "Inköpsansvarig",
     "municipality": "Norrtälje",
     "constituency": "Stockholms län",
+    "constituency_code": "02",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Emil Eneblad",
@@ -2858,8 +3451,10 @@
     "title": "Politiskt sakkunnig",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "David Perez",
@@ -2867,8 +3462,10 @@
     "title": "Civilekonom",
     "municipality": "Uppsala",
     "constituency": "Uppsala län",
+    "constituency_code": "03",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mikael Strömberg",
@@ -2876,8 +3473,10 @@
     "title": "Pressekreterare",
     "municipality": "Eskilstuna",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Adam Marttinen",
@@ -2885,8 +3484,10 @@
     "title": "Yrkesförare",
     "municipality": "Eskilstuna",
     "constituency": "Södermanlands län",
+    "constituency_code": "04",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jonas Andersson",
@@ -2894,8 +3495,10 @@
     "title": "Fil.kand. statsvetenskap",
     "municipality": "Linköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Clara Aranda",
@@ -2903,8 +3506,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Norrköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Aron Emilsson",
@@ -2912,8 +3517,10 @@
     "title": "Kulturarvsvetare",
     "municipality": "Söderköping",
     "constituency": "Östergötlands län",
+    "constituency_code": "05",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Yasmine Eriksson",
@@ -2921,8 +3528,10 @@
     "title": "Pressassistent",
     "municipality": "Partille",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ida Kors",
@@ -2930,8 +3539,10 @@
     "title": "Habiliteringspedagog",
     "municipality": "Jönköping",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Eric Westroth",
@@ -2939,8 +3550,10 @@
     "title": "Familjeföretagare",
     "municipality": "Gnosjö",
     "constituency": "Jönköpings län",
+    "constituency_code": "06",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Ann-Christine Frohm",
@@ -2948,8 +3561,10 @@
     "title": "Vårdbiträde/redovisningsassistent",
     "municipality": "Västerås",
     "constituency": "Kronobergs län",
+    "constituency_code": "07",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mattias Karlsson Bergman",
@@ -2957,10 +3572,12 @@
     "title": "Riksdagsledamot",
     "municipality": "Uppvidinge",
     "constituency": "Kronobergs län",
+    "constituency_code": "07",
     "riksdag_roles": [
      "Ordförande i kulturutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Johnny Svedin",
@@ -2968,8 +3585,10 @@
     "title": "Specialistsjuksköterska",
     "municipality": "Kalmar",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mattias Bäckström Johansson",
@@ -2977,10 +3596,12 @@
     "title": "Reaktoroperatör",
     "municipality": "Oskarshamn",
     "constituency": "Kalmar län",
+    "constituency_code": "08",
     "riksdag_roles": [
      "Partisekreterare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Karolina Widerberg",
@@ -2988,8 +3609,10 @@
     "title": "Lärare",
     "municipality": "Sölvesborg",
     "constituency": "Blekinge län",
+    "constituency_code": "10",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Richard Jomshof",
@@ -2997,8 +3620,10 @@
     "title": "SO-lärare",
     "municipality": "Karlskrona",
     "constituency": "Blekinge län",
+    "constituency_code": "10",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Patrick Reslow",
@@ -3006,8 +3631,10 @@
     "title": "Jur.kand., pol.mag.",
     "municipality": "Malmö",
     "constituency": "Malmö kommun",
+    "constituency_code": "11",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Pontus Andersson Garpvall",
@@ -3015,8 +3642,10 @@
     "title": "Politisk sekreterare",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Linda Lindberg",
@@ -3024,11 +3653,13 @@
     "title": "Gruppledare",
     "municipality": "Helsingborg",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [
      "Förste vice gruppledare",
      "Ordförande i socialutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Bo Broman",
@@ -3036,8 +3667,10 @@
     "title": "Ekonomichef",
     "municipality": "Eslöv",
     "constituency": "Skåne läns västra",
+    "constituency_code": "12",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jessica Stegrud",
@@ -3045,10 +3678,12 @@
     "title": "Controller",
     "municipality": "Vellinge",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [
      "Vice ordförande i socialförsäkringsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Victoria Tiblom",
@@ -3056,8 +3691,10 @@
     "title": "Kommunikatör/PR-konsult",
     "municipality": "Staffanstorp",
     "constituency": "Skåne läns södra",
+    "constituency_code": "13",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Magnus Persson",
@@ -3065,10 +3702,12 @@
     "title": "Byggnadsarbetare",
     "municipality": "Bromölla",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [
      "Vice ordförande i arbetsmarknadsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Björn Söder",
@@ -3076,8 +3715,10 @@
     "title": "Civilingenjör",
     "municipality": "Kristianstad",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mikael Eskilandersson",
@@ -3085,8 +3726,10 @@
     "title": "Skoglig maskinförare",
     "municipality": "Örkelljunga",
     "constituency": "Skåne läns norra och östra",
+    "constituency_code": "14",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Patrik Jönsson",
@@ -3094,8 +3737,10 @@
     "title": "Eldriftledare",
     "municipality": "Hässleholm",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Andreas Ahlqvist",
@@ -3103,8 +3748,10 @@
     "title": "Företagare",
     "municipality": "Halmstad",
     "constituency": "Hallands län",
+    "constituency_code": "15",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Emma Altenhammar",
@@ -3112,8 +3759,10 @@
     "title": "Företagssäljare",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Dennis Dioukarev",
@@ -3121,8 +3770,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Göteborg",
     "constituency": "Göteborgs kommun",
+    "constituency_code": "16",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Gunilla Gomér",
@@ -3130,8 +3781,10 @@
     "title": "Egenföretagare",
     "municipality": "Alingsås",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Alexander Christiansson",
@@ -3139,10 +3792,12 @@
     "title": "Företagare/säljare",
     "municipality": "Lerum",
     "constituency": "Västra Götalands läns västra",
+    "constituency_code": "17",
     "riksdag_roles": [
      "Vice ordförande i justitieutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Terje Skaarnes",
@@ -3150,8 +3805,10 @@
     "title": "Företagare",
     "municipality": "Munkedal",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Matheus Enholm",
@@ -3159,10 +3816,12 @@
     "title": "Egenföretagare",
     "municipality": "Munkedal",
     "constituency": "Västra Götalands läns norra",
+    "constituency_code": "18",
     "riksdag_roles": [
      "Gruppledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Denice Westerberg",
@@ -3170,8 +3829,10 @@
     "title": "Kommunikatör",
     "municipality": "Solna",
     "constituency": "Västra Götalands läns södra",
+    "constituency_code": "19",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Anders Alftberg",
@@ -3179,8 +3840,10 @@
     "title": "Lärare",
     "municipality": "Borås",
     "constituency": "Västra Götalands läns södra",
+    "constituency_code": "19",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Josef Fransson",
@@ -3188,8 +3851,10 @@
     "title": "Högskoleingenjör",
     "municipality": "Skövde",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Tobias Andersson",
@@ -3197,8 +3862,10 @@
     "title": "Ekonom",
     "municipality": "Skövde",
     "constituency": "Västra Götalands läns östra",
+    "constituency_code": "20",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Robin Lennartsson",
@@ -3206,8 +3873,10 @@
     "title": "Statsvetare",
     "municipality": "Karlstad",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Runar Filper",
@@ -3215,8 +3884,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Sunne",
     "constituency": "Värmlands län",
+    "constituency_code": "21",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Jimmie Åkesson",
@@ -3224,10 +3895,12 @@
     "title": "Partiledare",
     "municipality": "Sölvesborg",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [
      "Partiledare"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Per Söderlund",
@@ -3235,8 +3908,10 @@
     "title": "Datortekniker",
     "municipality": "Lindesberg",
     "constituency": "Örebro län",
+    "constituency_code": "22",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Tomas Brandberg",
@@ -3244,8 +3919,10 @@
     "title": "Teknologie doktor",
     "municipality": "Borås",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Oscar Sjöstedt",
@@ -3253,10 +3930,12 @@
     "title": "Nationalekonom",
     "municipality": "Skinnskatteberg",
     "constituency": "Västmanlands län",
+    "constituency_code": "23",
     "riksdag_roles": [
      "Ordförande i konstitutionsutskottet"
     ],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Liselotte Forsberg",
@@ -3264,8 +3943,10 @@
     "title": "Driftledare",
     "municipality": "Mora",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Rasmus Giertz",
@@ -3273,8 +3954,10 @@
     "title": "Riksdagsledamot",
     "municipality": "Falun",
     "constituency": "Dalarnas län",
+    "constituency_code": "24",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Mattias Eriksson Falk",
@@ -3282,8 +3965,10 @@
     "title": "Yrkeschaufför",
     "municipality": "Gävle",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Roger Hedlund",
@@ -3291,8 +3976,10 @@
     "title": "Industrirobotoperatör",
     "municipality": "Gävle",
     "constituency": "Gävleborgs län",
+    "constituency_code": "25",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Angelika Bengtsson",
@@ -3300,8 +3987,10 @@
     "title": "Dansare",
     "municipality": "Stockholm",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [],
-    "riksdag_status": "on_leave"
+    "riksdag_status": "on_leave",
+    "newly_elected": false
    },
    {
     "name": "Kevin Sahlin",
@@ -3309,8 +3998,10 @@
     "title": "Sekreterare",
     "municipality": "Sundsvall",
     "constituency": "Västernorrlands län",
+    "constituency_code": "26",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Peter Eriksson",
@@ -3318,8 +4009,10 @@
     "title": "Skogsbrukare",
     "municipality": "Ragunda",
     "constituency": "Jämtlands län",
+    "constituency_code": "27",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": true
    },
    {
     "name": "Sara Gille",
@@ -3327,8 +4020,10 @@
     "title": "Undersköterska",
     "municipality": "Dorotea",
     "constituency": "Västerbottens län",
+    "constituency_code": "28",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Leonid Yurkovskiy",
@@ -3336,8 +4031,10 @@
     "title": "Politisk sekreterare",
     "municipality": "Nacka",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    },
    {
     "name": "Eric Palmqvist",
@@ -3345,8 +4042,10 @@
     "title": "Gruvarbetare",
     "municipality": "Luleå",
     "constituency": "Norrbottens län",
+    "constituency_code": "29",
     "riksdag_roles": [],
-    "riksdag_status": "serving"
+    "riksdag_status": "serving",
+    "newly_elected": false
    }
   ]
  }

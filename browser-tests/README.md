@@ -691,9 +691,11 @@ election-day generation and checks, against the files on disk:
   `files/election-simulator/results/2026-members.json` (Valmyndigheten's
   elected members and candidate file, with roles from Sveriges riksdag): a
   party's seats are its list in file order. Hovering a seat shows the card for that member, focus and End announce
-  the first and last seat, and the sources are named under the chamber. A
-  members file that does not match the chamber seat for seat leaves the chamber
-  as the plain allocation.
+  the first and last seat, and the sources are named under the chamber. The
+  filters (party, constituency, age band, newly elected) light exactly the
+  seats the file says match, combined, and fade legend parties with none; reset
+  lights all 349. A members file that does not match the chamber seat for seat
+  leaves the chamber as the plain allocation, without filters.
 - **Prognosen mot valresultatet.** One row per parliamentary party. Each delta
   is `forecast.json`'s median minus the certified share, and whether the result
   lies inside the 90 % interval is computed from `vote_share_p05`/`p95`, as is

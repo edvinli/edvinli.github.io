@@ -1782,6 +1782,92 @@ canvas {
   margin-top: 0.8rem;
 }
 
+/* Filters under the result chamber. */
+.ep-filters {
+  align-items: end;
+  border-top: 1px solid var(--el-rule);
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: minmax(8rem, 1fr) minmax(11rem, 1.6fr) minmax(6.5rem, 0.8fr) auto;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+}
+
+.ep-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.ep-filter__label {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ep-filter__select {
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule-strong);
+  border-radius: 3px;
+  color: var(--el-ink);
+  font-family: var(--el-sans);
+  font-size: 0.86rem;
+  margin: 0;
+  min-height: 2.2rem;
+  padding: 0.25rem 0.4rem;
+  width: 100%;
+}
+
+.ep-filter__segments {
+  align-self: flex-start;
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.ep-filter__segments .election-timeseries__control {
+  min-height: 2.1rem;
+  padding: 0.3rem 0.8rem;
+}
+
+.ep-filters__summary {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  grid-column: 1 / -1;
+}
+
+.ep-filters__count {
+  font-family: var(--el-mono);
+  font-size: 0.86rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ep-filters__reset {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--el-rule-strong);
+  color: var(--el-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+}
+
+@media (max-width: 46em) {
+  .ep-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
 .election-parliament__centre {
   border-left: 1px dashed var(--el-rule-strong);
   bottom: 1.5rem;

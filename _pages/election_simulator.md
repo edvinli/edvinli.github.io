@@ -120,8 +120,43 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     </div>
     <ul id="election-result-legend" class="ep-legend"></ul>
     <!-- Shown once results/2026-members.json has matched the chamber seat for
-         seat; until then the chamber is the plain allocation. -->
-    <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Källor: Sveriges riksdag och Valmyndigheten.</p>
+         seat; until then the chamber is the plain allocation. The filters
+         fade the seats that do not match; every seat keeps its card. -->
+    <div class="ep-filters" id="election-result-filters" role="group" aria-label="Filtrera ledamöterna i riksdagen" hidden>
+      <label class="ep-filter">
+        <span class="ep-filter__label">Parti</span>
+        <select class="ep-filter__select" id="election-filter-party"><option value="">Alla</option></select>
+      </label>
+      <label class="ep-filter">
+        <span class="ep-filter__label">Valkrets</span>
+        <select class="ep-filter__select" id="election-filter-constituency"><option value="">Alla</option></select>
+      </label>
+      <label class="ep-filter">
+        <span class="ep-filter__label">Ålder</span>
+        <select class="ep-filter__select" id="election-filter-age">
+          <option value="">Alla</option>
+          <option value="20">20–29</option>
+          <option value="30">30–39</option>
+          <option value="40">40–49</option>
+          <option value="50">50–59</option>
+          <option value="60">60–69</option>
+          <option value="70">70–79</option>
+        </select>
+      </label>
+      <div class="ep-filter" id="election-filter-new">
+        <span class="ep-filter__label" id="election-filter-new-label">Nyinvald</span>
+        <div class="ep-filter__segments" role="group" aria-labelledby="election-filter-new-label">
+          <button type="button" class="election-timeseries__control" data-new="" aria-pressed="true">Alla</button>
+          <button type="button" class="election-timeseries__control" data-new="true" aria-pressed="false">Ja</button>
+          <button type="button" class="election-timeseries__control" data-new="false" aria-pressed="false">Nej</button>
+        </div>
+      </div>
+      <div class="ep-filters__summary">
+        <p class="ep-filters__count" id="election-filter-count" role="status" aria-live="polite" aria-atomic="true"></p>
+        <button type="button" class="ep-filters__reset" id="election-filter-reset" hidden>Rensa filter</button>
+      </div>
+    </div>
+    <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Nyinvald betyder att ledamoten inte har suttit i riksdagen tidigare, varken som ledamot eller ersättare. Källor: Sveriges riksdag och Valmyndigheten.</p>
     <p id="election-result-member-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
   </section>
   <!-- The current forecast against the last certified result, party by

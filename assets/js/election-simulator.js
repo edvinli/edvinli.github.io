@@ -3498,7 +3498,7 @@
   // the plain allocation, without hover.
   // ---------------------------------------------------------------------
   var ELECTED_MEMBERS_PATH = "results/2026-members.json";
-  var RIKSDAG_STATUS_NOTE = { on_leave: "Ledig från riksdagen", left: "Har lämnat riksdagen" };
+  var RIKSDAG_STATUS_NOTE = { on_leave: "Ledig fr\u00e5n riksdagen", left: "Har l\u00e4mnat riksdagen" };
 
   function optionalString(value) {
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -3523,12 +3523,15 @@
         var age = entry.age === null ? null : num(entry.age);
         if (entry.age !== null && (age === null || age < 18 || Math.floor(age) !== age)) return null;
         var roles = Array.isArray(entry.riksdag_roles) ? entry.riksdag_roles.map(optionalString).filter(Boolean) : [];
+        if (entry.newly_elected !== undefined && entry.newly_elected !== null && typeof entry.newly_elected !== "boolean") return null;
         members.push({
           name: name,
           age: age,
           title: optionalString(entry.title),
           municipality: optionalString(entry.municipality),
           constituency: optionalString(entry.constituency),
+          constituencyCode: optionalString(entry.constituency_code),
+          newlyElected: typeof entry.newly_elected === "boolean" ? entry.newly_elected : null,
           roles: roles,
           status: RIKSDAG_STATUS_NOTE[entry.riksdag_status] ? entry.riksdag_status : null
         });
@@ -3540,10 +3543,11 @@
 
   function memberLines(party, member) {
     return {
-      meta: (partyNames[party] || party) + (member.age !== null ? " · " + member.age + " år" : ""),
+      meta: (partyNames[party] || party) + (member.age !== null ? " \u00b7 " + member.age + " \u00e5r" : "") +
+        (member.newlyElected ? " \u00b7 nyinvald" : ""),
       title: member.title,
       home: member.municipality ? "Bor i " + member.municipality : null,
-      riksdag: member.roles.concat(member.status ? [RIKSDAG_STATUS_NOTE[member.status]] : []).join(" · ") || null
+      riksdag: member.roles.concat(member.status ? [RIKSDAG_STATUS_NOTE[member.status]] : []).join(" \u00b7 ") || null
     };
   }
 
@@ -3564,7 +3568,7 @@
       if (seats.some(function (seat) { return !seat.member; })) return;
       bindChamberMembers(host, seats);
     }).catch(function (error) {
-      console.warn("Ledamöterna kunde inte visas.", error);
+      console.warn("Ledam\u00f6terna kunde inte visas.", error);
     });
   }
 
@@ -3656,6 +3660,94 @@
     host.tabIndex = 0;
     var note = byId("election-result-members-note");
     if (note) note.hidden = false;
+    bindMemberFilters(seats);
+  }
+
+  // Party, constituency, age band and newly elected, combined with AND.  A
+  // seat that does not match is faded, not removed, so the chamber keeps its
+  // shape and every seat still opens its card.
+  function bindMemberFilters(seats) {
+    var bar = byId("election-result-filters");
+    var party = byId("election-filter-party");
+    var constituency = byId("election-filter-constituency");
+    var age = byId("election-filter-age");
+    var count = byId("election-filter-count");
+    var reset = byId("election-filter-reset");
+    var newGroup = byId("election-filter-new");
+    if (!bar || !party || !constituency || !age || !count || !reset || !newGroup) return;
+    var newButtons = Array.prototype.slice.call(newGroup.querySelectorAll("button[data-new]"));
+    newGroup.hidden = !seats.every(function (seat) { return seat.member.newlyElected !== null; });
+    var state = { party: "", constituency: "", age: "", newlyElected: "" };
+
+    seatingOrder.forEach(function (name) {
+      if (!seats.some(function (seat) { return seat.memberParty === name; })) return;
+      party.appendChild(new Option(partyNames[name] || name, name));
+    });
+    // Constituencies in Valmyndigheten's order, Stockholms kommun to
+    // Norrbottens län.
+    var constituencies = {};
+    seats.forEach(function (seat) {
+      var name = seat.member.constituency;
+      if (name && !constituencies[name]) constituencies[name] = seat.member.constituencyCode || name;
+    });
+    Object.keys(constituencies).sort(function (a, b) {
+      return constituencies[a] < constituencies[b] ? -1 : constituencies[a] > constituencies[b] ? 1 : a.localeCompare(b, "sv");
+    }).forEach(function (name) { constituency.appendChild(new Option(name, name)); });
+
+    function matches(seat) {
+      var member = seat.member;
+      if (state.party && seat.memberParty !== state.party) return false;
+      if (state.constituency && member.constituency !== state.constituency) return false;
+      if (state.age) {
+        var low = Number(state.age);
+        if (member.age === null || member.age < low || member.age > low + 9) return false;
+      }
+      if (state.newlyElected && String(member.newlyElected) !== state.newlyElected) return false;
+      return true;
+    }
+
+    function apply() {
+      var active = Boolean(state.party || state.constituency || state.age || state.newlyElected);
+      var shown = 0;
+      var partiesShown = {};
+      seats.forEach(function (seat) {
+        var hit = matches(seat);
+        seat.classList.toggle("is-muted", active && !hit);
+        if (hit) {
+          shown += 1;
+          partiesShown[seat.memberParty] = true;
+        }
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#election-result-legend .ep-legend__item"), function (item) {
+        item.classList.toggle("is-muted", active && !partiesShown[item.getAttribute("data-party")]);
+      });
+      count.textContent = !active ? "Alla " + CHAMBER + " ledamöter"
+        : shown === 0 ? "Inga ledamöter matchar filtret"
+        : shown + " av " + CHAMBER + " ledamöter";
+      reset.hidden = !active;
+      newButtons.forEach(function (button) {
+        button.setAttribute("aria-pressed", button.getAttribute("data-new") === state.newlyElected ? "true" : "false");
+      });
+    }
+
+    party.addEventListener("change", function () { state.party = party.value; apply(); });
+    constituency.addEventListener("change", function () { state.constituency = constituency.value; apply(); });
+    age.addEventListener("change", function () { state.age = age.value; apply(); });
+    newButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.newlyElected = button.getAttribute("data-new");
+        apply();
+      });
+    });
+    reset.addEventListener("click", function () {
+      state = { party: "", constituency: "", age: "", newlyElected: "" };
+      party.value = "";
+      constituency.value = "";
+      age.value = "";
+      apply();
+    });
+    apply();
+    bar.hidden = false;
   }
 
   // ---------------------------------------------------------------------
