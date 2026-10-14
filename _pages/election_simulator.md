@@ -121,7 +121,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   <section id="election-blocs" class="election-panel election-blocs" hidden aria-labelledby="election-blocs-title">
     <div class="election-panel__head">
       <h2 id="election-blocs-title">Chansen till egen majoritet</h2>
-      <p class="election-muted" id="election-blocs-intro">De två blocken i valdagsprognosen. Sannolikheten gäller att blocket får minst 175 av riksdagens 349 mandat.</p>
+      <p class="election-muted" id="election-blocs-intro">Sannolikheten att blocket får minst 175 av riksdagens 349 mandat.</p>
     </div>
     <div id="election-blocs-rows" class="eb-rows" role="list"></div>
     <p class="eb-disclaimer" id="election-blocs-disclaimer">Sannolikheten avser att blockets partier tillsammans får minst 175 mandat – inte sannolikheten att de bildar regering. Ett block utan egen majoritet kan ändå hamna i regeringsställning.</p>
@@ -129,7 +129,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   <section id="election-alternatives" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Regeringsalternativ</h2>
-      <p class="election-muted">Sex möjliga regeringar i valdagsprognosen. Varje rad visar kombinationens gemensamma intervall och sannolikheten att nå minst 175 mandat.</p>
+      <p class="election-muted">Sex möjliga regeringar: gemensamt mandatintervall och chansen till minst 175 mandat.</p>
     </div>
     <div id="election-alternatives-rows" class="ea-rows" role="list"></div>
     <div id="election-alternatives-axis" class="ea-axis" aria-hidden="true"></div>
@@ -139,7 +139,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   <section id="election-government-builder" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Bygg din egen regering</h2>
-      <p class="election-muted">Alla partier börjar i Opposition. Dra mandatblocken mellan Regering och Opposition och se hur många mandat sidorna får i valdagsprognosen.</p>
+      <p class="election-muted">Dra partierna mellan Opposition och Regering och se sidornas mandat.</p>
     </div>
     <div class="eg-builder">
       <div class="eg-presets" role="group" aria-labelledby="election-builder-presets-label">
@@ -206,7 +206,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   <section id="election-threshold" class="election-panel election-threshold" hidden aria-labelledby="election-threshold-title">
     <div class="election-panel__head">
       <h2 id="election-threshold-title">4&#160;%-spärren</h2>
-      <p class="election-muted" id="election-threshold-intro">Huvudregeln är minst 4&#160;% av rösterna i hela landet. Här visas de partier vars prognos ligger nära den gränsen.</p>
+      <p class="election-muted" id="election-threshold-intro">Huvudregeln är 4&#160;% av rösterna i hela landet. Här visas partierna nära gränsen.</p>
     </div>
     <div id="election-threshold-rows" class="et-rows" role="list" aria-labelledby="election-threshold-title"></div>
     <p class="et-note election-muted" id="election-threshold-discontinuity">Spärren gör utfallet hoppigt: några tiondelar åt endera hållet är skillnaden mellan noll mandat och ett tjugotal. Osäkerheten i röstandelen blir därför inte en jämn osäkerhet i mandat.</p>
@@ -222,7 +222,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   <section id="election-headline" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Röstandelar på valdagen</h2>
-      <p class="election-muted">Median röstandel med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Klicka på ett parti för mer information.</p>
+      <p class="election-muted">Median med 50- och 90-procentigt prognosintervall (inte konfidensintervall). Klicka på ett parti för detaljer.</p>
       <p class="election-muted" id="election-vote-change-note" hidden></p>
     </div>
     <div class="ev-colhead" aria-hidden="true"><span class="ev-colhead__thr">Chans att nå 4&#160;%</span></div>
@@ -233,7 +233,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   <section id="election-seats" class="election-panel" hidden>
     <div class="election-panel__head">
       <h2>Mandat på valdagen</h2>
-      <p class="election-muted" id="election-seats-intro">Riksdagen har 349 mandat; 175 krävs för majoritet. Stapeln visar partiets median och den mörka linjen det centrala 90-procentiga prognosintervallet. Medianerna beräknas var för sig och behöver därför inte summera till 349, och förändringarna inte till 0. Varje simulerat valresultat innehåller ändå exakt 349 mandat.</p>
+      <p class="election-muted" id="election-seats-intro">Median och 50/90 % prognosintervall. 175 av 349 mandat ger majoritet. Medianerna och förändringarna beräknas var för sig och summerar därför inte till 349 respektive 0.</p>
       <p class="election-muted" id="election-seat-change-note" hidden></p>
     </div>
     <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
@@ -362,11 +362,6 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
 </div>
 
 <div id="election-outcome-result" class="election-app" role="tabpanel" aria-labelledby="election-tab-result">
-  <header class="election-hero">
-    <p class="election-hero__kicker">Sverige · Riksdagen · riksdagsvalet 2026</p>
-    <h2 class="evf-title">Så blev valet den 13 september 2026</h2>
-    <p class="election-hero__lede">Det slutliga valresultatet och riksdagen som valdes: röstandelar, mandat och vilka ledamöter som sitter var.</p>
-  </header>
     <!-- The certified result of the last election. Rendered by the forecast
          app once the publication on screen postdates that election; hidden
          otherwise, so a pinned pre-election generation reads exactly as it did. -->
@@ -500,6 +495,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
 <script src="{{ site.baseurl }}/assets/js/election-voter-flows.js?v={{ site.time | date: '%s' }}"></script>
 <script src="{{ site.baseurl }}/assets/js/election-demographics.js?v={{ site.time | date: '%s' }}"></script>
 <script src="{{ site.baseurl }}/assets/js/election-tabs.js?v={{ site.time | date: '%s' }}"></script>
+<script src="{{ site.baseurl }}/assets/js/election-info.js?v={{ site.time | date: '%s' }}"></script>
 
 <!-- Equation typesetting for "Så fungerar modellen". MathJax 3.2.2 is pinned
      and loaded on this page only; the LaTeX sits in the markup as plain text,

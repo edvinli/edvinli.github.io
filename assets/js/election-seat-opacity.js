@@ -52,7 +52,7 @@
   // reordered, and each panel head now holds more than one.
   var intro = document.getElementById("election-seats-intro");
   if (intro) {
-    intro.textContent = "Median mandat med centrala 50- och 90-procentiga prognosintervall. Det är prognosintervall, inte konfidensintervall. Riksdagen har 349 mandat och 175 krävs för majoritet. Medianerna beräknas var för sig och behöver därför inte summera till 349, och förändringarna inte till 0. Varje simulerat valresultat innehåller ändå exakt 349 mandat.";
+    intro.textContent = "Median och 50/90 % prognosintervall. 175 av 349 mandat ger majoritet. Medianerna och förändringarna beräknas var för sig och summerar därför inte till 349 respektive 0.";
   }
 
   var style = document.createElement("style");

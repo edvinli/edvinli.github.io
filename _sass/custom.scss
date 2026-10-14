@@ -328,6 +328,85 @@ canvas {
   margin: 0 0 0.35rem;
 }
 
+// A section description behind an (i) beside its heading (election-info.js).
+// The popover floats over the chart below rather than pushing it down, so
+// hovering the button never shifts the page.
+// The theme underlines every h2 across the column; in a flex row that rule
+// would stop at the heading's own width, so the row carries it instead.
+.election-panel__head--info {
+  align-items: center;
+  border-bottom: 1px solid $border-color;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.6rem;
+  position: relative;
+}
+
+.page__content .election-panel__head--info h2 {
+  border-bottom: 0;
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.election-info__button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--el-rule-strong);
+  border-radius: 50%;
+  color: var(--el-muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  font: italic 700 0.78rem/1 Georgia, "Times New Roman", serif;
+  height: 1.3rem;
+  justify-content: center;
+  padding: 0;
+  width: 1.3rem;
+}
+
+.election-info__button:hover,
+.election-info__button[aria-expanded="true"] {
+  background: var(--el-ink);
+  border-color: var(--el-ink);
+  color: var(--el-panel);
+}
+
+.election-info__panel {
+  background: var(--el-panel);
+  border: 1px solid var(--el-rule);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(44, 42, 37, 0.12);
+  left: 0;
+  max-width: min(34rem, 100%);
+  padding: 0.6rem 0.8rem;
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  z-index: 30;
+}
+
+.election-info__panel[hidden] {
+  display: none;
+}
+
+.election-info__panel p {
+  margin: 0;
+  max-width: none;
+}
+
+.election-info__panel p + p {
+  margin-top: 0.45rem;
+}
+
+// With its header gone, the result opens the 2026 part directly under the
+// part's own tabs.
+#election-outcome-result > #election-result {
+  border-top: 0;
+  margin-top: 1.2rem;
+  padding-top: 0;
+}
+
 .election-subhead {
   font-size: 1rem;
   margin: 2rem 0 0.35rem;

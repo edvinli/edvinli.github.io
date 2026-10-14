@@ -273,8 +273,7 @@ const changeNote = (baseline, unit) =>
 // The seat medians are taken separately, so neither the levels nor the changes
 // add up -- which is why this sentence has to sit with the seat column.
 const SEATS_NON_ADDITIVITY =
-  'Medianerna beräknas var för sig och behöver därför inte summera till 349, ' +
-  'och förändringarna inte till 0. Varje simulerat valresultat innehåller ändå exakt 349 mandat.';
+  'Medianerna och förändringarna beräknas var för sig och summerar därför inte till 349 respektive 0.';
 
 // A chip must never make its row taller than a row with no number to show.
 // Stated as "the tallest unmoved row is no taller than the shortest moved

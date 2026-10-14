@@ -2073,9 +2073,9 @@
       var priorDay = swedishDate(priorElection.iso) || priorElection.iso;
       var liveYear = history.electionDate.slice(0, 4);
       setText("election-timeseries-intro", "Till v\u00e4nster prognoserna inf\u00f6r valet den " + priorDay +
-        ", till h\u00f6ger prognoserna inf\u00f6r valet " + liveYear +
+        ", till h\u00f6ger inf\u00f6r valet " + liveYear +
         (electionResult && electionResult.electionDate === priorElection.iso ? ". Romberna p\u00e5 valdagen visar valresultatet" : "") +
-        ". S\u00e5 skulle modellen ha bed\u00f6mt l\u00e4get vid olika tidpunkter; historiken \u00e4r rekonstruerad i efterhand och den sista punkten \u00e4r den aktuella publicerade prognosen. Streckad linje markerar bytet till prognosen f\u00f6r " + liveYear + "; os\u00e4kerhetsbanden h\u00e5lls \u00e5tskilda.");
+        ". Historiken \u00e4r rekonstruerad i efterhand; den sista punkten \u00e4r den aktuella publicerade prognosen.");
       var capStart = historyDateOffset(history.electionDate, -HISTORY_DYNAMICS_CAP);
       setText("election-timeseries-dynamics-note", "Mer \u00e4n " + HISTORY_DYNAMICS_CAP +
         " dagar f\u00f6re ett val" + (capStart ? " \u2013 inf\u00f6r valet " + liveYear + " f\u00f6re " +
@@ -6387,9 +6387,9 @@
     var forecastLabel = "den sista prognosen";
 
     setText("election-result-delta-title", "Sista prognosen mot valresultatet");
-    setText("election-result-delta-intro", "S\u00e5 stod sig den sista prognosen" +
+    setText("election-result-delta-intro", "Den sista prognosen" +
       (forecast.as_of ? " (" + (swedishDate(forecast.as_of) || forecast.as_of) + ")" : "") +
-      " mot det slutliga resultatet. Nollan \u00e4r valresultatet; till h\u00f6ger betyder att prognosen l\u00e5g h\u00f6gre \u00e4n partiet fick, till v\u00e4nster l\u00e4gre.");
+      " mot valresultatet, som \u00e4r nollan: till h\u00f6ger l\u00e5g prognosen h\u00f6gre, till v\u00e4nster l\u00e4gre.");
 
     host.innerHTML = "";
     rows.forEach(function (row) {

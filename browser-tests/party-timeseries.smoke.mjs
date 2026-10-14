@@ -1142,6 +1142,27 @@ async function runViewport(viewport, site) {
       equal('leaving the pill restores every party', (await readFocus()).focused, null);
     }
 
+    // ---- the section description sits behind an (i) -----------------------
+    const info = () => browser.evaluate(() => {
+      const button = document.querySelector('#election-timeseries .election-info__button');
+      const panel = button && document.getElementById(button.getAttribute('aria-controls'));
+      return button && panel ? {
+        expanded: button.getAttribute('aria-expanded'),
+        shown: !panel.hidden && getComputedStyle(panel).display !== 'none',
+        holdsIntro: Boolean(panel.querySelector('#election-timeseries-intro')),
+      } : null;
+    });
+    const infoClosed = await info();
+    check('the chart’s description is folded behind an (i), closed at first',
+      infoClosed && infoClosed.holdsIntro && !infoClosed.shown && infoClosed.expanded === 'false', infoClosed);
+    await browser.evaluate(() => document.querySelector('#election-timeseries .election-info__button').click());
+    const infoOpen = await info();
+    check('clicking the (i) opens the description',
+      infoOpen && infoOpen.shown && infoOpen.expanded === 'true', infoOpen);
+    await pressKey(browser, 'Escape', 'Escape');
+    const infoEscaped = await info();
+    check('Escape closes it again', infoEscaped && !infoEscaped.shown, infoEscaped);
+
     // ---- the chart may use more than the text column ----------------------
     const frameLayout = await browser.evaluate(() => {
       const frame = document.getElementById('election-timeseries-frame').getBoundingClientRect();

@@ -60,9 +60,10 @@ const RULES = [
   // Shows one panel and hides the rest, the forecast included, so a fault
   // here can blank any view a suite asserts on.
   { prefix: 'assets/js/election-tabs.js', suites: null },
-  // Reorders the election sections and rebuilds the hero's section nav, whose
-  // entries have to track those sections' own headings -- the first of them
-  // being the bloc summary.
+  // Moves every forecast section's description into an (i) popover beside
+  // its heading, so it can change what any forecast suite finds there.
+  { prefix: 'assets/js/election-info.js', suites: null },
+  // Reorders the election sections and sets the seat panel's description.
   { prefix: 'assets/js/election-seat-opacity.js',
     suites: [...byArea('builder'), ...byArea('provenance'), ...byArea('summary')] },
 
