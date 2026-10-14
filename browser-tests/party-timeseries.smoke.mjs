@@ -1042,6 +1042,92 @@ async function runViewport(viewport, site) {
     await settle(220);
     const partyLayout = await readState(browser);
     check('no horizontal overflow in party mode', !partyLayout.horizontalOverflow);
+
+    // ---- one series brought forward ----------------------------------------
+    // Hovering a party's line, or its pill, dims every other party; leaving
+    // restores them. Driven with real pointer events, with all parties on.
+    await browser.evaluate(() => {
+      const all = document.getElementById('election-timeseries-parties-all');
+      if (all && all.getAttribute('aria-pressed') !== 'true') all.click();
+    });
+    await settle(220);
+    await browser.evaluate(() => {
+      document.getElementById('election-timeseries')
+        ?.scrollIntoView({ behavior: 'instant', block: 'center' });
+    });
+    await settle(220);
+    const readFocus = () => browser.evaluate(() => {
+      const svg = document.getElementById('election-timeseries-svg');
+      const groups = Array.from(svg.querySelectorAll('.election-timeseries__series-group'));
+      const layer = svg.querySelector('.election-timeseries__series');
+      const drawn = Array.from(layer.querySelectorAll(':scope > .election-timeseries__series-group'));
+      return {
+        focused: svg.getAttribute('data-focused-series'),
+        groups: groups.length,
+        dimmed: groups.filter((group) => group.classList.contains('is-dimmed')).length,
+        raised: groups.filter((group) => group.classList.contains('is-focused'))
+          .map((group) => group.getAttribute('data-coalition')),
+        topmost: drawn.length ? drawn[drawn.length - 1].getAttribute('data-coalition') : null,
+      };
+    });
+    const onLine = await browser.evaluate((party) => {
+      const svg = document.getElementById('election-timeseries-svg');
+      const box = svg.getBoundingClientRect();
+      const scale = box.width / svg.viewBox.baseVal.width;
+      const points = Array.from(svg.querySelectorAll(
+        `.election-timeseries__series-group[data-coalition="${party}"] [data-forecast-point]`));
+      const point = points[Math.floor(points.length / 2)];
+      return point ? {
+        x: box.left + Number(point.getAttribute('cx')) * scale,
+        y: box.top + Number(point.getAttribute('cy')) * scale,
+      } : null;
+    }, big);
+    check('the largest party has a line to point at', Boolean(onLine));
+    if (onLine) {
+      await movePointer(browser, onLine.x, onLine.y);
+      const lineFocus = await readFocus();
+      check('pointing at a party’s line brings that party forward and dims the rest',
+        lineFocus.focused === big && lineFocus.groups === 8 && lineFocus.dimmed === 7 &&
+        lineFocus.raised.length === 1 && lineFocus.raised[0] === big, lineFocus);
+      equal('the focused party is drawn on top', lineFocus.topmost, big);
+      await movePointer(browser, 1, 1);
+      const cleared = await readFocus();
+      check('leaving the plot restores every party',
+        cleared.focused === null && cleared.dimmed === 0 && cleared.raised.length === 0, cleared);
+    }
+    const pill = await browser.evaluate((party) => {
+      const node = document.querySelector(`#election-timeseries-parties button[data-party="${party}"]`);
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }, small);
+    if (pill && !viewport.coarse) {
+      await movePointer(browser, pill.x, pill.y);
+      const pillFocus = await readFocus();
+      check('hovering a party pill brings that party forward',
+        pillFocus.focused === small && pillFocus.dimmed === 7, pillFocus);
+      await movePointer(browser, 1, 1);
+      equal('leaving the pill restores every party', (await readFocus()).focused, null);
+    }
+
+    // ---- the chart may use more than the text column ----------------------
+    const frameLayout = await browser.evaluate(() => {
+      const frame = document.getElementById('election-timeseries-frame').getBoundingClientRect();
+      const column = document.getElementById('election-timeseries').getBoundingClientRect();
+      return {
+        frame: [frame.left, frame.right], column: [column.left, column.right],
+        viewport: document.documentElement.clientWidth,
+      };
+    });
+    if (viewport.coarse) {
+      check('on a phone the chart keeps the column width',
+        Math.abs(frameLayout.frame[0] - frameLayout.column[0]) <= 1 &&
+        Math.abs(frameLayout.frame[1] - frameLayout.column[1]) <= 1, frameLayout);
+    } else {
+      check('on a desktop the chart is wider than the text column, inside the viewport',
+        frameLayout.frame[1] - frameLayout.frame[0] > frameLayout.column[1] - frameLayout.column[0] + 100 &&
+        frameLayout.frame[0] >= 15 && frameLayout.frame[1] <= frameLayout.viewport - 15, frameLayout);
+    }
     equal('no console errors', appErrors(browser).map((entry) => entry.text), []);
   } finally {
     await closeBrowser(browser, server);

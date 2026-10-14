@@ -2067,14 +2067,19 @@
     var renderSelection = function () {};
     var renderDetail = function () {};
     var keyboardSelect = function () {};
+    // The series under the pointer (or the focused pill or point), drawn on
+    // top at full strength while every other series steps back. Purely a
+    // reading aid: it never changes what is selected, scaled or announced.
+    var focusedSeries = null;
     var activeDomain = null;
     var compactChart = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
     var width = 960;
     // Taller than the chart is wide would be odd, but 430 was too flat for
     // the party view: eight lines inside 320px of plot sit on top of each
     // other, and the whole reason to open that view is to compare them. The
-    // extra height goes entirely to the plot -- the gutter below it still
-    // holds only the date axis, at 70px desktop and 85px compact.
+    // extra height goes entirely to the plot -- the gutter below it holds
+    // only the date axis. A desktop chart wider than the text column grows
+    // taller with it (see renderChart), so widening never flattens it.
     var height = compactChart ? 520 : 560;
     // Keep a quiet right-hand gutter for the current-value labels.  The
     // generous top/bottom margins also make the chart read like the site's
@@ -2275,6 +2280,60 @@
       return true;
     }
 
+    // Everything drawn per series that steps back when another series is
+    // focused. Bands, medians and points dim through their series group, and
+    // the polls through their own per-series group, so a focus change touches
+    // a handful of nodes rather than every poll dot.
+    var SERIES_FOCUS_TARGETS = ".election-timeseries__series-group, .election-timeseries__poll-group, " +
+      "[data-endpoint-label], [data-endpoint-leader], .election-timeseries__result, " +
+      "[data-crosshair-label], [data-inspection-marker]";
+
+    function markSeriesFocus(root) {
+      if (!root || !root.querySelectorAll) return;
+      Array.prototype.forEach.call(root.querySelectorAll(SERIES_FOCUS_TARGETS), function (node) {
+        var id = node.getAttribute("data-coalition") || node.getAttribute("data-result-series");
+        node.classList.toggle("is-dimmed", focusedSeries !== null && id !== focusedSeries);
+        node.classList.toggle("is-focused", focusedSeries !== null && id === focusedSeries);
+      });
+    }
+
+    // SVG has no z-index: the focused series is moved to the end of its layer
+    // so its line runs over the others, and the rest go back to drawing order.
+    function raiseFocusedSeries(layer, selector, before) {
+      if (!layer) return;
+      var groups = Array.prototype.slice.call(layer.querySelectorAll(selector));
+      groups.sort(function (left, right) {
+        var leftFocused = left.getAttribute("data-coalition") === focusedSeries ? 1 : 0;
+        var rightFocused = right.getAttribute("data-coalition") === focusedSeries ? 1 : 0;
+        return leftFocused - rightFocused ||
+          Number(left.getAttribute("data-series-order")) - Number(right.getAttribute("data-series-order"));
+      });
+      groups.forEach(function (group) { layer.insertBefore(group, before || null); });
+    }
+
+    function applySeriesFocus() {
+      if (!svg) return;
+      if (focusedSeries) svg.setAttribute("data-focused-series", focusedSeries);
+      else svg.removeAttribute("data-focused-series");
+      markSeriesFocus(svg);
+      var seriesLayer = svg.querySelector(".election-timeseries__series");
+      raiseFocusedSeries(seriesLayer, ".election-timeseries__series-group",
+        seriesLayer && seriesLayer.querySelector("[data-endpoint-labels]"));
+      raiseFocusedSeries(svg.querySelector(".election-timeseries__polls"), ".election-timeseries__poll-group", null);
+    }
+
+    // Only a series on screen, among at least two, can be brought forward:
+    // with one series there is nothing to dim it against.
+    function setSeriesFocus(id) {
+      var active = activeDefinitions();
+      if (id !== null && (active.length < 2 || !active.some(function (definition) {
+        return definition.id === id;
+      }))) id = null;
+      if (id === focusedSeries) return;
+      focusedSeries = id;
+      applySeriesFocus();
+    }
+
     function dateForEvent(event) {
       if (!event || !svg || !svg.getBoundingClientRect) return null;
       var rect = svg.getBoundingClientRect();
@@ -2426,14 +2485,51 @@
 
     clearTimeseriesSelection = clearSelection;
 
+    // The chart may be wider than the text column. On a desktop the page
+    // keeps the theme's sidebar gutter to the left of the column -- empty on
+    // this page -- and more room outside #main on a wide screen, while the
+    // party view packs eight series and four years into the column's 718px.
+    // The frame grows into that room, evenly on both sides where it can,
+    // never past a 16px margin from the viewport and never wider than
+    // CHART_MAX_WIDTH, where a four-year line stops gaining legibility. The
+    // controls and the notes stay on the text column.
+    var CHART_MAX_WIDTH = 1160;
+    function fitChartFrame() {
+      if (!chartFrame || !section || !section.getBoundingClientRect) return;
+      chartFrame.style.width = "";
+      chartFrame.style.maxWidth = "";
+      chartFrame.style.marginLeft = "";
+      chartFrame.removeAttribute("data-breakout");
+      if (window.matchMedia && window.matchMedia("(max-width: 46em)").matches) return;
+      var column = section.getBoundingClientRect();
+      var viewport = document.documentElement.clientWidth;
+      if (!column.width || !viewport) return;
+      var margin = 16;
+      var leftRoom = Math.max(0, column.left - margin);
+      var rightRoom = Math.max(0, viewport - margin - column.right);
+      var extra = Math.max(0, Math.min(CHART_MAX_WIDTH, column.width + leftRoom + rightRoom) - column.width);
+      if (extra < 24) return;
+      var right = Math.min(rightRoom, extra / 2);
+      var left = Math.min(leftRoom, extra - right);
+      right = Math.min(rightRoom, extra - left);
+      chartFrame.style.width = Math.floor(column.width + left + right) + "px";
+      chartFrame.style.maxWidth = "none";
+      chartFrame.style.marginLeft = -Math.floor(left) + "px";
+      chartFrame.setAttribute("data-breakout", Math.floor(left) + "," + Math.floor(right));
+    }
+
     function renderChart() {
+      fitChartFrame();
       // Match the SVG coordinate width to the actual drawing area. On phones
       // this prevents a 600-unit drawing from being scaled into a narrow
       // column, which made labels small and left unused viewBox margins.
       compactChart = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
       var measuredWidth = chartFrame && chartFrame.clientWidth;
       if (measuredWidth > 0) width = Math.max(320, Math.round(measuredWidth));
-      height = compactChart ? 520 : 560;
+      // At least 55 % as tall as wide, within 560-660px: the extra width
+      // spreads the years out, and the extra height is what the small
+      // parties crowded together at the bottom need.
+      height = compactChart ? 520 : Math.max(560, Math.min(660, Math.round(width * 0.55)));
       // The right gutter holds the current-value labels. In party view they
       // carry the party's abbreviation ("KD 6,3 %"), because eight colours
       // converging at the right edge cannot be told apart by colour alone.
@@ -2663,7 +2759,7 @@
       // likely to hover -- the two sets would otherwise sit side by side and
       // read as one crowded column of unexplained numbers.
       var endpointLayer = svgNode("g", { "data-endpoint-labels": "true" });
-      definitions.forEach(function (definition) {
+      definitions.forEach(function (definition, seriesOrder) {
         var validPoints = visibleHistoryPoints.filter(function (point) {
           return point.groups && point.groups[definition.id] && point.groups[definition.id][selectedMetric];
         });
@@ -2687,6 +2783,7 @@
           class: "election-timeseries__series-group" + (definition.defaultOn ? " is-primary" : ""),
           "data-coalition": definition.id,
           "data-coalition-label": definition.label,
+          "data-series-order": String(seriesOrder),
           "data-color": definition.color,
           "data-curve-segments": String(curveSegments.length),
           "data-curve-breaks": String(segmentGaps),
@@ -2757,9 +2854,15 @@
           });
           if (pointCircle.addEventListener) {
             pointCircle.addEventListener("mouseenter", function (event) { chooseForecast(point, false, event); });
-            pointCircle.addEventListener("focus", function (event) { chooseForecast(point, false, event); });
+            pointCircle.addEventListener("focus", function (event) {
+              setSeriesFocus(definition.id);
+              chooseForecast(point, false, event);
+            });
             pointCircle.addEventListener("mouseleave", hideInspection);
-            pointCircle.addEventListener("blur", hideInspection);
+            pointCircle.addEventListener("blur", function () {
+              setSeriesFocus(null);
+              hideInspection();
+            });
             pointCircle.addEventListener("click", function (event) { chooseForecast(point, false, event); });
             pointCircle.addEventListener("keydown", function (event) {
               if (event && (event.key === "Enter" || event.key === " ")) {
@@ -2811,8 +2914,13 @@
           class: "election-timeseries__endpoint-label",
           "data-endpoint-label": "true",
           "data-coalition": label.definition.id, "data-value": label.value,
-          "data-label-value": label.text
+          "data-label-value": label.text,
+          // The series layer ignores the pointer; its labels are the one
+          // part of it a reader can point at to bring a series forward.
+          "pointer-events": "all"
         });
+        text.addEventListener("mouseenter", function () { setSeriesFocus(label.definition.id); });
+        text.addEventListener("mouseleave", function () { setSeriesFocus(null); });
         if (viewMode === "parties") {
           text.appendChild(svgNode("tspan", {
             class: "election-timeseries__endpoint-party", fill: label.definition.color
@@ -2831,11 +2939,16 @@
           class: "election-timeseries__polls", "aria-hidden": "true",
           "clip-path": "url(#election-timeseries-plot-clip)", "pointer-events": "none"
         });
-        definitions.forEach(function (definition) {
+        definitions.forEach(function (definition, seriesOrder) {
+          var pollGroup = svgNode("g", {
+            class: "election-timeseries__poll-group", "data-coalition": definition.id,
+            "data-series-order": String(seriesOrder)
+          });
+          scatterLayer.appendChild(pollGroup);
           visiblePollPoints.forEach(function (poll) {
             var pollValue = poll.values && historyNumber(poll.values[definition.id]);
             if (pollValue === null) return;
-            scatterLayer.appendChild(svgNode("circle", {
+            pollGroup.appendChild(svgNode("circle", {
               class: "election-timeseries__poll", cx: xScale(poll.time), cy: yScale(pollValue),
               r: compactChart ? 3.2 : 3.5, fill: definition.color,
               "data-poll-point": "true", "data-poll": "true",
@@ -2958,6 +3071,7 @@
             "data-value": readout.value, "data-label-value": readout.text
           }, readout.text));
         });
+        markSeriesFocus(selectionLayer);
         svg.setAttribute("data-selected-date", iso);
         svg.setAttribute("data-inspection-date", iso);
       };
@@ -2985,21 +3099,53 @@
         width: Math.max(0, hitRight - plot.left), height: plot.height, tabindex: "0", role: "button",
         "aria-label": "Välj datum i prognosdiagrammet"
       });
+      // The series whose median at the hovered date is nearest the pointer,
+      // if any is within reach. Nearest median rather than "inside a band":
+      // the bands of neighbouring parties overlap, the medians do not.
+      function seriesForEvent(event, point) {
+        var rect = svg.getBoundingClientRect ? svg.getBoundingClientRect() : null;
+        var clientY = event && event.clientY;
+        if (!Number.isFinite(clientY) && event && event.touches && event.touches.length) {
+          clientY = event.touches[0].clientY;
+        }
+        if (!point || !rect || !rect.height || !Number.isFinite(clientY)) return null;
+        var svgY = (clientY - rect.top) * height / rect.height;
+        var reach = compactChart ? 28 : 22;
+        var nearest = null;
+        definitions.forEach(function (definition) {
+          var values = historyDisplayQuantiles(point.groups && point.groups[definition.id], selectedMetric);
+          if (!values || values.p50 === null) return;
+          var distance = Math.abs(yScale(values.p50) - svgY);
+          if (distance <= reach && (!nearest || distance < nearest.distance)) {
+            nearest = { id: definition.id, distance: distance };
+          }
+        });
+        return nearest ? nearest.id : null;
+      }
       function chooseByEvent(event, persistent) {
         var time = dateForEvent(event);
         var point = nearestPoint(time === null ? maxTime : Math.min(maxTime, time));
+        setSeriesFocus(seriesForEvent(event, point));
         chooseForecast(point, persistent, event);
       }
       if (hit.addEventListener) {
         hit.addEventListener("mouseenter", function (event) { chooseByEvent(event, false); });
         hit.addEventListener("mousemove", function (event) { chooseByEvent(event, false); });
-        hit.addEventListener("mouseleave", hideInspection);
+        hit.addEventListener("mouseleave", function () {
+          setSeriesFocus(null);
+          hideInspection();
+        });
         hit.addEventListener("click", function (event) { chooseByEvent(event, false); });
         hit.addEventListener("touchstart", function (event) {
           chooseByEvent(event, true);
         }, { passive: false });
       }
       svg.appendChild(hit);
+      // A re-render (a toggle, a resize) keeps the focused series if it is
+      // still on screen.
+      var keptFocus = focusedSeries;
+      focusedSeries = null;
+      setSeriesFocus(keptFocus);
       keyboardSelect = function (event) {
         // Point circles own their Enter/Arrow interaction.  This handler is
         // for the SVG and the plot hit target, which are the keyboard entry
@@ -3065,6 +3211,10 @@
           button.setAttribute("aria-pressed", selected[definition.id] ? "true" : "false");
           renderChart();
         });
+        button.addEventListener("mouseenter", function () { setSeriesFocus(definition.id); });
+        button.addEventListener("mouseleave", function () { setSeriesFocus(null); });
+        button.addEventListener("focus", function () { setSeriesFocus(definition.id); });
+        button.addEventListener("blur", function () { setSeriesFocus(null); });
         coalitionHost.appendChild(button);
       });
     }
@@ -3118,6 +3268,10 @@
           setPartyButtons();
           renderChart();
         });
+        button.addEventListener("mouseenter", function () { setSeriesFocus(definition.id); });
+        button.addEventListener("mouseleave", function () { setSeriesFocus(null); });
+        button.addEventListener("focus", function () { setSeriesFocus(definition.id); });
+        button.addEventListener("blur", function () { setSeriesFocus(null); });
         partyButtons[definition.id] = button;
         partyHost.appendChild(button);
       });
@@ -3247,6 +3401,7 @@
     renderChart();
     var lastResponsiveWidth = width;
     var responsiveChart = function () {
+      fitChartFrame();
       var nextWidth = chartFrame && chartFrame.clientWidth;
       var nextCompact = Boolean(window.matchMedia && window.matchMedia("(max-width: 46em)").matches);
       if (nextWidth > 0 && (Math.abs(nextWidth - lastResponsiveWidth) > 1 || nextCompact !== compactChart)) {

@@ -691,6 +691,59 @@ canvas {
   fill-opacity: 1;
 }
 
+/* One series brought forward (hover over its line, its pill or its label);
+   everything belonging to the others steps back. The dimmed groups keep a
+   trace of their shape so the focused series is still read against them. */
+.election-timeseries__series-group,
+.election-timeseries__poll-group,
+.election-timeseries__result,
+[data-endpoint-label],
+[data-endpoint-leader],
+[data-crosshair-label],
+[data-inspection-marker] {
+  transition: opacity 120ms ease-out;
+}
+
+.election-timeseries__series-group.is-dimmed {
+  opacity: 0.16;
+}
+
+.election-timeseries__poll-group.is-dimmed {
+  opacity: 0.12;
+}
+
+.election-timeseries__result.is-dimmed,
+.election-timeseries__endpoint-leader.is-dimmed,
+.election-timeseries__endpoint-label.is-dimmed,
+.election-timeseries__crosshair-label.is-dimmed,
+.election-timeseries__inspection-point.is-dimmed {
+  opacity: 0.3;
+}
+
+.election-timeseries__series-group.is-focused .election-timeseries__median {
+  stroke-width: 3.4;
+}
+
+.election-timeseries__poll-group.is-focused .election-timeseries__poll {
+  opacity: 0.5;
+}
+
+.election-timeseries__endpoint-label {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .election-timeseries__series-group,
+  .election-timeseries__poll-group,
+  .election-timeseries__result,
+  [data-endpoint-label],
+  [data-endpoint-leader],
+  [data-crosshair-label],
+  [data-inspection-marker] {
+    transition: none;
+  }
+}
+
 .election-timeseries__endpoint-leader {
   fill: none;
   stroke-linecap: round;
