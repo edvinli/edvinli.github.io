@@ -32,7 +32,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
        list on the next build. -->
   <script type="application/json" id="election-publication-generations">{% assign election_version_root = '/files/election-simulator/versions/' %}{% assign election_generations = '' %}{% for election_file in site.static_files %}{% if election_file.name == 'manifest.json' and election_file.path contains election_version_root %}{% assign election_tail = election_file.path | split: election_version_root | last %}{% assign election_generation = election_tail | split: '/' | first %}{% if election_generations == '' %}{% assign election_generations = election_generation %}{% else %}{% assign election_generations = election_generations | append: ',' | append: election_generation %}{% endif %}{% endif %}{% endfor %}{{ election_generations | split: ',' | sort | jsonify }}</script>
   <header class="election-hero" id="election-hero">
-    <p class="election-hero__kicker" id="election-hero-kicker">Sverige · Riksdagen · valprognos 2026</p>
+    <p class="election-hero__kicker" id="election-hero-kicker">Sverige · Riksdagen · valprognos</p>
     <dl class="election-hero__facts">
       <div class="election-hero__fact">
         <dt>Senaste opinionsunderlag</dt>
