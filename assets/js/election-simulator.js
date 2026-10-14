@@ -3160,6 +3160,15 @@
         hit.addEventListener("touchstart", function (event) {
           chooseByEvent(event, true);
         }, { passive: false });
+        // Holding and dragging scrubs the readout through time. The series
+        // picked where the finger came down stays focused for the whole
+        // drag, so sliding along a party's line reads that party's values
+        // rather than whichever line the finger happens to drift near.
+        hit.addEventListener("touchmove", function (event) {
+          var time = dateForEvent(event);
+          if (time === null) return;
+          chooseForecast(nearestPoint(Math.min(maxTime, time)), true, event);
+        }, { passive: false });
       }
       svg.appendChild(hit);
       // A re-render (a toggle, a resize) keeps the focused series if it is
