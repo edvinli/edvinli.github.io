@@ -1709,6 +1709,28 @@
     }).filter(function (d) { return Boolean(d); }).join(" ");
   }
 
+  // Spread a column of labels (each { y }) at least `gap` apart inside
+  // [top, bottom], moving them as little as possible. A push down from the
+  // top and a push up from the bottom keep a crowded cluster local: shifting
+  // every label up because the lowest ran out of room would pull uncrowded
+  // labels away from their own lines.
+  function historyDodgeLabels(labels, gap, top, bottom) {
+    labels.sort(function (left, right) { return left.y - right.y; });
+    var index;
+    for (index = 0; index < labels.length; index += 1) {
+      labels[index].y = Math.max(labels[index].y, top, index > 0 ? labels[index - 1].y + gap : top);
+    }
+    for (index = labels.length - 1; index >= 0; index -= 1) {
+      labels[index].y = Math.min(labels[index].y, index < labels.length - 1 ? labels[index + 1].y - gap : bottom);
+    }
+    // Re-space after the bottom pass. Only a column taller than the plot
+    // ends up past the bottom, which beats labels printed on top of each other.
+    for (index = 0; index < labels.length; index += 1) {
+      labels[index].y = Math.max(labels[index].y, index > 0 ? labels[index - 1].y + gap : top);
+    }
+    return labels;
+  }
+
   function historyAxisTicks(minTime, maxTime) {
     var ticks = [];
     var firstYear = new Date(minTime).getUTCFullYear();
@@ -1832,6 +1854,16 @@
     var domain = historySnapToTicks(
       Math.max(0, lower - padding), Math.min(100, upper + padding), minimumSpan
     );
+    // The top need not be a gridline. Rounding it up to the next round tick
+    // on a five-point ladder left up to a whole empty tick band above the
+    // highest ribbon -- space the crowded small parties at the bottom need
+    // more. The gridlines stay on the ladder; only the frame is trimmed, to a
+    // small proportional pad above what is drawn.
+    var topUnit = domain.step >= 1 ? 0.5 : domain.step / 2;
+    var trimmedTop = Math.ceil((upper + Math.max(padding / 4, dataSpan * 0.02)) / topUnit) * topUnit;
+    if (trimmedTop < domain.max && trimmedTop - domain.min >= minimumSpan) {
+      domain.max = Number(Math.min(100, trimmedTop).toFixed(4));
+    }
     domain.thresholdVisible = false;
     if (metric === "vote" && Number.isFinite(thresholdPct)) {
       // Strictly inside, by half a tick. A line drawn on the frame coincides
@@ -2402,9 +2434,14 @@
       var measuredWidth = chartFrame && chartFrame.clientWidth;
       if (measuredWidth > 0) width = Math.max(320, Math.round(measuredWidth));
       height = compactChart ? 520 : 560;
+      // The right gutter holds the current-value labels. In party view they
+      // carry the party's abbreviation ("KD 6,3 %"), because eight colours
+      // converging at the right edge cannot be told apart by colour alone.
+      var labelGutter = viewMode === "parties"
+        ? (compactChart ? 110 : 98) : (compactChart ? 82 : 80);
       plot = compactChart
-        ? { left: 46, right: width - 82, top: 38, bottom: height - 66 }
-        : { left: 72, right: width - 80, top: 40, bottom: height - 70 };
+        ? { left: 46, right: width - labelGutter, top: 16, bottom: height - 38 }
+        : { left: 72, right: width - labelGutter, top: 16, bottom: height - 34 };
       plot.width = plot.right - plot.left;
       plot.height = plot.bottom - plot.top;
       // Keep an inspected date stable while the metric or visible coalitions
@@ -2528,6 +2565,7 @@
         x1: plot.left, y1: plot.bottom, x2: plot.right, y2: plot.bottom,
         class: "election-timeseries__axis-line"
       }));
+      var thresholdLabel = null;
       if (viewMode === "parties" && selectedMetric === "vote" && yDomain.thresholdVisible) {
         // Drawn only when it already falls inside what the data put on screen.
         // The scale is never stretched to reach it: for a party at 30 % the
@@ -2539,10 +2577,15 @@
           class: "election-timeseries__threshold", "data-national-threshold": String(thresholdPct),
           "data-threshold-line": "true"
         }));
-        background.appendChild(svgNode("text", {
-          x: plot.right - 4, y: thresholdY - 6, "text-anchor": "end",
-          class: "election-timeseries__threshold-label", "data-threshold-label": "true"
-        }, history.partyView ? history.partyView.thresholdLabel : "4\u00a0%-sp\u00e4rr"));
+        // The line runs under the series, but its label is drawn above them
+        // with a knockout halo: the small parties live right at 4 %, so any
+        // spot along the line is crossed by somebody's ribbon. The left end
+        // keeps it clear of the current-value dots at the right edge.
+        thresholdLabel = svgNode("text", {
+          x: plot.left + 6, y: thresholdY - 6, "text-anchor": "start",
+          class: "election-timeseries__threshold-label", "data-threshold-label": "true",
+          "aria-hidden": "true"
+        }, history.partyView ? history.partyView.thresholdLabel : "4\u00a0%-sp\u00e4rr");
       }
       // The 175-seat rule is a question about a government, not about a party:
       // no single party is going to hold a majority, and drawing the line
@@ -2563,28 +2606,51 @@
         }, "175 mandat"));
       }
       var dateTicks = historyAxisTicks(minTime, maxTime);
-      // On the four-year scale the first year label sits a few pixels from the
-      // second at 360px.  A dated short window has exactly two labels, one at
-      // each end, and both are load-bearing.
-      if (compactChart && dateTicks.length > 1 && !dateTicks[0].dated &&
-          dateTicks[1].time - dateTicks[0].time < 180 * 86400000) {
-        dateTicks.shift();
+      // A label pinned to an end of the axis is aligned inwards so it stays
+      // inside the plot; every other label is centred on its own tick.
+      var tickAnchor = function (tick) {
+        return tick.time === minTime ? "start" : (tick.time === maxTime ? "end" : "middle");
+      };
+      // The first year label is pinned to the window's start, so when that
+      // start falls late in a year ("2022" for an axis from the September
+      // election) it runs into the next year's label. Measured in pixels,
+      // since how close is too close depends on the chart's width. A dated
+      // short window has exactly two labels, one at each end, and both are
+      // load-bearing. On a narrow phone later years can collide with each
+      // other too, so past that a label that would overlap the one before it
+      // is left off; its tick stays.
+      if (dateTicks.length > 1 && !dateTicks[0].dated) {
+        var tickCharWidth = (compactChart ? 16 : 12) * 0.62;
+        var tickExtent = function (tick, anchor) {
+          anchor = anchor || tickAnchor(tick);
+          var x = xScale(tick.time);
+          var labelWidth = tick.label.length * tickCharWidth;
+          if (anchor === "start") return [x, x + labelWidth];
+          if (anchor === "end") return [x - labelWidth, x];
+          return [x - labelWidth / 2, x + labelWidth / 2];
+        };
+        if (tickExtent(dateTicks[1])[0] - tickExtent(dateTicks[0])[1] < 12) {
+          dateTicks.shift();
+        }
+        var lastRight = -Infinity;
+        dateTicks.forEach(function (tick) {
+          var extent = tickExtent(tick);
+          tick.labelHidden = extent[0] - lastRight < 12;
+          if (!tick.labelHidden) lastRight = extent[1];
+        });
       }
-      dateTicks.forEach(function (tick, tickIndex) {
+      dateTicks.forEach(function (tick) {
         var x = xScale(tick.time);
         background.appendChild(svgNode("line", {
           x1: x, y1: plot.bottom, x2: x, y2: plot.bottom + 6,
           class: "election-timeseries__axis-line"
         }));
+        if (tick.labelHidden) return;
         background.appendChild(svgNode("text", {
-          x: x, y: plot.bottom + 24, "text-anchor": tickIndex === 0 ? "start" :
-            (tickIndex === dateTicks.length - 1 ? "end" : "middle"),
+          x: x, y: plot.bottom + 24, "text-anchor": tickAnchor(tick),
           class: "election-timeseries__axis-label", "data-date": tick.iso
         }, tick.label));
       });
-      background.appendChild(svgNode("text", {
-        x: plot.left, y: height - 8, "text-anchor": "start", class: "election-timeseries__axis-label"
-      }, historyMetricLabel(selectedMetric)));
       svg.appendChild(background);
 
       var seriesLayer = svgNode("g", {
@@ -2713,8 +2779,8 @@
               definition: definition,
               value: pointValues.p50,
               text: selectedMetric === "seats" ? seatMedianText(point.groups[definition.id]) : percent(pointValues.p50, 1),
-              x: xScale(point.time) + 9,
-              anchor: "start",
+              dotX: xScale(point.time),
+              dotY: yScale(pointValues.p50),
               y: yScale(pointValues.p50)
             });
           }
@@ -2723,29 +2789,40 @@
       });
 
       // Endpoint values are deliberately the only numeric labels on the
-      // series.  Sort and nudge them apart so the latest coalition values stay
-      // legible even when several alternatives converge.
-      endpointLabels.sort(function (left, right) { return left.y - right.y; });
+      // series.  They are nudged apart so the latest values stay legible when
+      // several series converge, and a label that had to move is tied back to
+      // its own dot by a leader in the series colour -- otherwise a column of
+      // five numbers beside five touching dots cannot be matched up.
       var endpointGap = compactChart ? 20 : 16;
-      endpointLabels.forEach(function (label, index) {
-        if (index > 0) label.y = Math.max(label.y, endpointLabels[index - 1].y + endpointGap);
-      });
-      if (endpointLabels.length) {
-        var endpointOverflow = endpointLabels[endpointLabels.length - 1].y - (plot.bottom - 3);
-        if (endpointOverflow > 0) {
-          endpointLabels.forEach(function (label) { label.y -= endpointOverflow; });
+      historyDodgeLabels(endpointLabels, endpointGap, plot.top + 8, plot.bottom - 3);
+      endpointLabels.forEach(function (label) {
+        var labelX = label.dotX + 17;
+        if (Math.abs(label.y - label.dotY) > 2) {
+          endpointLayer.appendChild(svgNode("path", {
+            class: "election-timeseries__endpoint-leader",
+            d: "M" + (label.dotX + 7).toFixed(2) + "," + label.dotY.toFixed(2) +
+              "L" + (labelX - 3).toFixed(2) + "," + label.y.toFixed(2),
+            stroke: label.definition.color, "data-endpoint-leader": "true",
+            "data-coalition": label.definition.id, "aria-hidden": "true"
+          }));
         }
-        endpointLabels.forEach(function (label) {
-          label.y = Math.max(plot.top + 8, Math.min(plot.bottom - 3, label.y));
-          endpointLayer.appendChild(svgNode("text", {
-            x: label.x, y: label.y + 4, "text-anchor": label.anchor || "start",
-            class: "election-timeseries__endpoint-label",
-            fill: label.definition.color, "data-endpoint-label": "true",
-            "data-coalition": label.definition.id, "data-value": label.value,
-            "data-label-value": label.text
-          }, label.text));
+        var text = svgNode("text", {
+          x: labelX, y: label.y + 4, "text-anchor": "start",
+          class: "election-timeseries__endpoint-label",
+          "data-endpoint-label": "true",
+          "data-coalition": label.definition.id, "data-value": label.value,
+          "data-label-value": label.text
         });
-      }
+        if (viewMode === "parties") {
+          text.appendChild(svgNode("tspan", {
+            class: "election-timeseries__endpoint-party", fill: label.definition.color
+          }, label.definition.shortLabel || label.definition.label));
+          text.appendChild(svgNode("tspan", {}, "\u00a0" + label.text));
+        } else {
+          text.textContent = label.text;
+        }
+        endpointLayer.appendChild(text);
+      });
       seriesLayer.appendChild(endpointLayer);
       svg.appendChild(seriesLayer);
 
@@ -2769,6 +2846,8 @@
         });
         svg.appendChild(scatterLayer);
       }
+
+      if (thresholdLabel) svg.appendChild(thresholdLabel);
 
       var resultKey = byId("election-timeseries-key-result");
       if (resultKey) resultKey.hidden = !resultMarks.length;
@@ -2868,17 +2947,8 @@
         // Eight parties can converge to within a pixel of each other. Sort and
         // nudge apart, the same rule the endpoint labels use, so a crowded
         // date still reads as eight separate numbers.
-        readouts.sort(function (left, right) { return left.y - right.y; });
-        var readoutGap = compactChart ? 19 : 15;
-        readouts.forEach(function (readout, index) {
-          if (index > 0) readout.y = Math.max(readout.y, readouts[index - 1].y + readoutGap);
-        });
-        if (readouts.length) {
-          var overflow = readouts[readouts.length - 1].y - (plot.bottom - 3);
-          if (overflow > 0) readouts.forEach(function (readout) { readout.y -= overflow; });
-        }
+        historyDodgeLabels(readouts, compactChart ? 19 : 15, plot.top + 8, plot.bottom - 3);
         readouts.forEach(function (readout) {
-          readout.y = Math.max(plot.top + 8, Math.min(plot.bottom - 3, readout.y));
           selectionLayer.appendChild(svgNode("text", {
             x: flip ? x - labelGap : x + labelGap, y: readout.y + 4,
             "text-anchor": flip ? "end" : "start",

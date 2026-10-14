@@ -543,9 +543,16 @@ canvas {
   stroke-width: 1;
 }
 
+// Drawn above the series, so the panel-coloured halo keeps it legible where
+// the small parties' ribbons run through the line.
 .election-timeseries__threshold-label {
   fill: var(--el-ink-soft) !important;
   font-size: 12px !important;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: var(--el-panel);
+  stroke-linejoin: round;
+  stroke-width: 3px;
 }
 
 // The direct route from a party row into its own time series.
@@ -581,7 +588,7 @@ canvas {
 .election-timeseries__frame {
   background: transparent;
   border: 0;
-  margin-top: 1.2rem;
+  margin-top: 0.75rem;
   max-width: 100%;
   overflow: visible;
   position: relative;
@@ -670,6 +677,24 @@ canvas {
 .election-timeseries__current {
   stroke: var(--el-panel);
   stroke-width: 2.2;
+}
+
+/* Over months a dot per day merges into a beaded rope that is hard to tell
+   from the poll dots beside it, so the long ranges draw the forecast as a
+   plain line. The points stay in place, invisible, as hover and keyboard
+   targets; the 30-day window keeps them, where each day is its own forecast. */
+.election-timeseries__svg:not([data-range="short"]) .election-timeseries__forecast-point:not(.election-timeseries__current) {
+  fill-opacity: 0;
+}
+
+.election-timeseries__svg .election-timeseries__forecast-point:focus-visible {
+  fill-opacity: 1;
+}
+
+.election-timeseries__endpoint-leader {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 1.2;
 }
 
 .election-timeseries__poll {
