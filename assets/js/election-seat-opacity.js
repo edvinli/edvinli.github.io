@@ -21,7 +21,7 @@
   function placeElectionSections() {
     var ids = [
       "election-timeseries", "election-headline", "election-seats",
-      "election-result", "election-blocs", "election-alternatives",
+      "election-blocs", "election-alternatives",
       "election-government-builder", "election-threshold"
     ];
     var disclosure = document.getElementById("election-how-it-works");

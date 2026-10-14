@@ -253,7 +253,7 @@ const readPanel = (browser) => browser.evaluate(() => {
     statsColumns: statsEl ? getComputedStyle(statsEl).gridTemplateColumns : null,
 
     // The section order the page is meant to read in.
-    sectionOrder: Array.from(document.querySelectorAll('.election-app > section'))
+    sectionOrder: Array.from(document.querySelectorAll('#election-simulator-app > section'))
       .filter((el) => el.id).map((el) => el.id),
     // The removed Majoritetsscenarier feature must leave nothing behind.
     legacyGroups: ['election-groups', 'election-group-pills', 'election-group-result',
@@ -387,12 +387,12 @@ async function testSchema12(viewport, pointer, expected) {
 
     // Vägen till valdagen -> Röstandelar på valdagen -> Mandat på valdagen,
     // followed by the other forecast panels and disclosures. The final-result
-    // comparison is last, after methodology and technical details.
+    // comparison is last, after methodology and technical details. The result
+    // itself is in the other part of the page.
     eq('page section order', panel.sectionOrder, [
       'election-timeseries',
       'election-headline',
       'election-seats',
-      'election-result',
       'election-blocs',
       'election-alternatives',
       'election-government-builder',

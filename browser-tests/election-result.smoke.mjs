@@ -108,6 +108,7 @@ function readPage(browser) {
     };
     return {
       resultHidden: hidden('election-result'),
+      resultInOutcome: Boolean(document.querySelector('#election-outcome #election-outcome-result > #election-result')),
       deltaHidden: hidden('election-result-delta'),
       dividerHidden: hidden('election-forecast-divider'),
       freshnessHidden: hidden('election-hero-poll-freshness'),
@@ -127,7 +128,7 @@ function readPage(browser) {
         }, []),
       legend: Array.from(document.querySelectorAll('#election-result-legend .ep-legend__item'))
         .map((node) => [node.dataset.party, node.querySelector('.ep-legend__seats')?.textContent.trim()]),
-      order: Array.from(document.querySelectorAll('.election-app > section')).map((node) => node.id),
+      order: Array.from(document.querySelectorAll('#election-simulator-app > section')).map((node) => node.id),
       nav: Array.from(document.querySelectorAll('#election-hero .election-hero__links a'))
         .map((node) => node.getAttribute('href')),
       simulatedChamber: Boolean(document.getElementById('election-parliament')) ||
@@ -256,6 +257,9 @@ function expectedChartValue(members, metric, kind) {
 // order, parties in seating order. Hover and the keyboard both show it.
 
 async function checkMembers(browser) {
+  // The chamber is in the other part of the page; a reader opens it first.
+  await browser.evaluate(() => document.getElementById('election-tab-result').click());
+  await settle(150);
   const bound = await browser.waitFor(() =>
     document.getElementById('election-result-parliament')?.getAttribute('data-members') === 'true', 10000);
   check('the chamber knows its members', bound);
@@ -457,6 +461,8 @@ async function checkMembers(browser) {
   check('End reaches the last place', hall.last.startsWith(at(lastPlace) + ',') &&
     (lastPlace === PM_SEAT ? /Statsministerns plats i regeringsbänken\./ : /Plats 349 i kammaren/).test(hall.last), hall.last);
   check('Partivis restores the party blocks', hall.restored);
+  await browser.evaluate(() => document.getElementById('election-tab-forecast').click());
+  await settle(150);
 }
 
 // --- 1. decided: the election-day publication against its result ---------
@@ -468,12 +474,14 @@ async function decided(viewport, name) {
   try {
     const page = await readPage(browser);
     check('the result section is shown', !page.resultHidden);
-    equal('the chart leads, then the result, then the comparison, then the forecast',
+    equal('the forecast panels follow the chart; the result is not among them',
       page.order.slice(0, 4),
-      ['election-timeseries', 'election-headline', 'election-seats', 'election-result']);
+      ['election-timeseries', 'election-headline', 'election-seats', 'election-blocs']);
+    check('the result lives in its own part of the page, under Valet 2026', page.resultInOutcome);
     equal('the result comparison is last after the disclosures', page.order.at(-1), 'election-result-delta');
     check('the simulated parliament is gone from the page', !page.simulatedChamber);
-    equal('the kicker names the result', page.kicker, `Sverige · Riksdagen · valresultat ${result.election_date.slice(0, 4)}`);
+    equal('the kicker names the last forecast', page.kicker,
+      `Sverige · Riksdagen · sista prognosen före valet ${result.election_date.slice(0, 4)}`);
     equal('the countdown cell names the next election', [page.countdownLabel, page.countdown],
       ['Nästa val', swedishDay(result.next_election_date)]);
     check('the lede says the election is decided',
@@ -495,10 +503,9 @@ async function decided(viewport, name) {
     equal('the vote-share bars are ranked by vote share', page.bars.map((bar) => bar.party), ranked);
     equal('each bar prints its certified share', page.bars.map((bar) => bar.value),
       ranked.map((party) => `${result.parties[party].vote_share_pct.toFixed(1).replace('.', ',')}\u00a0%`));
-    equal('no opinion change is shown while the forecast is still the 2026 one',
-      [page.opinionChange, page.bars.every((bar) => bar.change === null)], ['false', true]);
-    check('the key says when the change will appear',
-      page.barsKey.includes('valet 2030'), page.barsKey);
+    check('the result bars carry no forecast',
+      page.bars.every((bar) => bar.change === null && bar.forecastMedian === null), page.bars);
+    check('the key names the threshold line', page.barsKey.includes('spärren'), page.barsKey);
     check('bar lengths are proportional to the shares',
       page.bars.every((bar) => near(bar.width / page.bars[0].width,
         result.parties[bar.party].vote_share_pct / result.parties[ranked[0]].vote_share_pct, 1e-3)),
@@ -525,9 +532,9 @@ async function decided(viewport, name) {
       page.summary.includes(`90-procentiga intervall för ${inside} av ${PARTIES.length} partier`), page.summary);
     check('every row is spoken with its result and direction',
       page.rows.every((row) => /valresultat \d+,\d procent/.test(row.label) && /(högre|lägre|i nivå)/.test(row.label)));
-    equal('the hero navigation follows the page',
+    equal('the hero navigation follows the forecast, without the result',
       page.nav.slice(0, 5),
-      ['#election-timeseries', '#election-latest-poll', '#election-headline', '#election-seats', '#election-result']);
+      ['#election-timeseries', '#election-latest-poll', '#election-headline', '#election-seats', '#election-blocs']);
     equal('the comparison navigation link is last', page.nav.at(-1), '#election-result-delta');
     await checkMembers(browser);
     check('no horizontal scroll', page.overflow <= 0, page.overflow);
@@ -632,16 +639,15 @@ async function nextElection(viewport, name) {
     try {
       const page = await readPage(browser);
       equal('the fixture forecasts the next election', next.election_date, result.next_election_date);
-      equal('the kicker names both', page.kicker,
-        `Sverige · Riksdagen · valresultat ${result.election_date.slice(0, 4)} · valprognos ${result.next_election_date.slice(0, 4)}`);
-      equal('the bars carry the opinion change', [page.opinionChange, page.barsTitle],
-        ['true', 'Röstandel och opinionsförändring']);
+      equal('the kicker names the forecast', page.kicker,
+        `Sverige · Riksdagen · valprognos ${result.next_election_date.slice(0, 4)}`);
+      equal('the result bars are only the result', page.barsTitle, 'Röstandel');
       check('party summaries immediately follow the timeline',
         page.order.slice(0, 3).join('|') === 'election-timeseries|election-headline|election-seats', page.order);
       equal('the result comparison follows technical disclosures and ends the page',
         page.order.at(-1), 'election-result-delta');
       check('the comparison link is last in the hero navigation',
-        page.nav.at(-1) === '#election-result-delta' && page.nav.indexOf('#election-result') < page.nav.indexOf('#election-blocs'), page.nav);
+        page.nav.at(-1) === '#election-result-delta' && !page.nav.includes('#election-result'), page.nav);
       check('vote and seat captions name the certified 2026 result baseline',
         page.voteChangeCaption.includes('jämfört med valresultatet 2026') &&
         page.seatChangeCaption.includes('jämfört med valresultatet 2026'),
@@ -678,13 +684,10 @@ async function nextElection(viewport, name) {
         !page.thresholdLabels.some((label) => /Chans att nå/.test(label)),
         { header: page.thresholdHeader, rows: page.thresholdLabels });
       check('collapsed party rows exclude Övriga', page.thresholdLabels.includes('Övriga'), page.thresholdLabels);
-      check('each change is today\'s published median minus the certified result',
-        page.bars.length === PARTIES.length && page.bars.every((bar) =>
-          near(bar.forecastMedian, next.parties[bar.party].vote_share_median) &&
-          near(bar.change, next.parties[bar.party].vote_share_median - result.parties[bar.party].vote_share_pct)),
+      check('the result bars carry no forecast, even with one for the next election on screen',
+        page.bars.length === PARTIES.length &&
+          page.bars.every((bar) => bar.change === null && bar.forecastMedian === null && bar.printedChange === null),
         page.bars);
-      check('each change is printed with its direction',
-        page.bars.every((bar) => /^[▲▼•]\s?\d+,\d$/.test(bar.printedChange)), page.bars.map((bar) => bar.printedChange));
       check('the bars still show the result', page.bars.every((bar) =>
         bar.value === `${result.parties[bar.party].vote_share_pct.toFixed(1).replace('.', ',')}\u00a0%`));
 

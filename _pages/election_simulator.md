@@ -7,15 +7,15 @@ classes: wide
 excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med prognosintervall, mandatfördelning och utvärdering."
 ---
 
-<!-- Two views on one page: the forecast app and the 2022 → 2026 voter flows.
-     The flows view sits beside the forecast container rather than inside it,
-     so the forecast's own section order and DOM stay exactly as they were.
-     Both carry .election-app for the shared tokens; neither has a <section>
-     child the other could pick up. -->
-<div class="election-app election-tabs" role="tablist" aria-label="Vy" id="election-tabs">
-  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-forecast" aria-controls="election-simulator-app" aria-selected="true" data-tab-hash="">Prognos</button>
-  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-flows" aria-controls="election-flows" aria-selected="false" tabindex="-1" data-tab-hash="valjarfloden">Väljarflöden 2022–2026</button>
-  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-demographics" aria-controls="election-demographics" aria-selected="false" tabindex="-1" data-tab-hash="demografi">Demografisk analys</button>
+<!-- Two parts, kept apart on purpose: the forecast -- what the next election
+     could bring -- and the 2026 election -- what happened. The 2026 part has
+     its own views: the result, the voter flows and the demographic analysis.
+     Each view sits beside the forecast container rather than inside it, so
+     the forecast's own section order and DOM stay as they were. Every view
+     carries .election-app for the shared tokens. -->
+<div class="election-app election-modes" role="tablist" aria-label="Del av sidan" id="election-tabs">
+  <button type="button" role="tab" class="election-modes__tab" id="election-tab-forecast" aria-controls="election-simulator-app" aria-selected="true" data-tab-hash=""><span class="election-modes__name">Prognos 2030</span><span class="election-modes__hint">Hur nästa val kan sluta</span></button>
+  <button type="button" role="tab" class="election-modes__tab" id="election-tab-outcome" aria-controls="election-outcome" aria-selected="false" tabindex="-1" data-tab-hash="valet-2026"><span class="election-modes__name">Valet 2026</span><span class="election-modes__hint">Så röstade Sverige</span></button>
 </div>
 
 <div id="election-simulator-app" class="election-app" role="tabpanel" aria-labelledby="election-tab-forecast" data-publication-base="{{ site.baseurl }}/files/election-simulator">
@@ -99,72 +99,6 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <p class="election-timeseries__note election-muted" id="election-timeseries-party-note" hidden>Ett partis röstandel är dess andel av hela valmanskåren, med övriga partier i nämnaren. Det är samma definition som valdagsprognosen och som 4&#160;%-spärren.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-dynamics-note">Före 24 maj 2026 använder modellen sin maximalt empiriskt understödda rörelsedel på 112 dagar, inte en modellering av hela den återstående tiden till valet.</p>
     <p class="election-timeseries__note election-muted" id="election-timeseries-source-attribution">Opinionsunderlag: vår egen sammanvägning av mätningar från <a href="https://github.com/MansMeg/SwedishPolls" target="_blank" rel="noopener noreferrer">SwedishPolls</a>. Prognos och intervall: vår modell.</p>
-  </section>
-  <!-- The certified result of the last election, between the chart that
-       ends on its election day and the panel that sets the forecast against
-       it. Rendered only once the publication on screen postdates that
-       election; hidden otherwise, so a pinned pre-election generation reads
-       exactly as it did. -->
-  <section id="election-result" class="election-panel election-result" hidden aria-labelledby="election-result-title">
-    <div class="election-panel__head">
-      <h2 id="election-result-title">Valresultatet 2026</h2>
-      <p class="election-muted" id="election-result-meta"></p>
-    </div>
-    <h3 class="election-subhead" id="election-result-bars-title">Röstandel</h3>
-    <ol id="election-result-bars" class="erb-rows" aria-label="Röstandel per parti"></ol>
-    <p class="election-legend-note erb-legend" id="election-result-bars-key"></p>
-    <h3 class="election-subhead">Mandat</h3>
-    <p class="election-result__blocs" id="election-result-blocs"></p>
-    <!-- Offered once the members file and the seating plan both validate. -->
-    <div class="ep-view" id="election-result-view" role="group" aria-label="Hur riksdagen ritas" hidden>
-      <button type="button" class="election-timeseries__control" data-view="party" aria-pressed="true" aria-controls="election-result-parliament">Partivis</button>
-      <button type="button" class="election-timeseries__control" data-view="seating" aria-pressed="false" aria-controls="election-result-parliament">Som i kammaren</button>
-    </div>
-    <div class="election-parliament-frame">
-      <div id="election-result-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
-      <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
-    </div>
-    <ul id="election-result-legend" class="ep-legend"></ul>
-    <p class="election-muted ep-seating-note" id="election-result-seating-note" hidden>Så sitter ledamöterna i plenisalen under riksmötet 2026/27: valkretsvis, och inom varje valkrets efter tid i riksdagen. Talmannen sitter i talmansstolen överst och de tre vice talmännen på podiet bredvid; statsministern har plats 350 i regeringsbänken. En ring är en ersättare som sitter i stället för en ledamot som är ledig: talmannen, statsråden eller den som har längre ledighet, till exempel föräldraledighet. Övriga statsråd sitter i regeringsbänken när de deltar och visas inte här. Källa: Sveriges riksdag, Placering i kammaren och ledamotslistan.</p>
-    <!-- Shown once results/2026-members.json has matched the chamber seat for
-         seat; until then the chamber is the plain allocation. The filters
-         fade the seats that do not match; every seat keeps its card. -->
-    <div class="ep-filters" id="election-result-filters" role="group" aria-label="Filtrera ledamöterna i riksdagen" hidden>
-      <label class="ep-filter">
-        <span class="ep-filter__label">Parti</span>
-        <select class="ep-filter__select" id="election-filter-party"><option value="">Alla</option></select>
-      </label>
-      <label class="ep-filter">
-        <span class="ep-filter__label">Valkrets</span>
-        <select class="ep-filter__select" id="election-filter-constituency"><option value="">Alla</option></select>
-      </label>
-      <label class="ep-filter">
-        <span class="ep-filter__label">Ålder</span>
-        <select class="ep-filter__select" id="election-filter-age">
-          <option value="">Alla</option>
-          <option value="20">20–29</option>
-          <option value="30">30–39</option>
-          <option value="40">40–49</option>
-          <option value="50">50–59</option>
-          <option value="60">60–69</option>
-          <option value="70">70–79</option>
-        </select>
-      </label>
-      <div class="ep-filter" id="election-filter-new">
-        <span class="ep-filter__label" id="election-filter-new-label">Nyinvald</span>
-        <div class="ep-filter__segments" role="group" aria-labelledby="election-filter-new-label">
-          <button type="button" class="election-timeseries__control" data-new="" aria-pressed="true">Alla</button>
-          <button type="button" class="election-timeseries__control" data-new="true" aria-pressed="false">Ja</button>
-          <button type="button" class="election-timeseries__control" data-new="false" aria-pressed="false">Nej</button>
-        </div>
-      </div>
-      <div class="ep-filters__summary">
-        <p class="ep-filters__count" id="election-filter-count" role="status" aria-live="polite" aria-atomic="true"></p>
-        <button type="button" class="ep-filters__reset" id="election-filter-reset" hidden>Rensa filter</button>
-      </div>
-    </div>
-    <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Nyinvald betyder att ledamoten inte har suttit i riksdagen tidigare, varken som ledamot eller ersättare. En ledamot som har lämnat riksdagen visas med sin efterträdare; i vyn Som i kammaren visas också ersättarna för dem som är lediga. Källor: Sveriges riksdag och Valmyndigheten.</p>
-    <p id="election-result-member-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
   </section>
   <!-- The current forecast against the last certified result, party by
        party. Every number is read from forecast.json and results/<year>.json;
@@ -421,6 +355,86 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   </section>
 </div>
 
+<!-- The 2026 election: what happened. -->
+<div id="election-outcome" class="election-outcome" role="tabpanel" aria-labelledby="election-tab-outcome" hidden>
+<div class="election-app election-tabs" role="tablist" aria-label="Valet 2026" id="election-outcome-tabs">
+  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-result" aria-controls="election-outcome-result" aria-selected="true" data-tab-hash="valet-2026">Resultat</button>
+  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-flows" aria-controls="election-flows" aria-selected="false" tabindex="-1" data-tab-hash="valjarfloden">Väljarflöden</button>
+  <button type="button" role="tab" class="election-tabs__tab" id="election-tab-demographics" aria-controls="election-demographics" aria-selected="false" tabindex="-1" data-tab-hash="demografi">Demografi</button>
+</div>
+
+<div id="election-outcome-result" class="election-app" role="tabpanel" aria-labelledby="election-tab-result">
+  <header class="election-hero">
+    <p class="election-hero__kicker">Sverige · Riksdagen · riksdagsvalet 2026</p>
+    <h2 class="evf-title">Så blev valet den 13 september 2026</h2>
+    <p class="election-hero__lede">Det slutliga valresultatet och riksdagen som valdes: röstandelar, mandat och vilka ledamöter som sitter var.</p>
+  </header>
+    <!-- The certified result of the last election. Rendered by the forecast
+         app once the publication on screen postdates that election; hidden
+         otherwise, so a pinned pre-election generation reads exactly as it did. -->
+    <section id="election-result" class="election-panel election-result" hidden aria-labelledby="election-result-title">
+      <div class="election-panel__head">
+        <h2 id="election-result-title">Valresultatet 2026</h2>
+        <p class="election-muted" id="election-result-meta"></p>
+      </div>
+      <h3 class="election-subhead" id="election-result-bars-title">Röstandel</h3>
+      <ol id="election-result-bars" class="erb-rows" aria-label="Röstandel per parti"></ol>
+      <p class="election-legend-note erb-legend" id="election-result-bars-key"></p>
+      <h3 class="election-subhead">Mandat</h3>
+      <p class="election-result__blocs" id="election-result-blocs"></p>
+      <!-- Offered once the members file and the seating plan both validate. -->
+      <div class="ep-view" id="election-result-view" role="group" aria-label="Hur riksdagen ritas" hidden>
+        <button type="button" class="election-timeseries__control" data-view="party" aria-pressed="true" aria-controls="election-result-parliament">Partivis</button>
+        <button type="button" class="election-timeseries__control" data-view="seating" aria-pressed="false" aria-controls="election-result-parliament">Som i kammaren</button>
+      </div>
+      <div class="election-parliament-frame">
+        <div id="election-result-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
+        <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
+      </div>
+      <ul id="election-result-legend" class="ep-legend"></ul>
+      <p class="election-muted ep-seating-note" id="election-result-seating-note" hidden>Så sitter ledamöterna i plenisalen under riksmötet 2026/27: valkretsvis, och inom varje valkrets efter tid i riksdagen. Talmannen sitter i talmansstolen överst och de tre vice talmännen på podiet bredvid; statsministern har plats 350 i regeringsbänken. En ring är en ersättare som sitter i stället för en ledamot som är ledig: talmannen, statsråden eller den som har längre ledighet, till exempel föräldraledighet. Övriga statsråd sitter i regeringsbänken när de deltar och visas inte här. Källa: Sveriges riksdag, Placering i kammaren och ledamotslistan.</p>
+      <!-- Shown once results/2026-members.json has matched the chamber seat for
+           seat; until then the chamber is the plain allocation. The filters
+           fade the seats that do not match; every seat keeps its card. -->
+      <div class="ep-filters" id="election-result-filters" role="group" aria-label="Filtrera ledamöterna i riksdagen" hidden>
+        <label class="ep-filter">
+          <span class="ep-filter__label">Parti</span>
+          <select class="ep-filter__select" id="election-filter-party"><option value="">Alla</option></select>
+        </label>
+        <label class="ep-filter">
+          <span class="ep-filter__label">Valkrets</span>
+          <select class="ep-filter__select" id="election-filter-constituency"><option value="">Alla</option></select>
+        </label>
+        <label class="ep-filter">
+          <span class="ep-filter__label">Ålder</span>
+          <select class="ep-filter__select" id="election-filter-age">
+            <option value="">Alla</option>
+            <option value="20">20–29</option>
+            <option value="30">30–39</option>
+            <option value="40">40–49</option>
+            <option value="50">50–59</option>
+            <option value="60">60–69</option>
+            <option value="70">70–79</option>
+          </select>
+        </label>
+        <div class="ep-filter" id="election-filter-new">
+          <span class="ep-filter__label" id="election-filter-new-label">Nyinvald</span>
+          <div class="ep-filter__segments" role="group" aria-labelledby="election-filter-new-label">
+            <button type="button" class="election-timeseries__control" data-new="" aria-pressed="true">Alla</button>
+            <button type="button" class="election-timeseries__control" data-new="true" aria-pressed="false">Ja</button>
+            <button type="button" class="election-timeseries__control" data-new="false" aria-pressed="false">Nej</button>
+          </div>
+        </div>
+        <div class="ep-filters__summary">
+          <p class="ep-filters__count" id="election-filter-count" role="status" aria-live="polite" aria-atomic="true"></p>
+          <button type="button" class="ep-filters__reset" id="election-filter-reset" hidden>Rensa filter</button>
+        </div>
+      </div>
+      <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Nyinvald betyder att ledamoten inte har suttit i riksdagen tidigare, varken som ledamot eller ersättare. En ledamot som har lämnat riksdagen visas med sin efterträdare; i vyn Som i kammaren visas också ersättarna för dem som är lediga. Källor: Sveriges riksdag och Valmyndigheten.</p>
+      <p id="election-result-member-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+    </section>
+</div>
+
 <!-- Net voter flows between the 2022 and 2026 elections. Static data from
      the SVT/Valu exit poll, drawn by election-voter-flows.js. -->
 <div id="election-flows" class="election-app election-flows" role="tabpanel" aria-labelledby="election-tab-flows" hidden>
@@ -481,6 +495,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <p class="election-muted" id="edm-source">Källa: SVT/Valu, vallokalsundersökningen vid riksdagsvalet 2026, sidorna 20–34 i <a href="{{ site.baseurl }}/files/election-simulator/valu/valu-2026-seminarium-260915.pdf">presentationen från seminariet den 15 september 2026</a> (PDF, 1 MB; <a href="https://omoss.svt.se/download/18.c7d6c981a0a583535d1535/1789484134179/Valu%202026%20seminarium%20260915.pdf">originalet hos SVT</a>). Undersökningen bygger på enkätsvar från 13 709 väljare vid 93 vallokaler och 68 förtida röstningslokaler mellan 26 augusti och 13 september 2026. Resultaten är vägda mot valresultaten 1991–2022 och det preliminära valnattsresultatet 2026.</p>
     <p class="election-muted">Andelarna är procent av gruppens röster. Varje parti är avrundat för sig, så en rad kan summera till mellan 97 och 102. Referenslinjerna för valresultatet kommer från Valmyndighetens slutliga resultat.</p>
   </div>
+</div>
 </div>
 
 <script src="{{ site.baseurl }}/assets/js/election-simulator.js?v={{ site.time | date: '%s' }}"></script>

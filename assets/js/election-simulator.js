@@ -6020,8 +6020,11 @@
   function renderResultHero(result) {
     var decided = electionOutcome.decided;
     var forecastYear = publicationContext.electionDate ? publicationContext.electionDate.slice(0, 4) : null;
-    setText("election-hero-kicker", "Sverige \u00b7 Riksdagen \u00b7 valresultat " + result.year +
-      (!decided && forecastYear ? " \u00b7 valprognos " + forecastYear : ""));
+    // The forecast's own header names the forecast; the result has a view of
+    // its own under "Valet <year>".
+    setText("election-hero-kicker", "Sverige \u00b7 Riksdagen \u00b7 " + (decided || !forecastYear
+      ? "sista prognosen f\u00f6re valet " + result.year
+      : "valprognos " + forecastYear));
     if (decided) {
       var hero = byId("election-hero");
       // The polling-freshness note compares the last forecast with the one
@@ -6042,73 +6045,34 @@
       (result.turnout !== null ? " \u00b7 valdeltagande " + percent(result.turnout, 1) : ""));
 
     // Vote share: one bar per party, ranked, on a scale that starts at zero.
-    // Once the forecast targets the next election, each row also carries
-    // today's forecast -- its median and central 50 % interval -- and the
-    // change since the election: how opinion has moved from the result.
-    var current = !decided && publicationContext.forecast && publicationContext.forecast.parties
-      ? publicationContext.forecast.parties : null;
+    // Only the result: how opinion has moved since is the forecast's subject,
+    // and it is shown there.
     var ranked = HISTORY_PARTIES.slice().sort(function (left, right) {
       return result.parties[right].share - result.parties[left].share;
     });
     var top = 0;
-    ranked.forEach(function (party) {
-      top = Math.max(top, result.parties[party].share);
-      var now = current && current[party];
-      if (now && num(now.vote_share_p75) !== null) top = Math.max(top, num(now.vote_share_p75));
-    });
+    ranked.forEach(function (party) { top = Math.max(top, result.parties[party].share); });
     var scale = niceMax(top * 1.04, 5);
     var threshold = pct(NATIONAL_THRESHOLD_PCT, scale);
-    var withChange = Boolean(current) && ranked.every(function (party) {
-      var now = current[party];
-      return now && ["vote_share_p25", "vote_share_median", "vote_share_p75"].every(function (key) {
-        return num(now[key]) !== null;
-      });
-    });
-    var barsHost = byId("election-result-bars");
-    if (barsHost) barsHost.setAttribute("data-opinion-change", withChange ? "true" : "false");
-    setText("election-result-bars-title", withChange ? "R\u00f6standel och opinionsf\u00f6r\u00e4ndring" : "R\u00f6standel");
+    setText("election-result-bars-title", "R\u00f6standel");
     setHtml("election-result-bars", ranked.map(function (party) {
       var entry = result.parties[party];
       var color = partyColors[party] || "#777";
-      var now = withChange ? current[party] : null;
-      var change = now ? num(now.vote_share_median) - entry.share : null;
-      var label = (partyNames[party] || party) + ": valresultat " + format(entry.share, 2) + " procent" +
-        (now ? ", dagens prognos " + format(num(now.vote_share_median), 1) + " procent (" +
-          (Math.abs(change) < 0.05 ? "i niv\u00e5 med valet" : format(Math.abs(change), 1) +
-            " procentenheter " + (change > 0 ? "h\u00f6gre" : "l\u00e4gre")) + ")" : "");
-      var forecastMarks = now
-        ? "<span class=\"erb-band\" style=\"left:" + pct(now.vote_share_p25, scale).toFixed(3) + "%;width:" +
-            Math.max(0.4, pct(now.vote_share_p75, scale) - pct(now.vote_share_p25, scale)).toFixed(3) + "%\"></span>" +
-          "<span class=\"erb-median\" style=\"left:" + pct(now.vote_share_median, scale).toFixed(3) + "%\"></span>"
-        : "";
-      var changeCell = now
-        ? "<span class=\"erb-change" + (Math.abs(change) < 0.05 ? " erb-change--flat" : "") + "\" aria-hidden=\"true\">" +
-            "<span class=\"erb-change__glyph\">" + (Math.abs(change) < 0.05 ? "\u2022" : (change > 0 ? "\u25b2" : "\u25bc")) + "</span>" +
-            format(Math.abs(change), 1) + "</span>"
-        : "";
-      return "<li class=\"erb-row" + (now ? " erb-row--change" : "") + "\" data-party=\"" + party + "\"" +
+      var label = (partyNames[party] || party) + ": valresultat " + format(entry.share, 2) + " procent";
+      return "<li class=\"erb-row\" data-party=\"" + party + "\"" +
         " data-share=\"" + entry.share + "\"" +
-        (now ? " data-forecast-median=\"" + num(now.vote_share_median) + "\" data-change=\"" + change.toFixed(4) + "\"" : "") +
         " aria-label=\"" + escapeHtml(label) + "\">" +
         "<span class=\"ev-abbr\" aria-hidden=\"true\"><span class=\"ev-swatch\" style=\"background:" + color + "\"></span>" +
           escapeHtml(abbr(party)) + "</span>" +
         "<span class=\"erb-track\" aria-hidden=\"true\">" +
           "<span class=\"erb-bar\" style=\"width:" + pct(entry.share, scale).toFixed(3) + "%;background:" + color + "\"></span>" +
           "<span class=\"ev-threshold\" style=\"left:" + threshold.toFixed(3) + "%\"></span>" +
-          forecastMarks +
         "</span>" +
-        "<span class=\"erb-value\" aria-hidden=\"true\">" + percent(entry.share, 1) + "</span>" +
-        changeCell + "</li>";
+        "<span class=\"erb-value\" aria-hidden=\"true\">" + percent(entry.share, 1) + "</span></li>";
     }).join(""));
     var barsKey = byId("election-result-bars-key");
     if (barsKey) {
-      barsKey.innerHTML = withChange
-        ? "<span class=\"election-key\"><span class=\"election-key__mark erb-key__bar\" aria-hidden=\"true\"></span>valresultatet " +
-            escapeHtml(swedishDate(result.electionDate) || result.electionDate) + "</span>" +
-          "<span class=\"election-key\"><span class=\"election-key__mark erb-key__forecast\" aria-hidden=\"true\"></span>dagens prognos, median och 50\u00a0% intervall</span>" +
-          "<span class=\"election-key\"><span class=\"erb-change__glyph\" aria-hidden=\"true\">\u25b2\u25bc</span>f\u00f6r\u00e4ndring sedan valet, procentenheter</span>"
-        : "<span class=\"election-muted\">Opinionsf\u00f6r\u00e4ndringen sedan valet visas h\u00e4r n\u00e4r den f\u00f6rsta prognosen f\u00f6r valet " +
-            escapeHtml(result.nextElectionDate ? result.nextElectionDate.slice(0, 4) : "") + " har publicerats.</span>";
+      barsKey.innerHTML = "<span class=\"election-key\"><span class=\"election-key__mark election-key__mark--threshold\" aria-hidden=\"true\"></span>4\u00a0%-sp\u00e4rren</span>";
     }
 
     // Seats: the certified allocation as a chamber, with the bloc totals.
@@ -6252,20 +6216,10 @@
     setText("election-result-delta-source", "Staplarna visar prognosens intervall minus valresultatet, i procentenheter. Mandat: prognosens median minus mandaten i valet." +
       (result.authority ? " Valresultat: " + result.authority + ", slutligt resultat." : ""));
     reveal("election-result-delta");
-    // The certified result follows the two party summaries in the navigation;
-    // its forecast comparison is the final destination, after disclosures.
+    // The forecast's comparison with the result is its final destination,
+    // after the disclosures. The result itself is in the other part of the
+    // page, under "Valet <year>", and is not linked from here.
     var nav = document.querySelector("#election-hero .election-hero__links");
-    var seatLink = nav && nav.querySelector("a[href=\"#election-seats\"]");
-    if (nav && seatLink && !nav.querySelector("a[href=\"#election-result\"]")) {
-      var separator = document.createElement("span");
-      separator.setAttribute("aria-hidden", "true");
-      separator.textContent = " \u00b7 ";
-      var link = document.createElement("a");
-      link.href = "#election-result";
-      link.textContent = "Valresultatet " + result.year;
-      nav.insertBefore(separator, seatLink.nextSibling);
-      nav.insertBefore(link, separator.nextSibling);
-    }
     if (nav && !nav.querySelector("a[href=\"#election-result-delta\"]")) {
       var finalSeparator = document.createElement("span");
       finalSeparator.setAttribute("aria-hidden", "true");

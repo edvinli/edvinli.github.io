@@ -495,7 +495,7 @@ function readPage(browser) {
         rangeStart: section.getAttribute('data-time-range-start') || '',
         rangeEnd: section.getAttribute('data-time-range-end') || '',
       } : null,
-      sectionOrder: Array.from(document.querySelectorAll('.election-app > section')).map((element) => element.id),
+      sectionOrder: Array.from(document.querySelectorAll('#election-simulator-app > section')).map((element) => element.id),
       hero: hero ? {
         facts: Array.from(hero.querySelectorAll('.election-hero__fact')).map((fact) => ({
           label: fact.querySelector('dt')?.textContent?.trim() || '',
@@ -930,13 +930,13 @@ function assertStructure(view, history, publication) {
     order.indexOf('election-validation') < order.indexOf('election-result-delta') &&
     order.indexOf('election-meta') < order.indexOf('election-result-delta'), order);
   equal('the main forecast sections follow the party summaries',
-    order.slice(3, 8), [
-      'election-result',
+    order.slice(3, 7), [
       'election-blocs',
       'election-alternatives',
       'election-government-builder',
       'election-threshold',
     ]);
+  check('the result is not a forecast section', !order.includes('election-result'), order);
   const decided = publication.decided;
   equal('the hero marks the election decided exactly when the published forecast targets the certified result',
     Boolean(view.hero?.decided), decided);
@@ -947,11 +947,8 @@ function assertStructure(view, history, publication) {
       { href: '#election-latest-poll', text: 'Senaste mätningarna' },
       { href: '#election-headline', text: 'Röstandelar på valdagen' },
       { href: '#election-seats', text: 'Mandat på valdagen' },
-      // The result link follows the party summaries. The final comparison is
-      // appended after method and technical links.
-      ...(publication.resultShown ? [
-        { href: '#election-result', text: `Valresultatet ${publication.result.election_date.slice(0, 4)}` },
-      ] : []),
+      // The result is in the other part of the page and is not linked here.
+      // The final comparison is appended after method and technical links.
       { href: '#election-blocs', text: 'Chansen till egen majoritet' },
       { href: '#election-alternatives', text: 'Regeringsalternativ' },
       { href: '#election-government-builder', text: 'Bygg din egen regering' },

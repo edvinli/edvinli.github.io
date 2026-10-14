@@ -7,8 +7,10 @@
 // suite reads both files and checks the page against them rather than
 // against numbers written here:
 //
-//   * the tabs: #demografi and #valjarfloden open their panels, a link into
-//     the forecast brings it back, and only one panel shows at a time;
+//   * the tabs: the page's two parts, the forecast and the 2026 election, and
+//     the 2026 part's views; #valet-2026, #demografi and #valjarfloden open
+//     their views, a link into either part brings it back, and only one view
+//     shows at a time;
 //   * "Partival per grupp": one stacked bar per published group, each
 //     party's segment as wide as its share of the row, and with one party
 //     chosen, each bar at the party's share and the line at its result;
@@ -74,8 +76,12 @@ async function open(viewport, hash, root = SITE) {
   return { server, browser };
 }
 
-const panels = (browser) => browser.evaluate(() => ['election-simulator-app', 'election-flows', 'election-demographics']
-  .filter((id) => !document.getElementById(id).hidden));
+// The views a reader can see: shown themselves, and in a part that is shown.
+const panels = (browser) => browser.evaluate(() =>
+  ['election-simulator-app', 'election-outcome-result', 'election-flows', 'election-demographics']
+    .filter((id) => !document.getElementById(id).closest('[hidden]')));
+const selectedTabs = (browser) => browser.evaluate(() =>
+  Array.from(document.querySelectorAll('[role=tab][aria-selected=true]')).map((tab) => tab.id));
 
 async function dashboard(viewport, name) {
   console.log(`\n[dashboard] ${name}`);
@@ -313,20 +319,43 @@ async function tabs() {
   try {
     await settle(400);
     equal('the forecast is the default view', await panels(browser), ['election-simulator-app']);
+    equal('two parts: the forecast and the 2026 election',
+      await browser.evaluate(() => Array.from(document.querySelectorAll('#election-tabs [role=tab]'))
+        .map((tab) => tab.querySelector('.election-modes__name').textContent)), ['Prognos 2030', 'Valet 2026']);
+    await browser.evaluate(() => document.getElementById('election-tab-outcome').click());
+    equal('the 2026 part opens on its result', await panels(browser), ['election-outcome-result']);
+    equal('and names itself in the address', await browser.evaluate(() => location.hash), '#valet-2026');
     await browser.evaluate(() => document.getElementById('election-tab-flows').click());
     equal('the flows tab opens the flows', await panels(browser), ['election-flows']);
     equal('and names itself in the address', await browser.evaluate(() => location.hash), '#valjarfloden');
+    equal('the part and the view are both selected', await selectedTabs(browser),
+      ['election-tab-outcome', 'election-tab-flows']);
     await browser.evaluate(() => document.getElementById('election-tab-demographics').click());
     equal('the dashboard tab opens the dashboard', await panels(browser), ['election-demographics']);
+    await browser.evaluate(() => document.getElementById('election-tab-forecast').click());
+    equal('the forecast tab leaves the 2026 part', await panels(browser), ['election-simulator-app']);
+    equal('and clears the address', await browser.evaluate(() => location.hash), '');
+    await browser.evaluate(() => document.getElementById('election-tab-outcome').click());
+    equal('the 2026 part comes back on the view last open', await panels(browser), ['election-demographics']);
+    equal('and its address is that view', await browser.evaluate(() => location.hash), '#demografi');
     await browser.evaluate(() => { location.hash = '#election-model'; });
     await settle(200);
     equal('a link into the forecast brings it back', await panels(browser), ['election-simulator-app']);
+    await browser.evaluate(() => { location.hash = '#election-result'; });
+    await settle(200);
+    equal('a link into the result opens the 2026 part on it', await panels(browser), ['election-outcome-result']);
     await browser.evaluate(() => {
-      const tab = document.getElementById('election-tab-forecast');
+      const tab = document.getElementById('election-tab-result');
       tab.focus();
       tab.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
     });
-    equal('End moves to the last tab', await panels(browser), ['election-demographics']);
+    equal('End moves to the last view of the part', await panels(browser), ['election-demographics']);
+    await browser.evaluate(() => {
+      const tab = document.getElementById('election-tab-outcome');
+      tab.focus();
+      tab.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    });
+    equal('Home on the parts moves to the forecast', await panels(browser), ['election-simulator-app']);
     equal('no console errors', appErrors(browser).map((e) => e.text), []);
   } finally {
     await browser.close();

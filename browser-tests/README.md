@@ -672,20 +672,22 @@ because a table whose headers disappear at phone width is worse than no table.
 
 ### 12. `election-result.smoke.mjs` — the certified result and the forecast against it
 
-After an election the page leads with Valmyndigheten's certified result, read
+After an election the page shows Valmyndigheten's certified result in its own
+part, "Valet 2026", apart from the forecast. It is read
 from `files/election-simulator/results/2026.json` — a lookup file outside the
 frozen publication bundle, like the history artifact. The suite pins the
 election-day generation and checks, against the files on disk:
 
-- **The layout.** The chart leads the page, then "Valresultatet", then the
-  comparison, then the forecast panels, and the hero navigation follows that
-  order. The simulated riksdag outcome is gone from the page.
+- **The layout.** "Valresultatet" sits in the "Valet 2026" part, not among the
+  forecast's sections; the forecast leads with the chart, its hero navigation
+  does not link the result, and the comparison with the result closes it. The
+  simulated riksdag outcome is gone from the page.
 - **The hero.** The countdown cell becomes "Nästa val", the lede says the
   election is decided, the calculation stamp says "Sista prognosen", and the
   polling-freshness note is not shown.
 - **Valresultatet.** The vote-share bars are ranked, and their lengths are
-  proportional to the certified shares. While the forecast on screen is still
-  the 2026 one they show the result alone, with a note. The chamber draws all 349 certified
+  proportional to the certified shares. They show the result alone, never the
+  forecast, whichever forecast is on screen. The chamber draws all 349 certified
   seats in seating order, and the legend and bloc totals are sums of certified
   seats.
 - **The members.** Each seat names its member from
@@ -723,8 +725,9 @@ election-day generation and checks, against the files on disk:
 simulator's own publication pipeline, with 2,000 draws on the 2026-09-11
 polls. The suite copies it into a scratch site and pins it:
 
-- Each bar gains today's forecast (median and 50 % band) and an "opinion
-  change": the published median minus the certified result.
+- The kicker names only the forecast, and the result's bars stay the result
+  alone: the change since the election is the forecast's subject and is shown
+  in its own vote and seat captions.
 - "Sista prognosen mot valresultatet" still compares the **final 2026
   forecast**. The page reads that forecast from the generation
   `history/cycles.json` names as `frozen_from_generation`.
@@ -734,9 +737,9 @@ computed before the election (`20260906T081926Z-92521273`) renders exactly as
 it was published. A result file that does not validate whole (one seat short)
 changes nothing and logs no error.
 
-**Where the other suites meet it.** The DOM always contains the result and
-comparison sections, right after the chart, so the section-order checks list
-them. `forecast-timeseries` reads the
+**Where the other suites meet it.** The forecast's DOM always contains the
+comparison section, last, so the section-order checks list it; the result
+section is in the "Valet 2026" part and is not among the forecast's sections. `forecast-timeseries` reads the
 hero's `data-election-decided` and asserts the decided lede and labels when the
 live pointer is the election-day generation.
 
@@ -791,9 +794,12 @@ otherwise it asserts that the axis runs on to the latest forecast.
 `files/election-simulator/valu/2026-demografi.json`, against the certified
 result in `results/2026.json`. The suite reads both files and checks:
 
-- **The tabs.** `#demografi` and `#valjarfloden` open their panels, only one
-  panel shows at a time, a link into the forecast brings it back, and End moves
-  to the last tab.
+- **The tabs.** The page has two parts, "Prognos 2030" and "Valet 2026", and
+  the 2026 part has three views. `#valet-2026`, `#demografi` and
+  `#valjarfloden` open their views with their part; only one view shows at a
+  time; the 2026 part reopens on the view last open; a link into the forecast
+  or into the result brings that part back; and Home/End move within a row of
+  tabs.
 - **Partival per grupp.** Every published table and group is drawn, each
   party's segment is as wide as its share of the row and is spoken in the bar's
   label. With one party chosen, every bar is at the party's share on one scale
