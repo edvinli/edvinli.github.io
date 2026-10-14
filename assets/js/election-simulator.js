@@ -2320,6 +2320,9 @@
       raiseFocusedSeries(seriesLayer, ".election-timeseries__series-group",
         seriesLayer && seriesLayer.querySelector("[data-endpoint-labels]"));
       raiseFocusedSeries(svg.querySelector(".election-timeseries__polls"), ".election-timeseries__poll-group", null);
+      // The quiet phone readout shows only the focused series, so a change of
+      // focus redraws it.
+      if (svg.getAttribute("data-compact-quiet") === "true" && selectedPoint) renderSelection(selectedPoint);
     }
 
     // Only a series on screen, among at least two, can be brought forward:
@@ -2530,13 +2533,21 @@
       // spreads the years out, and the extra height is what the small
       // parties crowded together at the bottom need.
       height = compactChart ? 520 : Math.max(560, Math.min(660, Math.round(width * 0.55)));
-      // The right gutter holds the current-value labels. In party view they
-      // carry the party's abbreviation ("KD 6,3 %"), because eight colours
-      // converging at the right edge cannot be told apart by colour alone.
-      var labelGutter = viewMode === "parties"
-        ? (compactChart ? 110 : 98) : (compactChart ? 82 : 80);
+      // The right gutter holds the current-value labels, sized to the longest
+      // one. In party view they carry the party's abbreviation ("KD 6,3 %"),
+      // because eight colours converging at the right edge cannot be told
+      // apart by colour alone. On a phone a vote label drops its "%" -- the
+      // axis carries it -- since every character there is plot width lost.
+      var partyLabels = viewMode === "parties";
+      var compactVoteLabel = compactChart && partyLabels && selectedMetric === "vote";
+      var labelChars = (selectedMetric === "seats" ? 10 : (compactVoteLabel ? 4 : 6)) +
+        (partyLabels ? 1 + activeDefinitions().reduce(function (longest, definition) {
+          return Math.max(longest, String(definition.shortLabel || "").length);
+        }, 0) : 0);
+      var labelGutter = Math.max(compactChart ? 64 : 80,
+        Math.ceil(17 + labelChars * (compactChart ? 13 : 12) * 0.62 + 6));
       plot = compactChart
-        ? { left: 46, right: width - labelGutter, top: 16, bottom: height - 38 }
+        ? { left: 38, right: width - labelGutter, top: 16, bottom: height - 34 }
         : { left: 72, right: width - labelGutter, top: 16, bottom: height - 34 };
       plot.width = plot.right - plot.left;
       plot.height = plot.bottom - plot.top;
@@ -2596,6 +2607,12 @@
           ? "adaptive-short-window" : "published-history"));
       svg.setAttribute("data-view-mode", viewMode);
       svg.setAttribute("data-uncertainty", showUncertainty ? "shown" : "hidden");
+      // On a phone, four or more series with all their bands and polls are a
+      // single coloured smear in a 250px plot. At rest the chart shows the
+      // medians with the 50 % bands; tapping a series brings back its 90 %
+      // band and its polls, and the readout narrows to that series.
+      var quietCompact = compactChart && definitions.length >= 4;
+      svg.setAttribute("data-compact-quiet", quietCompact ? "true" : "false");
       if (uncertaintyButton) uncertaintyButton.setAttribute("aria-pressed", showUncertainty ? "true" : "false");
       svg.setAttribute("data-threshold-visible", yDomain.thresholdVisible ? "true" : "false");
       if (viewMode === "parties") {
@@ -2716,7 +2733,7 @@
       // other too, so past that a label that would overlap the one before it
       // is left off; its tick stays.
       if (dateTicks.length > 1 && !dateTicks[0].dated) {
-        var tickCharWidth = (compactChart ? 16 : 12) * 0.62;
+        var tickCharWidth = (compactChart ? 13 : 12) * 0.62;
         var tickExtent = function (tick, anchor) {
           anchor = anchor || tickAnchor(tick);
           var x = xScale(tick.time);
@@ -2882,6 +2899,8 @@
               definition: definition,
               value: pointValues.p50,
               text: selectedMetric === "seats" ? seatMedianText(point.groups[definition.id]) : percent(pointValues.p50, 1),
+              shownText: selectedMetric === "seats" ? seatMedianText(point.groups[definition.id])
+                : (compactVoteLabel ? format(pointValues.p50, 1) : percent(pointValues.p50, 1)),
               dotX: xScale(point.time),
               dotY: yScale(pointValues.p50),
               y: yScale(pointValues.p50)
@@ -2896,7 +2915,7 @@
       // several series converge, and a label that had to move is tied back to
       // its own dot by a leader in the series colour -- otherwise a column of
       // five numbers beside five touching dots cannot be matched up.
-      var endpointGap = compactChart ? 20 : 16;
+      var endpointGap = compactChart ? 17 : 16;
       historyDodgeLabels(endpointLabels, endpointGap, plot.top + 8, plot.bottom - 3);
       endpointLabels.forEach(function (label) {
         var labelX = label.dotX + 17;
@@ -2925,7 +2944,7 @@
           text.appendChild(svgNode("tspan", {
             class: "election-timeseries__endpoint-party", fill: label.definition.color
           }, label.definition.shortLabel || label.definition.label));
-          text.appendChild(svgNode("tspan", {}, "\u00a0" + label.text));
+          text.appendChild(svgNode("tspan", {}, "\u00a0" + label.shownText));
         } else {
           text.textContent = label.text;
         }
@@ -3035,7 +3054,9 @@
         var labelRoom = compactChart ? 96 : 104;
         var flip = x + labelRoom > plot.right;
         var readouts = [];
+        var soloSeries = quietCompact ? focusedSeries : null;
         definitions.forEach(function (definition) {
+          if (soloSeries !== null && definition.id !== soloSeries) return;
           var group = point.groups && point.groups[definition.id];
           var values = historyDisplayQuantiles(group, selectedMetric);
           if (!values || values.p50 === null) return;
@@ -3060,7 +3081,7 @@
         // Eight parties can converge to within a pixel of each other. Sort and
         // nudge apart, the same rule the endpoint labels use, so a crowded
         // date still reads as eight separate numbers.
-        historyDodgeLabels(readouts, compactChart ? 19 : 15, plot.top + 8, plot.bottom - 3);
+        historyDodgeLabels(readouts, compactChart ? 16 : 15, plot.top + 8, plot.bottom - 3);
         readouts.forEach(function (readout) {
           selectionLayer.appendChild(svgNode("text", {
             x: flip ? x - labelGap : x + labelGap, y: readout.y + 4,
@@ -3414,6 +3435,16 @@
       chartResizeObserver.observe(chartFrame);
     }
     window.addEventListener("resize", responsiveChart);
+    // A touch screen has no pointer leaving the chart, so a tap anywhere
+    // else on the page puts it back: the pinned date and the focused series
+    // both clear. A mouse already gets that from leaving the plot.
+    document.addEventListener("pointerdown", function (event) {
+      if (!event || event.pointerType === "mouse") return;
+      if (svg.contains(event.target)) return;
+      if (!pinnedSelection && focusedSeries === null) return;
+      setSeriesFocus(null);
+      clearSelection();
+    });
     return true;
   }
 

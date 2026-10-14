@@ -1095,6 +1095,38 @@ async function runViewport(viewport, site) {
       check('leaving the plot restores every party',
         cleared.focused === null && cleared.dimmed === 0 && cleared.raised.length === 0, cleared);
     }
+    if (onLine && viewport.coarse) {
+      // On a phone with every party on, the chart rests quietly (no polls,
+      // no 90 % bands), a tap on a line brings that party back in full with
+      // a one-party readout, and a tap anywhere else on the page resets it.
+      const quiet = await browser.evaluate(() => {
+        const svg = document.getElementById('election-timeseries-svg');
+        const shown = (node) => getComputedStyle(node).display !== 'none';
+        return {
+          mode: svg.getAttribute('data-compact-quiet'),
+          pollGroupsShown: Array.from(svg.querySelectorAll('.election-timeseries__poll-group')).filter(shown).length,
+          ninetyShown: Array.from(svg.querySelectorAll('.election-timeseries__band--90')).filter(shown).length,
+        };
+      });
+      check('a phone with all parties on rests without polls or 90 % bands',
+        quiet.mode === 'true' && quiet.pollGroupsShown === 0 && quiet.ninetyShown === 0, quiet);
+      await tap(browser, onLine.x, onLine.y);
+      const tapped = await readState(browser);
+      const tappedFocus = await readFocus();
+      check('tapping a line pins a readout for that party alone',
+        tappedFocus.focused === big && tapped.crosshairLabels.length === 1 &&
+        tapped.crosshairLabels[0].party === big, { focus: tappedFocus, labels: tapped.crosshairLabels });
+      const outside = await browser.evaluate(() => {
+        const rect = document.getElementById('election-timeseries-frame').getBoundingClientRect();
+        return { x: rect.left + 20, y: Math.min(window.innerHeight - 4, rect.bottom + 40) };
+      });
+      await tap(browser, outside.x, outside.y);
+      const reset = await readState(browser);
+      const resetFocus = await readFocus();
+      check('tapping outside the chart resets it',
+        resetFocus.focused === null && resetFocus.dimmed === 0 && reset.crosshairLabels.length === 0,
+        { focus: resetFocus, labels: reset.crosshairLabels });
+    }
     const pill = await browser.evaluate((party) => {
       const node = document.querySelector(`#election-timeseries-parties button[data-party="${party}"]`);
       if (!node) return null;

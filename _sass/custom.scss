@@ -3098,20 +3098,37 @@ canvas {
     min-height: 0;
   }
 
+  // The SVG is drawn at the phone's own width (one user unit per CSS pixel),
+  // so these are real sizes: close to the body text, not above it.
   .election-timeseries__svg text {
-    font-size: 18px;
+    font-size: 14px;
   }
 
   .election-timeseries__svg .election-timeseries__axis-label {
-    font-size: 16px;
+    font-size: 13px;
   }
 
   .election-timeseries__endpoint-label {
-    font-size: 16px !important;
+    font-size: 13px !important;
   }
 
   .election-timeseries__crosshair-label {
-    font-size: 15px;
+    font-size: 13px;
+  }
+
+  // Quiet phone view (four or more series): medians and 50 % bands at rest;
+  // the 90 % band and the polls come back only for a tapped series.
+  .election-timeseries__svg[data-compact-quiet="true"] .election-timeseries__series-group:not(.is-focused) .election-timeseries__band--90,
+  .election-timeseries__svg[data-compact-quiet="true"] .election-timeseries__poll-group:not(.is-focused) {
+    display: none;
+  }
+
+  .election-timeseries__svg[data-compact-quiet="true"] .election-timeseries__series-group:not(.is-focused) .election-timeseries__band--50 {
+    opacity: 0.22;
+  }
+
+  .election-timeseries__svg[data-compact-quiet="true"] .election-timeseries__series-group.is-dimmed {
+    opacity: 0.3;
   }
 
   .election-timeseries__key {
