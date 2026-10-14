@@ -597,8 +597,6 @@
     pollHash: null,
     historySource: null,
     historyNewest: null,
-    samples: null,
-    electionDate: null,
     ready: false
   };
 
@@ -654,31 +652,6 @@
     if (!pollingInput.ready) return;
     var newest = newestPollDay();
     setText("election-hero-asof", swedishDate(newest) || "\u2014");
-
-    var lede = byId("election-hero-lede");
-    if (!lede) return;
-    if (electionOutcome.decided && electionOutcome.result) {
-      var decided = electionOutcome.result;
-      var nextLabel = swedishDate(decided.nextElectionDate);
-      lede.textContent = "Valet den " + swedishDate(decided.electionDate) +
-        " \u00e4r avgjort. H\u00e4r visas det slutliga resultatet och hur den sista prognosen, byggd p\u00e5 " +
-        (newest ? "opinionsunderlag till och med " + swedishDate(newest) : "det publicerade opinionsunderlaget") +
-        ", stod sig mot det." +
-        (nextLabel ? " Prognosen f\u00f6r valet den " + nextLabel +
-          " tar vid n\u00e4r nya opinionsm\u00e4tningar kommer." : "");
-      return;
-    }
-    var draws = pollingInput.samples === null
-      ? "ett publicerat antal"
-      : grouped(pollingInput.samples);
-    var electionLabel = swedishDate(pollingInput.electionDate) ||
-      pollingInput.electionDate || "det publicerade valdatumet";
-    var basis = newest
-      ? "opinionsunderlag till och med " + swedishDate(newest)
-      : "det publicerade opinionsunderlaget";
-    lede.textContent = "Valprognosen visar hur valet den " + electionLabel +
-      " kan sluta. Den bygger p\u00e5 " + basis +
-      " och " + draws + " simulerade valresultat.";
   }
 
   // ---------------------------------------------------------------------
@@ -690,14 +663,12 @@
     var electionDate = forecast.election_date || metadata.election_date || null;
     setText("election-hero-election", swedishDate(electionDate) || electionDate || "\u2014");
 
-    // The polling cell and the lede are not rendered from `as_of`; see
-    // "The polling input" below.  They wait for the history artifact, which
+    // The polling cell is not rendered from `as_of`; see "The polling
+    // input" below.  It waits for the history artifact, which
     // resolves independently of this load and in either order.
     pollingInput.pollHash = (metadata.input_hashes &&
       typeof metadata.input_hashes.poll_data_hash === "string")
       ? metadata.input_hashes.poll_data_hash : null;
-    pollingInput.samples = num(forecast.total_samples);
-    pollingInput.electionDate = electionDate;
     pollingInput.ready = true;
 
     // Two clocks answer "how fresh is this?", and they are not
@@ -6481,20 +6452,6 @@
     setText("election-result-delta-source", "Staplarna visar prognosens intervall minus valresultatet, i procentenheter. Mandat: prognosens median minus mandaten i valet." +
       (result.authority ? " Valresultat: " + result.authority + ", slutligt resultat." : ""));
     reveal("election-result-delta");
-    // The forecast's comparison with the result is its final destination,
-    // after the disclosures. The result itself is in the other part of the
-    // page, under "Valet <year>", and is not linked from here.
-    var nav = document.querySelector("#election-hero .election-hero__links");
-    if (nav && !nav.querySelector("a[href=\"#election-result-delta\"]")) {
-      var finalSeparator = document.createElement("span");
-      finalSeparator.setAttribute("aria-hidden", "true");
-      finalSeparator.textContent = " \u00b7 ";
-      var finalLink = document.createElement("a");
-      finalLink.href = "#election-result-delta";
-      finalLink.textContent = "Sista prognosen mot valresultatet";
-      nav.appendChild(finalSeparator);
-      nav.appendChild(finalLink);
-    }
   }
 
   // Requested once and shared: the hero and the delta panel wait for it with

@@ -357,7 +357,6 @@ const readProvenance = (browser) => browser.evaluate(() => {
       .map((node) => Math.round(node.getBoundingClientRect().top)),
     heroCountdown: text('#election-hero-countdown'),
     heroText: flat(document.getElementById('election-hero').textContent),
-    lede: text('#election-hero-lede'),
     heroElection: text('#election-hero-election'),
     freshnessHidden: freshness ? freshness.hidden : null,
     freshnessDisplay: freshness ? getComputedStyle(freshness).display : null,
@@ -370,8 +369,6 @@ const readProvenance = (browser) => browser.evaluate(() => {
     stampDatetime: stampNode ? stampNode.getAttribute('datetime') : null,
     age: ageNode ? flat(ageNode.textContent) : null,
 
-    heroNav: Array.from(document.querySelectorAll('.election-hero__links a'))
-      .map((link) => `${link.getAttribute('href')} ${link.textContent.trim()}`),
     // The separate change table is gone: its numbers are in the rows now.
     changesSection: Boolean(document.getElementById('election-changes')),
     changeTables: document.querySelectorAll('.ec-table').length,
@@ -499,8 +496,7 @@ async function target() {
       baselineLabel(baseline), 'prognosen 3 sep 18:34');
     check('no copy claims the baseline is the previous forecast',
       !page.voteNoteText.includes('föregående') &&
-      !page.seatNoteText.includes('föregående') &&
-      page.heroNav.every((entry) => !entry.includes('föregående')), page);
+      !page.seatNoteText.includes('föregående'), page);
     for (const name of intervening) {
       const manifest = await readJson(SITE, VERSIONS, name, 'manifest.json');
       const stamp = stockholmStamp(manifest.generated_at_utc);
@@ -514,8 +510,6 @@ async function target() {
     // --- the change table is gone, and nothing it carried was dropped ---
     equal('the separate change section is gone', page.changesSection, false);
     equal('no change table is rendered anywhere', page.changeTables, 0);
-    check('the section nav no longer points at it',
-      page.heroNav.every((entry) => !entry.startsWith('#election-changes')), page.heroNav);
     equal('the vote rows and the seat rows cite one baseline',
       [page.voteNoteText, page.seatNoteText],
       [changeNote(baseline, 'i procentenheter'), changeNote(baseline, 'i mandat')]);
@@ -738,9 +732,6 @@ async function quietRerun() {
     check('the anchor day appears nowhere in the hero',
       !page.heroText.includes(swedishDay(metadata.as_of)),
       { asOf: swedishDay(metadata.as_of), hero: page.heroText });
-    check('the lede cites the newest poll, not the anchor day',
-      page.lede.includes(`opinionsunderlag till och med ${swedishDay(polling.newest)}`) &&
-      !page.lede.includes(swedishDay(metadata.as_of)), page.lede);
     equal('a re-run on unchanged polling says so, and only about the polls',
       page.freshnessText, freshnessNote(preceding, metadata));
     check('the claim is scoped to individual measurements, not to every input',
@@ -772,8 +763,8 @@ async function quietRerun() {
     await server.close();
   }
 
-  // The note is three lines of muted mono and lands directly above the lede,
-  // which is where a narrow layout would push it into the page's own width.
+  // The note is three lines of muted mono at the foot of the hero, which is
+  // where a narrow layout would push it into the page's own width.
   const narrow = await open(MOBILE, await pointerFor(SITE, QUIET_RERUN_GENERATION));
   try {
     const page = await readProvenance(narrow.browser);
@@ -859,9 +850,6 @@ async function quietRerunUndated() {
     equal('the note still fires, from the frozen bundle alone',
       page.freshnessText, freshnessNote(preceding, metadata));
     equal('the polling cell prints nothing it cannot verify', page.heroAsOf, '—');
-    check('and the lede makes no dated claim either',
-      !/till och med/.test(page.lede) && page.lede.includes('det publicerade opinionsunderlaget'),
-      page.lede);
     check('no unverified date leaks in from the history artifact',
       !page.heroText.includes(swedishDay(polling.newest)),
       { newest: swedishDay(polling.newest), hero: page.heroText });
@@ -909,15 +897,8 @@ async function currentPublication() {
     const page = await readProvenance(browser);
     equal('the polling cell states what the shipped history can witness',
       page.heroAsOf, heroPollDay(polling, metadata));
-    if (matches) {
-      check('so the lede cites the polling input it can verify',
-        page.lede.includes(`opinionsunderlag till och med ${swedishDay(polling.newest)}`),
-        { lede: page.lede, newest: polling.newest });
-    } else {
-      check('so the lede makes no dated claim it cannot support',
-        !/till och med/.test(page.lede) &&
-        page.lede.includes('det publicerade opinionsunderlaget'), page.lede);
-      check('and no unverifiable date reaches the hero',
+    if (!matches) {
+      check('no unverifiable date reaches the hero',
         !page.heroText.includes(swedishDay(polling.newest)),
         { newest: swedishDay(polling.newest), hero: page.heroText });
     }
@@ -1044,9 +1025,12 @@ async function sourceGuard() {
     !source.includes('men samma opinionsunderlag'));
   // The anchor day is never a fallback for the polling cell: falling back to
   // it would restore the overclaim the cell exists to remove.
+  // Read up to the function's own closing brace: a fixed-length window ran
+  // into the next function once the renderer got short.
+  const pollingRenderer = /function renderPollingInput\(\) \{[\s\S]*?\n  \}\n/.exec(source);
   check('the polling cell is the verified newest poll, never the anchor day',
     source.includes('pollingInput.historySource !== pollingInput.pollHash') &&
-    !/function renderPollingInput[\s\S]{0,700}?asOf/.test(source));
+    Boolean(pollingRenderer) && !/asOf/.test(pollingRenderer[0]), pollingRenderer?.[0]);
   check('the anchor day is named as an anchor where it is still shown',
     source.includes('["Prognosens ankardatum", metadata.as_of'));
   // The DOM patcher that used to rewrite these labels after the fact, racing

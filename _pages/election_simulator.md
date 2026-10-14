@@ -51,9 +51,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <!-- Only rendered when the preceding publication was built on the same
          polling input, so a recalculation is never left looking like news. -->
     <p class="election-hero__freshness" id="election-hero-poll-freshness" hidden></p>
-    <p class="election-hero__lede" id="election-hero-lede">Läser in den publicerade simuleringen…</p>
     <p class="election-status" id="election-app-status" role="status" aria-live="polite">Läser in den senaste prognosen…</p>
-    <p class="election-hero__links"><a href="#election-model">Så fungerar modellen</a><span aria-hidden="true"> · </span><a href="#election-methodology">Metod och utvärdering</a><span aria-hidden="true"> · </span><a href="#election-technical">Teknisk information</a></p>
   </header>
   <p id="election-selection-note" class="visually-hidden" role="status" aria-live="polite"></p>
   <section id="election-timeseries" class="election-panel election-timeseries" hidden>

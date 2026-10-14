@@ -297,17 +297,6 @@ canvas {
   max-width: 62ch;
 }
 
-.election-hero__links {
-  font-size: 0.82rem;
-  margin: 0.5rem 0 0;
-}
-
-.election-hero__links a {
-  display: inline-block;
-  padding: 0.3rem 0;
-  white-space: nowrap;
-}
-
 .election-status {
   color: var(--el-muted);
   font-family: var(--el-mono);

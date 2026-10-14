@@ -45,44 +45,7 @@
     }
   }
 
-  // The result link is added beside the seat link by the app when that
-  // section is shown; the final comparison link is appended after disclosures.
-  function updateHeroLinks() {
-    var nav = app.querySelector(".election-hero__links");
-    if (!nav) return;
-
-    var links = [
-      ["election-timeseries", "Vägen till valdagen"],
-      ["election-latest-poll", "Senaste mätningarna"],
-      ["election-headline", "Röstandelar på valdagen"],
-      ["election-seats", "Mandat på valdagen"],
-      ["election-blocs", "Chansen till egen majoritet"],
-      ["election-alternatives", "Regeringsalternativ"],
-      ["election-government-builder", "Bygg din egen regering"],
-      ["election-threshold", "4 %-spärren"],
-      ["election-model", "Så fungerar modellen"],
-      ["election-methodology", "Metod och utvärdering"],
-      ["election-technical", "Teknisk information"]
-    ];
-
-    nav.textContent = "";
-    nav.setAttribute("aria-label", "Gå till avsnitt");
-    links.forEach(function (entry, index) {
-      if (index) {
-        var separator = document.createElement("span");
-        separator.setAttribute("aria-hidden", "true");
-        separator.textContent = " · ";
-        nav.appendChild(separator);
-      }
-      var link = document.createElement("a");
-      link.href = "#" + entry[0];
-      link.textContent = entry[1];
-      nav.appendChild(link);
-    });
-  }
-
   placeElectionSections();
-  updateHeroLinks();
 
   // Addressed by id, not by ".election-panel__head .election-muted": that
   // selector took whichever muted paragraph came first after the sections were

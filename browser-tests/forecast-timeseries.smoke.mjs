@@ -420,7 +420,6 @@ function readPage(browser) {
     const svg = section?.querySelector(selectors.svg) || document.querySelector(selectors.svg);
     const rangeGroup = section?.querySelector(selectors.rangeGroup) || document.querySelector(selectors.rangeGroup);
     const hero = document.getElementById('election-hero');
-    const navigation = hero?.querySelector('.election-hero__links');
     const visible = (element) => {
       if (!element) return false;
       const style = getComputedStyle(element);
@@ -501,7 +500,6 @@ function readPage(browser) {
           label: fact.querySelector('dt')?.textContent?.trim() || '',
           value: fact.querySelector('dd')?.textContent?.trim() || '',
         })),
-        lede: hero.querySelector('#election-hero-lede')?.textContent?.trim() || '',
         // The certified result of a decided election leads the hero once the
         // publication postdates it; election-result.smoke.mjs owns that view.
         decided: hero.getAttribute('data-election-decided') === 'true',
@@ -514,10 +512,6 @@ function readPage(browser) {
           label: row.querySelector('dt')?.textContent?.replace(/[\t\n\r ]+/g, ' ').trim() || '',
           value: row.querySelector('dd')?.textContent?.replace(/[\t\n\r ]+/g, ' ').trim() || '',
         })),
-      navigation: navigation ? Array.from(navigation.querySelectorAll('a')).map((link) => ({
-        href: link.getAttribute('href') || '',
-        text: link.textContent.replace(/[\t\n\r ]+/g, ' ').trim(),
-      })) : [],
       svg: svg ? {
         role: svg.getAttribute('role'),
         tabindex: svg.getAttribute('tabindex'),
@@ -940,79 +934,15 @@ function assertStructure(view, history, publication) {
   const decided = publication.decided;
   equal('the hero marks the election decided exactly when the published forecast targets the certified result',
     Boolean(view.hero?.decided), decided);
-  equal('the subsection navigation follows the DOM order and labels',
-    view.navigation, [
-      { href: '#election-timeseries', text: 'Vägen till valdagen' },
-      // The latest-polls table sits inside the chart section.
-      { href: '#election-latest-poll', text: 'Senaste mätningarna' },
-      { href: '#election-headline', text: 'Röstandelar på valdagen' },
-      { href: '#election-seats', text: 'Mandat på valdagen' },
-      // The result is in the other part of the page and is not linked here.
-      // The final comparison is appended after method and technical links.
-      { href: '#election-blocs', text: 'Chansen till egen majoritet' },
-      { href: '#election-alternatives', text: 'Regeringsalternativ' },
-      { href: '#election-government-builder', text: 'Bygg din egen regering' },
-      { href: '#election-threshold', text: '4 %-spärren' },
-      { href: '#election-model', text: 'Så fungerar modellen' },
-      { href: '#election-methodology', text: 'Metod och utvärdering' },
-      { href: '#election-technical', text: 'Teknisk information' },
-      ...(publication.resultShown ? [
-        { href: '#election-result-delta', text: 'Sista prognosen mot valresultatet' },
-      ] : []),
-    ], view.navigation);
   const facts = view.hero?.facts || [];
-  const publishedSamples = history.series?.at(-1)?.samples;
   // The polling label names the polls; the calculation time is its own line
   // below the grid, so the two freshness claims cannot be read as one.
   equal('hero fact labels name the polling input, not just "underlag"',
     facts.map((fact) => fact.label),
     ['Senaste opinionsunderlag', 'Valdag', decided ? 'N\u00e4sta val' : 'Dagar kvar']);
-  // The lede's contract, restated for the post-#27 page.
-  //
-  // The old assertion required "underlag till och med <date>" in the lede.
-  // That was written when `as_of` was printed as the polling cutoff, and #27
-  // deliberately stopped doing that: `as_of` is the day the forecast is
-  // anchored at, it advances on a re-run that saw no new poll, and it is not
-  // the newest poll the forecast saw. The lede now names the newest *verified*
-  // poll or, when that cannot be established against this publication, no date
-  // at all -- so requiring a date mandated a surface the page is right to omit,
-  // and the regex would have been satisfied by an `as_of` date, which is the
-  // one thing #27 forbids. Production run #40 is what surfaced it.
-  //
-  // What the lede must do instead:
-  const lede = view.hero?.lede || '';
-  if (decided) {
-    // After the election the lede reports the result instead of the forecast;
-    // the draw count belongs to the forecast panels below it.
-    check('hero lede names the decided election date',
-      lede.startsWith(`Valet den ${swedishDay(publication.electionDate)} \u00e4r avgjort.`), lede);
-  } else {
-    check('hero lede names the published election date',
-      new RegExp(`Valprognosen visar hur valet den ${swedishDay(publication.electionDate)} kan sluta`)
-        .test(lede), lede);
-    check('hero lede names the published simulation draw count',
-      numberInText(lede, publishedSamples), lede);
-  }
-
-  // The lede either names the verified newest poll or says it is publication
-  // data without a date. Either is correct; a third option -- a date sourced
-  // from as_of -- is not, so the dated form has to agree with the polling
-  // fact beside it rather than being asserted against as_of directly. On a
-  // normal daily cadence the newest poll and as_of legitimately coincide, so
-  // "the hero must not contain the as_of date" would be unsound.
-  const pollingFact = (view.hero?.facts || [])
-    .find((fact) => fact.label === 'Senaste opinionsunderlag');
-  const ledeDate = /opinionsunderlag till och med ([^.,]+?)(?: och|,)/.exec(lede);
-  check('hero lede does not present as_of as the polling cutoff',
-    ledeDate
-      ? ledeDate[1].trim() === pollingFact?.value
-      : (decided ? /byggd p\u00e5 det publicerade opinionsunderlaget/
-        : /Den bygger p\u00e5 det publicerade opinionsunderlaget/).test(lede),
-    { lede, pollingFact: pollingFact?.value });
-  check('the lede never speaks of the forecast anchor at all',
-    !/ankardatum/i.test(lede), lede);
 
   // Polling freshness is its own surface, and stays one.
+  const pollingFact = facts.find((fact) => fact.label === 'Senaste opinionsunderlag');
   check('Senaste opinionsunderlag is the separate polling-freshness fact',
     Boolean(pollingFact) &&
     (pollingFact.value === '\u2014' || /^\d+ \S+ \d{4}$/.test(pollingFact.value)),

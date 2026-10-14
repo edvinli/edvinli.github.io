@@ -115,7 +115,6 @@ function readPage(browser) {
       kicker: text('election-hero-kicker'),
       countdownLabel: text('election-hero-countdown-label'),
       countdown: text('election-hero-countdown'),
-      lede: text('election-hero-lede'),
       updated: text('election-hero-updated'),
       // The chamber's dots in drawing order, run-length encoded by party.
       chamber: Array.from(document.querySelectorAll('#election-result-parliament .election-seat:not(.election-seat--substitute)'))
@@ -129,8 +128,6 @@ function readPage(browser) {
       legend: Array.from(document.querySelectorAll('#election-result-legend .ep-legend__item'))
         .map((node) => [node.dataset.party, node.querySelector('.ep-legend__seats')?.textContent.trim()]),
       order: Array.from(document.querySelectorAll('#election-simulator-app > section')).map((node) => node.id),
-      nav: Array.from(document.querySelectorAll('#election-hero .election-hero__links a'))
-        .map((node) => node.getAttribute('href')),
       simulatedChamber: Boolean(document.getElementById('election-parliament')) ||
         /simulerat riksdagsutfall/i.test(document.getElementById('election-simulator-app').textContent),
       blocs: Array.from(document.querySelectorAll('#election-result-blocs .election-result__bloc'))
@@ -484,8 +481,6 @@ async function decided(viewport, name) {
       `Sverige · Riksdagen · sista prognosen före valet ${result.election_date.slice(0, 4)}`);
     equal('the countdown cell names the next election', [page.countdownLabel, page.countdown],
       ['Nästa val', swedishDay(result.next_election_date)]);
-    check('the lede says the election is decided',
-      page.lede.startsWith(`Valet den ${swedishDay(result.election_date)} är avgjort.`), page.lede);
     check('the calculation stamp names the last forecast', page.updated.startsWith('Sista prognosen beräknad'), page.updated);
     check('the polling-freshness note is not shown', page.freshnessHidden);
     check('the divider over the forecast panels is shown', !page.dividerHidden);
@@ -532,10 +527,6 @@ async function decided(viewport, name) {
       page.summary.includes(`90-procentiga intervall för ${inside} av ${PARTIES.length} partier`), page.summary);
     check('every row is spoken with its result and direction',
       page.rows.every((row) => /valresultat \d+,\d procent/.test(row.label) && /(högre|lägre|i nivå)/.test(row.label)));
-    equal('the hero navigation follows the forecast, without the result',
-      page.nav.slice(0, 5),
-      ['#election-timeseries', '#election-latest-poll', '#election-headline', '#election-seats', '#election-blocs']);
-    equal('the comparison navigation link is last', page.nav.at(-1), '#election-result-delta');
     await checkMembers(browser);
     check('no horizontal scroll', page.overflow <= 0, page.overflow);
 
@@ -614,7 +605,6 @@ async function preElection() {
     check('the comparison is not shown', page.deltaHidden);
     check('the divider is not shown', page.dividerHidden);
     equal('the countdown cell is the countdown', page.countdownLabel, 'Dagar kvar');
-    check('the lede is the forecast lede', page.lede.startsWith('Valprognosen visar'), page.lede);
     equal('no console errors', appErrors(browser).map((e) => e.text), []);
   } finally {
     await browser.close();
@@ -646,8 +636,6 @@ async function nextElection(viewport, name) {
         page.order.slice(0, 3).join('|') === 'election-timeseries|election-headline|election-seats', page.order);
       equal('the result comparison follows technical disclosures and ends the page',
         page.order.at(-1), 'election-result-delta');
-      check('the comparison link is last in the hero navigation',
-        page.nav.at(-1) === '#election-result-delta' && !page.nav.includes('#election-result'), page.nav);
       check('vote and seat captions name the certified 2026 result baseline',
         page.voteChangeCaption.includes('jämfört med valresultatet 2026') &&
         page.seatChangeCaption.includes('jämfört med valresultatet 2026'),

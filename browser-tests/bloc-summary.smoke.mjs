@@ -201,10 +201,6 @@ const readPage = (browser) => browser.evaluate(() => {
       valueSize: parseFloat(getComputedStyle(tile.querySelector('.eb-bloc__value')).fontSize),
       wordSize: parseFloat(getComputedStyle(tile.querySelector('.eb-bloc__word')).fontSize),
     })),
-    navFirst: (() => {
-      const link = document.querySelector('.election-hero__links a');
-      return link ? `${link.getAttribute('href')} ${flat(link.textContent)}` : null;
-    })(),
 
     // --- the chart ---
     rangePressed: ['full', 'short'].map((range) => {
@@ -289,8 +285,6 @@ async function live() {
     check('the panel sits below the hero, not inside it',
       page.sectionTop >= page.heroBottom, { hero: page.heroBottom, panel: page.sectionTop });
     equal('the chart opens on Partier', page.openingView, 'parties');
-    equal('the section nav starts at the chart',
-      page.navFirst, '#election-timeseries Vägen till valdagen');
 
     // --- the numbers, all four of them, per bloc ---
     equal('every published bloc has a tile, in the chart\'s own order',
