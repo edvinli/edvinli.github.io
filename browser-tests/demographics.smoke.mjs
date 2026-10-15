@@ -375,7 +375,7 @@ async function invalidData() {
     await writeFile(join(root, DATA), `${JSON.stringify(broken)}\n`);
     const { server, browser } = await open(DESKTOP, '#demografi', root);
     try {
-      await browser.waitFor(() => /kunde inte/.test(document.getElementById('edm-view').textContent), 15000);
+      await browser.waitFor(() => /kunde inte/.test(document.getElementById('edm-view')?.textContent || ''), 15000);
       const state = await browser.evaluate(() => ({
         error: document.getElementById('edm-status')?.className.includes('error'),
         bars: document.querySelectorAll('.edm-stack-row, .edm-bar-row, .edm-line__svg').length,

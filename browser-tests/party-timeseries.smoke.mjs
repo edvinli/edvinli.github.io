@@ -854,16 +854,34 @@ async function runViewport(viewport, site) {
     check('the short-range axis has readable ticks',
       short.yTicks.length >= 3 && short.yTicks.length <= 9, short.yTicks);
     // With one party on its own, the window has to be fine enough for
-    // sub-point movement. The bound guards against the four-year coalition
-    // ladder (20 pp minimum span) leaking in, not against the data: the 30
-    // days up to the latest forecast span about 7 pp of poll scatter for the
-    // largest party, which snaps to a 10 pp tick domain.
+    // sub-point movement. The check guards against the four-year coalition
+    // ladder (20 pp minimum span) leaking in, and against anything not drawn
+    // widening the axis -- not against the data itself. A fixed bound was
+    // wrong for that: far from an election the largest party's 90 % band
+    // alone spans 9 pp over 30 days, so a few tenths of a point in the data
+    // moved the snapped window across it. The window is measured against
+    // what is drawn: at most 1 pp of padding and one 2 pp tick of snapping
+    // on each side.
     check('one party alone gets a fine short-range window',
       await showOnlyParty(browser, big));
     await settle(280);
     const soloShort = await readState(browser);
+    const soloDrawn = await browser.evaluate((party) => {
+      const values = [];
+      document.querySelectorAll(`#election-timeseries-svg [data-forecast-point][data-coalition="${party}"]`)
+        .forEach((node) => ['data-p05', 'data-p50', 'data-p95'].forEach((name) => {
+          const value = Number(node.getAttribute(name));
+          if (node.getAttribute(name) !== null && Number.isFinite(value)) values.push(value);
+        }));
+      return values;
+    }, big);
+    soloShort.polls.filter((poll) => poll.definition === big)
+      .forEach((poll) => soloDrawn.push(poll.value));
+    const soloSpan = soloShort.yMax - soloShort.yMin;
+    const soloDataSpan = soloDrawn.length ? Math.max(...soloDrawn) - Math.min(...soloDrawn) : 0;
     check('the solo short-range window is fine enough for sub-point movement',
-      (soloShort.yMax - soloShort.yMin) <= 12, soloShort.yMax - soloShort.yMin);
+      soloDrawn.length > 0 && soloSpan < 20 && soloSpan <= soloDataSpan + 6,
+      { span: soloSpan, dataSpan: soloDataSpan, window: [soloShort.yMin, soloShort.yMax] });
     check('the solo window is no wider than the eight-party one',
       (soloShort.yMax - soloShort.yMin) <= (short.yMax - short.yMin),
       { solo: [soloShort.yMin, soloShort.yMax], all: [short.yMin, short.yMax] });
