@@ -5038,28 +5038,225 @@
     return groups.coalition_builder;
   }
 
+  // The forecast builder: every seat count is a lookup in the published
+  // coalition table, and the summary adds the interval, the majority
+  // probability and the exact histogram for the chosen government.
   function renderGovernmentBuilder(builder, totalSamples) {
-    var section = byId("election-government-builder");
-    if (!section || !builder) return;
+    if (!byId("election-government-builder") || !builder) return;
+    var summary = byId("election-government-results");
+    var histogram = byId("election-government-histogram");
+
+    function medianOf(mask) {
+      var entry = coalitionLookup(builder, mask);
+      var value = entry ? num(entry.median_seats) : null;
+      return value === null ? 0 : Math.max(0, value);
+    }
+
+    // Draws the summary and returns the sentence the live region should
+    // carry for the resulting state; the caller prefixes whatever just
+    // happened, so a move and its consequence are announced together.
+    function renderSummary(governmentMask, opposition) {
+      var entry = coalitionLookup(builder, governmentMask);
+      var chosen = governmentMask !== 0;
+      if (!summary) return "";
+      summary.hidden = !chosen;
+      summary.setAttribute("data-government-mask", chosen ? String(governmentMask) : "");
+      summary.setAttribute("data-opposition-mask", chosen ? String(opposition) : "");
+      // The evaluated coalition is the government and nothing else.
+      summary.setAttribute("data-coalition-mask", chosen ? String(governmentMask) : "");
+      // The histogram is the government's own combination and nothing else:
+      // the same mask the summary is looked up with, never a union with the
+      // opposition.  An empty government and a 1.2 publication both clear it.
+      renderCoalitionHistogram(histogram, chosen ? entry : null, builder,
+        governmentMask, totalSamples);
+      if (!chosen || !entry) {
+        summary.innerHTML = "";
+        return ZONE_HINTS.government;
+      }
+
+      var governmentSeats = format(entry.median_seats, 0) + " mandat";
+      var oppositionSeats = format(medianOf(opposition), 0) + " mandat";
+      var range = rangeText(entry.p05_seats, entry.p95_seats, 0) + " mandat";
+      var chance = probability(entry.prob_majority);
+      // A schema-1.2 entry has no exact histogram to reveal.  Keep its
+      // compatibility summary intact, but do not leave a dead link behind.
+      var discoverability = entry.seat_histogram && histogram && !histogram.hidden
+        ? "<div class=\"eg-summary__discoverability\">" +
+            "<span>Median: " + escapeHtml(format(entry.median_seats, 0)) +
+            " mandat · Majoritet: " + escapeHtml(histogramProbability(entry.prob_majority)) + " · </span>" +
+            "<a class=\"eg-summary__histogram-link\" href=\"#election-government-histogram\">" +
+              "Visa mandatfördelningen ↓" +
+            "</a>" +
+          "</div>"
+        : "";
+      // The opposition row is its own coalition's median, looked up on its
+      // own mask.  It is a contrast, not a second majority claim, so no
+      // probability is printed for it.
+      summary.innerHTML =
+        summaryRow("government", ZONE_NAMES.government, governmentSeats) +
+        summaryRow("opposition", ZONE_NAMES.opposition, oppositionSeats) +
+        summaryRow("interval", "90 % prognosintervall", range) +
+        summaryRow("probability", "Sannolikhet för minst " + MAJORITY + " mandat", chance) +
+        discoverability;
+
+      var histogramLink = discoverability
+        ? summary.querySelector(".eg-summary__histogram-link") : null;
+      if (histogramLink && histogram && histogram.addEventListener) {
+        histogramLink.addEventListener("click", function (event) {
+          // The href remains a normal anchor fallback for older browsers.  If
+          // smooth scrolling is available, use it only after an explicit
+          // click; rendering and dragging never move the page.
+          if (!histogram.scrollIntoView || typeof histogram.scrollIntoView !== "function") return;
+          if (event && event.preventDefault) event.preventDefault();
+          try {
+            histogram.scrollIntoView({ behavior: "smooth", block: "start" });
+          } catch (error) {
+            histogram.scrollIntoView();
+          }
+        });
+      }
+
+      var oppositionParties = coalitionParties(builder, opposition);
+      return "Regering " + coalitionParties(builder, governmentMask).join(" + ") + ", " +
+        governmentSeats + "; 90-procentigt prognosintervall " + range +
+        "; sannolikhet för minst " + MAJORITY + " mandat " + chance + ". " +
+        (oppositionParties.length
+          ? "Opposition " + oppositionParties.join(" + ") + ", " + oppositionSeats + "."
+          : "Inga partier i opposition.");
+    }
+
+    mountGovernmentBuilder({
+      partyOrder: builder.party_order,
+      ids: {
+        section: "election-government-builder",
+        governmentBar: "election-government-bar",
+        oppositionBar: "election-opposition-bar",
+        governmentColumn: "election-government-column",
+        oppositionColumn: "election-opposition-column",
+        governmentTotal: "election-government-total",
+        oppositionTotal: "election-opposition-total",
+        presets: "election-builder-presets",
+        reset: "election-builder-reset",
+        announcement: "election-government-announcement"
+      },
+      // A single party's median is the lookup for its own one-bit mask:
+      // still the published table, never a browser-side recomputation.
+      partySeats: function (party) {
+        var index = builder.party_order.indexOf(party);
+        return index === -1 ? 0 : medianOf(1 << index);
+      },
+      coalitionSeats: medianOf,
+      blockSeatsText: " mandat i median",
+      barTotalText: "Median tillsammans ",
+      renderSummary: renderSummary
+    });
+  }
+
+  // The same builder on the certified result: every seat count is what the
+  // parties actually won, so a combination's seats are an exact sum and the
+  // only question left is whether it reaches 175.  There is no interval, no
+  // probability and no histogram -- nothing here is uncertain.
+  function renderResultGovernmentBuilder(result) {
+    if (!byId("election-result-builder") || !result) return;
+    var order = { party_order: COALITION_PARTY_ORDER };
+    var summary = byId("election-result-government-results");
+
+    function partySeats(party) {
+      var entry = result.parties[party];
+      return entry ? entry.seats : 0;
+    }
+
+    function seatsOf(mask) {
+      return coalitionParties(order, mask).reduce(function (sum, party) {
+        return sum + partySeats(party);
+      }, 0);
+    }
+
+    function renderSummary(governmentMask, opposition) {
+      var chosen = governmentMask !== 0;
+      if (!summary) return "";
+      summary.hidden = !chosen;
+      summary.setAttribute("data-government-mask", chosen ? String(governmentMask) : "");
+      summary.setAttribute("data-opposition-mask", chosen ? String(opposition) : "");
+      if (!chosen) {
+        summary.innerHTML = "";
+        return ZONE_HINTS.government;
+      }
+      var seats = seatsOf(governmentMask);
+      var governmentSeats = format(seats, 0) + " mandat";
+      var oppositionSeats = format(seatsOf(opposition), 0) + " mandat";
+      // The cell is narrow, so it carries the verdict and the margin; the
+      // live region spells the margin out.
+      var margin = seats - MAJORITY;
+      var majorityShort = margin >= 0
+        ? "Ja" + (margin > 0 ? ", +" + format(margin, 0) : "")
+        : "Nej, −" + format(-margin, 0);
+      var majority = margin > 0
+        ? "Ja, " + format(margin, 0) + " mandat över gränsen"
+        : margin === 0 ? "Ja, precis på gränsen"
+          : "Nej, " + format(-margin, 0) + " mandat saknas";
+      summary.innerHTML =
+        summaryRow("government", ZONE_NAMES.government, governmentSeats) +
+        summaryRow("opposition", ZONE_NAMES.opposition, oppositionSeats) +
+        summaryRow("majority", "Egen majoritet", majorityShort);
+
+      var oppositionParties = coalitionParties(order, opposition);
+      return "Regering " + coalitionParties(order, governmentMask).join(" + ") + ", " +
+        governmentSeats + " i valet " + result.year + "; egen majoritet: " + majority + ". " +
+        (oppositionParties.length
+          ? "Opposition " + oppositionParties.join(" + ") + ", " + oppositionSeats + "."
+          : "Inga partier i opposition.");
+    }
+
+    setText("election-result-builder-intro", "Dra partierna mellan Opposition och Regering och se " +
+      "hur många mandat sidorna fick i valet " + result.year + ".");
+    mountGovernmentBuilder({
+      partyOrder: COALITION_PARTY_ORDER,
+      ids: {
+        section: "election-result-builder",
+        governmentBar: "election-result-government-bar",
+        oppositionBar: "election-result-opposition-bar",
+        governmentColumn: "election-result-government-column",
+        oppositionColumn: "election-result-opposition-column",
+        governmentTotal: "election-result-government-total",
+        oppositionTotal: "election-result-opposition-total",
+        presets: "election-result-builder-presets",
+        reset: "election-result-builder-reset",
+        announcement: "election-result-government-announcement"
+      },
+      partySeats: partySeats,
+      coalitionSeats: seatsOf,
+      blockSeatsText: " mandat",
+      barTotalText: "Tillsammans ",
+      renderSummary: renderSummary
+    });
+  }
+
+  // The drag-and-drop panel itself, shared by the forecast and the result.
+  // `spec` supplies where the seat counts come from and what the summary
+  // says; the partition, the dragging and the presets are the same for both.
+  function mountGovernmentBuilder(spec) {
+    var ids = spec.ids;
+    var section = byId(ids.section);
+    if (!section) return;
+    var builder = { party_order: spec.partyOrder };
 
     // The bars are both the picture and the interaction: the mandate blocks
     // inside them are what a pointer grabs, and the bar a block is dropped
     // on is the side it moves to.  There is no second set of controls.
     var bars = {
-      government: byId("election-government-bar"),
-      opposition: byId("election-opposition-bar")
+      government: byId(ids.governmentBar),
+      opposition: byId(ids.oppositionBar)
     };
     var heads = {
-      government: byId("election-government-column"),
-      opposition: byId("election-opposition-column")
+      government: byId(ids.governmentColumn),
+      opposition: byId(ids.oppositionColumn)
     };
     var totalIds = {
-      government: "election-government-total",
-      opposition: "election-opposition-total"
+      government: ids.governmentTotal,
+      opposition: ids.oppositionTotal
     };
-    var summary = byId("election-government-results");
-    var histogram = byId("election-government-histogram");
-    var resetButton = byId("election-builder-reset");
+    var resetButton = byId(ids.reset);
 
     // Every party in the published order, as a single bitmask.  The two sides
     // partition it: government | opposition is always this, and
@@ -5099,18 +5296,12 @@
       return index === -1 ? 0 : 1 << index;
     }
 
-    // A single party's median is the lookup for its own one-bit mask: still
-    // the published table, never a browser-side recomputation.
     function partyMedian(party) {
-      var entry = coalitionLookup(builder, bitOf(party));
-      var value = entry ? num(entry.median_seats) : null;
-      return value === null ? 0 : Math.max(0, value);
+      return spec.partySeats(party);
     }
 
     function medianOf(mask) {
-      var entry = coalitionLookup(builder, mask);
-      var value = entry ? num(entry.median_seats) : null;
-      return value === null ? 0 : Math.max(0, value);
+      return spec.coalitionSeats(mask);
     }
 
     function zoneOf(party) {
@@ -5138,7 +5329,7 @@
 
     function blockLabel(party, zone) {
       return fullName(party) + ", " + format(partyMedian(party), 0) +
-        " mandat i median, i " + ZONE_NAMES[zone] + ". Dra till " +
+        spec.blockSeatsText + ", i " + ZONE_NAMES[zone] + ". Dra till " +
         ZONE_NAMES[otherZone(zone)] + ".";
     }
 
@@ -5339,7 +5530,7 @@
     // opposition follows because it is derived -- so the two sides cannot
     // drift apart and no scrolling is triggered.
     function buildPresets() {
-      var host = byId("election-builder-presets");
+      var host = byId(ids.presets);
       if (!host) return;
       host.innerHTML = "";
       presets.forEach(function (preset) {
@@ -5441,91 +5632,17 @@
       // Segments are appended bottom-first (the track is column-reverse), but
       // the description is read top-down, the way the stack is seen.
       host.setAttribute("aria-label", members.length
-        ? BAR_NAMES[key] + ": " + described.reverse().join(", ") + ". Median tillsammans " +
+        ? BAR_NAMES[key] + ": " + described.reverse().join(", ") + ". " + spec.barTotalText +
           format(total, 0) + " av " + CHAMBER + " mandat."
         : BAR_NAMES[key] + ": inga partier valda.");
-    }
-
-    // Draws the summary and returns the sentence the live region should
-    // carry for the resulting state; the caller prefixes whatever just
-    // happened, so a move and its consequence are announced together.
-    function renderSummary() {
-      var opposition = oppositionMask();
-      var entry = coalitionLookup(builder, governmentMask);
-      var chosen = governmentMask !== 0;
-      if (!summary) return "";
-      summary.hidden = !chosen;
-      summary.setAttribute("data-government-mask", chosen ? String(governmentMask) : "");
-      summary.setAttribute("data-opposition-mask", chosen ? String(opposition) : "");
-      // The evaluated coalition is the government and nothing else.
-      summary.setAttribute("data-coalition-mask", chosen ? String(governmentMask) : "");
-      // The histogram is the government's own combination and nothing else:
-      // the same mask the summary is looked up with, never a union with the
-      // opposition.  An empty government and a 1.2 publication both clear it.
-      renderCoalitionHistogram(histogram, chosen ? entry : null, builder,
-        governmentMask, totalSamples);
-      if (!chosen || !entry) {
-        summary.innerHTML = "";
-        return ZONE_HINTS.government;
-      }
-
-      var governmentSeats = format(entry.median_seats, 0) + " mandat";
-      var oppositionSeats = format(medianOf(opposition), 0) + " mandat";
-      var range = rangeText(entry.p05_seats, entry.p95_seats, 0) + " mandat";
-      var chance = probability(entry.prob_majority);
-      // A schema-1.2 entry has no exact histogram to reveal.  Keep its
-      // compatibility summary intact, but do not leave a dead link behind.
-      var discoverability = entry.seat_histogram && histogram && !histogram.hidden
-        ? "<div class=\"eg-summary__discoverability\">" +
-            "<span>Median: " + escapeHtml(format(entry.median_seats, 0)) +
-            " mandat \u00b7 Majoritet: " + escapeHtml(histogramProbability(entry.prob_majority)) + " \u00b7 </span>" +
-            "<a class=\"eg-summary__histogram-link\" href=\"#election-government-histogram\">" +
-              "Visa mandatf\u00f6rdelningen \u2193" +
-            "</a>" +
-          "</div>"
-        : "";
-      // The opposition row is its own coalition's median, looked up on its
-      // own mask.  It is a contrast, not a second majority claim, so no
-      // probability is printed for it.
-      summary.innerHTML =
-        summaryRow("government", ZONE_NAMES.government, governmentSeats) +
-        summaryRow("opposition", ZONE_NAMES.opposition, oppositionSeats) +
-        summaryRow("interval", "90\u00a0% prognosintervall", range) +
-        summaryRow("probability", "Sannolikhet f\u00f6r minst " + MAJORITY + " mandat", chance) +
-        discoverability;
-
-      var histogramLink = discoverability
-        ? summary.querySelector(".eg-summary__histogram-link") : null;
-      if (histogramLink && histogram && histogram.addEventListener) {
-        histogramLink.addEventListener("click", function (event) {
-          // The href remains a normal anchor fallback for older browsers.  If
-          // smooth scrolling is available, use it only after an explicit
-          // click; rendering and dragging never move the page.
-          if (!histogram.scrollIntoView || typeof histogram.scrollIntoView !== "function") return;
-          if (event && event.preventDefault) event.preventDefault();
-          try {
-            histogram.scrollIntoView({ behavior: "smooth", block: "start" });
-          } catch (error) {
-            histogram.scrollIntoView();
-          }
-        });
-      }
-
-      var oppositionParties = coalitionParties(builder, opposition);
-      return "Regering " + coalitionParties(builder, governmentMask).join(" + ") + ", " +
-        governmentSeats + "; 90-procentigt prognosintervall " + range +
-        "; sannolikhet f\u00f6r minst " + MAJORITY + " mandat " + chance + ". " +
-        (oppositionParties.length
-          ? "Opposition " + oppositionParties.join(" + ") + ", " + oppositionSeats + "."
-          : "Inga partier i opposition.");
     }
 
     function render(moved) {
       ZONE_SEQUENCE.forEach(function (zone) {
         renderBar(zone, maskOf(zone));
       });
-      var state = renderSummary();
-      setText("election-government-announcement",
+      var state = spec.renderSummary(governmentMask, oppositionMask());
+      setText(ids.announcement,
         moved ? moved + " " + state : state);
       paintZones();
       paintPresets();
@@ -5537,7 +5654,7 @@
         render();
         // After render, so the reset message is not immediately overwritten
         // by the empty-government prompt.
-        setText("election-government-announcement",
+        setText(ids.announcement,
           "Alla \u00e5tta partier ligger i Opposition igen.");
         if (typeof resetButton.focus === "function") resetButton.focus();
       });
@@ -6337,6 +6454,7 @@
     }).join(""));
     reveal("election-result");
     showChamberMembers(parliament, result);
+    renderResultGovernmentBuilder(result);
 
     var divider = byId("election-forecast-divider");
     if (divider && decided) {

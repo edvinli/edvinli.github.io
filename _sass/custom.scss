@@ -2442,7 +2442,8 @@ canvas {
 }
 
 .eg-summary > div[data-metric="government"] dd,
-.eg-summary > div[data-metric="probability"] dd {
+.eg-summary > div[data-metric="probability"] dd,
+.eg-summary > div[data-metric="majority"] dd {
   font-size: 1.05rem;
   font-weight: 700;
 }

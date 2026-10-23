@@ -138,8 +138,8 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
   </section>
   <section id="election-government-builder" class="election-panel" hidden>
     <div class="election-panel__head">
-      <h2>Bygg din egen regering</h2>
-      <p class="election-muted">Dra partierna mellan Opposition och Regering och se sidornas mandat.</p>
+      <h2>Bygg din egen regering – enligt prognosen</h2>
+      <p class="election-muted">Dra partierna mellan Opposition och Regering och se sidornas mandat i prognosen för nästa val. Mandaten är medianer från simuleringarna, inte ett valresultat. Vill du utgå från hur det faktiskt blev finns samma verktyg under <a href="#valet-2026">Valet 2026</a>.</p>
     </div>
     <div class="eg-builder">
       <div class="eg-presets" role="group" aria-labelledby="election-builder-presets-label">
@@ -425,6 +425,48 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
       </div>
       <p class="election-muted ep-members-note" id="election-result-members-note" hidden>Peka på eller tryck på ett mandat för att se vem som sitter där: namn, ålder på valdagen, titel enligt valsedeln och bostadsort. Med tangentbordet går du mellan mandaten med piltangenterna. Nyinvald betyder att ledamoten inte har suttit i riksdagen tidigare, varken som ledamot eller ersättare. En ledamot som har lämnat riksdagen visas med sin efterträdare; i vyn Som i kammaren visas också ersättarna för dem som är lediga. Källor: Sveriges riksdag och Valmyndigheten.</p>
       <p id="election-result-member-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+    </section>
+    <!-- The government builder on the certified seats: the same panel as the
+         forecast's, without the uncertainty, since the seats are known. -->
+    <section id="election-result-builder" class="election-panel" hidden>
+      <div class="election-panel__head">
+        <h2>Bygg din egen regering – enligt valresultatet</h2>
+        <p class="election-muted" id="election-result-builder-intro">Dra partierna mellan Opposition och Regering och se hur många mandat sidorna fick i valet.</p>
+      </div>
+      <div class="eg-builder">
+        <div class="eg-presets" role="group" aria-labelledby="election-result-builder-presets-label">
+          <p class="eg-presets__label" id="election-result-builder-presets-label">Färdiga alternativ</p>
+          <div class="eg-presets__list" id="election-result-builder-presets"></div>
+        </div>
+        <div class="eg-builder__head">
+          <button type="button" id="election-result-builder-reset" class="eg-reset">Återställ</button>
+        </div>
+        <div class="eg-chart">
+          <div class="eg-chart__row eg-chart__row--heads">
+            <div class="eg-chart__gutter" aria-hidden="true"></div>
+            <div class="eg-chart__head" id="election-result-government-column" data-coalition-mask="0">
+              <h3 class="eg-chart__title">Regering</h3>
+              <p class="eg-chart__total"><span class="eg-chart__total-value" id="election-result-government-total">0</span> mandat</p>
+            </div>
+            <div class="eg-chart__head" id="election-result-opposition-column" data-coalition-mask="0">
+              <h3 class="eg-chart__title">Opposition</h3>
+              <p class="eg-chart__total"><span class="eg-chart__total-value" id="election-result-opposition-total">0</span> mandat</p>
+            </div>
+          </div>
+          <div class="eg-chart__plot">
+            <div class="eg-chart__axis" aria-hidden="true">
+              <span class="eg-chart__tick eg-chart__tick--max">349</span>
+              <span class="eg-chart__tick eg-chart__tick--zero">0</span>
+            </div>
+            <div class="eg-bar" id="election-result-government-bar" role="img" data-zone="government" aria-label="Regering: inga partier valda"></div>
+            <div class="eg-bar" id="election-result-opposition-bar" role="img" data-zone="opposition" aria-label="Opposition: inga partier valda"></div>
+            <div class="eg-chart__majority" aria-hidden="true"><span class="eg-chart__majority-label">Majoritetsgräns: 175 mandat</span></div>
+          </div>
+        </div>
+        <dl id="election-result-government-results" class="eg-summary" hidden data-government-mask="" data-opposition-mask=""></dl>
+      </div>
+      <p id="election-result-government-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+      <p class="eg-builder__disclaimer">Mandaten är de som partierna fick i valet. Det här visar om de valda partierna tillsammans har minst 175 mandat – inte vilken regering som faktiskt bildades.</p>
     </section>
 </div>
 
