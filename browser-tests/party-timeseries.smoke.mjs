@@ -380,6 +380,27 @@ function orderedNumbers(entry) {
     (index === 0 || value >= values[index - 1]));
 }
 
+// History stores vote shares to six decimal places; parties.json stores the
+// certified forecast to three. Check whether their nearest-rounding intervals
+// overlap instead of rounding the history value a second time. In millionths,
+// the interval half-widths are 0.5 and 500, so integer-quantized centers can
+// describe the same underlying value exactly when they differ by at most 500.
+function voteQuantizationsCanMatch(historyValue, publishedValue) {
+  if (typeof historyValue !== 'number' || !Number.isFinite(historyValue) ||
+      typeof publishedValue !== 'number' || !Number.isFinite(publishedValue)) return false;
+
+  const historyMillionths = historyValue * 1_000_000;
+  const publishedThousandths = publishedValue * 1_000;
+  const historyCenter = Math.round(historyMillionths);
+  const publishedCenter = Math.round(publishedThousandths);
+  const floatNoise = 1e-6;
+  if (!Number.isSafeInteger(historyCenter) || !Number.isSafeInteger(publishedCenter) ||
+      Math.abs(historyMillionths - historyCenter) > floatNoise ||
+      Math.abs(publishedThousandths - publishedCenter) > floatNoise) return false;
+
+  return Math.abs(historyCenter - publishedCenter * 1_000) <= 500;
+}
+
 // Everything the published artifact must satisfy before the UI may expose the
 // party view. Returns a list of failures so it can be self-tested directly,
 // without a browser and without a port.
@@ -446,8 +467,8 @@ function validateRealArtifact(history, certified) {
   }
 
   // The published party endpoint quantiles must be the certified forecast's
-  // own. History keeps six decimals and parties.json three, so votes are
-  // compared at the coarser published precision and seats exactly.
+  // own. Votes must have overlapping six- and three-decimal serialization
+  // intervals; seats still have exact parity.
   if (certified && current.length === 1) {
     const generation = String(current[0].publication_generation || '');
     if (generation && certified.generation && generation !== certified.generation) {
@@ -463,13 +484,15 @@ function validateRealArtifact(history, certified) {
       const entry = current[0].parties?.[party];
       if (!entry) return;
       QUANTILES.forEach((key, index) => {
-        const published = Number(row[VOTE_FIELDS[index]]);
-        const actual = Math.round(entry.vote[key] * 1000) / 1000;
-        if (Math.abs(actual - published) > 1e-9) {
-          fail(`${party} endpoint vote ${key} is ${actual}, published forecast says ${published}`);
+        const published = row[VOTE_FIELDS[index]];
+        if (!voteQuantizationsCanMatch(entry.vote[key], published)) {
+          fail(`${party} endpoint vote ${key} is ${entry.vote[key]}, ` +
+            `published forecast says ${published}`);
         }
-        const publishedSeats = Number(row[SEAT_FIELDS[index]]);
-        if (entry.seats[key] !== publishedSeats) {
+        const publishedSeats = row[SEAT_FIELDS[index]];
+        if (!Number.isInteger(publishedSeats)) {
+          fail(`${party} endpoint seats ${key} is not a published integer: ${publishedSeats}`);
+        } else if (entry.seats[key] !== publishedSeats) {
           fail(`${party} endpoint seats ${key} is ${entry.seats[key]}, ` +
             `published forecast says ${publishedSeats}`);
         }
@@ -1348,6 +1371,38 @@ async function selfTestRealArtifactMode() {
   // ---- the comparator, on its passing path --------------------------------
   equal('a complete artifact passes with no findings',
     validateRealArtifact(complete, certified), []);
+
+  // The same raw draw quantiles can serialize to adjacent-looking values at
+  // these two precisions. Keep both production observations here, plus a
+  // valid case where history lies below the published three-decimal value.
+  const roundedAcrossPrecisions = structuredClone(complete);
+  const roundedPoint = certifiedPoint(roundedAcrossPrecisions);
+  roundedPoint.parties.MP.vote.p05 = 4.4605;
+  roundedPoint.parties.SD.vote.p05 = 14.3495;
+  roundedPoint.parties.M.vote.p05 = 15.7325;
+  const roundedRows = structuredClone(certified);
+  roundedRows.rows.MP.vote_share_p05 = 4.46;
+  roundedRows.rows.SD.vote_share_p05 = 14.349;
+  roundedRows.rows.M.vote_share_p05 = 15.733;
+  equal('both observed six-to-three-decimal endpoint values pass parity',
+    validateRealArtifact(roundedAcrossPrecisions, roundedRows), []);
+
+  // A blanket 0.001 tolerance would allow this value. It is 501 millionths
+  // from the published center, beyond the combined half-width of 500.5.
+  const outsideQuantizationBoundary = structuredClone(roundedAcrossPrecisions);
+  certifiedPoint(outsideQuantizationBoundary).parties.MP.vote.p05 = 4.460501;
+  const outsideFindings = validateRealArtifact(outsideQuantizationBoundary, roundedRows);
+  check('real-artifact mode rejects endpoint votes outside the quantization boundary',
+    outsideFindings.some((problem) =>
+      problem.includes('MP endpoint vote p05') && problem.includes('published forecast says')),
+    outsideFindings);
+
+  const malformedPublishedVote = structuredClone(roundedRows);
+  malformedPublishedVote.rows.MP.vote_share_p05 = 'not-a-number';
+  const malformedFindings = validateRealArtifact(roundedAcrossPrecisions, malformedPublishedVote);
+  check('real-artifact mode rejects a malformed published vote value',
+    malformedFindings.some((problem) => problem.includes('MP endpoint vote p05')),
+    malformedFindings);
 
   // ---- every precondition, broken one at a time ---------------------------
   // `expect` is a substring the finding must mention, so a mutation cannot be
