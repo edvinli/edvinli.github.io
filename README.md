@@ -37,6 +37,10 @@ This repository only carries the *published output* of that model, under
 
 - `versions/<generation>/` — immutable, hash-manifested publication generations
 - `current.json` — pointer to the live generation
+- `geography/constituency-boundaries.json` — display outlines of the 29 Riksdag
+  constituencies for the constituency map, built by
+  `scripts/geography/boundaries.py` upstream; it is presentation geometry, not
+  model output, and changes only when the constituencies do
 - the flat `forecast.json`, `parties.json`, `seats.json`, `groups.json`,
   `calibration.json`, `metadata.json` and `manifest.json` files, kept as a
   backward-compatible fallback for older consumers

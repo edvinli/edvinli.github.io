@@ -164,12 +164,14 @@
       }
       return loadContracts(base + "/" + pointer.path, pointer).then(function (loaded) {
         loaded.pointer = pointer;
+        loaded.root = base + "/" + pointer.path;
         return loaded;
       });
     }, function (error) {
       if (error.status !== 404) throw error;
       return loadContracts(base, null).then(function (loaded) {
         loaded.pointer = null;
+        loaded.root = base;
         return loaded;
       });
     });
@@ -549,6 +551,9 @@
         panel.head.setAttribute("aria-expanded", open ? "true" : "false");
       }
     });
+    // The constituency map always shows one party, so it follows a choice
+    // made elsewhere but keeps its own when the selection is cleared.
+    if (selectedParty && geographyView) geographyView.setParty(selectedParty);
     app.className = selectedParty ? "election-app is-focused" : "election-app";
     setText("election-selection-note", selectedParty
       ? partyNames[selectedParty] + " (" + abbr(selectedParty) + ") \u00e4r markerat i diagrammen f\u00f6r r\u00f6standelar, mandat och riksdagen."
@@ -5022,12 +5027,13 @@
   // panel built on the coalition table stays hidden.  Validating once and
   // sharing the result keeps the two views on provably the same payload.
   function validatedCoalitionBuilder(groups, totalSamples) {
-    // 1.4 is 1.3 plus metadata only (election_noise_law / election_noise_candidate);
-    // groups.json keeps the 1.3 coalition contract, histograms included.  Without
-    // accepting it the builder returns null and every panel built on the coalition
-    // table silently vanishes from a perfectly valid publication.
-    var COALITION_SCHEMAS = ["1.2", "1.3", "1.4"];
-    var HISTOGRAM_SCHEMAS = ["1.3", "1.4"];
+    // 1.4 is 1.3 plus metadata only (election_noise_law / election_noise_candidate)
+    // and 1.5 adds geography.json beside it; groups.json keeps the 1.3 coalition
+    // contract, histograms included.  Without accepting them the builder returns
+    // null and every panel built on the coalition table silently vanishes from a
+    // perfectly valid publication.
+    var COALITION_SCHEMAS = ["1.2", "1.3", "1.4", "1.5"];
+    var HISTOGRAM_SCHEMAS = ["1.3", "1.4", "1.5"];
     if (!groups || COALITION_SCHEMAS.indexOf(groups.schema_version) === -1) {
       return null;
     }
@@ -6572,6 +6578,509 @@
     reveal("election-result-delta");
   }
 
+  // ---------------------------------------------------------------------
+  // Röstandel per valkrets (publication schema 1.5)
+  //
+  // geography.json summarizes, per constituency and party, the same local
+  // draws the seat allocation used: vote-share quantiles and how often the
+  // party was the largest. It is believed only when its bytes match the
+  // manifest and it names this forecast's own simulation payload and sample
+  // count; the outlines only when they name the same 29 constituencies in the
+  // same order. Anything less leaves the panel hidden, exactly as an older
+  // generation without the file does.
+  //
+  // The local step is deterministic: each simulated national result is
+  // spread over the constituencies along the previous election's pattern.
+  // The intervals therefore carry the national uncertainty only, and the
+  // page says so beside the map rather than letting them read as local
+  // forecasts.
+  // ---------------------------------------------------------------------
+  var GEOGRAPHY_FILE = "geography.json";
+  var GEOGRAPHY_BOUNDARIES = "geography/constituency-boundaries.json";
+  var GEOGRAPHY_PARTY_ORDER = COALITION_PARTY_ORDER.concat(["REST"]);
+  var GEOGRAPHY_QUANTILES = ["p05", "p25", "p50", "p75", "p95"];
+  var GEOGRAPHY_FIELDS = ["schema_version", "party_order", "sample_count", "baseline_year",
+    "constituencies", "deterministic_payload_sha256"];
+  var GEOGRAPHY_CONSTITUENCY_FIELDS = ["code", "name", "baseline_actual_vote_share", "parties"];
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  // The three single-municipality constituencies are a few pixels on the
+  // national map, so each is drawn again at a readable scale.
+  var GEOGRAPHY_INSETS = [
+    { code: "01", label: "Stockholm" },
+    { code: "16", label: "Göteborg" },
+    { code: "11", label: "Malmö" }
+  ];
+  // Magnitude is one hue, light to dark, whichever party is shown: the party
+  // is named by the selector and the caption, never by the fill. Change is
+  // diverging with a neutral grey at exactly zero.
+  var GEOGRAPHY_SEQUENTIAL = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+  var GEOGRAPHY_DIVERGING = ["#8c1d1b", "#d2413f", "#f0aaa5", "#f0efec", "#9ec5f4", "#3987e5", "#184f95"];
+
+  var geographyView = null;
+
+  function hasExactKeys(value, keys) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    var own = Object.keys(value);
+    return own.length === keys.length && keys.every(function (key, index) { return own[index] === key; });
+  }
+
+  function isShare(value) {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
+  }
+
+  function constituencyCode(index) {
+    return (index < 9 ? "0" : "") + String(index + 1);
+  }
+
+  function validGeography(geography, forecast, manifest) {
+    if (!hasExactKeys(geography, GEOGRAPHY_FIELDS) || geography.schema_version !== "1.5") return false;
+    if (!Array.isArray(geography.party_order) ||
+        geography.party_order.join(",") !== GEOGRAPHY_PARTY_ORDER.join(",")) return false;
+    if (!forecast || !Number.isInteger(geography.sample_count) || geography.sample_count <= 0 ||
+        geography.sample_count !== forecast.total_samples) return false;
+    if (!manifest || typeof manifest.deterministic_payload_sha256 !== "string" ||
+        geography.deterministic_payload_sha256 !== manifest.deterministic_payload_sha256) return false;
+    if (!Number.isInteger(geography.baseline_year) || geography.baseline_year < 1900) return false;
+    var rows = geography.constituencies;
+    if (!Array.isArray(rows) || rows.length !== 29) return false;
+    return rows.every(function (row, index) {
+      if (!hasExactKeys(row, GEOGRAPHY_CONSTITUENCY_FIELDS) || row.code !== constituencyCode(index) ||
+          typeof row.name !== "string" || !row.name ||
+          !hasExactKeys(row.baseline_actual_vote_share, GEOGRAPHY_PARTY_ORDER) ||
+          !hasExactKeys(row.parties, GEOGRAPHY_PARTY_ORDER)) return false;
+      var total = 0;
+      var valid = GEOGRAPHY_PARTY_ORDER.every(function (party) {
+        var entry = row.parties[party];
+        if (!isShare(row.baseline_actual_vote_share[party]) ||
+            !hasExactKeys(entry, ["vote_share_quantiles", "prob_largest"]) ||
+            !hasExactKeys(entry.vote_share_quantiles, GEOGRAPHY_QUANTILES)) return false;
+        var previous = 0;
+        var ordered = GEOGRAPHY_QUANTILES.every(function (field) {
+          var value = entry.vote_share_quantiles[field];
+          var fine = isShare(value) && value >= previous;
+          previous = value;
+          return fine;
+        });
+        var chance = entry.prob_largest;
+        if (!ordered || typeof chance !== "number" || !Number.isFinite(chance) ||
+            chance < 0 || chance > 1 || (party === "REST" && chance !== 0)) return false;
+        total += chance;
+        return true;
+      });
+      return valid && Math.abs(total - 1) <= 1e-9;
+    });
+  }
+
+  function validBoundaries(boundaries, geography) {
+    if (!boundaries || boundaries.schema_version !== "1.0" ||
+        boundaries.role !== "riksdag_constituency_boundaries") return false;
+    var box = boundaries.view_box;
+    if (!Array.isArray(box) || box.length !== 4 ||
+        !box.every(function (value) { return typeof value === "number" && Number.isFinite(value); }) ||
+        box[2] <= 0 || box[3] <= 0) return false;
+    var shapes = boundaries.constituencies;
+    return Array.isArray(shapes) && shapes.length === geography.constituencies.length &&
+      shapes.every(function (shape, index) {
+        var row = geography.constituencies[index];
+        return Boolean(shape) && shape.code === row.code && shape.name === row.name &&
+          typeof shape.path === "string" && /^(M[-0-9.,L]+Z)+$/.test(shape.path);
+      });
+  }
+
+  // Resolves to null for a publication that does not advertise the file;
+  // rejects when it advertises one that does not verify.
+  function loadGeography(publication) {
+    var data = publication.files;
+    var manifest = data[6] || {};
+    var hashes = manifest.publication_files;
+    if (!hashes || typeof hashes !== "object" ||
+        !Object.prototype.hasOwnProperty.call(hashes, GEOGRAPHY_FILE)) {
+      return Promise.resolve(null);
+    }
+    return getText(GEOGRAPHY_FILE, publication.root).then(function (text) {
+      return sha256Hex(text).then(function (digest) {
+        if (digest !== hashes[GEOGRAPHY_FILE]) {
+          throw new Error("geography.json does not match its manifest hash");
+        }
+        var geography = JSON.parse(text);
+        if (!validGeography(geography, data[0], manifest)) {
+          throw new Error("geography.json is not a valid constituency summary for this forecast");
+        }
+        return getJson(GEOGRAPHY_BOUNDARIES).then(function (boundaries) {
+          if (!validBoundaries(boundaries, geography)) {
+            throw new Error("Constituency boundaries do not match geography.json");
+          }
+          return { geography: geography, boundaries: boundaries };
+        });
+      });
+    });
+  }
+
+  function mixHex(from, to, weight) {
+    var out = "#";
+    for (var offset = 1; offset < 7; offset += 2) {
+      var a = parseInt(from.substr(offset, 2), 16);
+      var b = parseInt(to.substr(offset, 2), 16);
+      var channel = Math.round(a + (b - a) * weight).toString(16);
+      out += channel.length < 2 ? "0" + channel : channel;
+    }
+    return out;
+  }
+
+  function rampColor(colors, position) {
+    var scaled = Math.max(0, Math.min(1, position)) * (colors.length - 1);
+    var index = Math.min(colors.length - 2, Math.floor(scaled));
+    return mixHex(colors[index], colors[index + 1], scaled - index);
+  }
+
+  // Bounds of an absolute M/L/Z path, which is all the boundary file holds.
+  function pathBounds(path) {
+    var numbers = path.match(/-?[0-9.]+/g).map(Number);
+    var bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    for (var i = 0; i + 1 < numbers.length; i += 2) {
+      bounds.minX = Math.min(bounds.minX, numbers[i]);
+      bounds.maxX = Math.max(bounds.maxX, numbers[i]);
+      bounds.minY = Math.min(bounds.minY, numbers[i + 1]);
+      bounds.maxY = Math.max(bounds.maxY, numbers[i + 1]);
+    }
+    return bounds;
+  }
+
+  function renderGeography(geography, boundaries) {
+    var section = byId("election-geography");
+    var map = byId("election-geography-map");
+    var insetHost = byId("election-geography-insets");
+    var partyHost = byId("election-geography-parties");
+    var modeHost = byId("election-geography-modes");
+    if (!section || !map || !insetHost || !partyHost || !modeHost) return;
+
+    var rows = geography.constituencies;
+    var year = geography.baseline_year;
+    var parties = COALITION_PARTY_ORDER.slice();
+    var byCode = {};
+    rows.forEach(function (row) { byCode[row.code] = row; });
+    var bounds = {};
+    boundaries.constituencies.forEach(function (shape) { bounds[shape.code] = pathBounds(shape.path); });
+
+    function median(row, party) {
+      return row.parties[party].vote_share_quantiles.p50;
+    }
+    function change(row, party) {
+      return median(row, party) - row.baseline_actual_vote_share[party];
+    }
+    // Opens on the party with the largest typical constituency share; the
+    // choice is the data's, not a fixed party.
+    function meanMedian(party) {
+      return rows.reduce(function (sum, row) { return sum + median(row, party); }, 0) / rows.length;
+    }
+    var state = {
+      party: parties.reduce(function (best, party) {
+        return meanMedian(party) > meanMedian(best) ? party : best;
+      }, parties[0]),
+      mode: "share",
+      hovered: null,
+      chosen: null,
+      sortKey: "code",
+      sortDirection: 1
+    };
+
+    function value(row) {
+      return state.mode === "share" ? median(row, state.party) : change(row, state.party);
+    }
+
+    // The scale is fixed per party and measure, so hovering or choosing a
+    // constituency never repaints the others.
+    function colorScale() {
+      var values = rows.map(value);
+      if (state.mode === "share") {
+        var low = Math.floor(Math.min.apply(null, values));
+        var high = Math.max(low + 2, Math.ceil(Math.max.apply(null, values)));
+        return {
+          low: low, high: high, colors: GEOGRAPHY_SEQUENTIAL,
+          color: function (v) { return rampColor(GEOGRAPHY_SEQUENTIAL, (v - low) / (high - low)); }
+        };
+      }
+      var reach = Math.max(0.5, Math.ceil(Math.max.apply(null, values.map(Math.abs)) * 2) / 2);
+      return {
+        low: -reach, high: reach, colors: GEOGRAPHY_DIVERGING,
+        color: function (v) { return rampColor(GEOGRAPHY_DIVERGING, (v + reach) / (2 * reach)); }
+      };
+    }
+
+    function drawShapes(target, box) {
+      boundaries.constituencies.forEach(function (shape) {
+        var b = bounds[shape.code];
+        if (box && (b.maxX < box[0] || b.minX > box[0] + box[2] ||
+            b.maxY < box[1] || b.minY > box[1] + box[3])) return;
+        var node = document.createElementNS(SVG_NS, "path");
+        node.setAttribute("d", shape.path);
+        node.setAttribute("fill-rule", "evenodd");
+        node.setAttribute("class", "egeo-shape");
+        node.setAttribute("data-code", shape.code);
+        target.appendChild(node);
+      });
+    }
+
+    map.setAttribute("viewBox", boundaries.view_box.join(" "));
+    // The stylesheet sizes the map by height; its width follows the outlines.
+    map.style.setProperty("--egeo-aspect", (boundaries.view_box[2] / boundaries.view_box[3]).toFixed(4));
+    drawShapes(map, null);
+    GEOGRAPHY_INSETS.forEach(function (inset) {
+      var b = bounds[inset.code];
+      var side = Math.max(b.maxX - b.minX, b.maxY - b.minY) * 2.6;
+      var box = [(b.minX + b.maxX - side) / 2, (b.minY + b.maxY - side) / 2, side, side];
+      var wrap = document.createElement("div");
+      wrap.className = "egeo-inset";
+      var svg = document.createElementNS(SVG_NS, "svg");
+      svg.setAttribute("viewBox", box.map(function (n) { return n.toFixed(1); }).join(" "));
+      svg.setAttribute("class", "egeo-inset__map");
+      svg.setAttribute("data-inset", inset.code);
+      drawShapes(svg, box);
+      var focus = svg.querySelector(".egeo-shape[data-code=\"" + inset.code + "\"]");
+      focus.setAttribute("data-inset-focus", "true");
+      svg.appendChild(focus);
+      var label = document.createElement("span");
+      label.className = "egeo-inset__label";
+      label.textContent = inset.label;
+      wrap.appendChild(svg);
+      wrap.appendChild(label);
+      insetHost.appendChild(wrap);
+    });
+
+    var partyButtons = parties.map(function (party) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "egeo-control egeo-party";
+      button.setAttribute("data-party", party);
+      button.setAttribute("aria-controls", "election-geography-map");
+      button.setAttribute("aria-label", partyNames[party]);
+      button.innerHTML = "<span class=\"ev-swatch\" style=\"background:" + (partyColors[party] || "#777") +
+        "\" aria-hidden=\"true\"></span>" + escapeHtml(abbr(party));
+      button.addEventListener("click", function () { setParty(party); });
+      partyHost.appendChild(button);
+      return button;
+    });
+    var modeButtons = Array.prototype.slice.call(modeHost.querySelectorAll("[data-mode]"));
+    modeButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.mode = button.getAttribute("data-mode");
+        update();
+      });
+    });
+    setText("election-geography-mode-change", "Förändring sedan " + year);
+
+    function shapes() {
+      return section.querySelectorAll(".egeo-shape");
+    }
+
+    function paintMap(scale) {
+      Array.prototype.forEach.call(shapes(), function (node) {
+        var code = node.getAttribute("data-code");
+        node.setAttribute("fill", scale.color(value(byCode[code])));
+        var classes = "egeo-shape";
+        if (node.hasAttribute("data-inset-focus")) classes += " is-inset-focus";
+        if (code === state.chosen) classes += " is-chosen";
+        if (code === state.hovered) classes += " is-hovered";
+        node.setAttribute("class", classes);
+      });
+      // Painted last, so a neighbour drawn after it cannot cover its outline.
+      [state.chosen, state.hovered].forEach(function (code) {
+        if (!code) return;
+        Array.prototype.forEach.call(section.querySelectorAll(".egeo-shape[data-code=\"" + code + "\"]"),
+          function (node) { node.parentNode.appendChild(node); });
+      });
+    }
+
+    function renderLegend(scale) {
+      var stops = scale.colors.map(function (color, index) {
+        return color + " " + format(100 * index / (scale.colors.length - 1), 0).replace(",", ".") + "%";
+      }).join(", ");
+      var labels = state.mode === "share"
+        ? [percent(scale.low, 0), percent(scale.high, 0)]
+        : [signedFormat(scale.low, 1), "0", signedFormat(scale.high, 1)];
+      setHtml("election-geography-legend",
+        "<div class=\"egeo-legend__bar\" style=\"background:linear-gradient(to right, " + stops + ")\"></div>" +
+        "<div class=\"egeo-legend__labels\">" + labels.map(function (label) {
+          return "<span>" + escapeHtml(label) + "</span>";
+        }).join("") + "</div>" +
+        (state.mode === "change" ? "<div class=\"egeo-legend__unit\">procentenheter</div>" : ""));
+    }
+
+    function largestParties(row) {
+      return GEOGRAPHY_PARTY_ORDER.map(function (party) {
+        return { party: party, chance: row.parties[party].prob_largest };
+      }).filter(function (entry) { return entry.chance > 0; })
+        .sort(function (a, b) { return b.chance - a.chance; }).slice(0, 3);
+    }
+
+    function swatch(party) {
+      return "<span class=\"ev-swatch\" style=\"background:" + (partyColors[party] || "#777") +
+        "\" aria-hidden=\"true\"></span>";
+    }
+
+    function renderDetail() {
+      var code = state.hovered || state.chosen;
+      var party = state.party;
+      var html;
+      if (!code) {
+        var ranked = rows.slice().sort(function (a, b) { return median(b, party) - median(a, party); });
+        html = "<p class=\"egeo-detail__kicker\">" + swatch(party) + escapeHtml(partyNames[party]) + "</p>" +
+          "<dl class=\"egeo-facts\">" +
+          "<div><dt>Högst</dt><dd>" + escapeHtml(ranked[0].name) + ", " + percent(median(ranked[0], party), 1) + "</dd></div>" +
+          "<div><dt>Lägst</dt><dd>" + escapeHtml(ranked[ranked.length - 1].name) + ", " +
+            percent(median(ranked[ranked.length - 1], party), 1) + "</dd></div>" +
+          "</dl><p class=\"egeo-detail__hint election-muted\">Peka på eller välj en valkrets för detaljer.</p>";
+      } else {
+        var row = byCode[code];
+        var q = row.parties[party].vote_share_quantiles;
+        html = "<h3 class=\"egeo-detail__name\">" + escapeHtml(row.name) + "</h3>" +
+          "<p class=\"egeo-detail__kicker\">" + swatch(party) + escapeHtml(partyNames[party]) + "</p>" +
+          "<dl class=\"egeo-facts\">" +
+          "<div><dt>Median</dt><dd>" + percent(q.p50, 1) + "</dd></div>" +
+          "<div><dt>50 % intervall</dt><dd>" + percentRange(q.p25, q.p75, 1) + "</dd></div>" +
+          "<div><dt>90 % intervall</dt><dd>" + percentRange(q.p05, q.p95, 1) + "</dd></div>" +
+          "<div><dt>Valet " + year + "</dt><dd>" + percent(row.baseline_actual_vote_share[party], 1) + "</dd></div>" +
+          "<div><dt>Förändring</dt><dd>" + signedFormat(change(row, party), 1) + PP + "</dd></div>" +
+          "</dl><p class=\"egeo-detail__subhead\">Chans att bli störst i valkretsen</p>" +
+          "<ul class=\"egeo-largest\">" + largestParties(row).map(function (entry) {
+            return "<li>" + swatch(entry.party) + "<span class=\"egeo-largest__name\">" + escapeHtml(partyNames[entry.party]) +
+              "</span><span class=\"egeo-largest__value\">" + headlineProbability(entry.chance) + "</span></li>";
+          }).join("") + "</ul>";
+      }
+      var detail = setHtml("election-geography-detail", html);
+      if (detail) detail.setAttribute("data-constituency", code || "");
+    }
+
+    var COLUMNS = [
+      { key: "code", label: "Valkrets", sort: function (row) { return row.code; } },
+      { key: "baseline", label: "Valet " + year, sort: function (row) { return row.baseline_actual_vote_share[state.party]; } },
+      { key: "median", label: "Median", sort: function (row) { return median(row, state.party); } },
+      { key: "interval", label: "90 % intervall", sort: null },
+      { key: "change", label: "Förändring", sort: function (row) { return change(row, state.party); } },
+      { key: "largest", label: "Chans störst", sort: function (row) { return row.parties[state.party].prob_largest; } }
+    ];
+
+    function renderTable() {
+      var table = byId("election-geography-table");
+      if (!table) return;
+      var column = COLUMNS.filter(function (c) { return c.key === state.sortKey; })[0];
+      var sorted = rows.slice().sort(function (a, b) {
+        var x = column.sort(a);
+        var y = column.sort(b);
+        return (x < y ? -1 : x > y ? 1 : 0) * state.sortDirection;
+      });
+      var head = COLUMNS.map(function (c) {
+        var sort = c.key === state.sortKey ? (state.sortDirection > 0 ? "ascending" : "descending") : "none";
+        var label = escapeHtml(c.label);
+        return "<th scope=\"col\"" + (c.sort ? " aria-sort=\"" + sort + "\"" : "") + ">" +
+          (c.sort ? "<button type=\"button\" class=\"egeo-sort\" data-sort=\"" + c.key + "\">" + label + "</button>" : label) +
+          "</th>";
+      }).join("");
+      var body = sorted.map(function (row) {
+        var q = row.parties[state.party].vote_share_quantiles;
+        return "<tr data-code=\"" + row.code + "\"" + (row.code === state.chosen ? " class=\"is-chosen\"" : "") + ">" +
+          "<th scope=\"row\"><button type=\"button\" class=\"egeo-pick\" data-code=\"" + row.code + "\" aria-pressed=\"" +
+            (row.code === state.chosen ? "true" : "false") + "\">" + escapeHtml(row.name) + "</button></th>" +
+          "<td>" + percent(row.baseline_actual_vote_share[state.party], 1) + "</td>" +
+          "<td>" + percent(q.p50, 1) + "</td>" +
+          "<td>" + percentRange(q.p05, q.p95, 1) + "</td>" +
+          "<td>" + signedFormat(change(row, state.party), 1) + "</td>" +
+          "<td>" + headlineProbability(row.parties[state.party].prob_largest) + "</td></tr>";
+      }).join("");
+      table.innerHTML = "<caption class=\"visually-hidden\">" + escapeHtml(partyNames[state.party]) +
+        ": röstandel per valkrets, förändring i procentenheter</caption>" +
+        "<thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody>";
+    }
+
+    function update() {
+      var scale = colorScale();
+      paintMap(scale);
+      renderLegend(scale);
+      partyButtons.forEach(function (button) {
+        button.setAttribute("aria-pressed", button.getAttribute("data-party") === state.party ? "true" : "false");
+      });
+      modeButtons.forEach(function (button) {
+        button.setAttribute("aria-pressed", button.getAttribute("data-mode") === state.mode ? "true" : "false");
+      });
+      setText("election-geography-caption", partyNames[state.party] + " (" + abbr(state.party) + "): " +
+        (state.mode === "share"
+          ? "prognosens median för röstandelen i varje valkrets."
+          : "prognosens median minus valresultatet " + year + ", i procentenheter."));
+      section.setAttribute("data-party", state.party);
+      section.setAttribute("data-mode", state.mode);
+      renderDetail();
+      renderTable();
+    }
+
+    function setParty(party) {
+      if (parties.indexOf(party) === -1 || party === state.party) return;
+      state.party = party;
+      update();
+    }
+
+    function choose(code) {
+      state.chosen = state.chosen === code ? null : code;
+      update();
+    }
+
+    function shapeCode(event) {
+      var node = event.target;
+      return node && node.getAttribute && node.getAttribute("data-code");
+    }
+    [map, insetHost].forEach(function (host) {
+      host.addEventListener("mouseover", function (event) {
+        var code = shapeCode(event);
+        if (code && code !== state.hovered) {
+          state.hovered = code;
+          paintMap(colorScale());
+          renderDetail();
+        }
+      });
+      host.addEventListener("mouseleave", function () {
+        if (!state.hovered) return;
+        state.hovered = null;
+        paintMap(colorScale());
+        renderDetail();
+      });
+      host.addEventListener("click", function (event) {
+        var code = shapeCode(event);
+        if (code) choose(code);
+      });
+    });
+    var tableHost = byId("election-geography-table");
+    if (tableHost) {
+      tableHost.addEventListener("click", function (event) {
+        var target = event.target && event.target.closest ? event.target.closest("button") : null;
+        if (!target) return;
+        if (target.hasAttribute("data-code")) {
+          var code = target.getAttribute("data-code");
+          choose(code);
+          // The table is rebuilt; keep the keyboard on the same constituency.
+          var picked = tableHost.querySelector(".egeo-pick[data-code=\"" + code + "\"]");
+          if (picked) picked.focus();
+          return;
+        }
+        var key = target.getAttribute("data-sort");
+        if (!key) return;
+        state.sortDirection = state.sortKey === key ? -state.sortDirection : (key === "code" ? 1 : -1);
+        state.sortKey = key;
+        renderTable();
+        var again = tableHost.querySelector("[data-sort=\"" + key + "\"]");
+        if (again) again.focus();
+      });
+    }
+
+    setText("election-geography-note", "Intervallen speglar bara osäkerheten i riksresultatet. " +
+      "Varje simulerat riksresultat fördelas över valkretsarna efter mönstret från valet " + year +
+      ", så lokala avvikelser från det mönstret ingår inte och den verkliga osäkerheten i en enskild " +
+      "valkrets är större. Valkretsar enligt vallagen; kommungränser från Valmyndigheten via okfse/sweden-geojson.");
+
+    geographyView = { setParty: setParty };
+    if (selectedParty) state.party = parties.indexOf(selectedParty) !== -1 ? selectedParty : state.party;
+    update();
+    reveal("election-geography");
+  }
+
   // Requested once and shared: the hero and the delta panel wait for it with
   // the publication, the chart with the history artifact.  A missing or
   // invalid file resolves to null and changes nothing on the page.
@@ -6601,6 +7110,14 @@
       var coalitionTable = validatedCoalitionBuilder(data[3], data[0] && data[0].total_samples);
       renderGovernmentBuilder(coalitionTable, data[0] && data[0].total_samples);
       renderAlternatives(coalitionTable);
+      renderValidation(data[4]);
+      // Independent of every other panel: a geography file that fails to load
+      // or verify hides this one view and nothing else.
+      loadGeography(publication).then(function (loaded) {
+        if (loaded) renderGeography(loaded.geography, loaded.boundaries);
+      }).catch(function (error) {
+        console.warn("Valkretskartan kunde inte visas.", error);
+      });
       renderValidation(data[4]);
       var certified = renderMetadata(data[5], data[6]);
       electionResultPromise.then(renderElectionOutcome).catch(function (error) {

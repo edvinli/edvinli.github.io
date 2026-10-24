@@ -239,6 +239,43 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
     <div id="election-seat-bars" class="election-seat-bars" role="list"></div>
     <div id="election-seat-axis" class="es-axis"></div>
   </section>
+  <!-- Constituency view. Rendered only for a publication that carries a
+       geography.json (schema 1.5) which verifies against its manifest and
+       forecast, together with a boundary file that names the same 29
+       constituencies; anything else leaves it hidden. Every number is read
+       from geography.json, which summarizes the same simulations as the rest
+       of the page. -->
+  <section id="election-geography" class="election-panel election-geography" hidden aria-labelledby="election-geography-title">
+    <div class="election-panel__head">
+      <h2 id="election-geography-title">Röstandel per valkrets</h2>
+      <p class="election-muted" id="election-geography-intro">Partiets röstandel i varje valkrets i simuleringarna: median, 50- och 90-procentigt prognosintervall. Valkretsarna följer det geografiska mönstret från förra valet, anpassat till varje simulerat riksresultat. Kartan fördelar alltså riksprognosen; den bygger inte på lokala opinionsmätningar.</p>
+    </div>
+    <div class="egeo-controls">
+      <div class="egeo-toggle egeo-parties" id="election-geography-parties" role="group" aria-label="Parti på kartan"></div>
+      <div class="egeo-toggle" id="election-geography-modes" role="group" aria-label="Mått på kartan">
+        <button type="button" class="egeo-control" data-mode="share" aria-pressed="true" aria-controls="election-geography-map">Röstandel</button>
+        <button type="button" class="egeo-control" data-mode="change" aria-pressed="false" aria-controls="election-geography-map" id="election-geography-mode-change">Förändring</button>
+      </div>
+    </div>
+    <div class="egeo-body">
+      <figure class="egeo-figure">
+        <!-- Pointer enhancement only: the table below carries the same numbers
+             and a button per constituency for keyboard and screen readers. -->
+        <svg id="election-geography-map" class="egeo-map" aria-hidden="true" focusable="false"></svg>
+        <div class="egeo-insets" id="election-geography-insets" aria-hidden="true"></div>
+        <figcaption id="election-geography-caption" class="egeo-caption"></figcaption>
+        <div class="egeo-legend" id="election-geography-legend" aria-hidden="true"></div>
+      </figure>
+      <div class="egeo-detail" id="election-geography-detail" aria-live="polite"></div>
+    </div>
+    <details class="egeo-table-wrap" id="election-geography-table-wrap">
+      <summary>Alla valkretsar som tabell</summary>
+      <div class="egeo-table-scroll">
+        <table class="egeo-table" id="election-geography-table"></table>
+      </div>
+    </details>
+    <p class="election-muted egeo-note" id="election-geography-note"></p>
+  </section>
   <section id="election-how-it-works" class="election-panel election-disclosure">
     <details id="election-model">
       <summary><h2 class="election-disclosure__title">Så fungerar modellen<span class="election-disclosure__hint" aria-hidden="true">opinionsläge, osäkerhet, mandat och sannolikheter</span></h2></summary>

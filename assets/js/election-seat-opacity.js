@@ -22,7 +22,7 @@
     var ids = [
       "election-timeseries", "election-headline", "election-seats",
       "election-blocs", "election-alternatives",
-      "election-government-builder", "election-threshold"
+      "election-government-builder", "election-threshold", "election-geography"
     ];
     var disclosure = document.getElementById("election-how-it-works");
     if (!disclosure) return;

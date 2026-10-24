@@ -35,6 +35,7 @@ export const SUITES = {
   'election-result.smoke.mjs': { seconds: 20, area: 'summary' },
   'forecast-cycles.smoke.mjs': { seconds: 20, area: 'cycles' },
   'demographics.smoke.mjs': { seconds: 15, area: 'demographics' },
+  'constituency-map.smoke.mjs': { seconds: 35, area: 'geography' },
 };
 
 const ALL = Object.keys(SUITES);
@@ -81,6 +82,11 @@ const RULES = [
     ...byArea('forecast'), ...byArea('cycles')] },
   { prefix: 'files/election-simulator/history/2026/', suites: [
     ...byArea('forecast'), ...byArea('cycles')] },
+
+  // The constituency outlines. Only the map reads them, and the map suite pins
+  // its publication, so -- like forecast-cycles -- a forecast publication's
+  // paths do not select it; these, the app and the page do.
+  { prefix: 'files/election-simulator/geography/', suites: byArea('geography') },
 
   { prefix: 'files/election-simulator/', suites: [
     ...byArea('builder'), ...byArea('forecast'), ...byArea('provenance'),
@@ -245,6 +251,12 @@ function selfTest() {
   check('the frozen 2026 history selects forecast-cycles',
     selectSuites(['files/election-simulator/history/2026/coalition-timeseries.json']).suites
       .includes('forecast-cycles.smoke.mjs'));
+
+  check('the constituency outlines select the map suite',
+    selectSuites(['files/election-simulator/geography/constituency-boundaries.json']).suites
+      .includes('constituency-map.smoke.mjs'));
+  check('a forecast publication does not select the map suite',
+    !publication.includes('constituency-map.smoke.mjs'), publication);
 
   const forecastOnly = selectSuites(['browser-tests/forecast-timeseries.smoke.mjs']).suites;
   check('a forecast suite edit does not drag in builder suites',

@@ -397,6 +397,7 @@ async function testSchema12(viewport, pointer, expected) {
       'election-alternatives',
       'election-government-builder',
       'election-threshold',
+      'election-geography',
       'election-how-it-works',
       'election-validation',
       'election-meta',

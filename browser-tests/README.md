@@ -45,6 +45,7 @@ node browser-tests/threshold-panel.smoke.mjs
 node browser-tests/election-result.smoke.mjs
 node browser-tests/forecast-cycles.smoke.mjs
 node browser-tests/demographics.smoke.mjs
+node browser-tests/constituency-map.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -820,6 +821,36 @@ result in `results/2026.json`. The suite reads both files and checks:
 - **A data file that does not validate** shows an error and draws nothing.
 
 It does not pin a forecast generation: nothing it asserts depends on one.
+
+### 15. `constituency-map.smoke.mjs` — Röstandel per valkrets
+
+Publication schema 1.5 adds `geography.json`: per constituency and party, the
+vote-share quantiles and largest-party probability from the same local draws
+the seat allocation used. The page draws it as a map over
+`geography/constituency-boundaries.json`. No published generation carries the
+file yet, so `geography-fixture.mjs` builds a **synthetic** 1.5 generation in a
+temporary copy of the site: the pinned 1.4 generation relabelled, plus a
+`geography.json` invented from its national quantiles. The local numbers mean
+nothing; the hashes, payload identity and sample count are real, so the page
+verifies the file exactly as it would a published one. The suite checks:
+
+- **Compatibility.** The pinned 1.4 generation shows no map and every coalition
+  panel; under 1.5 the coalition panels still render.
+- **The map.** All 29 constituencies in order, the Stockholm, Göteborg and
+  Malmö insets each outlining their own constituency, a larger median never
+  drawn lighter, the legend's range, the caption, and the opening party (the
+  largest typical constituency share).
+- **Interaction.** Hover and leave, click to choose, choosing from the table,
+  sorting the table both ways, the party chips, the change measure and its
+  symmetric legend, and a party chosen in the vote rows carrying over.
+- **Fails closed.** Bytes that do not match the manifest, another sample count
+  or payload, largest-party chances that do not sum to one, and a name the
+  outlines do not carry each hide the panel for the reason named, with the rest
+  of the page intact; a 1.5 publication without the file reports nothing.
+- **360 px.** No horizontal overflow, and legible insets.
+
+Once a real 1.5 generation is published, pin one here beside the synthetic
+fixture.
 
 ## Determinism: pin the generation you assert against
 

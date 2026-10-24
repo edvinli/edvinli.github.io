@@ -4397,3 +4397,365 @@ canvas {
     opacity: 1;
   }
 }
+
+/* --- Röstandel per valkrets ------------------------------------------------
+   A choropleth of one party's median share per constituency, its 2026
+   change, insets for the three single-municipality constituencies, a detail
+   readout and the same numbers as a table. Fills come from the script; the
+   stylesheet owns only outlines, layout and type. */
+
+.egeo-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin-top: 1rem;
+}
+
+.egeo-toggle {
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.egeo-control {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--el-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  gap: 0.3rem;
+  line-height: 1.25;
+  padding: 0.3rem 0.62rem;
+  white-space: nowrap;
+}
+
+.egeo-control:hover {
+  background: var(--el-fill);
+}
+
+.egeo-control[aria-pressed="true"] {
+  background: var(--el-ink);
+  color: var(--el-panel);
+}
+
+.egeo-control[aria-pressed="true"]:hover {
+  background: var(--el-ink-soft);
+}
+
+.egeo-body {
+  align-items: start;
+  display: grid;
+  gap: 1.25rem 2rem;
+  // min-content: the map and insets set the figure's width, and the caption
+  // wraps under them instead of widening the column.
+  grid-template-columns: min-content minmax(14rem, 1fr);
+  margin-top: 1.2rem;
+}
+
+.egeo-figure {
+  align-items: start;
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  margin: 0;
+}
+
+// Height-led with a definite width (--egeo-aspect is set from the outlines'
+// viewBox), so the figure column can size to the map and insets.
+.egeo-map {
+  --egeo-height: min(32rem, 75vh);
+  display: block;
+  height: var(--egeo-height);
+  width: calc(var(--egeo-height) * var(--egeo-aspect, 0.42));
+}
+
+.egeo-insets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.egeo-inset {
+  border: 1px solid var(--el-rule);
+  border-radius: 4px;
+  overflow: hidden;
+  width: 7rem;
+}
+
+.egeo-inset__map {
+  display: block;
+  height: 7rem;
+  width: 7rem;
+}
+
+.egeo-inset__label {
+  border-top: 1px solid var(--el-rule);
+  color: var(--el-muted);
+  display: block;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+}
+
+// White seams between constituencies; the hovered and chosen ones are raised
+// to the top of their map by the script so the dark outline is not covered.
+.egeo-shape {
+  cursor: pointer;
+  stroke: #ffffff;
+  stroke-linejoin: round;
+  stroke-width: 0.75px;
+  vector-effect: non-scaling-stroke;
+}
+
+.egeo-shape.is-hovered {
+  stroke: var(--el-ink-soft);
+  stroke-width: 1.5px;
+}
+
+// The constituency an inset is about, among its neighbours.
+.egeo-shape.is-inset-focus {
+  stroke: var(--el-ink-soft);
+  stroke-width: 1.25px;
+}
+
+.egeo-shape.is-chosen {
+  stroke: var(--el-ink);
+  stroke-width: 2px;
+}
+
+.egeo-caption,
+.egeo-legend {
+  grid-column: 1 / -1;
+}
+
+.egeo-caption {
+  color: var(--el-ink-soft);
+  font-family: var(--el-sans);
+  font-size: 0.8rem;
+}
+
+.egeo-legend {
+  color: var(--el-muted);
+  font-size: 0.75rem;
+  max-width: 16rem;
+}
+
+.egeo-legend__bar {
+  border-radius: 2px;
+  height: 0.6rem;
+}
+
+.egeo-legend__labels {
+  display: flex;
+  font-variant-numeric: tabular-nums;
+  justify-content: space-between;
+  margin-top: 0.2rem;
+}
+
+.egeo-legend__unit {
+  text-align: center;
+}
+
+.egeo-detail {
+  border-left: 1px solid var(--el-rule);
+  min-height: 12rem;
+  padding-left: 1.25rem;
+}
+
+.page__content .egeo-detail__name {
+  font-size: 1rem;
+  margin: 0 0 0.2rem;
+}
+
+.egeo-detail__kicker {
+  align-items: center;
+  display: flex;
+  font-weight: 600;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+}
+
+.egeo-facts {
+  display: grid;
+  margin: 0 0 0.9rem;
+
+  div {
+    border-bottom: 1px solid var(--el-rule);
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+  }
+
+  dt,
+  dd {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  dt {
+    color: var(--el-muted);
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  dd {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+.egeo-detail__subhead {
+  color: var(--el-muted);
+  font-size: 0.8rem;
+  margin: 0 0 0.3rem;
+}
+
+.egeo-detail__hint {
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.election-app ul.egeo-largest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    align-items: center;
+    display: flex;
+    gap: 0.4rem;
+    margin: 0 0 0.2rem;
+  }
+}
+
+.egeo-largest__value {
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.egeo-table-wrap {
+  margin-top: 1.4rem;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+}
+
+.egeo-table-scroll {
+  margin-top: 0.6rem;
+  overflow-x: auto;
+}
+
+.election-app table.egeo-table {
+  border-collapse: collapse;
+  display: table;
+  font-size: 0.8rem;
+  margin: 0;
+  width: 100%;
+
+  th,
+  td {
+    border-bottom: 1px solid var(--el-rule);
+    font-variant-numeric: tabular-nums;
+    padding: 0.3rem 0.5rem;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th:first-child {
+    text-align: left;
+  }
+
+  tr.is-chosen {
+    background: var(--el-fill);
+  }
+}
+
+.egeo-sort,
+.egeo-pick {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.egeo-sort {
+  font-weight: 600;
+}
+
+.egeo-pick {
+  font-weight: 400;
+  text-align: left;
+  text-decoration: underline dotted var(--el-rule-strong);
+  text-underline-offset: 0.2em;
+}
+
+.egeo-table th[aria-sort="ascending"] .egeo-sort::after {
+  content: "\00a0\2191";
+}
+
+.egeo-table th[aria-sort="descending"] .egeo-sort::after {
+  content: "\00a0\2193";
+}
+
+.egeo-note {
+  font-size: 0.8rem;
+  margin-top: 0.9rem;
+}
+
+@media (max-width: 46em) {
+  .egeo-toggle {
+    border-radius: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .egeo-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .egeo-figure {
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+  }
+
+  // A percentage max-width would collapse the map in the desktop's
+  // min-content column; in the single phone column it is safe and needed.
+  .egeo-map {
+    --egeo-height: min(30rem, 70vh);
+    margin: 0 auto;
+    max-width: 100%;
+  }
+
+  .egeo-insets {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .egeo-inset {
+    width: 6rem;
+  }
+
+  .egeo-inset__map {
+    height: 6rem;
+    width: 6rem;
+  }
+
+  .egeo-detail {
+    border-left: 0;
+    border-top: 1px solid var(--el-rule);
+    min-height: 0;
+    padding: 0.9rem 0 0;
+  }
+}
