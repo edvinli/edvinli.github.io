@@ -255,6 +255,14 @@
     if (pointer && (manifest.publication_generation !== pointer.publication_generation || manifest.publication_state !== "COMPLETE")) {
       throw new Error("Publication pointer and manifest do not agree");
     }
+    // A certified publication must carry a legal 349-seat joint allocation.
+    // Checked here, where a failure reaches the load status: the seat rows
+    // render later, after the election-result lookup, and a throw there was
+    // lost, so a 348- or 350-seat publication loaded as certified.
+    if (pointer) {
+      var seats = data[2] || {};
+      displaySeatAllocation(seats, seats.party_order || Object.keys(seats.seat_summary || {}), true);
+    }
   }
 
   function isCertified(metadata, manifest) {
