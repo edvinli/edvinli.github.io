@@ -837,9 +837,10 @@ verifies the file exactly as it would a published one. The suite checks:
 - **Compatibility.** The pinned 1.4 generation shows no map and every coalition
   panel; under 1.5 the coalition panels still render.
 - **The map.** All 29 constituencies in order, the Stockholm, Göteborg and
-  Malmö insets each outlining their own constituency, a larger median never
-  drawn lighter, the legend's range, the caption, and the opening party (the
-  largest typical constituency share).
+  Malmö insets each outlining their own constituency, the fill in the shown
+  party's own colour (a greyed shade of it for losses in the change view), a larger median
+  never drawn lighter, the legend's range, the caption, the "Modellprognos"
+  heading, and the opening party (the largest typical constituency share).
 - **Interaction.** Hover and leave, click to choose, choosing from the table,
   sorting the table both ways, the party chips, the change measure and its
   symmetric legend, and a party chosen in the vote rows carrying over.

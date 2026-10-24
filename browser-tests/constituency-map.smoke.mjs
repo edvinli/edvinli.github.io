@@ -106,6 +106,15 @@ function readPanel(browser) {
       mainShapes: Array.from(map.querySelectorAll('.egeo-shape')).map((node) => node.getAttribute('data-code')),
       lightness: Object.fromEntries(Array.from(map.querySelectorAll('.egeo-shape'))
         .map((node) => [node.getAttribute('data-code'), luminance(getComputedStyle(node).fill)])),
+      // The darkest fill's colour channels: the map is drawn in the shown
+      // party's own hue.
+      darkest: (() => {
+        const fills = Array.from(map.querySelectorAll('.egeo-shape')).map((node) => getComputedStyle(node).fill);
+        if (!fills.length) return null;
+        const sorted = fills.slice().sort((a, b) => luminance(a) - luminance(b));
+        return sorted[0].match(/\d+/g).slice(0, 3).map(Number);
+      })(),
+      heading: document.getElementById('election-geography-title').textContent,
       insets: Array.from(document.querySelectorAll('#election-geography-insets [data-inset]')).map((svg) => ({
         code: svg.getAttribute('data-inset'),
         focus: svg.querySelector('[data-inset-focus]')?.getAttribute('data-code') || null,
@@ -173,6 +182,8 @@ try {
     equal('three insets, each outlining its own constituency',
       panel.insets.map((inset) => [inset.code, inset.focus]), [['01', '01'], ['16', '16'], ['11', '11']]);
     equal('opens on the party with the largest typical constituency share', panel.party, opening);
+    check('the fill takes the shown party\'s colour', opening !== 'S' || panel.darkest[0] > panel.darkest[2],
+      panel.darkest);
     equal('one party chip is pressed', panel.pressedParty, [opening]);
     equal('share is the opening measure', [panel.mode, panel.pressedMode], ['share', ['share']]);
     equal('the change toggle names the baseline election', panel.changeLabel, 'Förändring sedan 2026');
@@ -190,6 +201,8 @@ try {
       }
     }
     equal('a larger median is never drawn lighter', inversions, []);
+    check('the heading says it is the model\'s prediction',
+      panel.heading.startsWith('Modellprognos'), panel.heading);
     const low = Math.floor(median(ordered[0], opening));
     const high = Math.max(low + 2, Math.ceil(median(ordered.at(-1), opening)));
     equal('the legend spans the whole-percent range of the medians',
@@ -251,11 +264,21 @@ try {
     panel = await readPanel(browser);
     equal('a party chip switches the map', [panel.party, panel.pressedParty], ['M', ['M']]);
     check('the caption follows', panel.caption.startsWith('Moderaterna (M): '), panel.caption);
+    const [red, , blue] = panel.darkest;
+    check('the fill takes the shown party\'s colour (M is blue)', blue > red, panel.darkest);
     await press(browser, '#election-geography-modes [data-mode="change"]');
     await settle(100);
     panel = await readPanel(browser);
     equal('the change measure is selected', [panel.mode, panel.pressedMode], ['change', ['change']]);
     check('the change caption names the baseline', panel.caption.includes('minus valresultatet 2026'), panel.caption);
+    check('losses are a greyed shade of the party\'s own hue, not a second hue', await browser.evaluate(() => {
+      const stops = document.querySelector('#election-geography-legend .egeo-legend__bar').style.background
+        .match(/rgb\(\d+, \d+, \d+\)/g).map((stop) => stop.match(/\d+/g).map(Number));
+      const [loss, gain] = [stops[0], stops[stops.length - 1]];
+      const spread = (c) => Math.max(...c) - Math.min(...c);
+      // M's strongest channel is blue at both ends, and the loss end is duller.
+      return loss[2] > loss[0] && gain[2] > gain[0] && spread(loss) < spread(gain);
+    }));
     check('the change legend is symmetric around zero',
       panel.legend.length === 3 && panel.legend[1] === '0' &&
       panel.legend[0].replace('−', '') === panel.legend[2].replace('+', ''), panel.legend);

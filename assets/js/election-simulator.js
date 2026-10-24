@@ -6618,11 +6618,26 @@
     { code: "16", label: "Göteborg" },
     { code: "11", label: "Malmö" }
   ];
-  // Magnitude is one hue, light to dark, whichever party is shown: the party
-  // is named by the selector and the caption, never by the fill. Change is
-  // diverging with a neutral grey at exactly zero.
-  var GEOGRAPHY_SEQUENTIAL = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
-  var GEOGRAPHY_DIVERGING = ["#8c1d1b", "#d2413f", "#f0aaa5", "#f0efec", "#9ec5f4", "#3987e5", "#184f95"];
+  // The map is drawn in the shown party's own colour: share runs from a pale
+  // tint of it to the full colour and a shade darker; change keeps that ramp
+  // for gains and a greyed, darker version of the same hue for losses, meeting
+  // at one pale grey at exactly zero, so a party that loses everywhere still
+  // reads as itself. The legend is signed and the table carries every number,
+  // so no reading rests on telling two tints apart.
+  var GEOGRAPHY_PALE = "#f0efec";
+  var GEOGRAPHY_LOSS = "#6f6960";
+
+  function geographyRamp(party) {
+    var color = partyColors[party] || "#777777";
+    return [mixHex(GEOGRAPHY_PALE, color, 0.12), mixHex(GEOGRAPHY_PALE, color, 0.4),
+      mixHex(GEOGRAPHY_PALE, color, 0.7), color, mixHex(color, "#111111", 0.3)];
+  }
+
+  function geographyChangeRamp(party) {
+    var gains = geographyRamp(party);
+    var loss = mixHex(GEOGRAPHY_LOSS, partyColors[party] || "#777777", 0.3);
+    return [loss, mixHex(GEOGRAPHY_PALE, loss, 0.5), GEOGRAPHY_PALE, gains[1], gains[3]];
+  }
 
   var geographyView = null;
 
@@ -6800,18 +6815,20 @@
     // constituency never repaints the others.
     function colorScale() {
       var values = rows.map(value);
+      var ramp = geographyRamp(state.party);
+      var diverging = geographyChangeRamp(state.party);
       if (state.mode === "share") {
         var low = Math.floor(Math.min.apply(null, values));
         var high = Math.max(low + 2, Math.ceil(Math.max.apply(null, values)));
         return {
-          low: low, high: high, colors: GEOGRAPHY_SEQUENTIAL,
-          color: function (v) { return rampColor(GEOGRAPHY_SEQUENTIAL, (v - low) / (high - low)); }
+          low: low, high: high, colors: ramp,
+          color: function (v) { return rampColor(ramp, (v - low) / (high - low)); }
         };
       }
       var reach = Math.max(0.5, Math.ceil(Math.max.apply(null, values.map(Math.abs)) * 2) / 2);
       return {
-        low: -reach, high: reach, colors: GEOGRAPHY_DIVERGING,
-        color: function (v) { return rampColor(GEOGRAPHY_DIVERGING, (v + reach) / (2 * reach)); }
+        low: -reach, high: reach, colors: diverging,
+        color: function (v) { return rampColor(diverging, (v + reach) / (2 * reach)); }
       };
     }
 

@@ -247,7 +247,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
        of the page. -->
   <section id="election-geography" class="election-panel election-geography" hidden aria-labelledby="election-geography-title">
     <div class="election-panel__head">
-      <h2 id="election-geography-title">Röstandel per valkrets</h2>
+      <h2 id="election-geography-title">Modellprognos: röstandel per valkrets</h2>
       <p class="election-muted" id="election-geography-intro">Partiets röstandel i varje valkrets i simuleringarna: median, 50- och 90-procentigt prognosintervall. Valkretsarna följer det geografiska mönstret från förra valet, anpassat till varje simulerat riksresultat. Kartan fördelar alltså riksprognosen; den bygger inte på lokala opinionsmätningar.</p>
     </div>
     <div class="egeo-controls">
