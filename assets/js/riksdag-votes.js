@@ -297,6 +297,43 @@
     });
   }
 
+  // Per-vote flags from the summary (margin, votes against the line,
+  // cross-bloc); null when the summary does not carry them.
+  // summary.vote_flags: columns ja, nej, avstar, franvarande, margin,
+  // against_line, cross_bloc (1/0/null), one entry per vote in the order of
+  // party_lines.votes. Anything else and the flags are not used.
+  var FLAG_COLUMNS = ["ja", "nej", "avstar", "franvarande", "margin", "against_line", "cross_bloc"];
+
+  function normalizeVoteFlags(payload) {
+    var flags = payload.vote_flags;
+    var votes = payload.party_lines.votes;
+    if (!isObject(flags) || !isObject(flags.columns)) return null;
+    var columns = flags.columns;
+    var ok = FLAG_COLUMNS.every(function (name) {
+      return Array.isArray(columns[name]) && columns[name].length === votes.length;
+    });
+    if (!ok) return null;
+    var byId = {};
+    for (var i = 0; i < votes.length; i += 1) {
+      var cross = columns.cross_bloc[i];
+      if (!isInt(columns.margin[i]) || !isInt(columns.against_line[i]) || !(cross === 0 || cross === 1 || cross === null)) return null;
+      byId[votes[i].id] = {
+        margin: columns.margin[i],
+        against: columns.against_line[i],
+        crossBloc: cross === null ? null : cross === 1,
+        counts: [columns.ja[i], columns.nej[i], columns.avstar[i], columns.franvarande[i]]
+      };
+    }
+    return byId;
+  }
+
+  // summary.blocs: the term's approved statsministeromröstning, or null.
+  function normalizeBlocs(blocs) {
+    if (!isObject(blocs) || !Array.isArray(blocs.government_side) || !Array.isArray(blocs.opposition) ||
+        !blocs.government_side.length || !blocs.opposition.length) return null;
+    return blocs;
+  }
+
   function normalizeSummary(payload) {
     if (!isObject(payload) || payload.schema_version !== "1.0" || payload.role !== "riksdag_votes_summary") return null;
     var agreement = payload.agreement;
@@ -305,12 +342,18 @@
     if (!validMatrix(agreement.overall.three_way, size) || !validMatrix(agreement.overall.ja_nej, size)) return null;
     if (!Array.isArray(payload.members) || !isObject(payload.map) || !isObject(payload.scope)) return null;
     if (!payload.members.every(function (m) { return isObject(m) && typeof m.name === "string" && typeof m.party === "string"; })) return null;
+    if (!isObject(payload.party_lines) || !Array.isArray(payload.party_lines.parties) || !Array.isArray(payload.party_lines.votes)) return null;
     var voteRm = {};
-    var lines = payload.party_lines && Array.isArray(payload.party_lines.votes) ? payload.party_lines.votes : [];
-    lines.forEach(function (entry) {
-      if (isObject(entry) && typeof entry.id === "string" && typeof entry.rm === "string") voteRm[entry.id] = entry.rm;
+    var lineIndex = {};
+    payload.party_lines.votes.forEach(function (entry) {
+      if (!isObject(entry) || typeof entry.id !== "string" || typeof entry.rm !== "string" || !Array.isArray(entry.lines)) return;
+      voteRm[entry.id] = entry.rm;
+      lineIndex[entry.id] = entry.lines;
     });
     payload.voteRm = voteRm;
+    payload.lineIndex = lineIndex;
+    payload.voteFlags = normalizeVoteFlags(payload);
+    payload.blocs = normalizeBlocs(payload.blocs);
     return payload;
   }
 
@@ -520,7 +563,13 @@
           picker.appendChild(option);
         });
         var chosen = defaultScope();
-        picker.value = chosen.scope.key;
+        state.defaultScope = chosen.scope;
+        var url = readUrl();
+        var asked = scopes.filter(function (scope) {
+          return url.period && (scope.kind === "term" ? scope.label === url.period : scope.rm === url.period);
+        })[0];
+        var first = asked || chosen.scope;
+        picker.value = first.key;
         var note = byId("rv-scope-note");
         if (note) {
           note.textContent = chosen.note || "";
@@ -528,11 +577,22 @@
         }
         picker.addEventListener("change", function () {
           var scope = scopes.filter(function (s) { return s.key === picker.value; })[0];
-          if (scope) selectScope(scope);
+          if (!scope) return;
+          // A pair, a vote and an open member belong to the old period.
+          browserState.cell = null;
+          state.selectedVote = null;
+          againstState.open = null;
+          byId("rv-vote-detail").hidden = true;
+          selectScope(scope).then(writeUrl);
         });
         byId("rv-controls").hidden = false;
         renderSources();
-        return selectScope(chosen.scope);
+        return selectScope(first).then(function () {
+          if (state.summary) return restoreFromUrl(url);
+        }).then(function () {
+          urlReady = true;
+          writeUrl();
+        });
       }).catch(function (error) {
         console.warn("Riksdagens voteringar kunde inte visas.", error);
         setStatus("Voteringsdata kunde inte läsas in just nu. Försök igen senare.", true);
@@ -552,6 +612,7 @@
         renderMatrix();
         renderMap();
         renderAgainst();
+        renderChips();
         renderBrowserSessions();
         renderProvenance();
         setStatus("", false);
@@ -560,6 +621,135 @@
         console.warn("Sammanfattningen kunde inte visas.", error);
         setStatus("Uppgifterna för " + scopeLabel(scope) + " kunde inte läsas in.", true);
       });
+    }
+
+    // --- the address bar ---------------------------------------------------------
+    // The page's state lives in the query string, so a view can be linked:
+    // period, utskott, rakna, par + linje, filter, sok, riksmote, votering,
+    // ledamot, sortera, parti, alla_ledamoter, ledamot_sok. Anything that
+    // does not name something on the page is ignored.
+    var CHIP_PARAMS = { jamnast: "close", block: "cross", avvikande: "dissent" };
+    var VOTE_ID = /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
+    var urlReady = false;
+
+    function readUrl() {
+      var params = null;
+      try { params = new URLSearchParams(window.location.search); } catch (error) { params = null; }
+      var get = function (key) {
+        var value = params ? params.get(key) : null;
+        return typeof value === "string" && value && value.length <= 200 ? value : null;
+      };
+      return {
+        period: get("period"), utskott: get("utskott"), rakna: get("rakna"), par: get("par"), linje: get("linje"),
+        filter: get("filter"), sok: get("sok"), riksmote: get("riksmote"), votering: get("votering"),
+        ledamot: get("ledamot"), sortera: get("sortera"), parti: get("parti"), alla: get("alla_ledamoter"),
+        ledamotSok: get("ledamot_sok")
+      };
+    }
+
+    function writeUrl() {
+      if (!urlReady || !state.scope || !window.history || !window.history.replaceState) return;
+      var params = [];
+      var add = function (key, value) { params.push(key + "=" + encodeURIComponent(value)); };
+      if (state.scope !== state.defaultScope) add("period", state.scope.kind === "term" ? state.scope.label : state.scope.rm);
+      if (state.committee) add("utskott", state.committee);
+      if (state.mode === "ja_nej") add("rakna", "janej");
+      var cell = browserState.cell;
+      if (cell) {
+        add("par", cell.a + "-" + cell.b);
+        if (cell.rel === "diff") add("linje", "olika");
+      }
+      var chips = Object.keys(CHIP_PARAMS).filter(function (key) { return browserState.chips[CHIP_PARAMS[key]]; });
+      if (chips.length) add("filter", chips.join(","));
+      if (browserState.query.trim()) add("sok", browserState.query.trim());
+      if (state.browserSession && state.browserSession !== defaultBrowserSession()) add("riksmote", state.browserSession);
+      if (state.selectedVote) add("votering", state.selectedVote.id);
+      if (againstState.open) add("ledamot", againstState.open);
+      if (againstState.sort !== "namn") add("sortera", againstState.sort);
+      if (againstState.party) add("parti", againstState.party);
+      if (!againstState.onlyAgainst) add("alla_ledamoter", "1");
+      if (againstState.query.trim()) add("ledamot_sok", againstState.query.trim());
+      var next = window.location.pathname + (params.length ? "?" + params.join("&") : "") + window.location.hash;
+      try { window.history.replaceState(window.history.state, "", next); } catch (error) { /* a sandboxed frame */ }
+    }
+
+    function restoreFromUrl(url) {
+      var summary = state.summary;
+      var sessions = browserSessions();
+      // Agreement.
+      if (url.utskott && (summary.agreement.by_committee || {})[url.utskott]) state.committee = url.utskott;
+      if (url.rakna === "janej") state.mode = "ja_nej";
+      Array.prototype.forEach.call(app.querySelectorAll("#rv-mode button[data-mode]"), function (button) {
+        button.setAttribute("aria-pressed", button.getAttribute("data-mode") === state.mode ? "true" : "false");
+      });
+      byId("rv-committee").value = state.committee;
+      renderMatrix();
+      // Members.
+      if (url.sortera && AGAINST_SORTS.indexOf(url.sortera) >= 0) againstState.sort = url.sortera;
+      if (url.parti && summary.members.some(function (m) { return m.party === url.parti; })) againstState.party = url.parti;
+      if (url.alla === "1") againstState.onlyAgainst = false;
+      if (url.ledamotSok) againstState.query = url.ledamotSok;
+      var member = url.ledamot ? summary.members.filter(function (m) { return m.id === url.ledamot; })[0] : null;
+      if (member) {
+        againstState.open = member.id;
+        if (filteredMembers().indexOf(member) < 0 || filteredMembers().indexOf(member) >= againstState.limit) {
+          againstState.query = member.name;
+          againstState.party = "";
+          if (!(member.against_line > 0)) againstState.onlyAgainst = false;
+        }
+      }
+      byId("rv-against-sort").value = againstState.sort;
+      byId("rv-against-party").value = againstState.party;
+      byId("rv-against-only").checked = againstState.onlyAgainst;
+      byId("rv-against-search").value = againstState.query;
+      renderMemberList();
+      // Votes.
+      var browse = false;
+      if (url.riksmote && (url.riksmote === ALL_SESSIONS ? sessions.length > 1 : sessions.indexOf(url.riksmote) >= 0)) {
+        state.browserSession = url.riksmote;
+        browse = true;
+      }
+      (url.filter || "").split(",").forEach(function (key) {
+        if (CHIP_PARAMS[key]) {
+          browserState.chips[CHIP_PARAMS[key]] = true;
+          browse = true;
+        }
+      });
+      if (url.sok) {
+        browserState.query = url.sok;
+        byId("rv-browser-search").value = url.sok;
+        browse = true;
+      }
+      var pair = url.par ? url.par.split("-") : [];
+      var parties = summary.agreement.parties;
+      if (pair.length === 2 && pair[0] !== pair[1] && parties.indexOf(pair[0]) >= 0 && parties.indexOf(pair[1]) >= 0) {
+        browserState.cell = { a: pair[0], b: pair[1], rel: url.linje === "olika" ? "diff" : "same", mode: state.mode, committee: state.committee };
+        browserState.committee = state.committee;
+        if (!url.riksmote && sessions.length > 1) state.browserSession = ALL_SESSIONS;
+        browse = true;
+      }
+      var voteRm = url.votering && VOTE_ID.test(url.votering) ? summary.voteRm[url.votering] : null;
+      if (voteRm && shownSessions().indexOf(voteRm) < 0) state.browserSession = voteRm;
+      var tasks = [];
+      if (browse || voteRm) {
+        renderBrowserSessions();
+        tasks.push(loadBrowser().then(function () {
+          var data = voteRm ? state.votes[voteRm] : null;
+          var vote = data ? data.byId[url.votering] : null;
+          if (vote) {
+            state.selectedVote = vote;
+            renderVoteList();
+            selectVote(data, vote, false);
+          }
+          var section = byId("rv-browser");
+          if (section && section.scrollIntoView) section.scrollIntoView({ block: "start" });
+        }));
+      }
+      if (member && !browse && !voteRm) {
+        var item = app.querySelector("#rv-members li[data-member=\"" + member.id + "\"]");
+        if (item && item.scrollIntoView) item.scrollIntoView({ block: "center" });
+      }
+      return Promise.all(tasks);
     }
 
     // --- hero --------------------------------------------------------------
@@ -678,8 +868,12 @@
             text = rowParty + " och " + colParty + " hade samma linje i " + fmtPct(share) + " av voteringarna (" +
               fmtInt(agree) + " av " + fmtInt(n) + ").";
           }
-          td.setAttribute("aria-label", text);
           td.rvText = text;
+          if (i !== j && n > 0) {
+            td.className += " is-pickable";
+            text += " Enter visar voteringarna.";
+          }
+          td.setAttribute("aria-label", text);
           td.tabIndex = r === 0 && c === 1 ? 0 : -1;
           tr.appendChild(td);
           cells.push(td);
@@ -733,9 +927,17 @@
         cell.classList.add("is-current");
         byId("rv-matrix-detail").textContent = cell.rvText;
       });
+      // Clicking a pair (or Enter/Space on it) lists the votes behind it.
+      // The diagonal -- a party against itself -- lists nothing.
+      function choose(cell) {
+        focusCell(cell);
+        var a = cell.getAttribute("data-row");
+        var b = cell.getAttribute("data-col");
+        if (a !== b && Number(cell.getAttribute("data-n")) > 0) setCellFilter(a, b);
+      }
       table.addEventListener("click", function (event) {
         var cell = cellOf(event);
-        if (cell) focusCell(cell);
+        if (cell) choose(cell);
       });
       table.addEventListener("focusin", function (event) {
         var cell = cellOf(event);
@@ -753,6 +955,11 @@
         else if (event.key === "ArrowUp") row = Math.max(0, row - 1);
         else if (event.key === "Home") col = 0;
         else if (event.key === "End") col = size - 1;
+        else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          choose(matrixCells[at]);
+          return;
+        }
         else return;
         event.preventDefault();
         matrixCells[row * size + col].focus();
@@ -768,11 +975,13 @@
             other.setAttribute("aria-pressed", other === button ? "true" : "false");
           });
           if (state.summary) renderMatrix();
+          writeUrl();
         });
       });
       byId("rv-committee").addEventListener("change", function (event) {
         state.committee = event.target.value;
         if (state.summary) renderMatrix();
+        writeUrl();
       });
     }
 
@@ -793,7 +1002,7 @@
     function axisText(map, axis) {
       var patterns = map.top_loading_patterns && map.top_loading_patterns["axis_" + axis];
       var share = Array.isArray(map.explained_variance_ratio) ? map.explained_variance_ratio[axis - 1] : null;
-      var head = "Axel " + axis + (typeof share === "number" ? " (" + fmtPct(share) + " av variationen)" : "");
+      var head = "Axel " + axis + (typeof share === "number" ? " – förklarar " + fmtPct(share) + " av variationen" : "");
       if (!Array.isArray(patterns) || !patterns.length || typeof patterns[0].loading !== "number") {
         return { head: head, body: "", positive: null, negative: null };
       }
@@ -815,6 +1024,30 @@
         positive: top.loading >= 0 ? ja : nej,
         negative: top.loading >= 0 ? nej : ja
       };
+    }
+
+    // Which way the axes point: a convention, so that the same direction
+    // means the same thing in every period.
+    // A term's map is anchored (map.orientation_axes[k].anchor); a
+    // session's is aligned to its term (map.orientation_reference), so the
+    // same direction means the same thing in both.
+    function orientationText(summary) {
+      var map = summary.map;
+      var axes = Array.isArray(map.orientation_axes) ? map.orientation_axes : [];
+      var anchors = summary.rules && Array.isArray(summary.rules.map_axis_anchors) ? summary.rules.map_axis_anchors : [];
+      var anchored = axes.length === 2 && axes.every(function (a) { return isObject(a) && a.method === "anchor" && typeof a.anchor === "string"; });
+      var reference = typeof map.orientation_reference === "string" && /^term-\d{4}-\d{2}$/.test(map.orientation_reference)
+        ? map.orientation_reference.slice(5).replace("-", "–") : null;
+      if (anchored) {
+        return "Riktningen är en konvention: axel 1 är vänd så att " + axes[0].anchor + " hamnar på den positiva sidan, axel 2 så att " +
+          axes[1].anchor + " gör det. Riksmötena i perioden vänds likadant, så samma riktning betyder samma sak.";
+      }
+      if (reference) {
+        return "Axlarna är vända som i mandatperioden " + reference +
+          (anchors.length === 2 ? " (där " + anchors[0] + " är på axel 1:s och " + anchors[1] + " på axel 2:s positiva sida)" : "") +
+          ", så samma riktning betyder samma sak i riksmötet och i perioden.";
+      }
+      return "";
     }
 
     function renderMap() {
@@ -949,10 +1182,11 @@
         endLabel("↓ " + axisTwo.negative, px(0) + 6, height - 22, "start", "y-");
       }
       axes.innerHTML =
-        "<li><strong>" + escapeHtml(axisOne.head) + ", vågrät.</strong> " + escapeHtml(axisOne.body) + "</li>" +
-        "<li><strong>" + escapeHtml(axisTwo.head) + ", lodrät.</strong> " + escapeHtml(axisTwo.body) + "</li>" +
+        "<li><strong>" + escapeHtml(axisOne.head) + " (vågrät).</strong> " + escapeHtml(axisOne.body) + "</li>" +
+        "<li><strong>" + escapeHtml(axisTwo.head) + " (lodrät).</strong> " + escapeHtml(axisTwo.body) + "</li>" +
         (shared.length ? "<li>" + escapeHtml(shared.map(function (c) { return c.parties.join(", "); }).join("; ")) +
           " röstar så lika att de hamnar på samma punkt och ritas bredvid varandra.</li>" : "");
+      byId("rv-map-orientation").textContent = orientationText(summary);
       var minMp = (summary.rules && summary.rules.min_mp_map_votes) || 50;
       unplacedNote.textContent = members.length + " ledamöter är utplacerade" +
         (unplaced ? "; " + unplaced + " som har avlagt färre än " + minMp + " röster i kartans voteringar visas inte" : "") + ".";
@@ -1055,7 +1289,15 @@
     }
 
     // --- 3. against the party line ---------------------------------------------------
-    var againstState = { query: "", party: "", onlyAgainst: true, limit: 40 };
+    // Sorted by name, by the number of votes against the line, or by that
+    // number's share of the member's comparable votes. Never by
+    // participation: absence includes kvittning.
+    var AGAINST_SORTS = ["namn", "antal", "andel"];
+    var againstState = { query: "", party: "", onlyAgainst: true, limit: 40, sort: "namn", open: null };
+
+    function againstShare(member) {
+      return member.against_line_comparable > 0 ? member.against_line / member.against_line_comparable : -1;
+    }
 
     function renderAgainst() {
       var summary = state.summary;
@@ -1096,7 +1338,12 @@
         if (againstState.onlyAgainst && !(m.against_line > 0)) return false;
         if (q && (m.name + " " + (m.valkrets || "")).toLowerCase().indexOf(q) < 0) return false;
         return true;
-      }).sort(function (a, b) { return a.name.localeCompare(b.name, "sv"); });
+      }).sort(function (a, b) {
+        var byName = a.name.localeCompare(b.name, "sv");
+        if (againstState.sort === "antal") return (b.against_line || 0) - (a.against_line || 0) || byName;
+        if (againstState.sort === "andel") return againstShare(b) - againstShare(a) || byName;
+        return byName;
+      });
     }
 
     function renderMemberList() {
@@ -1110,6 +1357,7 @@
       shown.forEach(function (member, i) {
         var li = document.createElement("li");
         li.className = "rv-member";
+        li.setAttribute("data-member", member.id || "");
         var id = "rv-member-" + i;
         var against = isInt(member.against_line) ? member.against_line : 0;
         var comparable = isInt(member.against_line_comparable) ? member.against_line_comparable : 0;
@@ -1118,17 +1366,25 @@
             "<span class=\"rv-member__name\">" + swatch(member.party) + escapeHtml(member.name) + "</span>" +
             "<span class=\"rv-member__meta\">" + escapeHtml((member.party === INDEPENDENT ? "politisk vilde" : member.party) +
               (member.valkrets ? " · " + member.valkrets : "")) + "</span>" +
-            "<span class=\"rv-member__count\">" + fmtInt(against) + " av " + fmtInt(comparable) + "</span>" +
+            "<span class=\"rv-member__count\">" + fmtInt(against) + " av " + fmtInt(comparable) +
+              (againstState.sort === "andel" && comparable > 0 ? " · " + fmtPct(against / comparable, 2) : "") + "</span>" +
           "</button>" +
           "<div class=\"rv-member__detail\" id=\"" + id + "\" hidden></div>";
         var button = li.querySelector("button");
         var detail = li.querySelector(".rv-member__detail");
-        button.addEventListener("click", function () {
-          var open = button.getAttribute("aria-expanded") !== "true";
+        function toggle(open) {
           button.setAttribute("aria-expanded", open ? "true" : "false");
           detail.hidden = !open;
           if (open && !detail.getAttribute("data-filled")) fillMemberDetail(member, detail);
+        }
+        button.addEventListener("click", function () {
+          var open = button.getAttribute("aria-expanded") !== "true";
+          toggle(open);
+          if (open) againstState.open = member.id;
+          else if (againstState.open === member.id) againstState.open = null;
+          writeUrl();
         });
+        if (againstState.open && againstState.open === member.id) toggle(true);
         list.appendChild(li);
       });
       more.hidden = members.length <= shown.length;
@@ -1198,16 +1454,25 @@
         againstState.query = search.value;
         againstState.limit = 40;
         renderMemberList();
+        writeUrl();
       });
       party.addEventListener("change", function () {
         againstState.party = party.value;
         againstState.limit = 40;
         renderMemberList();
+        writeUrl();
       });
       only.addEventListener("change", function () {
         againstState.onlyAgainst = only.checked;
         againstState.limit = 40;
         renderMemberList();
+        writeUrl();
+      });
+      byId("rv-against-sort").addEventListener("change", function (event) {
+        againstState.sort = AGAINST_SORTS.indexOf(event.target.value) >= 0 ? event.target.value : "namn";
+        againstState.limit = 40;
+        renderMemberList();
+        writeUrl();
       });
       byId("rv-members-more").addEventListener("click", function () {
         againstState.limit += 80;
@@ -1216,47 +1481,95 @@
     }
 
     // --- 4. the vote browser ----------------------------------------------------------
-    var browserState = { query: "", committee: "", limit: 30, requested: false };
+    // One session at a time, or every session of a term ("Hela perioden").
+    // The filters combine: utskott, search, the quick filters and a pair of
+    // parties picked in the agreement matrix.
+    var ALL_SESSIONS = "alla";
+    var browserState = {
+      query: "", committee: "", limit: 30, requested: false,
+      chips: { close: false, cross: false, dissent: false },
+      // {a, b, rel: "same"|"diff", mode, committee} from a matrix cell.
+      cell: null
+    };
+    // The riksmöte the chamber's seating plan is for: its votes link to
+    // "Som i kammaren" on the election page. Null until the plan is read.
+    var chamberSession = null;
+
+    function browserSessions() {
+      return state.scope.sessions.filter(function (rm) {
+        return state.index.sessions.some(function (s) { return s.rm === rm; });
+      });
+    }
+
+    function shownSessions() {
+      if (state.browserSession === ALL_SESSIONS) return browserSessions();
+      return state.browserSession ? [state.browserSession] : [];
+    }
+
+    function defaultBrowserSession() {
+      var sessions = browserSessions();
+      return sessions[sessions.length - 1] || null;
+    }
 
     function renderBrowserSessions() {
       var select = byId("rv-browser-session");
-      var sessions = state.scope.sessions.filter(function (rm) {
-        return state.index.sessions.some(function (s) { return s.rm === rm; });
-      }).slice().reverse();
+      var sessions = browserSessions().slice().reverse();
       select.innerHTML = "";
+      if (sessions.length > 1) select.appendChild(new Option("Hela perioden", ALL_SESSIONS));
       sessions.forEach(function (rm) { select.appendChild(new Option(rm, rm)); });
-      if (state.browserSession && sessions.indexOf(state.browserSession) >= 0) select.value = state.browserSession;
-      else state.browserSession = sessions[0] || null;
+      var valid = state.browserSession === ALL_SESSIONS ? sessions.length > 1 : sessions.indexOf(state.browserSession) >= 0;
+      if (!valid) state.browserSession = defaultBrowserSession();
       select.value = state.browserSession || "";
       if (browserState.requested) loadBrowser();
     }
 
-    function loadBrowser() {
-      browserState.requested = true;
-      var rm = state.browserSession;
-      var list = byId("rv-votes");
-      var count = byId("rv-votes-count");
-      if (!rm) return;
-      if (!state.votes[rm]) {
-        count.textContent = "Läser in voteringarna …";
-        list.innerHTML = "";
-      }
-      loadVotes(rm).then(function (data) {
-        if (state.browserSession !== rm) return;
-        renderBrowserCommittees(data);
-        renderVoteList();
-      }).catch(function (error) {
-        console.warn("Voteringarna kunde inte läsas in.", error);
-        count.textContent = "Voteringarna för " + rm + " kunde inte läsas in just nu.";
+    function loadSeatingPlan() {
+      if (chamberSession !== null || !app.getAttribute("data-seating-plan")) return Promise.resolve(chamberSession);
+      return fetchJson(app.getAttribute("data-seating-plan")).then(function (plan) {
+        if (isObject(plan) && plan.role === "riksdag_seating_plan" && typeof plan.riksmote === "string" &&
+            /^\d{4}\/\d{2}$/.test(plan.riksmote)) chamberSession = plan.riksmote;
+        else chamberSession = "";
+        return chamberSession;
+      }).catch(function () {
+        chamberSession = "";
+        return chamberSession;
       });
     }
 
-    function renderBrowserCommittees(data) {
+    function loadBrowser() {
+      browserState.requested = true;
+      var wanted = shownSessions();
+      var key = state.browserSession;
+      var list = byId("rv-votes");
+      var count = byId("rv-votes-count");
+      if (!wanted.length) return Promise.resolve();
+      if (wanted.some(function (rm) { return !state.votes[rm]; })) {
+        count.textContent = "Läser in voteringarna …";
+        list.innerHTML = "";
+      }
+      return Promise.all(wanted.map(loadVotes).concat([loadSeatingPlan()])).then(function () {
+        if (state.browserSession !== key) return;
+        renderBrowserCommittees();
+        renderChips();
+        renderVoteList();
+      }).catch(function (error) {
+        console.warn("Voteringarna kunde inte läsas in.", error);
+        count.textContent = "Voteringarna kunde inte läsas in just nu.";
+      });
+    }
+
+    function loadedData() {
+      return shownSessions().map(function (rm) { return state.votes[rm]; }).filter(Boolean);
+    }
+
+    function renderBrowserCommittees() {
       var select = byId("rv-browser-committee");
       var codes = [];
-      data.votes.forEach(function (vote) {
-        var code = vote.committee || "övrigt";
-        if (codes.indexOf(code) < 0) codes.push(code);
+      loadedData().forEach(function (data) {
+        data.votes.forEach(function (vote) {
+          var code = vote.committee || "övrigt";
+          if (codes.indexOf(code) < 0) codes.push(code);
+        });
       });
       select.innerHTML = "";
       select.appendChild(new Option("Alla utskott", ""));
@@ -1269,8 +1582,44 @@
       select.value = browserState.committee;
     }
 
-    function voteMatches(vote, q) {
+    // What the pipeline says about one vote: its margin, how many voted
+    // against their party line, and whether it split the blocs.
+    function voteFacts(data, vote) {
+      if (!vote.rvFacts) {
+        // The pipeline's vote_flags; without them only the margin, which
+        // the counts give, is known.
+        var flags = state.summary.voteFlags ? state.summary.voteFlags[vote.id] : null;
+        vote.rvFacts = flags || { margin: Math.abs(vote.counts.J - vote.counts.N), against: null, crossBloc: null };
+      }
+      return vote.rvFacts;
+    }
+
+    // A party's line on a vote, as the pipeline's party_lines records it.
+    function lineOf(id, party) {
+      var lines = state.summary.lineIndex[id];
+      var at = state.summary.party_lines.parties.indexOf(party);
+      return lines && at >= 0 ? lines[at] : null;
+    }
+
+    // The matrix's rule, for one pair: an analysis vote of the cell's
+    // committee where both parties have a line (Ja or Nej in "Bara Ja/Nej").
+    function cellMatches(vote) {
+      var cell = browserState.cell;
+      if (!cell) return true;
+      if (!vote.analysis) return false;
+      if (cell.committee && (vote.committee || "övrigt") !== cell.committee) return false;
+      var a = lineOf(vote.id, cell.a);
+      var b = lineOf(vote.id, cell.b);
+      if (cell.mode === "ja_nej" ? !/^[JN]$/.test(a || "") || !/^[JN]$/.test(b || "") : !a || !b) return false;
+      return cell.rel === "same" ? a === b : a !== b;
+    }
+
+    function voteMatches(data, vote, q) {
       if (browserState.committee && (vote.committee || "övrigt") !== browserState.committee) return false;
+      if (!cellMatches(vote)) return false;
+      var facts = voteFacts(data, vote);
+      if (browserState.chips.dissent && !(facts.against > 0)) return false;
+      if (browserState.chips.cross && facts.crossBloc !== true) return false;
       if (!q) return true;
       var hay = [voteTitle(vote), vote.punktTitle || "", vote.beteckning, vote.committee || "",
         vote.committee ? committeeName(vote.committee, state.summary) : "", vote.date || "", swedishDate(vote.date)]
@@ -1278,34 +1627,116 @@
       return q.split(/\s+/).every(function (word) { return hay.indexOf(word) >= 0; });
     }
 
+    function blocsText() {
+      var blocs = state.summary.blocs;
+      if (!isObject(blocs)) return null;
+      var side = Array.isArray(blocs.government_side) ? blocs.government_side.join(", ") : "";
+      var other = Array.isArray(blocs.opposition) ? blocs.opposition.join(", ") : "";
+      return "Blocken är statsministeromröstningens " + swedishDate(blocs.date) +
+        (typeof blocs.title === "string" ? " (" + blocs.title + ")" : "") + ": regeringssidan " + side + ", oppositionen " + other +
+        (Array.isArray(blocs.abstained) && blocs.abstained.length ? "; " + blocs.abstained.join(", ") + " avstod" : "") + ".";
+    }
+
+    function renderChips() {
+      var cross = app.querySelector("#rv-chips [data-chip=\"cross\"]");
+      var dissent = app.querySelector("#rv-chips [data-chip=\"dissent\"]");
+      var flags = Boolean(state.summary.voteFlags);
+      var text = blocsText();
+      var available = Boolean(text) && flags;
+      if (!available) browserState.chips.cross = false;
+      if (!flags) browserState.chips.dissent = false;
+      cross.hidden = !flags;
+      cross.disabled = !available;
+      dissent.hidden = !flags;
+      cross.title = available ? text : (flags ? "Blocköverskridande är inaktiverat: ingen godkänd statsministeromröstning i perioden än." : "");
+      var note = byId("rv-blocs-note");
+      note.textContent = available
+        ? "Blocköverskridande (ja/nej-linjer): både regeringssidan och oppositionen har minst ett parti på vinnande och minst ett på förlorande sida. " + text
+        : (flags ? "Blocköverskridande är inaktiverat tills en statsministeromröstning har fastställt blocken i perioden." : "");
+      note.hidden = !flags;
+      Array.prototype.forEach.call(app.querySelectorAll("#rv-chips [data-chip]"), function (chip) {
+        var pressed = !chip.disabled && Boolean(browserState.chips[chip.getAttribute("data-chip")]);
+        chip.setAttribute("aria-pressed", pressed ? "true" : "false");
+      });
+      renderCellPill();
+    }
+
+    function renderCellPill() {
+      var pill = byId("rv-cell-filter");
+      var cell = browserState.cell;
+      pill.hidden = !cell;
+      if (!cell) return;
+      byId("rv-cell-filter-text").textContent = cell.a + " och " + cell.b + " hade " +
+        (cell.rel === "same" ? "samma linje" : "olika linjer") + " (" +
+        (cell.mode === "ja_nej" ? "bara ja/nej" : "ja/nej/avstår") + ", " +
+        (cell.committee ? committeeName(cell.committee, state.summary) : "alla utskott") + ")";
+      Array.prototype.forEach.call(pill.querySelectorAll("[data-rel]"), function (button) {
+        button.setAttribute("aria-pressed", button.getAttribute("data-rel") === cell.rel ? "true" : "false");
+      });
+    }
+
     function renderVoteList() {
-      var data = state.votes[state.browserSession];
-      if (!data) return;
+      var datasets = loadedData();
+      if (!datasets.length || datasets.length !== shownSessions().length) return;
       var list = byId("rv-votes");
       var count = byId("rv-votes-count");
       var more = byId("rv-votes-more");
       var q = browserState.query.trim().toLowerCase();
-      var votes = sortedVotes(data).filter(function (vote) { return voteMatches(vote, q); });
+      var votes = [];
+      datasets.forEach(function (data) {
+        data.votes.forEach(function (vote) {
+          if (voteMatches(data, vote, q)) votes.push({ data: data, vote: vote });
+        });
+      });
+      var byDate = function (a, b) {
+        var da = a.vote.date || "";
+        var db = b.vote.date || "";
+        return da < db ? 1 : da > db ? -1 : a.data.rm < b.data.rm ? 1 : a.data.rm > b.data.rm ? -1 : b.vote.order - a.vote.order;
+      };
+      // "Jämnaste": smallest |ja − nej| first; ties newest first.
+      votes.sort(browserState.chips.close ? function (a, b) {
+        return voteFacts(a.data, a.vote).margin - voteFacts(b.data, b.vote).margin || byDate(a, b);
+      } : byDate);
       var shown = votes.slice(0, browserState.limit);
+      var filtered = q || browserState.committee || browserState.cell || browserState.chips.cross || browserState.chips.dissent;
       count.textContent = (votes.length === 1 ? "1 votering" : fmtInt(votes.length) + " voteringar") +
-        " i riksmötet " + data.rm + (q || browserState.committee ? " matchar" : "") + ".";
+        (state.browserSession === ALL_SESSIONS ? " i " + scopeLabel(state.scope) : " i riksmötet " + state.browserSession) +
+        (filtered ? " matchar" : "") + (browserState.chips.close ? ", jämnaste först" : "") + ".";
       list.innerHTML = "";
-      shown.forEach(function (vote) {
+      shown.forEach(function (entry) {
+        var vote = entry.vote;
         var li = document.createElement("li");
         li.className = "rv-vote";
         var selected = state.selectedVote && state.selectedVote.id === vote.id;
+        var facts = voteFacts(entry.data, vote);
         li.innerHTML =
-          "<button type=\"button\" class=\"rv-vote__button\" data-vote=\"" + escapeHtml(vote.id) + "\" aria-pressed=\"" + (selected ? "true" : "false") + "\">" +
-            "<span class=\"rv-vote__date\">" + escapeHtml(swedishDate(vote.date)) + "</span>" +
+          "<button type=\"button\" class=\"rv-vote__button\" data-vote=\"" + escapeHtml(vote.id) + "\" data-rm=\"" + escapeHtml(entry.data.rm) +
+            "\" aria-pressed=\"" + (selected ? "true" : "false") + "\">" +
+            "<span class=\"rv-vote__date\">" + escapeHtml(swedishDate(vote.date)) +
+              (state.browserSession === ALL_SESSIONS ? " · " + escapeHtml(entry.data.rm) : "") + "</span>" +
             "<span class=\"rv-vote__title\">" + escapeHtml(voteTitle(vote)) +
               (votePoint(vote) ? "<span class=\"rv-vote__point\">" + escapeHtml(votePoint(vote)) + "</span>" : "") + "</span>" +
-            "<span class=\"rv-vote__tally\">" + resultBar(vote) + "</span>" +
-          "</button>";
-        li.querySelector("button").addEventListener("click", function () { selectVote(data, vote, true); });
+            "<span class=\"rv-vote__tally\">" + resultBar(vote) +
+              (facts.against > 0 ? "<span class=\"rv-vote__flag\">" + facts.against + " mot partilinjen</span>" : "") +
+              (facts.crossBloc === true ? "<span class=\"rv-vote__flag\">blocköverskridande</span>" : "") + "</span>" +
+          "</button>" + chamberLink(entry.data, vote, "rv-vote__chamber");
+        li.querySelector("button").addEventListener("click", function () {
+          selectVote(entry.data, vote, true);
+          writeUrl();
+        });
         list.appendChild(li);
       });
       more.hidden = votes.length <= shown.length;
       more.textContent = "Visa fler (" + fmtInt(votes.length - shown.length) + " till)";
+    }
+
+    // "Visa i kammaren": a vote of the session the chamber's seating plan is
+    // for opens on the election page with that vote on the hall.
+    function chamberLink(data, vote, className) {
+      var page = app.getAttribute("data-chamber-page");
+      if (!page || !chamberSession || data.rm !== chamberSession) return "";
+      var href = page + "?riksdag_vote=" + encodeURIComponent(vote.id) + "#valet-2026";
+      return "<a class=\"" + className + "\" href=\"" + escapeHtml(href) + "\">Visa i kammaren</a>";
     }
 
     function resultBar(vote) {
@@ -1371,7 +1802,8 @@
         "<p class=\"election-muted\">Partilinjen är det som flest av partiets ledamöter röstade (ja, nej eller avstår). " +
           (documentLink(data, vote) ? "<a class=\"rv-doc-link\" href=\"" + escapeHtml(documentLink(data, vote)) + "\">" +
             (vote.committee ? "Betänkandet " + escapeHtml(vote.beteckning) : "Dokumentet") + " hos riksdagen</a>. " : "") +
-          "Voteringsdata: <a href=\"https://data.riksdagen.se/votering/" + encodeURIComponent(vote.id) + "/json\">data.riksdagen.se</a>.</p>";
+          "Voteringsdata: <a href=\"https://data.riksdagen.se/votering/" + encodeURIComponent(vote.id) + "/json\">data.riksdagen.se</a>.</p>" +
+        chamberLink(data, vote, "rv-vote-detail__chamber");
       panel.hidden = false;
       if (focus) {
         var title = panel.querySelector(".rv-vote-detail__title");
@@ -1379,24 +1811,47 @@
       }
     }
 
-    function openVote(rm, id) {
+    // Open one vote from elsewhere on the page (a member's list, a link):
+    // its session, with every filter that could hide it cleared.
+    function openVote(rm, id, scroll) {
       state.browserSession = rm;
-      byId("rv-browser-session").value = rm;
+      byId("rv-browser-session").value = state.browserSession;
       browserState.query = "";
       browserState.committee = "";
+      browserState.cell = null;
+      browserState.chips.cross = false;
+      browserState.chips.dissent = false;
       byId("rv-browser-search").value = "";
-      loadVotes(rm).then(function (data) {
-        renderBrowserCommittees(data);
-        var vote = data.byId[id];
-        if (!vote) return;
+      return loadBrowser().then(function () {
+        var data = state.votes[rm];
+        var vote = data && data.byId[id];
+        if (!vote) return false;
         state.selectedVote = vote;
         renderVoteList();
         selectVote(data, vote, false);
-        var section = byId("rv-browser");
-        if (section && section.scrollIntoView) section.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (scroll !== false) {
+          var section = byId("rv-browser");
+          if (section && section.scrollIntoView) section.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
         var title = byId("rv-vote-detail").querySelector(".rv-vote-detail__title");
         if (title) title.focus({ preventScroll: true });
+        writeUrl();
+        return true;
       });
+    }
+
+    // A matrix cell: the votes of the period on which A and B had the same
+    // line, or (toggle) different lines, under the matrix's own rule.
+    function setCellFilter(a, b) {
+      browserState.cell = { a: a, b: b, rel: "same", mode: state.mode, committee: state.committee };
+      browserState.committee = state.committee;
+      browserState.limit = 30;
+      if (browserSessions().length > 1) state.browserSession = ALL_SESSIONS;
+      renderBrowserSessions();
+      loadBrowser();
+      var section = byId("rv-browser");
+      if (section && section.scrollIntoView) section.scrollIntoView({ behavior: "smooth", block: "start" });
+      writeUrl();
     }
 
     function bindBrowser() {
@@ -1408,17 +1863,47 @@
         state.browserSession = session.value;
         browserState.limit = 30;
         loadBrowser();
+        writeUrl();
       });
       search.addEventListener("input", function () {
         browserState.query = search.value;
         browserState.limit = 30;
         if (!browserState.requested) loadBrowser();
         else renderVoteList();
+        writeUrl();
       });
       committee.addEventListener("change", function () {
         browserState.committee = committee.value;
         browserState.limit = 30;
         renderVoteList();
+        writeUrl();
+      });
+      Array.prototype.forEach.call(app.querySelectorAll("#rv-chips [data-chip]"), function (chip) {
+        chip.addEventListener("click", function () {
+          if (chip.disabled) return;
+          var name = chip.getAttribute("data-chip");
+          browserState.chips[name] = !browserState.chips[name];
+          browserState.limit = 30;
+          renderChips();
+          if (!browserState.requested) loadBrowser();
+          else renderVoteList();
+          writeUrl();
+        });
+      });
+      Array.prototype.forEach.call(app.querySelectorAll("#rv-cell-filter [data-rel]"), function (button) {
+        button.addEventListener("click", function () {
+          if (!browserState.cell) return;
+          browserState.cell.rel = button.getAttribute("data-rel");
+          renderCellPill();
+          renderVoteList();
+          writeUrl();
+        });
+      });
+      byId("rv-cell-filter-clear").addEventListener("click", function () {
+        browserState.cell = null;
+        renderCellPill();
+        renderVoteList();
+        writeUrl();
       });
       search.addEventListener("focus", function () { if (!browserState.requested) loadBrowser(); });
       byId("rv-votes-more").addEventListener("click", function () {
@@ -1483,6 +1968,83 @@
       }).join("");
     }
 
+    function bindCopyLink() {
+      var button = byId("rv-copy-link");
+      var status = byId("rv-copy-status");
+      if (!button) return;
+      button.addEventListener("click", function () {
+        var href = window.location.href;
+        var done = function () { status.textContent = "Länken är kopierad."; };
+        var fail = function () { status.textContent = href; };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(href).then(done, fail);
+        else fail();
+      });
+    }
+
+    function bindInfoPopovers() {
+      var finePointer = Boolean(window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+      var popovers = [];
+      function close(entry) {
+        entry.pinned = false;
+        entry.panel.hidden = true;
+        entry.button.setAttribute("aria-expanded", "false");
+      }
+      function open(entry, pinned) {
+        popovers.forEach(function (other) { if (other !== entry) close(other); });
+        entry.pinned = Boolean(pinned);
+        entry.panel.hidden = false;
+        entry.button.setAttribute("aria-expanded", "true");
+      }
+      Array.prototype.forEach.call(app.querySelectorAll(".election-panel__head"), function (head, index) {
+        var heading = head.querySelector("h2");
+        var texts = Array.prototype.filter.call(head.children, function (child) { return child.tagName === "P"; });
+        if (!heading || !texts.length) return;
+        var panel = document.createElement("div");
+        panel.className = "election-info__panel";
+        panel.id = (head.parentNode && head.parentNode.id ? head.parentNode.id : "rv-section-" + index) + "-info";
+        panel.hidden = true;
+        texts.forEach(function (text) { panel.appendChild(text); });
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "election-info__button";
+        button.setAttribute("aria-expanded", "false");
+        button.setAttribute("aria-controls", panel.id);
+        button.setAttribute("aria-label", "Om " + heading.textContent.replace(/\s+/g, " ").trim());
+        button.textContent = "i";
+        head.classList.add("election-panel__head--info");
+        heading.insertAdjacentElement("afterend", button);
+        button.insertAdjacentElement("afterend", panel);
+        var entry = { button: button, panel: panel, pinned: false };
+        popovers.push(entry);
+        button.addEventListener("click", function () {
+          if (entry.pinned) close(entry);
+          else open(entry, true);
+        });
+        if (finePointer) {
+          button.addEventListener("mouseenter", function () { if (panel.hidden) open(entry, false); });
+          head.addEventListener("mouseleave", function () { if (!entry.pinned) close(entry); });
+        }
+      });
+      if (!popovers.length) return;
+      document.addEventListener("click", function (event) {
+        popovers.forEach(function (entry) {
+          if (entry.panel.hidden) return;
+          if (entry.button.contains(event.target) || entry.panel.contains(event.target)) return;
+          close(entry);
+        });
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key !== "Escape") return;
+        popovers.forEach(function (entry) {
+          if (entry.panel.hidden) return;
+          close(entry);
+          if (entry.button === document.activeElement || entry.panel.contains(document.activeElement)) entry.button.focus();
+        });
+      });
+    }
+
+    bindInfoPopovers();
+    bindCopyLink();
     bindMatrixControls();
     bindMatrixKeys();
     bindMap();
@@ -1653,6 +2215,31 @@
       apply();
     });
     if (link && !link.getAttribute("href")) link.setAttribute("href", "/riksdagen-roster/");
+
+    // ?riksdag_vote=<votering_id>, from "Visa i kammaren" on the voting
+    // page: open the hall with that vote on it. An id that is malformed or
+    // not a vote of the session changes nothing.
+    var requested = null;
+    try { requested = new URLSearchParams(window.location.search).get("riksdag_vote"); } catch (error) { requested = null; }
+    if (requested && !/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/.test(requested)) requested = null;
+    if (requested) {
+      // After election-simulator.js has bound the view toggle.
+      window.setTimeout(function () {
+        var toggle = byId("election-result-view");
+        var button = toggle ? toggle.querySelector("[data-view=\"seating\"]") : null;
+        if (!button || toggle.hidden) return;
+        load().then(function () {
+          if (!data || !data.byId[requested]) return;
+          if (button.getAttribute("aria-pressed") !== "true") button.click();
+          if (!Array.prototype.some.call(picker.options, function (o) { return o.value === requested; })) {
+            picker.appendChild(new Option(pickerLabel(data.byId[requested]), requested));
+          }
+          picker.value = requested;
+          picker.dispatchEvent(new Event("change"));
+          if (toggle.scrollIntoView) toggle.scrollIntoView({ block: "start" });
+        });
+      }, 0);
+    }
 
     return {
       setSeating: function (isSeating) {

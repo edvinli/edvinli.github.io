@@ -5188,7 +5188,8 @@ canvas {
 .rv-vote__tally {
   align-items: center;
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.5rem;
 }
 
 .rv-tally {
@@ -5313,6 +5314,109 @@ canvas {
   display: block;
   font-size: 0.72rem;
   overflow-wrap: anywhere;
+}
+
+/* --- v2: acklamation, quick filters, pair filter, links ---------------------- */
+
+/* The one caveat that changes how the matrix reads: next to it, not only in
+   the methods. */
+.rv-callout {
+  border-left: 3px solid var(--el-ink);
+  font-size: 0.9rem;
+  margin: 0.4rem 0 0.9rem;
+  max-width: 68ch;
+  padding: 0.15rem 0 0.15rem 0.8rem;
+}
+
+.rv-noscript p {
+  margin: 0 0 0.5rem;
+}
+
+.rv-copy {
+  align-self: center;
+}
+
+.rv-copy-status {
+  align-self: center;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.rv-matrix__cell.is-pickable {
+  cursor: pointer;
+}
+
+.rv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+}
+
+.rv-chip {
+  border: 1px solid var(--el-rule-strong);
+  border-radius: 999px;
+  min-height: 2rem;
+}
+
+.rv-chip:disabled {
+  color: var(--el-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.rv-chip:disabled:hover {
+  background: transparent;
+}
+
+.rv-subtitle {
+  margin: -0.25rem 0 0.75rem;
+}
+
+.rv-blocs-note {
+  font-size: 0.8rem;
+}
+
+.rv-cell-filter {
+  align-items: center;
+  background: var(--el-fill-soft);
+  border: 1px solid var(--el-rule-strong);
+  border-radius: 999px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  margin: 0 0 0.5rem;
+  max-width: 100%;
+  padding: 0.25rem 0.4rem 0.25rem 0.8rem;
+}
+
+.rv-cell-filter__text {
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.rv-cell-filter__clear {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--el-rule-strong);
+  color: var(--el-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+}
+
+.rv-vote__flag {
+  color: var(--el-muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.rv-vote__chamber,
+.rv-vote-detail__chamber {
+  display: inline-block;
+  font-size: 0.8rem;
+  margin: 0 0 0.4rem 0.2rem;
 }
 
 /* --- The vote overlay on the result chamber --------------------------------- */
