@@ -4759,3 +4759,636 @@ canvas {
     padding: 0.9rem 0 0;
   }
 }
+
+/* ==========================================================================
+   Riksdagen röstar (assets/js/riksdag-votes.js)
+   The page /riksdagen-roster/ and the vote overlay on the result chamber.
+   Every rule is scoped to an rv- class, so nothing reaches the forecast.
+   ========================================================================== */
+
+.rv-controls {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.2rem;
+  margin: 0 0 0.6rem;
+}
+
+.rv-scope {
+  min-width: min(100%, 20rem);
+}
+
+.rv-scope-note {
+  flex: 1 1 18rem;
+  margin: 0;
+}
+
+.rv-swatch {
+  border-radius: 2px;
+  display: inline-block;
+  flex: none;
+  height: 0.7rem;
+  margin-right: 0.35rem;
+  vertical-align: baseline;
+  width: 0.7rem;
+}
+
+.rv-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.rv-num {
+  font-family: var(--el-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* --- Agreement matrix ---------------------------------------------------- */
+
+.rv-matrix-controls,
+.rv-member-controls,
+.rv-browser-controls {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: auto minmax(12rem, 22rem);
+  margin: 0.9rem 0;
+}
+
+.rv-member-controls {
+  grid-template-columns: minmax(12rem, 1.4fr) minmax(9rem, 1fr) auto;
+}
+
+.rv-browser-controls {
+  grid-template-columns: minmax(9rem, 0.8fr) minmax(12rem, 1.6fr) minmax(10rem, 1fr);
+}
+
+.election-app .rv-matrix {
+  border-collapse: separate;
+  border-spacing: 2px;
+  display: table;
+  font-family: var(--el-mono);
+  margin: 0;
+  table-layout: fixed;
+  width: min(100%, 34rem);
+}
+
+.election-app .rv-matrix thead {
+  border: 0;
+}
+
+.rv-matrix th,
+.rv-matrix td {
+  border: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.rv-matrix th {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.2rem 0;
+  white-space: nowrap;
+}
+
+.rv-matrix th[scope="row"] {
+  padding-right: 0.3rem;
+  text-align: left;
+  width: 3.4rem;
+}
+
+.rv-matrix abbr {
+  border: 0;
+  cursor: help;
+  text-decoration: none;
+}
+
+.rv-matrix__corner {
+  width: 3.4rem;
+}
+
+.rv-matrix__cell {
+  border-radius: 2px;
+  color: var(--el-ink);
+  cursor: default;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  height: 2.4rem;
+  line-height: 1.1;
+  vertical-align: middle;
+}
+
+.rv-matrix__cell.is-dark {
+  color: #ffffff;
+}
+
+.rv-matrix__cell--self {
+  background: var(--el-fill-soft);
+  color: var(--el-muted);
+}
+
+.rv-matrix__cell--few {
+  background: repeating-linear-gradient(135deg, var(--el-fill-soft) 0 4px, var(--el-fill) 4px 8px);
+  color: var(--el-muted);
+}
+
+.rv-matrix__value,
+.rv-matrix__n {
+  display: block;
+}
+
+.rv-matrix__n {
+  font-size: 0.62rem;
+  font-weight: 400;
+}
+
+.rv-matrix__cell.is-current,
+.rv-matrix__cell:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--el-ink), inset 0 0 0 3px #ffffff;
+  outline: none;
+}
+
+.rv-matrix-detail {
+  font-size: 0.86rem;
+  margin: 0.5rem 0 0.8rem;
+  min-height: 1.4em;
+}
+
+/* --- Map ------------------------------------------------------------------- */
+
+.rv-map-frame {
+  margin: 0.9rem 0 0.4rem;
+  max-width: 44rem;
+  position: relative;
+}
+
+.rv-map {
+  background: var(--el-fill-soft);
+  border: 1px solid var(--el-rule);
+  border-radius: 3px;
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.rv-map:focus-visible {
+  outline: 2px solid var(--el-ink);
+  outline-offset: 2px;
+}
+
+.rv-map__axis {
+  stroke: var(--el-rule-strong);
+  stroke-dasharray: 3 4;
+  stroke-width: 1;
+}
+
+.rv-map__mp {
+  opacity: 0.75;
+  stroke: #ffffff;
+  stroke-width: 0.6;
+}
+
+.rv-map__mp.is-current {
+  opacity: 1;
+  stroke: var(--el-ink);
+  stroke-width: 2;
+}
+
+.rv-map__cluster {
+  fill: #ffffff;
+  stroke: var(--el-rule-strong);
+  stroke-width: 1;
+}
+
+.rv-map__party circle {
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.rv-map__end {
+  fill: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 11px;
+}
+
+.rv-map__party text {
+  fill: #ffffff;
+  font-family: var(--el-mono);
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.rv-map__parties {
+  pointer-events: none;
+}
+
+.rv-map-tip {
+  z-index: 4;
+}
+
+.rv-map-axes {
+  font-size: 0.86rem;
+  margin: 0.6rem 0 0.4rem;
+  max-width: 68ch;
+  padding-left: 1.1rem;
+}
+
+/* --- Against the line ------------------------------------------------------ */
+
+.election-app .rv-table {
+  border-collapse: collapse;
+  display: table;
+  font-size: 0.86rem;
+  margin: 0.6rem 0;
+  min-width: min(100%, 30rem);
+}
+
+.rv-table th,
+.rv-table td {
+  border: 0;
+  border-bottom: 1px solid var(--el-rule);
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+}
+
+.rv-table th.rv-num,
+.rv-table td.rv-num {
+  text-align: right;
+}
+
+.election-app input.ep-filter__select {
+  box-sizing: border-box;
+  height: 2.2rem;
+  margin: 0;
+}
+
+.rv-check {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.86rem;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+}
+
+.rv-members,
+.rv-votes {
+  border-top: 1px solid var(--el-rule);
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+}
+
+.page__content .rv-members li,
+.page__content .rv-votes li {
+  margin: 0;
+}
+
+.rv-member {
+  border-bottom: 1px solid var(--el-rule);
+}
+
+.rv-member__toggle,
+.rv-vote__button {
+  align-items: baseline;
+  background: none;
+  border: 0;
+  color: var(--el-ink);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 0.15rem 0.8rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.45rem 0.2rem;
+  text-align: left;
+  width: 100%;
+}
+
+.rv-member__toggle:hover,
+.rv-vote__button:hover {
+  background: var(--el-fill-soft);
+}
+
+.rv-member__name {
+  font-weight: 700;
+}
+
+.rv-member__meta {
+  color: var(--el-muted);
+  font-size: 0.82rem;
+  grid-column: 1;
+}
+
+.rv-member__count {
+  font-family: var(--el-mono);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  white-space: nowrap;
+}
+
+.rv-member__detail {
+  font-size: 0.86rem;
+  padding: 0 0.2rem 0.7rem 1.05rem;
+}
+
+.rv-member__facts {
+  margin: 0 0 0.3rem;
+}
+
+.rv-member__votes {
+  margin: 0.3rem 0;
+  padding-left: 1rem;
+}
+
+.rv-member__vote-meta {
+  color: var(--el-muted);
+  display: block;
+  font-size: 0.8rem;
+}
+
+.rv-linkish {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--el-rule-strong);
+  color: var(--el-ink);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.rv-more {
+  margin-top: 0.6rem;
+}
+
+/* --- Vote browser ------------------------------------------------------------ */
+
+.rv-browser {
+  align-items: start;
+  display: grid;
+  gap: 1rem 1.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.rv-vote__button {
+  grid-template-columns: 6.2rem minmax(0, 1fr);
+}
+
+.rv-vote__button[aria-pressed="true"] {
+  background: var(--el-fill);
+  box-shadow: inset 3px 0 0 var(--el-ink);
+}
+
+.rv-vote__date {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.rv-vote__title {
+  font-weight: 600;
+  min-width: 0;
+}
+
+.rv-vote__tally {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  grid-column: 2;
+}
+
+.rv-tally {
+  border-radius: 2px;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 1px;
+  height: 0.45rem;
+  max-width: 12rem;
+  overflow: hidden;
+}
+
+.rv-tally__part {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.rv-tally__text {
+  color: var(--el-muted);
+  font-family: var(--el-mono);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.rv-vote-detail {
+  border: 1px solid var(--el-rule);
+  border-radius: 3px;
+  min-width: 0;
+  padding: 0.8rem 1rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.rv-vote-detail__title {
+  font-size: 1rem;
+  margin: 0 0 0.3rem;
+}
+
+.rv-vote-detail__title:focus {
+  outline: none;
+}
+
+.rv-vote-detail__result {
+  margin: 0.4rem 0;
+}
+
+.rv-vote-detail__against-head {
+  font-weight: 700;
+  margin: 0.6rem 0 0.2rem;
+}
+
+.rv-vote-detail__against {
+  font-size: 0.86rem;
+  margin: 0 0 0.4rem;
+  padding-left: 1rem;
+}
+
+.rv-lines .rv-line {
+  white-space: nowrap;
+}
+
+.rv-choice,
+.rv-tip__choice {
+  border-radius: 50%;
+  display: inline-block;
+  height: 0.65rem;
+  margin-right: 0.35rem;
+  width: 0.65rem;
+}
+
+.rv-tip__choice {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+/* --- Methods ------------------------------------------------------------------ */
+
+.rv-rules {
+  font-size: 0.88rem;
+  max-width: 72ch;
+}
+
+.rv-details summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.rv-sources {
+  font-size: 0.8rem;
+  list-style: none;
+  margin: 0.4rem 0;
+  padding: 0;
+}
+
+.rv-source__file {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.rv-source__meta {
+  color: var(--el-muted);
+}
+
+.rv-source__sha {
+  color: var(--el-muted);
+  display: block;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+/* --- The vote overlay on the result chamber --------------------------------- */
+
+.rv-overlay {
+  margin: 0.5rem 0 0;
+}
+
+.rv-overlay__note {
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+}
+
+.rv-overlay__controls {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+
+.rv-overlay__pick {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.rv-overlay__against {
+  border: 1px solid var(--el-rule);
+  border-radius: 999px;
+  min-height: 2.2rem;
+}
+
+.rv-overlay__against[disabled] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.rv-overlay__summary {
+  font-size: 0.82rem;
+  margin: 0.4rem 0 0;
+}
+
+.rv-overlay__summary:empty {
+  display: none;
+}
+
+/* Avstår: the dark ink, ringed so it reads apart from a party colour. */
+.election-seat.rv-seat--A {
+  box-shadow: 0 0 0 1px #ffffff inset;
+}
+
+/* Frånvarande: a pale seat with an outline, so an empty-looking seat is
+   still a seat. */
+.election-seat.rv-seat--F {
+  box-shadow: 0 0 0 1px rgba(44, 42, 37, 0.35) inset;
+}
+
+/* The Speaker's chair and the Prime Minister's place: no vote. */
+.election-seat.rv-seat--none {
+  opacity: 0.35;
+}
+
+.election-seat.rv-dim {
+  opacity: 0.16;
+}
+
+.election-seat.rv-against {
+  box-shadow: 0 0 0 1.5px #ffffff, 0 0 0 3px var(--el-ink);
+  z-index: 2;
+}
+
+.rv-legend__swatch--F {
+  box-shadow: inset 0 0 0 1px rgba(44, 42, 37, 0.35);
+}
+
+@media (max-width: 46em) {
+  .rv-matrix-controls,
+  .rv-member-controls,
+  .rv-browser-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-browser {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-vote-detail {
+    position: static;
+  }
+
+  .rv-vote__button {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-vote__tally {
+    grid-column: 1;
+  }
+
+  .rv-matrix th[scope="row"],
+  .rv-matrix__corner {
+    width: 2.6rem;
+  }
+
+  .rv-matrix__cell {
+    font-size: 0.74rem;
+    height: 2.1rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .rv-swatch,
+  .rv-matrix__cell,
+  .rv-tally__part,
+  .rv-choice,
+  .rv-tip__choice,
+  .rv-map__mp,
+  .rv-map__party circle {
+    forced-color-adjust: none;
+  }
+
+  .election-seat.rv-dim {
+    opacity: 1;
+  }
+}

@@ -12,5 +12,8 @@ main:
   - title: "Riksdagsval"
     url: /election-simulator/
 
+  - title: "Riksdagen röstar"
+    url: /riksdagen-roster/
+
   - title: "Göteborgsvarvet"
     url: /gbgvarv/
