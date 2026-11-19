@@ -46,6 +46,8 @@ node browser-tests/election-result.smoke.mjs
 node browser-tests/forecast-cycles.smoke.mjs
 node browser-tests/demographics.smoke.mjs
 node browser-tests/constituency-map.smoke.mjs
+node browser-tests/riksdag-roster.smoke.mjs
+node browser-tests/riksdag-chamber.smoke.mjs
 ```
 
 Requirements: Node >= 22 (for the built-in `WebSocket`) and a local
@@ -852,6 +854,52 @@ verifies the file exactly as it would a published one. The suite checks:
 
 Once a real 1.5 generation is published, pin one here beside the synthetic
 fixture.
+
+### 16. `riksdag-roster.smoke.mjs` — Riksdagen röstar
+
+The page `/riksdagen-roster/` (`assets/js/riksdag-votes.js`) draws the
+roll-call outputs of the simulator repository's `riksdag_votes` pipeline,
+published under `files/riksdag/` exactly as `python -m
+scripts.riksdag_votes.site` exports them (its `index.json` included). Every expectation is read from those files,
+so the page can only pass by printing what they say:
+
+- **Period.** It opens on the newest term once that term has 100 analysis
+  votes, otherwise on the last complete term with a note giving the current
+  session's n; the first load is `index.json` and one summary, nothing else.
+- **Agreement.** Both counting modes and a committee, cell for cell against
+  the summary, `–` with `n=` under the pipeline's minimum, one tab stop and
+  arrow-key navigation.
+- **Map.** One dot per placed member, eight parties, axis ends labelled by
+  each axis's top-loading pattern (and no axis text saying left or right),
+  explained variance, member hover and keyboard, and the "no map yet" state.
+- **Against the line.** The party table, the member search, and a member's
+  against-line votes, which fetch only the sessions holding them.
+- **Participation** appears only inside a member's card, always with the
+  kvittning caveat; there is nothing to sort.
+- **Vote browser.** `votes.json` is fetched only once the browser is near the
+  screen; search; a vote is named by its `title`, punkt and `punkt_title` and
+  links its document through the `encoding.dok_id` URL template; its party
+  lines equal the summary's — and the browser's party-line rule equals the
+  pipeline's `party_lines` on every vote of every published session.
+- **A session too young to compare** (2026/27 at the time of writing): the
+  matrix says "För få voteringar än" with the largest n and the minimum, the
+  map is replaced by the same notice, and the browser lists every vote by
+  title.
+- **Fails closed** without `index.json` or with an invalid summary.
+
+### 17. `riksdag-chamber.smoke.mjs` — votes on "Som i kammaren"
+
+The overlay on the result chamber colours each numbered seat by its occupant's
+ballot in one vote of the session the seating plan is for. It pins the
+election-day generation, as the result suite does. Nothing is fetched until
+the hall view opens and nothing changes until a vote is picked; every seat
+shows its bench's ballot; the card names the occupant from the vote's own
+roster (a substitute in a ringed seat included); the picker offers every vote
+by its title or punkt title; "Röstade mot partilinjen" marks exactly whom
+the pipeline's summary lists; "Ingen" and "Partivis" restore the chamber
+exactly. Without `files/riksdag/`, with an invalid `votes.json`, with no
+session for the seating plan, or without `riksdag-votes.js` at all, the hall
+view is exactly as before.
 
 ## Determinism: pin the generation you assert against
 
