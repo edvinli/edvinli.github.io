@@ -625,9 +625,10 @@
 
     // --- the address bar ---------------------------------------------------------
     // The page's state lives in the query string, so a view can be linked:
-    // period, utskott, rakna, par + linje, filter, sok, riksmote, votering,
-    // ledamot, sortera, parti, alla_ledamoter, ledamot_sok. Anything that
-    // does not name something on the page is ignored.
+    // period, utskott, rakna, par + linje, filter, sok, riksmote,
+    // votering_utskott, votering, ledamot, sortera, parti, alla_ledamoter,
+    // ledamot_sok. Anything that does not name something on the page is
+    // ignored.
     var CHIP_PARAMS = { jamnast: "close", block: "cross", avvikande: "dissent" };
     var VOTE_ID = /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
     var urlReady = false;
@@ -641,9 +642,9 @@
       };
       return {
         period: get("period"), utskott: get("utskott"), rakna: get("rakna"), par: get("par"), linje: get("linje"),
-        filter: get("filter"), sok: get("sok"), riksmote: get("riksmote"), votering: get("votering"),
-        ledamot: get("ledamot"), sortera: get("sortera"), parti: get("parti"), alla: get("alla_ledamoter"),
-        ledamotSok: get("ledamot_sok")
+        filter: get("filter"), sok: get("sok"), riksmote: get("riksmote"), voteringUtskott: get("votering_utskott"),
+        votering: get("votering"), ledamot: get("ledamot"), sortera: get("sortera"), parti: get("parti"),
+        alla: get("alla_ledamoter"), ledamotSok: get("ledamot_sok")
       };
     }
 
@@ -662,6 +663,7 @@
       var chips = Object.keys(CHIP_PARAMS).filter(function (key) { return browserState.chips[CHIP_PARAMS[key]]; });
       if (chips.length) add("filter", chips.join(","));
       if (browserState.query.trim()) add("sok", browserState.query.trim());
+      if (browserState.committee) add("votering_utskott", browserState.committee);
       if (state.browserSession && state.browserSession !== defaultBrowserSession()) add("riksmote", state.browserSession);
       if (state.selectedVote) add("votering", state.selectedVote.id);
       if (againstState.open) add("ledamot", againstState.open);
@@ -727,6 +729,14 @@
         browserState.committee = state.committee;
         if (!url.riksmote && sessions.length > 1) state.browserSession = ALL_SESSIONS;
         browse = true;
+      }
+      if (url.voteringUtskott) {
+        browserState.committee = url.voteringUtskott;
+        browse = true;
+      }
+      if (browserState.chips.cross && !url.riksmote && sessions.length > 1 &&
+          state.browserSession !== ALL_SESSIONS && !sessionHasCrossBloc(state.browserSession)) {
+        state.browserSession = ALL_SESSIONS;
       }
       var voteRm = url.votering && VOTE_ID.test(url.votering) ? summary.voteRm[url.votering] : null;
       if (voteRm && shownSessions().indexOf(voteRm) < 0) state.browserSession = voteRm;
@@ -1585,13 +1595,17 @@
     // What the pipeline says about one vote: its margin, how many voted
     // against their party line, and whether it split the blocs.
     function voteFacts(data, vote) {
-      if (!vote.rvFacts) {
-        // The pipeline's vote_flags; without them only the margin, which
-        // the counts give, is known.
-        var flags = state.summary.voteFlags ? state.summary.voteFlags[vote.id] : null;
-        vote.rvFacts = flags || { margin: Math.abs(vote.counts.J - vote.counts.N), against: null, crossBloc: null };
-      }
-      return vote.rvFacts;
+      var flags = state.summary && state.summary.voteFlags ? state.summary.voteFlags[vote.id] : null;
+      return flags || { margin: Math.abs(vote.counts.J - vote.counts.N), against: null, crossBloc: null };
+    }
+
+    function sessionHasCrossBloc(rm) {
+      if (!state.summary || !state.summary.voteFlags || !rm) return false;
+      return state.summary.party_lines.votes.some(function (entry) {
+        if (entry.rm !== rm) return false;
+        var flags = state.summary.voteFlags[entry.id];
+        return Boolean(flags && flags.crossBloc === true);
+      });
     }
 
     // A party's line on a vote, as the pipeline's party_lines records it.
@@ -1884,8 +1898,15 @@
           var name = chip.getAttribute("data-chip");
           browserState.chips[name] = !browserState.chips[name];
           browserState.limit = 30;
+          var switchedSession = false;
+          if (name === "cross" && browserState.chips.cross && browserSessions().length > 1 &&
+              state.browserSession !== ALL_SESSIONS && !sessionHasCrossBloc(state.browserSession)) {
+            state.browserSession = ALL_SESSIONS;
+            renderBrowserSessions();
+            switchedSession = true;
+          }
           renderChips();
-          if (!browserState.requested) loadBrowser();
+          if (!browserState.requested || switchedSession) loadBrowser();
           else renderVoteList();
           writeUrl();
         });

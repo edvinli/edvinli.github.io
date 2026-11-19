@@ -291,30 +291,22 @@ async function pairs(viewport, name) {
       check('"Blocköverskridande" is offered with the blocs it uses',
         crossShown.shown && !crossShown.disabled && blocs.government_side.every((p) => crossShown.title.includes(p)) &&
         crossShown.note.includes(blocs.opposition.join(', ')), crossShown);
-      // Verify the full term's cross-bloc count (16 strict cross-bloc votes for 2022-26).
-      await browser.evaluate(() => {
-        const s = document.getElementById('rv-browser-session');
-        s.value = 'alla';
-        s.dispatchEvent(new Event('change'));
-      });
-      await waitList(browser);
+      // Clicking "Blocköverskridande" from a session with 0 matches (2025/26)
+      // switches to "Hela perioden" so all 16 strict cross-bloc votes appear.
       await chip('cross');
-      await settle();
+      await waitList(browser);
       state = await listState(browser);
       const termCross = Object.keys(flagOf).filter((id) => flagOf[id].cross === 1).length;
-      equal('"Blocköverskridande" over the whole term matches summary cross_bloc = 1',
-        number(state.count), termCross);
-      await chip('cross');
+      equal('"Blocköverskridande" switches to the full period when the session has none',
+        { session: state.session, count: number(state.count) }, { session: 'alla', count: termCross });
       await browser.evaluate((rm) => {
         const s = document.getElementById('rv-browser-session');
         s.value = rm;
         s.dispatchEvent(new Event('change'));
       }, newestSession);
       await waitList(browser);
-      await chip('cross');
-      await settle();
       state = await listState(browser);
-      equal('"Blocköverskridande" in the session: votes with vote_flags.cross_bloc = 1',
+      equal('"Blocköverskridande" in the session after picking it explicitly',
         number(state.count), inSession.filter((id) => flagOf[id].cross === 1).length);
       await chip('cross');
     } else {
@@ -338,7 +330,9 @@ async function pairs(viewport, name) {
     state = await listState(browser);
     const combined = inSession.filter((id) => flagOf[id].against > 0 && (metaOf[id].committee || 'övrigt') === code);
     equal(`quick filters combine with utskott (${code})`, number(state.count), combined.length);
-    check('the URL carries the filters', /filter=jamnast,avvikande/.test(state.url) || /filter=avvikande,jamnast/.test(state.url), state.url);
+    check('the URL carries the filters and browser committee',
+      (/filter=jamnast,avvikande/.test(state.url) || /filter=avvikande,jamnast/.test(state.url)) &&
+      state.url.includes(`votering_utskott=${code}`), state.url);
 
     const overflow = await browser.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`no horizontal overflow (${overflow}px)`, overflow <= 0, overflow);
@@ -482,7 +476,7 @@ async function links() {
   const vote = Object.keys(flagOf).find((id) => flagOf[id].rm === newestSession && flagOf[id].against > 0 && metaOf[id].committee === committee) ||
     Object.keys(flagOf).find((id) => flagOf[id].rm === newestSession && flagOf[id].against > 0);
   const query = `?utskott=${encodeURIComponent(committee)}&rakna=janej&par=L-C&linje=olika&filter=avvikande&sok=&` +
-    `riksmote=${encodeURIComponent(newestSession)}&votering=${vote}&ledamot=${member.id}&sortera=antal&alla_ledamoter=1`;
+    `riksmote=${encodeURIComponent(newestSession)}&votering_utskott=${encodeURIComponent(committee)}&votering=${vote}&ledamot=${member.id}&sortera=antal&alla_ledamoter=1`;
   const { server, browser } = await open(DESKTOP, query);
   try {
     await waitList(browser);
@@ -514,7 +508,7 @@ async function links() {
       view.pill.includes(summary.agreement.by_committee[committee].name), view.pill);
     equal('the linked vote is open', view.vote, metaOf[vote].title);
     check('the restored URL keeps every part', ['utskott=', 'rakna=janej', 'par=L-C', 'linje=olika', 'filter=avvikande',
-      `votering=${vote}`, `ledamot=${member.id}`, 'sortera=antal', 'alla_ledamoter=1'].every((p) => view.url.includes(p)), view.url);
+      `votering_utskott=${committee}`, `votering=${vote}`, `ledamot=${member.id}`, 'sortera=antal', 'alla_ledamoter=1'].every((p) => view.url.includes(p)), view.url);
     equal('no console errors', appErrors(browser).map((e) => e.text), []);
   } finally {
     await browser.close();
@@ -523,7 +517,7 @@ async function links() {
 
   console.log('\n[parameters that name nothing] desktop');
   const junk = '?period=1999-03&utskott=XYZ&rakna=nope&par=M-M&linje=x&filter=bogus,<b>&riksmote=1999%2F00' +
-    '&votering=not-a-vote&ledamot=000&sortera=deltagande&parti=Q&ledamot_sok=';
+    '&votering_utskott=BOGUS&votering=not-a-vote&ledamot=000&sortera=deltagande&parti=Q&ledamot_sok=';
   const second = await open(DESKTOP, junk);
   try {
     await settle(600);

@@ -95,13 +95,15 @@ Object.values(members.parties).flat().forEach((m) => {
   } else if (m.seat > 0) listedAt[m.seat] = m.name;
 });
 
-async function open(viewport, root = SITE, query = '') {
+async function open(viewport, root = SITE, query = '', clickTabs = true) {
   const pointer = await pointerFor(root, DECIDED_GENERATION);
   const server = await serve(root, { port: 4000, pointer });
   const browser = await launch(viewport);
   await browser.goto(`http://localhost:${server.port}${PAGE}${query}`);
-  await browser.evaluate(() => document.getElementById('election-tab-outcome')?.click());
-  await browser.evaluate(() => document.getElementById('election-tab-result')?.click());
+  if (clickTabs) {
+    await browser.evaluate(() => document.getElementById('election-tab-outcome')?.click());
+    await browser.evaluate(() => document.getElementById('election-tab-result')?.click());
+  }
   const bound = await browser.waitFor(() =>
     document.getElementById('election-result-parliament')?.getAttribute('data-members') === 'true', 25000);
   if (!bound) throw new Error('the result chamber never bound its members');
@@ -341,7 +343,7 @@ async function failClosed(label, mutate, allowed) {
 
 async function deepLink(label, id, expected) {
   console.log(`\n[link: ${label}] desktop`);
-  const { server, browser } = await open(DESKTOP, SITE, `?riksdag_vote=${encodeURIComponent(id)}#valet-2026`);
+  const { server, browser } = await open(DESKTOP, SITE, `?riksdag_vote=${encodeURIComponent(id)}#valet-2026`, false);
   try {
     if (expected) {
       await browser.waitFor((v) => document.getElementById('election-result-parliament').getAttribute('data-vote-overlay') === v, 15000, id);
