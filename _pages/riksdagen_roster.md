@@ -62,6 +62,7 @@ excerpt: "Hur partierna och ledamöterna röstar i riksdagens voteringar: samst�
         <select class="ep-filter__select" id="rv-committee"></select>
       </label>
     </div>
+    <p class="rv-empty" id="rv-matrix-empty" role="status" hidden></p>
     <div class="rv-table-wrap">
       <table class="rv-matrix" id="rv-matrix"></table>
     </div>
@@ -74,7 +75,7 @@ excerpt: "Hur partierna och ledamöterna röstar i riksdagens voteringar: samst�
       <h2 id="rv-map-title">Karta över riksdagen</h2>
     </div>
     <p class="election-muted">Kartan sammanfattar vilka som brukar rösta lika: ju närmare varandra, desto oftare samma röst. Stora märken är partier, små prickar ledamöter. Axlarna är statistiska sammanfattningar av röstmönstren, inte en vänster–högerskala; vad varje axel fångar står under kartan.</p>
-    <p class="election-muted rv-map-unavailable" id="rv-map-unavailable" hidden></p>
+    <p class="rv-empty rv-map-unavailable" id="rv-map-unavailable" role="status" hidden></p>
     <div class="rv-map-frame" id="rv-map-frame">
       <svg class="rv-map" id="rv-map" role="img" tabindex="0" aria-describedby="rv-map-help" preserveAspectRatio="xMidYMid meet"></svg>
       <div class="ep-tip rv-map-tip" id="rv-map-tip" role="tooltip" hidden></div>
@@ -152,7 +153,7 @@ excerpt: "Hur partierna och ledamöterna röstar i riksdagens voteringar: samst�
       <li><strong>Politiska vildar</strong> (ledamöter utan parti, "-") har ingen partilinje och ingår inte i partiernas jämförelser, men har egna siffror och en plats på kartan.</li>
       <li><strong>Kartan</strong> är en principalkomponentanalys av partiernas linjer i voteringar där minoriteten är minst 2,5 % och alla partier har en linje. Ledamöter placeras med sina egna avlagda röster (minst 50), aldrig med gissade röster för frånvaro.</li>
     </ul>
-    <p class="election-muted" id="rv-snapshot"></p>
+    <p class="election-muted" id="rv-origin"></p>
     <p class="election-muted" id="rv-code"></p>
     <details class="rv-details">
       <summary>Källfiler med kontrollsummor</summary>

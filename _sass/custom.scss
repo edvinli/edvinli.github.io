@@ -4917,6 +4917,34 @@ canvas {
   min-height: 1.4em;
 }
 
+/* "För få voteringar än": a calm boxed notice in place of a matrix or map
+   that the data cannot fill yet. */
+.rv-empty {
+  background: var(--el-fill-soft);
+  border: 1px dashed var(--el-rule-strong);
+  border-radius: 3px;
+  font-size: 0.88rem;
+  margin: 0.8rem 0;
+  max-width: 44rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.rv-matrix.is-empty .rv-matrix__cell--few {
+  opacity: 0.7;
+}
+
+.rv-vote__point,
+.rv-vote-detail__point {
+  color: var(--el-muted);
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.rv-vote-detail__point {
+  margin: 0 0 0.2rem;
+}
+
 /* --- Map ------------------------------------------------------------------- */
 
 .rv-map-frame {
@@ -5132,11 +5160,12 @@ canvas {
   align-items: start;
   display: grid;
   gap: 1rem 1.5rem;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
 }
 
+/* Date above the title, so the title gets the row's width. */
 .rv-vote__button {
-  grid-template-columns: 6.2rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .rv-vote__button[aria-pressed="true"] {
@@ -5160,7 +5189,6 @@ canvas {
   align-items: center;
   display: flex;
   gap: 0.5rem;
-  grid-column: 2;
 }
 
 .rv-tally {
@@ -5218,6 +5246,22 @@ canvas {
   padding-left: 1rem;
 }
 
+.rv-lines {
+  font-size: 0.8rem;
+}
+
+.rv-lines th,
+.rv-lines td {
+  padding: 0.25rem 0.3rem;
+}
+
+.rv-lines thead th {
+  font-family: var(--el-sans);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.rv-lines th[scope="row"],
 .rv-lines .rv-line {
   white-space: nowrap;
 }
@@ -5356,14 +5400,6 @@ canvas {
 
   .rv-vote-detail {
     position: static;
-  }
-
-  .rv-vote__button {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .rv-vote__tally {
-    grid-column: 1;
   }
 
   .rv-matrix th[scope="row"],

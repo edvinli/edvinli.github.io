@@ -68,10 +68,11 @@ const index = await readJson(SITE, DATA, 'index.json');
 const terms = index.terms.slice().sort((a, b) => a.label.localeCompare(b.label));
 const newest = terms.at(-1);
 const complete = terms.filter((t) => t.term_complete);
-const current = index.sessions.find((s) => s.rm === index.current_session);
+// index.json has no "current session"; the newest one is under way.
+const current = index.sessions.slice().sort((a, b) => a.rm.localeCompare(b.rm)).at(-1);
 const expectedTerm = newest.n_votes_analysis >= DEFAULT_SCOPE_MIN_VOTES ? newest : complete.at(-1);
-const termSummary = await readJson(SITE, DATA, expectedTerm.summary.path);
-const currentSummary = await readJson(SITE, DATA, current.summary.path);
+const termSummary = await readJson(SITE, DATA, expectedTerm.files.summary.path);
+const currentSummary = await readJson(SITE, DATA, current.files.summary.path);
 const SEATING = ['V', 'S', 'MP', 'C', 'L', 'KD', 'M', 'SD'];
 const latestSessionOfTerm = expectedTerm.sessions.slice().sort().at(-1);
 const latestSessionEntry = index.sessions.find((s) => s.rm === latestSessionOfTerm);
@@ -155,7 +156,7 @@ async function main(viewport, name) {
     equal('opens on the expected period', head.scope, `term:${expectedTerm.label}`);
     const first = (await resources(browser)).filter((p) => p.includes('/files/riksdag/'));
     equal('the first load is the index and one summary; votes.json waits',
-      first.sort(), [`/${DATA}/${expectedTerm.summary.path}`, `/${DATA}/index.json`].sort());
+      first.sort(), [`/${DATA}/${expectedTerm.files.summary.path}`, `/${DATA}/index.json`].sort());
     check('every session and term is offered',
       [...index.terms.map((t) => `term:${t.label}`), ...index.sessions.map((s) => `rm:${s.rm}`)].every((k) => head.options.includes(k)),
       head.options);
@@ -238,6 +239,8 @@ async function main(viewport, name) {
     check('axes state explained variance', plain(map.axes).includes(pct(termSummary.map.explained_variance_ratio[0])) &&
       plain(map.axes).includes(pct(termSummary.map.explained_variance_ratio[1])), map.axes);
     check('no axis says left or right', !/vänster|höger/i.test(map.axes + map.ends.join(' ')), map.axes);
+    check('each axis names an example vote of its pattern by title',
+      [top1, top2].every((p) => map.axes.includes(`”${p.example_votes[0].title}”`)), map.axes);
     check('the map has a text alternative naming every party', termSummary.map.parties.every((p) => map.label.includes(p)), map.label);
     check('the map is shown', map.frame && !map.unavailable);
 
@@ -307,6 +310,15 @@ async function main(viewport, name) {
     check('searching finds the member', detail.items >= 1, detail);
     check('opening a member lists every against-line vote', opened && detail.votes.length === target.against_line_vote_ids.length, detail);
     check('each listed vote is dated and named', detail.votes.every((t) => /\d{4}/.test(t) && /röstade (ja|nej|avstår)/.test(t)), detail.votes);
+    {
+      const titles = [];
+      for (const id of target.against_line_vote_ids) {
+        const rm = termSummary.party_lines.votes.find((v) => v.id === id).rm;
+        const file = index.sessions.find((s) => s.rm === rm).files.votes.path;
+        titles.push((await readJson(SITE, DATA, file)).votes.find((v) => v.id === id).title);
+      }
+      check('each listed vote carries its title', titles.every((t) => detail.votes.some((line) => line.startsWith(t))), { titles, votes: detail.votes });
+    }
     check('the member card has participation with the kvittning caveat', /deltagande/.test(detail.text) && /kvittning/.test(detail.text), detail.text);
     check('the feltryckning note is beside the votes', /feltryckning/.test(detail.text), detail.text);
     equal('the toggle reports its state', detail.expanded, 'true');
@@ -326,9 +338,9 @@ async function main(viewport, name) {
     check('the vote browser lists votes once in view', listed);
     const loaded = await resources(browser);
     check('the browser loaded the newest session of the period',
-      loaded.some((p) => p.endsWith(`/${latestSessionEntry.votes.path}`)), loaded.filter((p) => p.includes('riksdag')));
-    const votes = await readJson(SITE, DATA, latestSessionEntry.votes.path);
-    const sessionSummary = await readJson(SITE, DATA, latestSessionEntry.summary.path);
+      loaded.some((p) => p.endsWith(`/${latestSessionEntry.files.votes.path}`)), loaded.filter((p) => p.includes('riksdag')));
+    const votes = await readJson(SITE, DATA, latestSessionEntry.files.votes.path);
+    const sessionSummary = await readJson(SITE, DATA, latestSessionEntry.files.summary.path);
     const pick = votes.votes.find((v) => v.committee && v.counts[2] > 0) || votes.votes[0];
     await browser.evaluate((q) => {
       const input = document.getElementById('rv-browser-search');
@@ -352,10 +364,21 @@ async function main(viewport, name) {
     check('the result is printed from the counts',
       shownVote.text.includes(`Ja ${pick.counts[0]}, nej ${pick.counts[1]}, avstår ${pick.counts[2]}, frånvarande ${pick.counts[3]}`), shownVote.text);
     equal('the selected vote is marked', shownVote.pressed, pick.id);
+    const docs = await browser.evaluate(() => ({
+      title: document.querySelector('#rv-vote-detail .rv-vote-detail__title').textContent,
+      point: document.querySelector('#rv-vote-detail .rv-vote-detail__point')?.textContent || null,
+      doc: document.querySelector('#rv-vote-detail .rv-doc-link')?.getAttribute('href') || null,
+    }));
+    const template = /(https:\/\/data\.riksdagen\.se\/\S*)<dok_id>/.exec(votes.encoding.dok_id)[1];
+    equal('the vote is named by its title, punkt and punkt title, and links its document', docs, {
+      title: pick.title,
+      point: `${pick.beteckning} punkt ${pick.punkt}${pick.punkt_title ? `: ${pick.punkt_title}` : ''}`,
+      doc: `${template}${encodeURIComponent(pick.dok_id)}`,
+    });
 
     // The browser's party-line rule equals the pipeline's on every vote of
-    // two sessions: the current one and the newest of the period.
-    for (const entry of [current, latestSessionEntry]) {
+    // every published session.
+    for (const entry of index.sessions) {
       const mismatch = await browser.evaluate(async (paths) => {
         const [v, s] = await Promise.all(paths.map((p) => fetch(`/files/riksdag/${p}`).then((r) => r.json())));
         const data = window.RiksdagVotes.normalizeVotes(v);
@@ -369,7 +392,7 @@ async function main(viewport, name) {
           });
         });
         return { bad: bad.slice(0, 5), n: s.party_lines.votes.length, data: Boolean(data) };
-      }, [entry.votes.path, entry.summary.path]);
+      }, [entry.files.votes.path, entry.files.summary.path]);
       check(`party lines for all ${mismatch.n} votes of ${entry.rm} equal the pipeline's`, mismatch.data && mismatch.bad.length === 0, mismatch.bad);
     }
 
@@ -382,7 +405,8 @@ async function main(viewport, name) {
     }));
     equal('every source file is listed', sources.items, termSummary.provenance.sources.length);
     check('sources carry retrieval time and sha256', termSummary.provenance.sources.every((s) => sources.text.includes(s.sha256)));
-    check('the snapshot names its source commit', sources.text.includes(index.snapshot.source_commit.slice(0, 12)), null);
+    check('the origin names the pipeline repository', sources.text.includes(index.source.repository), null);
+    check('the pipeline commit of the summary is named', sources.text.includes(termSummary.provenance.code_commit.slice(0, 12)), null);
     check('the methods link the pipeline docs', /docs\/riksdag_votes\.md$/.test(sources.docs), sources.docs);
 
     // The current session: no map yet, every cell under the minimum.
@@ -399,12 +423,44 @@ async function main(viewport, name) {
     const noMap = await browser.evaluate(() => ({
       note: document.getElementById('rv-map-unavailable').hidden ? null : document.getElementById('rv-map-unavailable').textContent,
       frame: document.getElementById('rv-map-frame').hidden,
+      help: document.getElementById('rv-map-help').hidden,
     }));
     if (currentSummary.map.available) {
       check(`${current.rm} has a map`, !noMap.frame && !noMap.note, noMap);
     } else {
-      check(`${current.rm}: the page says there is no map yet`, noMap.frame && noMap.note && noMap.note.includes('Kartan finns inte'), noMap);
+      check(`${current.rm}: "för få voteringar än" in place of the map`,
+        noMap.frame && noMap.help && noMap.note && noMap.note.startsWith('För få voteringar än.') &&
+        noMap.note.includes(`hittills finns ${currentSummary.map.n_votes.map}`), noMap);
     }
+    const min = currentSummary.agreement.min_cell_n;
+    const pairs = currentSummary.agreement.overall.three_way.n.flatMap((row, i) => row.filter((_, j) => i !== j));
+    const empty = await browser.evaluate(() => ({
+      shown: !document.getElementById('rv-matrix-empty').hidden,
+      text: document.getElementById('rv-matrix-empty').textContent,
+      greyed: document.getElementById('rv-matrix').classList.contains('is-empty'),
+      shares: document.querySelectorAll('#rv-matrix td[data-share]:not([data-share=""])').length,
+    }));
+    if (pairs.every((n) => n < min)) {
+      check(`${current.rm}: the matrix says "för få voteringar än", with the largest n and the minimum`,
+        empty.shown && empty.greyed && empty.shares === 0 && empty.text.startsWith('För få voteringar än.') &&
+        empty.text.includes(`som mest ${Math.max(...pairs)} gemensamma`) && empty.text.includes(`från ${min}`), empty);
+    } else {
+      check(`${current.rm}: the matrix shows shares`, !empty.shown && empty.shares > 0, empty);
+    }
+    // The session's votes, all of them, by title.
+    await browser.evaluate(() => {
+      const input = document.getElementById('rv-browser-search');
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+      document.getElementById('rv-browser').scrollIntoView({ block: 'start' });
+    });
+    await browser.waitFor((rm) => document.getElementById('rv-browser-session').value === rm &&
+      document.querySelectorAll('#rv-votes li').length > 0, 10000, current.rm);
+    const currentVotes = await readJson(SITE, DATA, current.files.votes.path);
+    const listedNow = await browser.evaluate(() => Array.from(document.querySelectorAll('#rv-votes button')).map((b) => [
+      b.dataset.vote, b.querySelector('.rv-vote__title').firstChild.textContent]));
+    equal(`${current.rm}: the browser lists every vote with its title`, listedNow.slice().sort(),
+      currentVotes.votes.map((v) => [v.id, v.title]).sort());
 
     const overflow = await browser.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`no horizontal overflow (${overflow}px)`, overflow <= 0, overflow);
@@ -454,7 +510,7 @@ await main(MOBILE, 'mobile');
 await broken('index.json missing', (root) => rm(join(root, DATA, 'index.json')), { panels: [], cells: 0 },
   [/files\/riksdag\/index\.json/]);
 await broken('summary does not validate', async (root) => {
-  const path = join(root, DATA, expectedTerm.summary.path);
+  const path = join(root, DATA, expectedTerm.files.summary.path);
   const summary = JSON.parse(await readFile(path, 'utf8'));
   summary.role = 'something_else';
   await writeFile(path, JSON.stringify(summary));

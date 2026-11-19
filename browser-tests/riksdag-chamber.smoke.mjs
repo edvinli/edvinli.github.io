@@ -70,8 +70,8 @@ const members = await readJson(SITE, MEMBERS);
 const index = await readJson(SITE, DATA, 'index.json');
 const session = index.sessions.find((s) => s.rm === plan.riksmote);
 if (!session) throw new Error(`files/riksdag/index.json has no session ${plan.riksmote}`);
-const votes = await readJson(SITE, DATA, session.votes.path);
-const summary = await readJson(SITE, DATA, session.summary.path);
+const votes = await readJson(SITE, DATA, session.files.votes.path);
+const summary = await readJson(SITE, DATA, session.files.summary.path);
 const occupant = (vote, bench) => {
   const holder = votes.seat_holders[votes.rosters[vote.roster][bench - 1]];
   return { ...votes.people[holder[0]], party: holder[1] };
@@ -87,9 +87,12 @@ const againstVote = votes.votes.slice().sort((a, b) => (againstBy[b.id] || []).l
 // A bench whose occupant on that vote is not the one the members file lists:
 // a substitute, or a change since the members file was written.
 const listedAt = {};
+const substituteSeats = [];
 Object.values(members.parties).flat().forEach((m) => {
-  if (m.substitute) listedAt[m.substitute.seat] = m.substitute.name;
-  else if (m.seat > 0) listedAt[m.seat] = m.name;
+  if (m.substitute) {
+    listedAt[m.substitute.seat] = m.substitute.name;
+    substituteSeats.push(m.substitute.seat);
+  } else if (m.seat > 0) listedAt[m.seat] = m.name;
 });
 
 async function open(viewport, root = SITE) {
@@ -163,9 +166,10 @@ async function main(viewport, name) {
       document.getElementById('election-votes-pick').options.length > 1, 15000);
     check('the vote picker appears in Som i kammaren', shown);
     equal('only the index and the session\'s votes are fetched', (await riksdagRequests(browser)).sort(),
-      [`/${DATA}/${session.votes.path}`, `/${DATA}/index.json`].sort());
+      [`/${DATA}/${session.files.votes.path}`, `/${DATA}/index.json`].sort());
     const options = await browser.evaluate(() => ({
       values: Array.from(document.getElementById('election-votes-pick').options).map((o) => o.value),
+      labels: Array.from(document.getElementById('election-votes-pick').options).slice(1).map((o) => o.textContent),
       groups: Array.from(document.querySelectorAll('#election-votes-pick optgroup')).map((g) => g.label),
       against: document.getElementById('election-votes-against').disabled,
       link: document.getElementById('election-votes-link').getAttribute('href'),
@@ -173,6 +177,10 @@ async function main(viewport, name) {
     equal('the picker lists the latest votes, newest first, after "Ingen"', options.values,
       [''].concat(newestFirst.slice(0, 60).map((v) => v.id)));
     check('"Röstade mot partilinjen" waits for a vote', options.against);
+    const expectedLabel = (v) => (v.committee
+      ? `${v.beteckning} p. ${v.punkt} – ${v.punkt_title || v.title}` : v.title) + ` (ja ${v.counts[0]}, nej ${v.counts[1]})`;
+    equal('each vote is offered by its title (punkt title for a committee vote)', options.labels,
+      newestFirst.slice(0, 60).map(expectedLabel));
     check('the overlay links to the voting page', /\/riksdagen-roster\/$/.test(options.link), options.link);
     const hallBefore = await chamberState(browser);
     check('until a vote is picked no seat carries a vote', hallBefore.every((d) => d[4] === null));
@@ -197,6 +205,9 @@ async function main(viewport, name) {
     const benches = [1, 175, 349];
     const different = Array.from({ length: CHAMBER }, (_, i) => i + 1).find((b) => listedAt[b] && listedAt[b] !== occupant(vote, b).name);
     if (different) benches.push(different);
+    // A ringed seat: a substitute sitting in for a member on leave.
+    const ringed = substituteSeats.find((b) => b >= 1 && b <= CHAMBER && !benches.includes(b));
+    if (ringed) benches.push(ringed);
     const cards = await browser.evaluate((wanted) => {
       const host = document.getElementById('election-result-parliament');
       const dots = Array.from(host.querySelectorAll('.election-seat')).filter((d) => !d.classList.contains('is-offstage'));
@@ -331,7 +342,7 @@ await main(MOBILE, 'mobile');
 await failClosed('files/riksdag absent', (root) => rm(join(root, DATA), { recursive: true, force: true }),
   [/files\/riksdag\/index\.json/]);
 await failClosed('votes.json does not validate', async (root) => {
-  const path = join(root, DATA, session.votes.path);
+  const path = join(root, DATA, session.files.votes.path);
   const broken = JSON.parse(await readFile(path, 'utf8'));
   broken.votes[0].ballots = broken.votes[0].ballots.slice(1);
   await writeFile(path, JSON.stringify(broken));
@@ -339,7 +350,9 @@ await failClosed('votes.json does not validate', async (root) => {
 await failClosed('no session for the seating plan', async (root) => {
   const path = join(root, DATA, 'index.json');
   const other = JSON.parse(await readFile(path, 'utf8'));
+  // The session and the term holding it, so the index itself stays valid.
   other.sessions = other.sessions.filter((s) => s.rm !== plan.riksmote);
+  other.terms = other.terms.filter((t) => !t.sessions.includes(plan.riksmote));
   await writeFile(path, JSON.stringify(other));
 }, []);
 await failClosed('riksdag-votes.js absent', (root) => rm(join(root, 'assets/js/riksdag-votes.js')),
