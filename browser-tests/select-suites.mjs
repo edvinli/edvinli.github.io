@@ -36,6 +36,9 @@ export const SUITES = {
   'forecast-cycles.smoke.mjs': { seconds: 20, area: 'cycles' },
   'demographics.smoke.mjs': { seconds: 15, area: 'demographics' },
   'constituency-map.smoke.mjs': { seconds: 35, area: 'geography' },
+  // Riksdagen röstar: the voting page, and its overlay on the result chamber.
+  'riksdag-roster.smoke.mjs': { seconds: 10, area: 'riksdag' },
+  'riksdag-chamber.smoke.mjs': { seconds: 25, area: 'riksdag' },
 };
 
 const ALL = Object.keys(SUITES);
@@ -88,6 +91,17 @@ const RULES = [
   // paths do not select it; these, the app and the page do.
   { prefix: 'files/election-simulator/geography/', suites: byArea('geography') },
 
+  // The roll-call data and the code that draws it. riksdag-votes.js also
+  // hooks into the result chamber's card on the election page, so the
+  // result suite re-runs with it. A forecast publication touches none of
+  // these, so the simulator's publication gate is unchanged.
+  { prefix: 'files/riksdag/', suites: byArea('riksdag') },
+  { prefix: 'assets/js/riksdag-votes.js', suites: [...byArea('riksdag'), 'election-result.smoke.mjs'] },
+  // The members and seating files are what the overlay colours.
+  { prefix: 'files/election-simulator/results/', suites: [
+    ...byArea('builder'), ...byArea('forecast'), ...byArea('provenance'),
+    ...byArea('summary'), 'riksdag-chamber.smoke.mjs'] },
+
   { prefix: 'files/election-simulator/', suites: [
     ...byArea('builder'), ...byArea('forecast'), ...byArea('provenance'),
     ...byArea('summary')] },
@@ -99,6 +113,7 @@ const RULES = [
   { prefix: '_includes/', suites: null },
   { prefix: '_layouts/', suites: null },
   { prefix: '_pages/election_simulator.md', suites: null },
+  { prefix: '_pages/riksdagen_roster.md', suites: ['riksdag-roster.smoke.mjs'] },
 
   // The workflows *are* the browser harness in CI: they build the site, move
   // it between jobs, find Chrome and run the suites. A change here that breaks
@@ -257,6 +272,21 @@ function selfTest() {
       .includes('constituency-map.smoke.mjs'));
   check('a forecast publication does not select the map suite',
     !publication.includes('constituency-map.smoke.mjs'), publication);
+
+  // Riksdagen röstar.
+  eq('the roll-call data selects the riksdag suites',
+    selectSuites(['files/riksdag/2026-27/votes.json']).suites,
+    ['riksdag-roster.smoke.mjs', 'riksdag-chamber.smoke.mjs']);
+  eq('the voting page selects its own suite',
+    selectSuites(['_pages/riksdagen_roster.md']).suites, ['riksdag-roster.smoke.mjs']);
+  eq('riksdag-votes.js selects the riksdag suites and the result chamber',
+    selectSuites(['assets/js/riksdag-votes.js']).suites,
+    ['election-result.smoke.mjs', 'riksdag-roster.smoke.mjs', 'riksdag-chamber.smoke.mjs']);
+  check('the members and seating files select the chamber overlay',
+    selectSuites(['files/election-simulator/results/2026-seating.json']).suites
+      .includes('riksdag-chamber.smoke.mjs'));
+  check('a forecast publication selects no riksdag suite',
+    !publication.some((suite) => SUITES[suite].area === 'riksdag'), publication);
 
   const forecastOnly = selectSuites(['browser-tests/forecast-timeseries.smoke.mjs']).suites;
   check('a forecast suite edit does not drag in builder suites',
