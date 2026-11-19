@@ -1,0 +1,150 @@
+{
+ "current_session": "2026/27",
+ "generated_at_utc": "2026-11-19T17:18:39Z",
+ "manifest": {
+  "bytes": 6524,
+  "path": "manifest.json",
+  "sha256": "64f6972a8562d4d8e69471ff206dd66e3163e4fdcccc665ba140c7e09d107506"
+ },
+ "role": "riksdag_votes_index",
+ "schema_version": "1.0",
+ "sessions": [
+  {
+   "generated_at_utc": "2026-11-19T17:18:39Z",
+   "latest_vote_date": "2023-09-13",
+   "map_available": true,
+   "n_votes": 566,
+   "n_votes_analysis": 558,
+   "rm": "2022/23",
+   "summary": {
+    "bytes": 253737,
+    "path": "2022-23/summary.json",
+    "sha256": "f058e114e8d96e246f6c940d08ec1f222e43a8644d528c75af4b8c2d9cc4310c"
+   },
+   "votes": {
+    "bytes": 445212,
+    "path": "2022-23/votes.json",
+    "sha256": "f4237a21fdd51712e06d16bef9fbdb7046445de8b9ccadbfa144f4b8d692d8b0"
+   }
+  },
+  {
+   "generated_at_utc": "2026-11-19T17:18:39Z",
+   "latest_vote_date": "2024-09-25",
+   "map_available": true,
+   "n_votes": 595,
+   "n_votes_analysis": 580,
+   "rm": "2023/24",
+   "summary": {
+    "bytes": 256387,
+    "path": "2023-24/summary.json",
+    "sha256": "48aa8c3ad260d754021885e8d3cb2ea7d84242a84437a6a438635d54b617687e"
+   },
+   "votes": {
+    "bytes": 465051,
+    "path": "2023-24/votes.json",
+    "sha256": "c5f331ec67b7ff2467a22c1a66cc621677759c5f408ea96ac4f9468f0a12be57"
+   }
+  },
+  {
+   "generated_at_utc": "2026-11-19T17:18:39Z",
+   "latest_vote_date": "2025-06-18",
+   "map_available": true,
+   "n_votes": 652,
+   "n_votes_analysis": 647,
+   "rm": "2024/25",
+   "summary": {
+    "bytes": 262110,
+    "path": "2024-25/summary.json",
+    "sha256": "89a90a8f8378bbefb4bde4da43fdd5c5c20012f12ee39c927db575b9dea2734c"
+   },
+   "votes": {
+    "bytes": 494325,
+    "path": "2024-25/votes.json",
+    "sha256": "985f16c53d67c1bba380822c7ddfd2d83fa2851c6de12df2caa66f084a4a226b"
+   }
+  },
+  {
+   "generated_at_utc": "2026-11-19T17:18:39Z",
+   "latest_vote_date": "2026-08-13",
+   "map_available": true,
+   "n_votes": 797,
+   "n_votes_analysis": 784,
+   "rm": "2025/26",
+   "summary": {
+    "bytes": 284695,
+    "path": "2025-26/summary.json",
+    "sha256": "be2f503e1dea8d12bcde4d1a7825690a61443773ebd089f615c844ed0c09f189"
+   },
+   "votes": {
+    "bytes": 596376,
+    "path": "2025-26/votes.json",
+    "sha256": "670e8e17675ad50630a4a89376e236bf778a2befdc5669b2bec8cd29ea03b50a"
+   }
+  },
+  {
+   "generated_at_utc": "2026-11-19T17:18:39Z",
+   "latest_vote_date": "2026-11-18",
+   "map_available": false,
+   "n_votes": 8,
+   "n_votes_analysis": 6,
+   "rm": "2026/27",
+   "summary": {
+    "bytes": 100616,
+    "path": "2026-27/summary.json",
+    "sha256": "88cdba416db52f099b33456466053ac549c4e34ac75bc6be4dd250f8daa47da1"
+   },
+   "votes": {
+    "bytes": 67895,
+    "path": "2026-27/votes.json",
+    "sha256": "93ff35359c3f3e046c88f8a71644b75018e03a75c151eabd67cc60927e13df3c"
+   }
+  }
+ ],
+ "snapshot": {
+  "copied_at_utc": "2026-11-19T17:46:30Z",
+  "data_last_changed_commit": "e9bcba531b5532ebf43e5aa4a8e05c2973f15ec6",
+  "kind": "manual_copy",
+  "note": "Hand-copied snapshot of the pipeline outputs for the first version of the page; the scheduled sync replaces this file.",
+  "source_commit": "9957eacf0294b3df09279e92ce91ebd1f9e40332",
+  "source_path": "data/processed/riksdag_votes",
+  "source_ref": "main",
+  "source_repository": "edvinli/election-simulator"
+ },
+ "terms": [
+  {
+   "generated_at_utc": "2026-11-19T17:18:39Z",
+   "label": "2022-26",
+   "latest_vote_date": "2026-08-13",
+   "map_available": true,
+   "n_votes_analysis": 2569,
+   "sessions": [
+    "2022/23",
+    "2023/24",
+    "2024/25",
+    "2025/26"
+   ],
+   "summary": {
+    "bytes": 599171,
+    "path": "term-2022-26/summary.json",
+    "sha256": "21e63cce10e99eb8ca50a1ce235d7822b5c2ca940d130b09b54ef500df0b397b"
+   },
+   "term_complete": true
+  },
+  {
+   "generated_at_utc": "2026-11-19T17:18:39Z",
+   "label": "2026-30",
+   "latest_vote_date": "2026-11-18",
+   "map_available": false,
+   "n_votes_analysis": 6,
+   "sessions": [
+    "2026/27"
+   ],
+   "summary": {
+    "bytes": 100635,
+    "path": "term-2026-30/summary.json",
+    "sha256": "921bd712fe7f7b51618d3d2e9b003e5f662913259a5a148e087bd9c09524db6c"
+   },
+   "term_complete": false
+  }
+ ]
+}
