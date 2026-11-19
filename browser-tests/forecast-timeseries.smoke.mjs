@@ -1000,8 +1000,7 @@ function assertStructure(view, history, publication) {
   check('50% is inside the displayed vote domain', view.svg?.yMin <= 50 && view.svg?.yMax >= 50, view.svg);
   check('the two default forecast series are visible', view.series.filter((series) => series.visible).length >= 2,
     view.series);
-  check('the chart has both 50% and 90% forecast bands', view.band90Count >= 2 && view.band50Count >= 2,
-    { band90: view.band90Count, band50: view.band50Count });
+  equal('no uncertainty bands are drawn by default', [view.band90Count, view.band50Count], [0, 0]);
   check('median forecast lines are visible', view.medianCount >= 2, view.medianCount);
   // The aggregate Poll of Polls series is not charted at all any more: no
   // line, no vertex dots, no legend key, in either metric or range.
@@ -1019,7 +1018,7 @@ function assertStructure(view, history, publication) {
   check('each series is drawn as one unbroken run when no date is omitted',
     (view.curves || []).length > 0 && (view.curves || []).every((curve) =>
       curve.segments === 1 && curve.breaks === 0 && curve.subpaths === 1 &&
-      curve.bandSubpaths.every((count) => count === 1)),
+      curve.bandSubpaths.every((count) => count === 0)),
   (view.curves || []).map((curve) => ({
     key: curve.key, segments: curve.segments, subpaths: curve.subpaths, bands: curve.bandSubpaths,
   })));
@@ -1130,7 +1129,7 @@ function assertCrosshairReadout(view, history, expectedDate, label) {
   labels);
 }
 
-function visibleRangeExtremes(history, metric, start, end) {
+function visibleRangeExtremes(history, metric, start, end, withUncertainty = false) {
   const keys = DEFAULT_COALITIONS.map((parties) => coalitionKey(history, parties));
   const values = [];
   const addQuantiles = (point) => {
@@ -1138,7 +1137,8 @@ function visibleRangeExtremes(history, metric, start, end) {
       const quantiles = point?.groups?.[key]?.[metric];
       if (!quantiles) continue;
       const convert = (value) => metric === 'seats' ? 100 * value / 349 : value;
-      values.push(convert(quantiles.p05), convert(quantiles.p95));
+      if (withUncertainty) values.push(convert(quantiles.p05), convert(quantiles.p95));
+      else values.push(convert(quantiles.p50));
     }
   };
   for (const point of history.series || []) {
@@ -1269,9 +1269,9 @@ async function exercise(viewport, history, siteRoot) {
     assertStructure(view, history, await readPublication(siteRoot));
     const fullVoteView = structuredClone(view);
 
-    // The uncertainty toggle: on by default; off removes both bands, fits the
-    // y-axis to the medians and polls, and says so in the key; on restores
-    // exactly the view it left.
+    // The uncertainty toggle: off by default (medians and polls only, key
+    // says median); on adds both 50% and 90% bands, fits the y-axis to them,
+    // and says so in the key; off again restores the exact opening view.
     const uncertainty = () => browser.evaluate(() => {
       const svg = document.getElementById('election-timeseries-svg');
       const button = document.getElementById('election-timeseries-uncertainty');
@@ -1286,23 +1286,29 @@ async function exercise(viewport, history, siteRoot) {
         key: document.getElementById('election-timeseries-key-forecast-label')?.textContent.trim(),
       };
     });
-    const withBands = await uncertainty();
-    equal('the uncertainty toggle is offered and on', [withBands.button, withBands.state],
-      [{ hidden: false, pressed: 'true' }, 'shown']);
-    check('bands are drawn by default', withBands.bands > 0, withBands.bands);
-    await browser.evaluate(() => document.getElementById('election-timeseries-uncertainty').click());
-    await settle();
     const withoutBands = await uncertainty();
-    equal('off: the toggle says so', [withoutBands.button.pressed, withoutBands.state], ['false', 'hidden']);
-    equal('off: no band is drawn', withoutBands.bands, 0);
-    equal('off: every median is still drawn', withoutBands.medians, withBands.medians);
-    check('off: the y-axis never widens and still holds every median',
-      withoutBands.domain[0] >= withBands.domain[0] && withoutBands.domain[1] <= withBands.domain[1] &&
-      withoutBands.maxDrawnMedian <= withoutBands.domain[1], { withBands, withoutBands });
-    equal('off: the key names the median only', withoutBands.key, 'Historisk prognos · median');
+    equal('the uncertainty toggle is offered and off by default', [withoutBands.button, withoutBands.state],
+      [{ hidden: false, pressed: 'false' }, 'hidden']);
+    equal('no band is drawn by default', withoutBands.bands, 0);
+    equal('by default: the key names the median only', withoutBands.key, 'Historisk prognos · median');
     await browser.evaluate(() => document.getElementById('election-timeseries-uncertainty').click());
     await settle();
-    equal('on again: the same view as before', await uncertainty(), withBands);
+    const withBands = await uncertainty();
+    const shownPage = await readPage(browser);
+    equal('on: the toggle says so', [withBands.button.pressed, withBands.state], ['true', 'shown']);
+    check('on: both 50% and 90% forecast bands are drawn as unbroken runs',
+      shownPage.band90Count >= 2 && shownPage.band50Count >= 2 &&
+      (shownPage.curves || []).length > 0 && (shownPage.curves || []).every((curve) =>
+        curve.bandSubpaths.every((count) => count === 1)),
+      { band90: shownPage.band90Count, band50: shownPage.band50Count });
+    equal('on: every median is still drawn', withBands.medians, withoutBands.medians);
+    check('on: the y-axis never narrows and still holds every median',
+      withoutBands.domain[0] >= withBands.domain[0] && withoutBands.domain[1] <= withBands.domain[1] &&
+      withoutBands.maxDrawnMedian <= withoutBands.domain[1], { withoutBands, withBands });
+    equal('on: the key names 50/90 % intervals', withBands.key, 'Historisk prognos · 50/90 % intervall');
+    await browser.evaluate(() => document.getElementById('election-timeseries-uncertainty').click());
+    await settle();
+    equal('off again: the same view as before', await uncertainty(), withoutBands);
 
     // Clicking an extra coalition must change both aria-pressed and the
     // visible series.
@@ -1844,7 +1850,10 @@ async function exerciseArchiveOnlyDate() {
     series.some((point) => point.date === after && point.provenance === 'current_production'),
   { before, after });
 
-  const view = await scenarioView(prepared, 'archive-only-date');
+  const view = await scenarioView(prepared, 'archive-only-date', async (browser) => {
+    await browser.evaluate(() => document.getElementById('election-timeseries-uncertainty').click());
+    await settle();
+  });
 
   // The existing claim is preserved: an archived point is still not a vertex
   // and still not a rendered forecast point.

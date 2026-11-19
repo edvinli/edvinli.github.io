@@ -2037,9 +2037,9 @@
     var partyButtons = {};
     var partyAllButton = null;
     var selectedMetric = "vote";
-    // The 50/90 % bands. On by default; hiding them leaves the medians and the
-    // polls, and the y-axis follows what is left.
-    var showUncertainty = true;
+    // The 50/90 % bands. Off by default; toggling them on adds both bands,
+    // and the y-axis follows what is shown.
+    var showUncertainty = false;
     var uncertaintyButton = byId("election-timeseries-uncertainty");
     // The chart always opens on the whole history ("Sedan 2022"); the shorter
     // windows are one click away.
@@ -2624,7 +2624,9 @@
         "Vägen till valdagen, " + historyMetricLabel(selectedMetric)));
       var cycleBridgeInView = historyCycleBridges(visibleHistoryPoints, history.omittedDates).length > 0;
       svg.appendChild(svgNode("desc", { id: "election-timeseries-description" },
-        "Vår simulering med median och 50- samt 90-procentiga prognosintervall från " +
+        (showUncertainty
+          ? "Vår simulering med median och 50- samt 90-procentiga prognosintervall från "
+          : "Vår simulering med median från ") +
         (swedishDate(activeDomain.minIso) || activeDomain.minIso) + " till " +
         (swedishDate(activeDomain.maxIso) || activeDomain.maxIso) +
         ". Skalan är anpassad efter de valda serierna." +
@@ -3313,20 +3315,24 @@
       selectedMetric = "vote";
       renderChart();
     });
+    function syncUncertaintyKey() {
+      var forecastMark = document.querySelector(".election-timeseries__key-mark--forecast, .election-timeseries__key-mark--median-only");
+      if (forecastMark) {
+        forecastMark.className = "election-timeseries__key-mark " + (showUncertainty
+          ? "election-timeseries__key-mark--forecast" : "election-timeseries__key-mark--median-only");
+      }
+      var forecastKey = byId("election-timeseries-key-forecast-label");
+      if (forecastKey) {
+        forecastKey.textContent = showUncertainty
+          ? "Historisk prognos \u00b7 50/90 % intervall" : "Historisk prognos \u00b7 median";
+      }
+    }
     if (uncertaintyButton) {
       uncertaintyButton.hidden = false;
+      syncUncertaintyKey();
       uncertaintyButton.addEventListener("click", function () {
         showUncertainty = !showUncertainty;
-        var forecastMark = document.querySelector(".election-timeseries__key-mark--forecast, .election-timeseries__key-mark--median-only");
-        if (forecastMark) {
-          forecastMark.className = "election-timeseries__key-mark " + (showUncertainty
-            ? "election-timeseries__key-mark--forecast" : "election-timeseries__key-mark--median-only");
-        }
-        var forecastKey = byId("election-timeseries-key-forecast-label");
-        if (forecastKey) {
-          forecastKey.textContent = showUncertainty
-            ? "Historisk prognos \u00b7 50/90 % intervall" : "Historisk prognos \u00b7 median";
-        }
+        syncUncertaintyKey();
         renderChart();
       });
     }
