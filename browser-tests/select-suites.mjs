@@ -38,6 +38,7 @@ export const SUITES = {
   'constituency-map.smoke.mjs': { seconds: 35, area: 'geography' },
   // Riksdagen röstar: the voting page, and its overlay on the result chamber.
   'riksdag-roster.smoke.mjs': { seconds: 10, area: 'riksdag' },
+  'riksdag-browse.smoke.mjs': { seconds: 25, area: 'riksdag' },
   'riksdag-chamber.smoke.mjs': { seconds: 25, area: 'riksdag' },
 };
 
@@ -113,7 +114,7 @@ const RULES = [
   { prefix: '_includes/', suites: null },
   { prefix: '_layouts/', suites: null },
   { prefix: '_pages/election_simulator.md', suites: null },
-  { prefix: '_pages/riksdagen_roster.md', suites: ['riksdag-roster.smoke.mjs'] },
+  { prefix: '_pages/riksdagen_roster.md', suites: ['riksdag-roster.smoke.mjs', 'riksdag-browse.smoke.mjs'] },
 
   // The workflows *are* the browser harness in CI: they build the site, move
   // it between jobs, find Chrome and run the suites. A change here that breaks
@@ -276,12 +277,12 @@ function selfTest() {
   // Riksdagen röstar.
   eq('the roll-call data selects the riksdag suites',
     selectSuites(['files/riksdag/2026-27/votes.json']).suites,
-    ['riksdag-roster.smoke.mjs', 'riksdag-chamber.smoke.mjs']);
-  eq('the voting page selects its own suite',
-    selectSuites(['_pages/riksdagen_roster.md']).suites, ['riksdag-roster.smoke.mjs']);
+    ['riksdag-roster.smoke.mjs', 'riksdag-browse.smoke.mjs', 'riksdag-chamber.smoke.mjs']);
+  eq('the voting page selects its own suites',
+    selectSuites(['_pages/riksdagen_roster.md']).suites, ['riksdag-roster.smoke.mjs', 'riksdag-browse.smoke.mjs']);
   eq('riksdag-votes.js selects the riksdag suites and the result chamber',
     selectSuites(['assets/js/riksdag-votes.js']).suites,
-    ['election-result.smoke.mjs', 'riksdag-roster.smoke.mjs', 'riksdag-chamber.smoke.mjs']);
+    ['election-result.smoke.mjs', 'riksdag-roster.smoke.mjs', 'riksdag-browse.smoke.mjs', 'riksdag-chamber.smoke.mjs']);
   check('the members and seating files select the chamber overlay',
     selectSuites(['files/election-simulator/results/2026-seating.json']).suites
       .includes('riksdag-chamber.smoke.mjs'));

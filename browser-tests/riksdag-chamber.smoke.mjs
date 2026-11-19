@@ -95,11 +95,11 @@ Object.values(members.parties).flat().forEach((m) => {
   } else if (m.seat > 0) listedAt[m.seat] = m.name;
 });
 
-async function open(viewport, root = SITE) {
+async function open(viewport, root = SITE, query = '') {
   const pointer = await pointerFor(root, DECIDED_GENERATION);
   const server = await serve(root, { port: 4000, pointer });
   const browser = await launch(viewport);
-  await browser.goto(`http://localhost:${server.port}${PAGE}`);
+  await browser.goto(`http://localhost:${server.port}${PAGE}${query}`);
   await browser.evaluate(() => document.getElementById('election-tab-outcome')?.click());
   await browser.evaluate(() => document.getElementById('election-tab-result')?.click());
   const bound = await browser.waitFor(() =>
@@ -337,6 +337,43 @@ async function failClosed(label, mutate, allowed) {
   }
 }
 
+// --- 3. ?riksdag_vote= from "Visa i kammaren" --------------------------------
+
+async function deepLink(label, id, expected) {
+  console.log(`\n[link: ${label}] desktop`);
+  const { server, browser } = await open(DESKTOP, SITE, `?riksdag_vote=${encodeURIComponent(id)}#valet-2026`);
+  try {
+    if (expected) {
+      await browser.waitFor((v) => document.getElementById('election-result-parliament').getAttribute('data-vote-overlay') === v, 15000, id);
+    } else {
+      await settle(2000);
+    }
+    const state = await browser.evaluate(() => ({
+      tab: document.getElementById('election-tab-outcome').getAttribute('aria-selected'),
+      seating: document.querySelector('#election-result-view [data-view="seating"]').getAttribute('aria-pressed'),
+      picked: document.getElementById('election-votes-pick').value,
+      overlay: document.getElementById('election-result-parliament').getAttribute('data-vote-overlay'),
+      onScreen: document.getElementById('election-result-view').getBoundingClientRect().top < window.innerHeight,
+    }));
+    if (expected) {
+      equal('the link opens the result, the hall, and that vote', state,
+        { tab: 'true', seating: 'true', picked: id, overlay: id, onScreen: true });
+      const vote = votes.votes.find((v) => v.id === id);
+      const seats = await readHall(browser);
+      const wrong = seats.seats.filter((s) => s.seat >= 1 && s.seat <= CHAMBER && s.vote !== vote.ballots[s.seat - 1]);
+      equal('the hall shows that vote\'s ballots', wrong.length, 0);
+    } else {
+      equal('an id that is not a vote of the session changes nothing', state,
+        { tab: 'true', seating: 'false', picked: '', overlay: null, onScreen: state.onScreen });
+    }
+    equal('no console errors', appErrors(browser).map((e) => e.text), []);
+    equal('no exceptions', browser.exceptions.map((e) => e.text || String(e)), []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}
+
 await main(DESKTOP, 'desktop');
 await main(MOBILE, 'mobile');
 await failClosed('files/riksdag absent', (root) => rm(join(root, DATA), { recursive: true, force: true }),
@@ -357,6 +394,10 @@ await failClosed('no session for the seating plan', async (root) => {
 }, []);
 await failClosed('riksdag-votes.js absent', (root) => rm(join(root, 'assets/js/riksdag-votes.js')),
   [/assets\/js\/riksdag-votes\.js/]);
+// An older vote, not the newest the hall opens on by itself.
+await deepLink('a vote of the session', newestFirst.at(-1).id, true);
+await deepLink('an unknown vote id', '00000000-0000-0000-0000-000000000000', false);
+await deepLink('a malformed id', '<script>alert(1)</script>', false);
 
 console.log(`\n${failures ? `FAIL (${failures})` : 'PASS'} ${checks} checks`);
 process.exit(failures ? 1 : 0);
