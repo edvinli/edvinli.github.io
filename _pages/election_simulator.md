@@ -307,11 +307,12 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
         <p>Det betyder två saker. Partiernas rörelser simuleras gemensamt, inte oberoende. Och modellen antar inte att en historisk trend fortsätter i samma riktning 2026.</p>
         <p>Om M historiskt har tappat samtidigt som vissa andra partier har ökat, finns den samvariationen med i den dragna förändringen. Däremot finns ingen separat modell som säger att en väljare går från exempelvis M till SD eller S.</p>
         <h3 class="election-subhead">3. Fel som kan finnas kvar på valdagen</h3>
-        <p>Även nära valdagen kan opinionsmätningarna missa det faktiska resultatet. Modellen använder därför historiska skillnader mellan det sista samlade mätläget och valresultatet:</p>
+        <p>Även nära valdagen kan opinionsmätningarna missa det faktiska resultatet. Modellen använder därför historiska skillnader mellan mätläget kvällen före valet och valresultatet. Mätläget är en vägd sammanvägning av varje instituts senaste mätning under de sista 14 dagarna, med fältarbete och publicering före valdagen. Mätningar som görs eller publiceras på valdagen, till exempel vallokalsundersökningar, räknas inte:</p>
         <div class="election-equation">\[\begin{aligned}
-          r_e &amp;= \text{valresultat}_e - \text{slutligt mätläge}_e \\[6pt]
+          r_e &amp;= \text{valresultat}_e - \text{mätläge kvällen före valet}_e \\[6pt]
           \tilde{r}_e &amp;= r_e - \operatorname{medel}(r)
         \end{aligned}\]</div>
+        <p>Från modellversion 1.2.1 (prognoser för valet 2030) räknas de historiska felen på det sättet. Tidigare kom några mätningar från själva valdagen med, medan mätningar som saknade urvalsstorlek eller startdatum föll bort. Rättelsen gör valdagsfelet något större.</p>
         <p>De centrerade felen används inte ett i taget. I stället skattas en gemensam kovariansmatris för hur partiernas fel samvarierar:</p>
         <div class="election-equation">\[ S_P = \frac{1}{K}\sum_{e} \tilde{r}_e\,\tilde{r}_e^{\top} \]</div>
         <p>Med bara en handfull historiska val blir en sådan skattning instabil och kan bli starkt beroende av ett enskilt val. Därför dras den mot ett neutralt mål <var>T</var>, som lägger lika stor osäkerhet i alla riktningar där partiernas fel tar ut varandra:</p>
@@ -369,7 +370,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
         <ol class="election-list">
           <li>En urvalsviktad sammanvägning av mätningarna i SwedishPolls är ett rimligt ankare för opinionsläget i dag.</li>
           <li>Historiska svenska opinionsrörelser är informativa om hur mycket opinionen kan röra sig fram till valet 2026.</li>
-          <li>Historiska skillnader mellan slutmätningar och valresultat är informativa om den osäkerhet som finns kvar på valdagen.</li>
+          <li>Historiska skillnader mellan mätläget kvällen före valet och valresultatet är informativa om den osäkerhet som finns kvar på valdagen.</li>
           <li>Partiernas relativa geografiska styrka är tillräckligt stabil för att tidigare val ska vara användbara när nationella röster fördelas över valkretsarna.</li>
         </ol>
         <p>Modellen har ingen separat modell för ekonomin, valkampanjshändelser, individuella väljarflöden, taktisk röstning eller vilka partier som faktiskt bildar regering. Sådana saker kan påverka prognosen indirekt genom de historiska opinionsrörelser som modellen använder, men de läggs inte in som egna politiska antaganden.</p>
