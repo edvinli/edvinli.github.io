@@ -3884,6 +3884,8 @@
       speaker: point(payload.speaker),
       // Seat 350 on the government bench, marked "Statsministern".
       primeMinister: point(payload.prime_minister),
+      // The riksmöte the plan is for; the vote overlay only draws that one.
+      session: typeof payload.riksmote === "string" ? payload.riksmote : null,
       seats: seats
     };
   }
@@ -3990,7 +3992,10 @@
       current = seat;
       seat.classList.add("is-current");
       var lines = memberLines(seat.memberParty, seat.member);
-      tip.innerHTML =
+      // With a roll-call vote on the hall, the card names who sat there then.
+      var card = overlay ? overlay.card(seat) : null;
+      if (card) tip.innerHTML = card.html;
+      else tip.innerHTML =
         "<span class=\"ep-tip__name\"><span class=\"ev-swatch\" style=\"background:" + (partyColors[seat.memberParty] || "#777") +
           "\" aria-hidden=\"true\"></span>" + escapeHtml(seat.member.name) + "</span>" +
         "<span class=\"ep-tip__meta\">" + escapeHtml(lines.meta) + "</span>" +
@@ -4011,8 +4016,8 @@
           : seat.hallSeat === 0 ? "Talmansstolen."
           : seat.hallSeat === PRIME_MINISTER_SEAT ? "Statsministerns plats i regeringsbänken."
           : "Plats " + seat.hallSeat + " i kammaren.";
-        status.textContent = [seat.member.name, lines.meta, lines.title, lines.home, lines.riksdag]
-          .filter(Boolean).join(", ") + ". " + place;
+        status.textContent = (card ? card.text : [seat.member.name, lines.meta, lines.title, lines.home, lines.riksdag]
+          .filter(Boolean).join(", ")) + ". " + place;
       }
     }
 
@@ -4068,11 +4073,28 @@
     if (note) note.hidden = false;
     stage();
     var refilter = bindMemberFilters(dots, inView);
+    // Optional roll-call overlay for the hall (assets/js/riksdag-votes.js).
+    // Fail-closed: without it, or if it throws, the chamber is as before.
+    var overlay = null;
+    if (plan && plan.session && window.RiksdagVotes && typeof window.RiksdagVotes.attachChamberOverlay === "function") {
+      try {
+        overlay = window.RiksdagVotes.attachChamberOverlay({
+          host: host,
+          dots: dots,
+          session: plan.session,
+          refresh: function () { if (current) show(current, false); }
+        });
+      } catch (error) {
+        overlay = null;
+        console.warn("Voteringarna kunde inte kopplas till kammaren.", error);
+      }
+    }
     if (plan) bindSeatingView(host, dots, plan, function (isSeating) {
       seating = isSeating;
       order = isSeating ? dots.filter(inView).sort(function (a, b) { return a.hallSeat - b.hallSeat; }) : seats;
       stage();
       if (refilter) refilter();
+      if (overlay) overlay.setSeating(isSeating);
       hide();
     });
   }

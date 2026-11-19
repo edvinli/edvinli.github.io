@@ -418,6 +418,22 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
         <button type="button" class="election-timeseries__control" data-view="party" aria-pressed="true" aria-controls="election-result-parliament">Partivis</button>
         <button type="button" class="election-timeseries__control" data-view="seating" aria-pressed="false" aria-controls="election-result-parliament">Som i kammaren</button>
       </div>
+      <!-- Riksdagen röstar: colours the hall by one roll-call vote of the
+           session the seating plan is for. Offered only in "Som i kammaren",
+           and only once files/riksdag/ validates (assets/js/riksdag-votes.js);
+           until a vote is picked the chamber is exactly as above. -->
+      <div class="rv-overlay" id="election-result-votes" data-riksdag-base="{{ site.baseurl }}/files/riksdag" hidden>
+        <div class="rv-overlay__controls">
+          <label class="ep-filter rv-overlay__pick">
+            <span class="ep-filter__label">Votering i kammaren</span>
+            <select class="ep-filter__select" id="election-votes-pick"><option value="">Ingen – visa partifärger</option></select>
+          </label>
+          <button type="button" class="election-timeseries__control rv-overlay__against" id="election-votes-against" aria-pressed="false" aria-controls="election-result-parliament" disabled>Röstade mot partilinjen</button>
+        </div>
+        <ul class="ep-legend rv-overlay__legend" id="election-votes-legend" aria-label="Röster i voteringen" hidden></ul>
+        <p class="election-muted rv-overlay__summary" id="election-votes-summary" role="status" aria-live="polite"></p>
+        <p class="election-muted rv-overlay__note">Välj en votering för att färga varje plats efter hur den som satt där röstade; peka på en plats för att se vem det var, även en ersättare. Talmannen och statsministern röstar inte. Frånvarande omfattar kvittning, och en enstaka röst mot partilinjen kan vara en feltryckning. Fler voteringar, partiernas samstämmighet och en karta över röstmönstren: <a id="election-votes-link" href="{{ site.baseurl }}/riksdagen-roster/">Riksdagen röstar</a>.</p>
+      </div>
       <div class="election-parliament-frame">
         <div id="election-result-parliament" class="election-parliament" role="img" aria-label="Riksdagen med 349 mandat"></div>
         <span class="election-parliament__centre" aria-hidden="true"><span class="election-parliament__centre-label">175:e mandatet</span></span>
@@ -571,6 +587,7 @@ excerpt: "Valresultatet 2026 och en öppen prognos för nästa riksdagsval, med 
 </div>
 </div>
 
+<script src="{{ site.baseurl }}/assets/js/riksdag-votes.js?v={{ site.time | date: '%s' }}"></script>
 <script src="{{ site.baseurl }}/assets/js/election-simulator.js?v={{ site.time | date: '%s' }}"></script>
 <script src="{{ site.baseurl }}/assets/js/election-voter-flows.js?v={{ site.time | date: '%s' }}"></script>
 <script src="{{ site.baseurl }}/assets/js/election-demographics.js?v={{ site.time | date: '%s' }}"></script>
